@@ -80,6 +80,8 @@ namespace BatmanInfer {
 
             }
         }
+
+        graph_state_ = GraphState::NeedBuild;
         return true;
     }
 
@@ -251,6 +253,11 @@ namespace BatmanInfer {
         }
 
         // 初始化结点的输入和输出空间
+        RuntimeOperatorUtils::InitOperatorInput(operators_);
+        RuntimeOperatorUtils::InitOperatorOutput(graph_->operators, operators_);
+
+        // 构建拓扑顺序
+        to_po_operators_.clear();
 
     }
 

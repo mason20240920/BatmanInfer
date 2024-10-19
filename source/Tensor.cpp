@@ -244,4 +244,9 @@ namespace BatmanInfer {
         // Update the raw shapes to reflect the new dimensions
         this->raw_shapes_ = {channels, new_rows, new_cols};
     }
+
+    std::vector<uint32_t> Tensor<float>::shapes() const {
+        CHECK(!this->data_.empty());
+        return {this->channels(), this->rows(), this->cols()};
+    }
 }

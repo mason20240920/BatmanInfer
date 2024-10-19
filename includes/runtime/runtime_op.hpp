@@ -34,7 +34,7 @@ namespace BatmanInfer {
         // 节点的输出节点名称
         std::vector<std::string> output_names;
         // 节点的输出操作数
-        std::vector<RuntimeOperand> output_operands;
+        std::shared_ptr<RuntimeOperand> output_operands;
 
         // 节点的输入操作数
         std::map<std::string, std::shared_ptr<RuntimeOperand>> input_operands;
@@ -51,8 +51,24 @@ namespace BatmanInfer {
 
     class RuntimeOperatorUtils {
     public:
+        /**
+         * 如果图是第一次运行，则根据节点输入operand的形状准备后续Layer计算中所需要的Tensor
+         * 如果图是第二次以上，则检查输入operand形状和operand中张量的形状是否匹配
+         * @param operators 计算图中的计算节点
+         */
         static void InitOperatorInput(
                 const std::vector<std::shared_ptr<RuntimeOperator>>& operators);
+
+
+        /**
+         * 如果图是第一次运行，则根据节点输出operand的形状准备好后续Layer计算中所需要的Tensor
+         * 如果图是第二次以上运行，则检查输出operand的形状和operand中张量的形状是否匹配
+         * @param onnx_operators
+         * @param operators
+         */
+        static void InitOperatorOutput(
+                const std::vector<ONNXOperator *> &onnx_operators,
+                const std::vector<std::shared_ptr<RuntimeOperator>> &operators);
     };
 }
 

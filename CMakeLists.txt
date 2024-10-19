@@ -59,7 +59,9 @@ add_executable(BatmanInfer main.cpp
         source/runtime_attr.cpp
         source/runtime_op.cpp
         source/runtime_ir.cpp
-        test/test_ir.cpp)
+        test/test_ir.cpp
+        source/tensor_util.cpp
+        test/test_topo.cpp)
 
 #message("hello" ${Protobuf_LIBRARIES})
 

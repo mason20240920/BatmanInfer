@@ -128,12 +128,12 @@ namespace BatmanInfer {
 //         */
 //        float& index(uint32_t offset);
 //
-//        /**
-//         * 张量的尺寸大小
-//         * @return 张量的尺寸大小
-//         */
-//        std::vector<uint32_t > shapes() const;
-//
+        /**
+         * 张量的尺寸大小
+         * @return 张量的尺寸大小
+         */
+        std::vector<uint32_t > shapes() const;
+
         /**
          * 张量的实际尺寸大小
          * @return 张量的实际尺寸大小
