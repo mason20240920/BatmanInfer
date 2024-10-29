@@ -29,6 +29,11 @@ include_directories(${Protobuf_INCLUDE_DIRS})
 # 查找abseil
 find_package(absl REQUIRED)
 
+# 查找OpenMP
+set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
+set(OpenMP_C_LIB_NAMES "omp")
+set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
+set(OpenMP_INCLUDE "/opt/homebrew/opt/libomp/include")
 
 # 查找 ONNX 包
 find_package(onnx REQUIRED)
@@ -42,7 +47,8 @@ enable_testing()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/includes
         ${Protobuf_INCLUDE_DIRS}
         ${ONNX_INCLUDE_DIRS}
-        ${GLOG_INCLUDE_DIRS})
+        ${GLOG_INCLUDE_DIRS}
+        ${OpenMP_INCLUDE})
 
 link_directories(${GLOG_LIBRARY_DIRS}
                  ${ONNX_LIBRARIES})
@@ -61,7 +67,10 @@ add_executable(BatmanInfer main.cpp
         source/runtime_ir.cpp
         test/test_ir.cpp
         source/tensor_util.cpp
-        test/test_topo.cpp)
+        test/test_topo.cpp
+        source/operators/batman_operator.cpp
+        test/test_ir_op.cpp
+        source/layer/abstract/layer.cpp)
 
 #message("hello" ${Protobuf_LIBRARIES})
 
@@ -74,6 +83,7 @@ target_link_libraries(
         ${Protobuf_LIBRARIES}
         "/usr/local/lib/libonnx.a"
         "/usr/local/lib/libonnx_proto.a"
+        ${OpenMP_omp_LIBRARY}
         absl::base
         absl::strings
         absl::log

@@ -93,7 +93,8 @@ namespace BatmanInfer {
 
     bool is_data_input(const std::string& input_name) {
         return input_name.find("weight") == std::string::npos &&
-               input_name.find("bias") == std::string::npos;
+               input_name.find("bias") == std::string::npos &&
+               input_name.find("onnx");
     }
 
     /**

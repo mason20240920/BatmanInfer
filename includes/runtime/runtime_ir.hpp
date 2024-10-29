@@ -59,6 +59,9 @@ namespace BatmanInfer {
         void Build(const std::string &input_name,
                    const std::string &output_name);
 
+        const std::vector<std::shared_ptr<RuntimeOperator>> &
+        get_to_po_queues() const;
+
     private:
         /**
          * 初始化Batman Infer计算图节点中的输入操作数
@@ -103,6 +106,7 @@ namespace BatmanInfer {
          * @param root_op
          */
         void ReverseToPo(const std::shared_ptr<RuntimeOperator> &root_op);
+
 
     private:
         enum class GraphState {

@@ -10,7 +10,9 @@
 #include <vector>
 
 namespace BatmanInfer {
-    RuntimeGraph::RuntimeGraph(std::string model_path) : model_path_(std::move(model_path)) {}
+    RuntimeGraph::RuntimeGraph(std::string model_path) : model_path_(model_path) {
+
+    }
 
 
     const std::string &RuntimeGraph::model_path() {
@@ -152,7 +154,7 @@ namespace BatmanInfer {
                     break;
                 }
                 case int(RuntimeParameterType::bParameterBool): {
-                    RuntimeParameterBool *runtime_parameter = new RuntimeParameterBool;
+                    auto *runtime_parameter = new RuntimeParameterBool;
                     runtime_parameter->value = parameter.b;
                     runtime_operator->params.insert({name, runtime_parameter});
                     break;
@@ -258,11 +260,35 @@ namespace BatmanInfer {
 
         // 构建拓扑顺序
         to_po_operators_.clear();
+        for (const auto &[_, op] : operators_maps_) {
+            // 根据输入节点构建拓扑排序
+            if (op->type == "Input" && !op->has_forward) {
+                this->ReverseToPo(op);
+            }
+        }
 
+        CHECK(to_po_operators_.size() == operators_.size()) << "Build wrong to_po queue";
+        std::reverse(to_po_operators_.begin(), to_po_operators_.end());
+
+        graph_state_ = GraphState::Complete;
+        input_name_ = input_name;
+        output_name_ = output_name;
+        if (graph_ != nullptr) {
+            graph_.reset();
+            graph_ = nullptr;
+        }
     }
 
     RuntimeGraph::GraphState RuntimeGraph::graph_state() const {
         return this->graph_state_;
     }
 
+    const std::vector<std::shared_ptr<RuntimeOperator>> &
+    RuntimeGraph::get_to_po_queues() const {
+        return this->to_po_operators_;
+    }
+
+    const std::vector<std::shared_ptr<RuntimeOperator>> &RuntimeGraph::operators() const {
+        return this->operators_;
+    }
 }

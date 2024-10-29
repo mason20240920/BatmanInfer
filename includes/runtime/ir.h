@@ -2,8 +2,8 @@
 // Created by Mason on 2024/10/13.
 //
 
-#ifndef BATMANINFER_IR_H
-#define BATMANINFER_IR_H
+#ifndef BATMAN_INFER_IR_H
+#define BATMAN_INFER_IR_H
 
 #include <initializer_list>
 #include <map>
@@ -160,7 +160,7 @@ namespace BatmanInfer {
 
         int load(const std::string& model_path);
 
-        void save(const std::string& model_path);
+//        void save(const std::string& model_path);
 
         /**
          * 创建一个新的操作符
@@ -236,4 +236,4 @@ namespace BatmanInfer {
     };
 }
 
-#endif //BATMANINFER_IR_H
+#endif //BATMAN_INFER_IR_H
