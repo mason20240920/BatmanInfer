@@ -9,15 +9,15 @@
 namespace BatmanInfer {
     class BatmanOperator {
     public:
-/**
- * 矩阵进行计算
- * @param row_ptr
- * @param col_indices
- * @param values
- * @param x
- * @param y
- * @param num_rows
- */
+        /**
+         * 矩阵进行计算
+         * @param row_ptr
+         * @param col_indices
+         * @param values
+         * @param x
+         * @param y
+         * @param num_rows
+         */
         static void csr_matrix_vector_multiply(const int *row_ptr,
                                                const int *col_indices,
                                                const double *values,
