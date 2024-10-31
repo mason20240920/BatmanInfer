@@ -13,10 +13,22 @@
 namespace BatmanInfer {
     class LayerRegister {
     public:
+        /**
+         * 类型别名 Creator: 函数指针类型
+         * 返回类型: ParseParameterAttrStatus
+         * 接受两个参数:
+         * i. `const std::shared_ptr<RuntimeOperator> &op`: 一个指向`RuntimeOperator`对象的常量智能指针的引用
+         * ii. `std::shared_ptr<Layer> &layer`: 一个指向`Layer`对象的智能指针的引用
+         */
         typedef ParseParameterAttrStatus (*Creator)(
                 const std::shared_ptr<RuntimeOperator> &op,
                 std::shared_ptr<Layer> &layer);
 
+        /**
+         * 类型别名: `CreateRegistry`: 是一个`std::map`
+         * `std::string`: 键的类型
+         * `Creator`: 值的类型: 指向特定函数类型的参数指针
+         */
         typedef std::map<std::string, Creator> CreateRegistry;
     public:
         /**

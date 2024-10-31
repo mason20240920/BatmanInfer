@@ -72,7 +72,8 @@ add_executable(BatmanInfer main.cpp
         test/test_ir_op.cpp
         source/layer/abstract/layer.cpp
         source/layer/abstract/layer_factory.cpp
-        source/layer/abstract/param_layer.cpp)
+        source/layer/abstract/param_layer.cpp
+        test/test_layer_create.cpp)
 
 #message("hello" ${Protobuf_LIBRARIES})
 

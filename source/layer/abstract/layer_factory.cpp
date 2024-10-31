@@ -16,6 +16,9 @@ namespace BatmanInfer {
     }
 
     LayerRegister::CreateRegistry& LayerRegister::Registry() {
+        // 定义了一个静态指针 kRegistry，指向一个新的 CreateRegistry 对象
+        // 确保只有一个线程能够创建实例
+        // C++11引入了局部静态变量的线程安全初始化特性
         static auto* kRegistry = new CreateRegistry();
         CHECK(kRegistry != nullptr) << "Global layer register init failed!";
         return *kRegistry;
