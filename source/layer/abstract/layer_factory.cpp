@@ -30,7 +30,6 @@ namespace BatmanInfer {
         LOG_IF(FATAL, registry.count(layer_type) <= 0)
               << "Can not find the layer type: " << layer_type;
         const auto& creator = registry.find(layer_type)->second;
-
         LOG_IF(FATAL, !creator) << "Layer creator is empty!";
         std::shared_ptr<Layer> layer; // 空的Layer
         const auto& status = creator(op, layer);

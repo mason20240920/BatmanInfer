@@ -120,14 +120,14 @@ namespace BatmanInfer {
 //         * @return  offset位置的元素
 //         */
 //        float index(uint32_t offset) const;
-//
-//        /**
-//         * 返回张量中offset位置的元素
-//         * @param offset 需要访问的位置
-//         * @return  offset位置的元素
-//         */
-//        float& index(uint32_t offset);
-//
+
+        /**
+         * 返回张量中offset位置的元素
+         * @param offset 需要访问的位置
+         * @return  offset位置的元素
+         */
+        float& index(uint32_t offset);
+
         /**
          * 张量的尺寸大小
          * @return 张量的尺寸大小
@@ -139,19 +139,19 @@ namespace BatmanInfer {
          * @return 张量的实际尺寸大小
          */
         const std::vector<uint32_t >& raw_shapes() const;
-//
-//        /**
-//         * 返回张量中的数据
-//         * @return 张量的数据
-//         */
-//        arma::fcube& data();
-//
-//        /**
-//         * 返回张量中的数据
-//         * @return 张量中的数据
-//         */
-//        const arma::fcube& data() const;
-//
+
+        /**
+         * 返回张量中的数据
+         * @return 张量的数据
+         */
+        arma::fcube& data();
+
+        /**
+         * 返回张量中的数据
+         * @return 张量中的数据
+         */
+        const arma::fcube& data() const;
+
         /**
          * 返回张量第channel通道中的数据
          * @param channel 需要返回的通道

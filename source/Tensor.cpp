@@ -28,18 +28,28 @@ namespace BatmanInfer {
             this->raw_shapes_ = std::vector<uint32_t>{rows, cols};
         else
             // 创建3维张量，则raw_shapes的长度为3，表示此时Tensor是三维的
-            this->raw_shapes_ = std::vector<uint32_t>{rows, cols, channels};
+            this->raw_shapes_ = std::vector<uint32_t>{channels, rows, cols};
     }
 
     Tensor<float>::Tensor(const std::vector<uint32_t>& shapes) {
-        auto raw_count = shapes.size();
-        if (raw_count == 1)
-            data_ = arma::fcube(1, shapes.at(0), 1);
-        else if (raw_count == 2)
-            data_ = arma::fcube(shapes.at(0), shapes.at(1), 1);
-        else
-            data_ = arma::fcube(shapes.at(0), shapes.at(1), shapes.at(2));
-        this->raw_shapes_ = shapes;
+        CHECK(!shapes.empty() && shapes.size() <= 3);
+
+        uint32_t remaining = 3 - shapes.size();
+        std::vector<uint32_t> shapes_(3, 1);
+        std::copy(shapes.begin(), shapes.end(), shapes_.begin() + remaining);
+
+        uint32_t channels = shapes_.at(0);
+        uint32_t rows = shapes_.at(1);
+        uint32_t cols = shapes_.at(2);
+
+        data_ = arma::fcube(rows, cols, channels);
+        if (channels == 1 && rows == 1) {
+            this->raw_shapes_ = std::vector<uint32_t>{cols};
+        } else if (channels == 1) {
+            this->raw_shapes_ = std::vector<uint32_t>{rows, cols};
+        } else {
+            this->raw_shapes_ = std::vector<uint32_t>{channels, rows, cols};
+        }
     }
 
     uint32_t Tensor<float>::rows() const {
@@ -248,5 +258,18 @@ namespace BatmanInfer {
     std::vector<uint32_t> Tensor<float>::shapes() const {
         CHECK(!this->data_.empty());
         return {this->channels(), this->rows(), this->cols()};
+    }
+
+    float &Tensor<float>::index(uint32_t offset) {
+        CHECK(offset < this->data_.size()) << "Tensor index out of bound!";
+        return this->data_.at(offset);
+    }
+
+    arma::fcube &Tensor<float>::data() {
+        return this->data_;
+    }
+
+    const arma::fcube &Tensor<float>::data() const {
+        return this->data_;
     }
 }
