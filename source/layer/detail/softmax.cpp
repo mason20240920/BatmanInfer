@@ -9,8 +9,6 @@
 namespace BatmanInfer {
     InferStatus SoftmaxLayer::Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
                                       std::vector<std::shared_ptr<Tensor<float>>> &outputs) {
-        // Just make dim is 2. make it follows the col direction
-        int dim = 1;
         if (inputs.empty()) {
             LOG(ERROR) << "The input tensor array in the softmax layer is empty";
             return InferStatus::bInferFailedInputEmpty;
@@ -58,6 +56,8 @@ namespace BatmanInfer {
             // 获取输入张量的形状
             const std::vector<uint32_t> &input_shape = input->raw_shapes();
             uint32_t dim_size = input_shape.size();
+            // Just make dim is 2. make it follows the col direction
+            auto dim = static_cast<int>(dim_size - 1);
 
             // 处理负数的维度值
             int actual_dim = dim;
