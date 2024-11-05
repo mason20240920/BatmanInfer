@@ -27,7 +27,7 @@ namespace BatmanInfer {
         bInferFailedBiasParameterError = 3,
         bInferFailedStrideParameterError = 4,
         bInferFailedDimensionParameterError = 5,
-        bInferFailedInputOutSzeMatchError = 6,
+        bInferFailedInputOutSizeMatchError = 6,
 
         bInferFailedOutputSizeError = 7,
         bInferFailedShapeParameterError = 9,

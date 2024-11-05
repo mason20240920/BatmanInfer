@@ -175,6 +175,10 @@ namespace BatmanInfer {
          */
         float at(uint32_t channel, uint32_t row, uint32_t col) const;
 
+        float at(const std::vector<uint32_t>& indices) const;
+
+        float& at(const std::vector<uint32_t>& indices);
+
         /**
          * 返回特定位置的元素
          * @param channel 通道
@@ -250,6 +254,15 @@ namespace BatmanInfer {
          * @return  返回数据的原始指针
          */
         const float* raw_ptr() const;
+
+        /**
+         * 将展开的索引转为多维索引
+         * @param flat_index 扁平化的索引（展开后的序号）
+         * @param shape  张量的形状
+         * @return 多维索引的向量
+         */
+        std::vector<uint32_t> unravel_index(uint32_t flat_index,
+                                            const std::vector<uint32_t>& shape) const;
 
 //        /**
 //         * 返回数据的原始指针

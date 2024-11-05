@@ -272,4 +272,56 @@ namespace BatmanInfer {
     const arma::fcube &Tensor<float>::data() const {
         return this->data_;
     }
+
+    std::vector<uint32_t> Tensor<float>::unravel_index(uint32_t flat_index, const std::vector<uint32_t>& shape) const {
+        std::vector<uint32_t> indices(shape.size(), 0);
+        uint32_t remain = flat_index;
+        for (int i = shape.size() - 1; i >= 0; --i) {
+            indices[i] = remain % shape[i];
+            remain /= shape[i];
+        }
+        return indices;
+    }
+
+    float Tensor<float>::at(const std::vector<uint32_t> &indices) const {
+        CHECK(indices.size() == this->raw_shapes_.size());
+        uint32_t channel = 0, row = 0, col = 0;
+
+        if (indices.size() == 1) {
+            // 一维张量
+            col = indices[0];
+        } else if (indices.size() == 2) {
+            // 二维张量
+            row = indices[0];
+            col = indices[1];
+        } else if (indices.size() == 3) {
+            // 三维张量
+            channel = indices[0];
+            row = indices[1];
+            col = indices[2];
+        }
+
+        return this->at(channel, row, col);
+    }
+
+    float& Tensor<float>::at(const std::vector<uint32_t>& indices) {
+        CHECK(indices.size() == this->raw_shapes_.size());
+        uint32_t channel = 0, row = 0, col = 0;
+
+        if (indices.size() == 1) {
+            // 一维张量
+            col = indices[0];
+        } else if (indices.size() == 2) {
+            // 二维张量
+            row = indices[0];
+            col = indices[1];
+        } else if (indices.size() == 3) {
+            // 三维张量
+            channel = indices[0];
+            row = indices[1];
+            col = indices[2];
+        }
+
+        return this->at(channel, row, col);
+    }
 }

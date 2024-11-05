@@ -16,7 +16,7 @@ namespace BatmanInfer {
         if (inputs.size() != outputs.size()) {
             LOG(ERROR) << "The input and output tensor array size of the relu layer do "
                        << "not match";
-            return InferStatus::bInferFailedInputOutSzeMatchError;
+            return InferStatus::bInferFailedInputOutSizeMatchError;
         }
 
         const uint32_t batch_size = inputs.size();
@@ -33,7 +33,7 @@ namespace BatmanInfer {
                     LOG(ERROR) << "The input and output tensor shapes of the relu "
                                   "layer do not match "
                                << i << " th";
-                    return InferStatus::bInferFailedInputOutSzeMatchError;
+                    return InferStatus::bInferFailedInputOutSizeMatchError;
                 }
             }
         }
