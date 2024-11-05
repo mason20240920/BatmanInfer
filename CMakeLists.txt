@@ -76,7 +76,8 @@ add_executable(BatmanInfer main.cpp
         test/test_layer_create.cpp
         test/test_sigmoid.cpp
         source/layer/detail/relu.cpp
-        source/layer/detail/softmax.cpp)
+        source/layer/detail/softmax.cpp
+        source/layer/detail/sigmoid.cpp)
 
 #message("hello" ${Protobuf_LIBRARIES})
 
