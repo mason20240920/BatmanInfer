@@ -169,7 +169,12 @@ namespace BatmanInfer {
     ParseParameterAttrStatus MaxPoolingLayer::GetInstance(const std::shared_ptr<RuntimeOperator> &op,
                                                           std::shared_ptr<Layer> &max_layer) {
         CHECK(op != nullptr) << "Maxpooling get instance failed, operator is nullptr";
-        const std::map<std::string, std::shared_ptr<RuntimeAttribute>> &attrbu = op->attribute;
+        const std::map<std::string, std::shared_ptr<RuntimeAttribute>> &attr = op->attribute;
+        if (attr.find("strides") == attr.end()) {
+            LOG(ERROR) << "Can not find the stride parameter";
+            return ParseParameterAttrStatus::bParameterMissingStride;
+        }
 
+//        auto stride = std::dynamic_pointer_cast<RuntimeParameterIntArray>(attr.at("stride"))
     }
 }

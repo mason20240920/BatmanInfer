@@ -498,6 +498,12 @@ namespace BatmanInfer {
             }
         }
 
+        for (int i = 0; i < node.attribute_size(); ++i) {
+            const auto attribute = node.attribute(i);
+            const std::string &attribute_name = attribute.name();
+            std::cout << "Hello World" << std::endl;
+        }
+
         return weight_names;
     }
 

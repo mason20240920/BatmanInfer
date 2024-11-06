@@ -101,3 +101,26 @@ TEST(test_ir_topo, build1_output_tensors) {
         }
     }
 }
+
+TEST(test_ir_attribute, test_attr) {
+    using namespace BatmanInfer;
+    const std::string& model_path = "./model/maxpool2d_model.onnx";
+    RuntimeGraph graph(model_path);
+    ASSERT_EQ(int(graph.graph_state()), -2);
+    const bool init_success = graph.Init();
+    ASSERT_EQ(init_success, true);
+    ASSERT_EQ(int(graph.graph_state()), -1);
+    graph.Build("input", "output");
+    ASSERT_EQ(int(graph.graph_state()), 0);
+
+    const auto &ops = graph.operators();
+    for (const auto &op: ops) {
+        // 获取最大池化的算子
+        auto op_type = op->type;
+        if (op_type == "MaxPool") {
+            auto attributes = op->attribute;
+            for (auto pairs: attributes)
+                LOG(INFO) << pairs.first;
+        }
+    }
+}
