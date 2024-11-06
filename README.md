@@ -41,7 +41,7 @@
 
 #### 1. `Conv`算子 - 非padding
 
-<img src="/Users/mason/Library/Application Support/typora-user-images/image-20241105161738102.png" alt="image-20241105161738102" style="zoom:50%;" />
+<img src="./images/image-20241105161738102.png" alt="image-20241105161738102" style="zoom:50%;" />
 
 > 1. **input_size**：
 >    - 输入特征图的尺寸（可以是高度或宽度）。
@@ -54,7 +54,7 @@
 
 #### 2. `Conv`算子 - 带padding
 
-<img src="/Users/mason/Library/Application Support/typora-user-images/image-20241105162502567.png" alt="image-20241105162502567" style="zoom:50%;" />
+<img src="./images/image-20241105162502567.png" alt="image-20241105162502567" style="zoom:50%;" />
 
 > 1. **input_size**：
 >    - 输入特征图的尺寸（可以是高度或宽度）。

@@ -78,7 +78,8 @@ add_executable(BatmanInfer main.cpp
         source/layer/detail/relu.cpp
         source/layer/detail/softmax.cpp
         source/layer/detail/sigmoid.cpp
-        source/layer/detail/maxpooling.cpp)
+        source/layer/detail/maxpooling.cpp
+        test/test_maxpooling.cpp)
 
 #message("hello" ${Protobuf_LIBRARIES})
 

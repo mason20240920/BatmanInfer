@@ -35,6 +35,36 @@ namespace BatmanInfer {
      * @return 算子当前的input数量
      */
     int get_data_input_count(const onnx::NodeProto &node);
+
+    /**
+     * Convert the protobuf to std::vector
+     * @param repeatedField
+     * @param af
+     */
+    /**
+     * Convert the protobuf to std::vector
+     * @param repeatedField
+     * @param af
+     */
+    template<typename T1, typename T2>
+    void convertRepeatedFieldToVector(const google::protobuf::RepeatedField<T1>& repeatedField, std::vector<T2>& af) {
+        // Clear the vector to ensure it's empty before copying
+        af.clear();
+
+        // Copy elements from RepeatedField to std::vector with conversion
+        af.reserve(repeatedField.size()); // Reserve space to improve performance
+        for (const auto& item : repeatedField) {
+            af.push_back(static_cast<T2>(item)); // Convert each element to T2
+        }
+    }
+
+    /**
+     * 转换为vector
+     * @param repeatedPtrField
+     * @param af
+     */
+    void convertRepeatedPtrFieldToVector(const google::protobuf::RepeatedPtrField<std::string>& repeatedPtrField,
+                                         std::vector<std::string>& af);
 }
 
 #endif //BATMANINFER_ONNXUTILS_HPP

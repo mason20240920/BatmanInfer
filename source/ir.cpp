@@ -9,6 +9,7 @@
 #include <google/protobuf/util/json_util.h>
 #include <onnx/onnx.pb.h>
 #include <onnx/shape_inference/implementation.h>
+#include <onnx_conv/OnnxUtils.hpp>
 
 
 #include <climits>
@@ -334,10 +335,65 @@ namespace BatmanInfer {
         return false;
     }
 
+    /**
+     * 新增加载Parameters的函数
+     * @param op
+     * @param node
+     */
     static void load_parameter(ONNXOperator *op,
-                               const std::string &key,
-                               const std::string &value) {
-        op->params[key] = ONNXParameter::parse_from_string(value);
+                               const onnx::NodeProto& node) {
+
+        for (const auto& attribute: node.attribute()) {
+            const auto& parameter_name = attribute.name();
+            ONNXParameter parameter;
+            switch (attribute.type()) {
+                case onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_UNDEFINED:
+                    parameter = ONNXParameter();
+                    break;
+                case onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT:
+                    parameter = ONNXParameter(attribute.f());
+                    break;
+                case onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
+                    parameter = ONNXParameter(attribute.i());
+                    break;
+                case onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_STRING:
+                    parameter = ONNXParameter(attribute.s());
+                    break;
+                case onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_TENSOR:
+                    // TODO: Implement the function to implements Tensor
+                    std::cout << "TENSOR" << std::endl;
+                    // Tensor handling can be complex; here we just print the raw data size
+                    std::cout << "  Tensor raw data size: " << attribute.t().raw_data().size() << std::endl;
+                    break;
+                case onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_GRAPH:
+                    // TODO: Implement the function to implements Graph
+                    std::cout << "GRAPH" << std::endl;
+                    std::cout << "  Graph name: " << attribute.g().name() << std::endl;
+                    break;
+                case onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_FLOATS: {
+                    std::vector<float> tmpFloats;
+                    convertRepeatedFieldToVector<float, float>(attribute.floats(), tmpFloats);
+                    parameter = ONNXParameter(tmpFloats);
+                    break;
+                }
+                case onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_INTS: {
+                    std::vector<int> tmpInts;
+                    convertRepeatedFieldToVector<int64_t, int>(attribute.ints(), tmpInts);
+                    parameter = ONNXParameter(tmpInts);
+                    break;
+                }
+                case onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_STRINGS: {
+                    std::vector<std::string> tmpParams;
+                    convertRepeatedPtrFieldToVector(attribute.strings(), tmpParams);
+                    parameter = ONNXParameter(tmpParams);
+                    break;
+                }
+                default:
+                    std::cout << "Unknown type" << std::endl;
+                    break;
+            }
+            op->params[parameter_name] = parameter;
+        }
     }
 
     /**
@@ -496,12 +552,6 @@ namespace BatmanInfer {
             if (tensor) {
                 weight_names[input_name] = tensor;
             }
-        }
-
-        for (int i = 0; i < node.attribute_size(); ++i) {
-            const auto attribute = node.attribute(i);
-            const std::string &attribute_name = attribute.name();
-            std::cout << "Hello World" << std::endl;
         }
 
         return weight_names;
@@ -675,6 +725,9 @@ namespace BatmanInfer {
 
             // 对操作数进行权重参数加载
             load_input_key(op, node, graph_info);
+
+            // 对操作数的参数进行加载
+            load_parameter(op, node);
         }
 
         return 0;

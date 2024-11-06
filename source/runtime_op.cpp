@@ -7,12 +7,6 @@
 
 namespace BatmanInfer {
     RuntimeOperator::~RuntimeOperator() {
-        for (auto& [_, param] : this->params) {
-            if (param != nullptr) {
-                delete param;
-                param = nullptr;
-            }
-        }
     }
 
     void RuntimeOperatorUtils::InitOperatorInput(const std::vector<std::shared_ptr<RuntimeOperator>> &operators) {

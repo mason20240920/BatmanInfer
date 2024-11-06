@@ -112,4 +112,16 @@ namespace BatmanInfer {
         }
         return data_input_count;
     }
+
+    void convertRepeatedPtrFieldToVector(const google::protobuf::RepeatedPtrField<std::string>& repeatedPtrField, std::vector<std::string>& af) {
+        // Clear the vector to ensure it's empty before copying
+        af.clear();
+
+        // Copy elements from RepeatedPtrField to std::vector
+        af.reserve(repeatedPtrField.size()); // Reserve space to improve performance
+        for (const auto& item : repeatedPtrField) {
+            af.push_back(item); // Copy each string
+        }
+    }
+
 }

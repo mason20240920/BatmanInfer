@@ -118,9 +118,10 @@ TEST(test_ir_attribute, test_attr) {
         // 获取最大池化的算子
         auto op_type = op->type;
         if (op_type == "MaxPool") {
-            auto attributes = op->attribute;
-            for (auto pairs: attributes)
-                LOG(INFO) << pairs.first;
+            auto parameters = op->params;
+            for (auto parameter: parameters) {
+                LOG(INFO) << parameter.first;
+            }
         }
     }
 }

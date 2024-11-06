@@ -55,6 +55,10 @@ namespace BatmanInfer {
                 : type(6), af(_af) {
         }
 
+        explicit ONNXParameter(const std::vector<int> &_ai)
+                : type(5), ai(_ai) {
+        }
+
         ONNXParameter(const std::initializer_list<const char *> &_as)
                 : type(7) {
             for (const auto &x: _as)

@@ -44,7 +44,7 @@ namespace BatmanInfer {
         std::map<std::string, std::shared_ptr<RuntimeOperator>> output_operators;
 
         // 算子的参数信息
-        std::map<std::string, RuntimeParameter*> params;
+        std::map<std::string, std::shared_ptr<RuntimeParameter>> params;
         // 算子的属性信息, 内涵权重信息
         std::map<std::string, std::shared_ptr<RuntimeAttribute>> attribute;
     };

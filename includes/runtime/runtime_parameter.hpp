@@ -36,6 +36,10 @@ namespace BatmanInfer {
         RuntimeParameterInt(): RuntimeParameter(RuntimeParameterType::bParameterInt) {
 
         }
+
+        explicit RuntimeParameterInt(int param_value)
+                : RuntimeParameter(RuntimeParameterType::bParameterInt),
+                  value(param_value) {}
         int value = 0;
     };
 
@@ -44,6 +48,10 @@ namespace BatmanInfer {
 
         }
 
+        explicit RuntimeParameterFloat(float param_value)
+                : RuntimeParameter(RuntimeParameterType::bParameterFloat),
+                  value(param_value) {}
+
         float value = 0.f;
     };
 
@@ -51,6 +59,10 @@ namespace BatmanInfer {
         RuntimeParameterString(): RuntimeParameter(RuntimeParameterType::bParameterString) {
 
         }
+
+        explicit RuntimeParameterString(std::string param_value)
+                : RuntimeParameter(RuntimeParameterType::bParameterString),
+                  value(std::move(param_value)) {}
         std::string value;
     };
 
@@ -58,6 +70,10 @@ namespace BatmanInfer {
         RuntimeParameterIntArray(): RuntimeParameter(RuntimeParameterType::bParameterIntArray) {
 
         }
+
+        explicit RuntimeParameterIntArray(std::vector<int> param_value)
+                : RuntimeParameter(RuntimeParameterType::bParameterIntArray),
+                  value(std::move(param_value)) {}
         std::vector<int> value;
     };
 
@@ -65,6 +81,10 @@ namespace BatmanInfer {
         RuntimeParameterFloatArray(): RuntimeParameter(RuntimeParameterType::bParameterFloatArray) {
 
         }
+
+        explicit RuntimeParameterFloatArray(std::vector<float> param_value)
+                : RuntimeParameter(RuntimeParameterType::bParameterFloatArray),
+                  value(std::move(param_value)) {}
         std::vector<float> value;
     };
 
@@ -72,6 +92,10 @@ namespace BatmanInfer {
         RuntimeParameterStringArray() : RuntimeParameter(RuntimeParameterType::bParameterStringArray) {
 
         }
+
+        explicit RuntimeParameterStringArray(std::vector<std::string> param_value)
+                : RuntimeParameter(RuntimeParameterType::bParameterStringArray),
+                  value(std::move(param_value)) {}
         std::vector<std::string> value;
     };
 
@@ -79,6 +103,10 @@ namespace BatmanInfer {
         RuntimeParameterBool() : RuntimeParameter(RuntimeParameterType::bParameterBool) {
 
         }
+
+        explicit RuntimeParameterBool(bool param_value)
+                : RuntimeParameter(RuntimeParameterType::bParameterBool),
+                  value(param_value) {}
         bool value = false;
     };
 }
