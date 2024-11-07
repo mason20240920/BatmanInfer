@@ -191,7 +191,7 @@ namespace BatmanInfer {
             this->Fill(values, true);
     }
 
-    const float* Tensor<float>::raw_ptr() const {
+    float* Tensor<float>::raw_ptr() {
         CHECK(!this->data_.empty());
         return this->data_.memptr();
     }
@@ -323,5 +323,13 @@ namespace BatmanInfer {
         }
 
         return this->at(channel, row, col);
+    }
+
+    float *Tensor<float>::matrix_raw_ptr(uint32_t index) {
+        CHECK_LT(index, this->channels());
+        uint32_t offset = index * this->rows() * this -> cols();
+        CHECK_LE(offset, this->size());
+        float *mem_ptr = this->raw_ptr() + offset;
+        return mem_ptr;
     }
 }

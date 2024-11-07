@@ -253,7 +253,7 @@ namespace BatmanInfer {
          * 返回数据的原始指针
          * @return  返回数据的原始指针
          */
-        const float* raw_ptr() const;
+        float* raw_ptr();
 
         /**
          * 将展开的索引转为多维索引
@@ -270,13 +270,13 @@ namespace BatmanInfer {
 //         * @return 返回数据的原始指针
 //         */
 //        float* raw_ptr(uint32_t offset);
-//
-//        /**
-//         * 返回第index个矩阵的起始地址
-//         * @param index 第index个矩阵
-//         * @return 第index个矩阵的起始地址
-//         */
-//        float* matrix_raw_ptr(uint32_t index);
+
+        /**
+         * 返回第index个矩阵的起始地址
+         * @param index 第index个矩阵
+         * @return 第index个矩阵的起始地址
+         */
+        float* matrix_raw_ptr(uint32_t index);
 
     private:
         std::vector<uint32_t > raw_shapes_; // 张量数据的实际尺寸大小

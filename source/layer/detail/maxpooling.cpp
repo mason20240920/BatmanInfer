@@ -4,6 +4,7 @@
 
 #include <layer/detail/maxpooling.hpp>
 #include "layer/abstract/layer_factory.hpp"
+#include "omp.h"
 
 namespace BatmanInfer {
     MaxPoolingLayer::MaxPoolingLayer(uint32_t padding_h,
@@ -42,6 +43,7 @@ namespace BatmanInfer {
         }
 
         // First loop to check inputs and set up outputs
+        // 输入和输出尺寸的计算, 计算公式在README.md
 #pragma omp parallel for
         for (uint32_t i = 0; i < batch; ++i) {
             const std::shared_ptr<ftensor>& input_data = inputs.at(i);
@@ -83,6 +85,7 @@ namespace BatmanInfer {
         // Main computation loop
 #pragma omp parallel for
         for (uint32_t i = 0; i < batch; ++i) {
+            // 验证一个batch里面的输入是否为空
             const std::shared_ptr<Tensor<float>>& input_data = inputs.at(i);
             if (input_data == nullptr || input_data->empty()) {
                 LOG(ERROR) << "The input tensor array in the max pooling layer has an "
@@ -90,17 +93,25 @@ namespace BatmanInfer {
                 continue;
             }
 
+            // 输入矩阵的高度
             const uint32_t input_h = input_data->rows();
+            // 输入矩阵的宽度
             const uint32_t input_w = input_data->cols();
+            // 输入矩阵(padding)之后的高度
             const uint32_t input_padded_h = input_h + 2 * padding_h_;
+            // 输入矩阵(padding)之后的宽度
             const uint32_t input_padded_w = input_w + 2 * padding_w_;
+            // 输入矩阵的(channel)的数量(进行池化的次数)
             const uint32_t input_c = input_data->channels();
 
+            // 输出矩阵的高度
             const auto output_h = uint32_t(
                     std::floor((int(input_padded_h) - int(pooling_h)) / stride_h_ + 1));
+            // 输出矩阵的宽度
             const auto output_w = uint32_t(
                     std::floor((int(input_padded_w) - int(pooling_w)) / stride_w_ + 1));
 
+            // 输出的矩阵数据
             std::shared_ptr<Tensor<float>>& output_data = outputs.at(i);
 
             CHECK(output_data != nullptr && !output_data->empty())
@@ -108,6 +119,7 @@ namespace BatmanInfer {
                                "has an incorrectly sized tensor "
                             << i << "th";
 
+            // 每个channel进行池化
             for (uint32_t ic = 0; ic < input_c; ++ic) {
                 const arma::fmat& input_channel = input_data->slice(ic);
                 arma::fmat& output_channel = output_data->slice(ic);
