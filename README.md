@@ -67,3 +67,90 @@
 > 5. **floor**：
 >    - 表示向下取整操作。因为池化窗口可能无法整齐地覆盖输入特征图的所有位置，向下取整确保输出尺寸为整数。
 
+### 3. 代码形象解析
+
+```c++
+/**
+         * 卷积计算转为: 矩阵计算 (现有较为成熟的矩阵)
+         * 将一个nxn的矩阵转为 1 x (nxn)的行向量
+         * @param input: 输入特征图像
+         * @param kernel_w: 卷积核宽度
+         * @param kernel_h: 卷积核高度
+         * @param input_w: 输入特征的宽度
+         * @param input_h: 输入特征的高度
+         * @param input_c_group: 每个group处理的通道数量
+         * @param group: 当前Im2Col的组数(Group)
+         * @param row_len: 卷积核展开后的列数
+         * @param col_len: 卷积计算的次数
+         * @return
+         */ 
+arma::fmat ConvolutionLayer::Im2Col(BatmanInfer::sftensor input,
+                                        uint32_t kernel_w,
+                                        uint32_t kernel_h,
+                                        uint32_t input_w,
+                                        uint32_t input_h,
+                                        uint32_t input_c_group,
+                                        uint32_t group,
+                                        uint32_t row_len,
+                                        uint32_t col_len)
+```
+
+**输入特征**
+
+> - **输入特征图尺寸**：$5 \times 5$
+> - **卷积核尺寸**：$ 3 \times 3 $
+> - **步长**：1
+> - **填充**：1
+> - **输入通道数**：4（每组）
+> - **分组数**：2
+
+```C++
+arma::fmat input_matrix(input_c_group * row_len, col_len)
+```
+
+> * `input_c_group`:  每个组的输入通道数，这个例子是4
+> * `row_len`:  对于$3 \times 3$ 的`卷积核`. `row_len`通常为$ 3 \times 3 = 9$
+> * `col_len`:  展开矩阵的列数。这个值取决于`滑动窗口`在输入特征图上移动的次数，$7 \times 7$ 输入和$ 3 \times 3$ 的卷积核, 步长为1, 可以移动$ 5 \times 5 = 25$
+>
+> **具体操作:**
+>
+> * `input_matrix`: 一个大小为$(4 \times 9) \times 25 = 36 \times 25$的矩阵
+>   * **列数**: $4 \times 9 = 36$, 因为每个通道展开为9行，每组有4个通道
+>   * **行数**: 25  (`因为arma的特点`)
+
+```C++
+const uint32_t input_padded_h = input_h + 2 * padding_h_;
+const uint32_t input_padded_w = input_w + 2 * padding_w_;
+```
+
+> * **`input_padded_h` 和 `input_padded_w`**：计算填充后的输入特征图尺寸。对于 $ 5 \times 5$的输入，加上 1 的填充，变为 $ 7 \times 7$
+
+```c++
+for (uint32_t ic = 0; ic < input_c_group; ++ic) 
+  float* input_channel_ptr = input->matrix_raw_ptr(ic + group * input_c_group);
+```
+
+> * `ic`: 遍历当前组内的每个通道
+> * `input_channel_ptr`: 指向当前通道的数据起始位置
+
+```c++
+uint32_t current_col = 0;
+uint32_t channel_row = ic * row_len;
+```
+
+> * `current_col`: 当前列索引，用于在展开矩阵中定位
+> * `channel_row`: 计算当前通道在展开矩阵中的起始行位置
+
+```c++
+for (uint32_t w = 0; w < input_padded_w - kernel_w + 1; w += stride_w_) {
+    for (uint32_t r = 0; r < input_padded_h - kernel_h + 1; r += stride_h_) {
+        float* input_matrix_ptr = input_matrix.colptr(current_col) + channel_row;
+        current_col += 1;
+    }
+}
+```
+
+> - **外层循环**：遍历输入图像的宽度方向。
+> - **内层循环**：遍历输入图像的高度方向。
+> - **`input_matrix_ptr`**：指向 `input_matrix` 中当前列位置的指针，用于存放从 `input_channel_ptr` 复制过来的数据。
+> - **`current_col`**：每次迭代递增，表示移动到下一个列位置。
