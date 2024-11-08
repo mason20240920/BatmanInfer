@@ -138,6 +138,18 @@ namespace BatmanInfer{
             CHECK(kernel->cols() == kernel_w);
             CHECK(kernel->channels() == kernel_c);
         }
+        // 表示每个组内的卷积核数量 (每个组内的卷积核数量)
+        // 分组卷积将输入通道和卷积核分为多个组，每个组只在内部进行卷积操作。这样可以减少计算量和参数数量
         const uint32_t kernel_count_group = kernel_count / groups_;
+        const uint32_t batch_size = inputs.size();
+
+        if (kernel_matrix_arr_.empty()) {
+            if (groups_ == 1)
+                CHECK(kernel_matrix_arr_.size() == kernel_count_group)
+                << "The number of kernel matrix and kernel_count_group do not match";
+            else
+                CHECK(kernel_matrix_arr_.size() == kernel_count)
+                << "The number of kernel matrix and kernel_count do not match";
+        }
     }
 }

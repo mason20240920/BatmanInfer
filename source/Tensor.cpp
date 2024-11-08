@@ -173,8 +173,7 @@ namespace BatmanInfer {
 
         std::vector<float> values;
         // 行主序
-        if (row_major)
-            values = this->values(true);
+        values = this->values(row_major);
         if (shapes.size() == 3) {
             this->data_.reshape(shapes.at(1), shapes.at(2), shapes.at(0));
             this->raw_shapes_ = {shapes.at(0), shapes.at(1), shapes.at(2)};
