@@ -125,3 +125,20 @@ TEST(test_ir_attribute, test_attr) {
         }
     }
 }
+
+TEST(test_ir_attribute, test_ops) {
+    using namespace BatmanInfer;
+    const std::string& model_path = "./model/simple_conv_model.onnx";
+    RuntimeGraph graph(model_path);
+    ASSERT_EQ(int(graph.graph_state()), -2);
+    const bool init_success = graph.Init();
+    ASSERT_EQ(init_success, true);
+    ASSERT_EQ(int(graph.graph_state()), -1);
+    graph.Build("input", "output");
+    ASSERT_EQ(int(graph.graph_state()), 0);
+
+    // 输出数据
+    std::vector<std::shared_ptr<Tensor<float>>> data_lst;
+//    graph.ProbeNextLayer(graph.operators().at(0), data_lst);
+    std::cout << "Runtime execute successfully" << std::endl;
+}

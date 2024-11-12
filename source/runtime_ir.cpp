@@ -8,6 +8,8 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <layer/abstract/layer.hpp>
+#include <layer/abstract/layer_factory.hpp>
 
 namespace BatmanInfer {
     RuntimeGraph::RuntimeGraph(std::string model_path) : model_path_(model_path) {
@@ -209,6 +211,13 @@ namespace BatmanInfer {
         }
     }
 
+    std::shared_ptr<Layer> RuntimeGraph::CreateLayer(const std::shared_ptr<RuntimeOperator> &op) {
+        LOG_IF(FATAL, !op) << "Operator is empty!";
+        auto layer = LayerRegister::CreateLayer(op);
+        LOG_IF(FATAL, !layer) << "Layer init failed " << op->type;
+        return layer;
+    }
+
     void RuntimeGraph::ReverseToPo(const std::shared_ptr<RuntimeOperator> &root_op) {
         CHECK(root_op != nullptr) << "Current operator is nullptr";
         root_op->has_forward = true;
@@ -253,6 +262,18 @@ namespace BatmanInfer {
             }
         }
 
+        for (const auto &kOperator: this->operators_) {
+            // 除了输入和输出节点，都创建Layer
+            if (kOperator->type != "Input" && kOperator->type != "Output") {
+                std::shared_ptr<Layer> layer = RuntimeGraph::CreateLayer(kOperator);
+                CHECK(layer != nullptr) << "Layer " << kOperator->name << " create failed!";
+                if (layer) {
+                    kOperator->layer = layer;
+                    layer->set_runtime_operator(kOperator);
+                }
+            }
+        }
+
         // 初始化结点的输入和输出空间
         RuntimeOperatorUtils::InitOperatorInput(operators_);
         RuntimeOperatorUtils::InitOperatorOutput(graph_->operators, operators_);
@@ -289,5 +310,69 @@ namespace BatmanInfer {
 
     const std::vector<std::shared_ptr<RuntimeOperator>> &RuntimeGraph::operators() const {
         return this->operators_;
+    }
+
+    void RuntimeGraph::ProbeNextLayer(const std::shared_ptr<RuntimeOperator> &current_op,
+                                      const std::vector<std::shared_ptr<Tensor<float>>> &layer_output_data) {
+        // 当前节点的后继节点next_ops
+        const auto &next_ops = current_op->output_operators;
+        // 对所有后继节点进行遍历
+        for (const auto &[_, next_rt_operator] : next_ops) {
+            // 得到后继节点的输入next_input_operands
+            const auto &next_input_operands = next_rt_operator->input_operands;
+            // 确定后继节点的输入来自于current_op
+            if (next_input_operands.find(current_op->name) != next_input_operands.end()) {
+                // 得到后继节点的关于current_op输出的输入空间 next_input_datas
+                /**
+                 * next_input_operands:
+                 * {
+                 *    输入1 -- current_op.name: current_op对应的输出空间
+                 *    输入2 -- other_op.name: other_op对应的输出空间
+                 * }
+                 */
+                 std::vector<std::shared_ptr<ftensor>> &next_input_data = next_input_operands.at(current_op->name)->datas;
+                CHECK(next_input_data.size() == layer_output_data.size());
+                // 将当前current_op的输出赋值到next_input_data中
+                for (int i = 0; i < next_input_data.size(); ++i)
+                    next_input_data.at(i) = layer_output_data.at(i);
+            }
+        }
+    }
+
+    std::vector<std::shared_ptr<Tensor<float>>>
+    RuntimeGraph::Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
+                          bool debug) {
+        // 检查当前的执行图是否已经初始化完毕
+        if (graph_state_ < GraphState::Complete)
+            LOG(FATAL) << "Graph need be built!";
+        CHECK(graph_state_ == GraphState::Complete)
+             << "Graph status error, current state is " << int(graph_state_);
+
+        CHECK(to_po_operators_.size() == operators_.size())
+              << "Build wrong to po queues";
+
+        for (const auto &op: to_po_operators_)
+            op->has_forward = false;
+
+        for (const auto &current_op : to_po_operators_) {
+            if (current_op->type == "Input") {
+                current_op->has_forward = true;
+                ProbeNextLayer(current_op, inputs);
+            } else if (current_op->type == "Output") {
+                current_op->has_forward = true;
+                CHECK(current_op->input_operands_seq.size() == 1);
+                current_op->output_operands = current_op->input_operands_seq.front();
+            } else {
+                InferStatus status = current_op->layer->Forward();
+                CHECK(status == InferStatus::bInferSuccess)
+                     << current_op->layer->layer_name()
+                     << " layer forward failed, error code: " << int(status);
+                current_op->has_forward = true;
+                ProbeNextLayer(current_op, current_op->output_operands->datas);
+            }
+            std::cout << current_op->type << std::endl;
+        }
+
+        return std::vector<std::shared_ptr<Tensor<float>>>{};
     }
 }

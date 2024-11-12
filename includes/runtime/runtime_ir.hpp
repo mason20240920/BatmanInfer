@@ -62,6 +62,16 @@ namespace BatmanInfer {
         const std::vector<std::shared_ptr<RuntimeOperator>> &
         get_to_po_queues() const;
 
+        /**
+         * 按照顺序依次执行算子序列 (to_po_operators) 中每个算子的 Forward 方法即可
+         * @param inputs
+         * @param debug
+         * @return
+         */
+        std::vector<std::shared_ptr<Tensor<float>>> Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
+                                                            bool debug);
+
+
     private:
         /**
          * 初始化Batman Infer计算图节点中的输入操作数
@@ -71,6 +81,14 @@ namespace BatmanInfer {
         static void InitGraphOperatorsInput(
                 const std::vector<ONNXOperand *> & inputs,
                 const std::shared_ptr<RuntimeOperator> &runtime_operator);
+
+        /**
+         * 当前节点的所有后继节点进行依次的遍历，并将当前节点 == 输出 == 赋值 给后继节点
+         * @param current_op 表示当前的算子
+         * @param layer_output_data 表示当前算子的输出: 在这个函数中，我们需要把当前算子的输出赋值到它后继节点的输入中
+         */
+        static void ProbeNextLayer(const std::shared_ptr<RuntimeOperator> &current_op,
+                            const std::vector<std::shared_ptr<Tensor<float>>> &layer_output_data);
 
 
         /**
@@ -106,6 +124,8 @@ namespace BatmanInfer {
          * @param root_op
          */
         void ReverseToPo(const std::shared_ptr<RuntimeOperator> &root_op);
+
+        std::shared_ptr<Layer> CreateLayer(const std::shared_ptr<RuntimeOperator> &op);
 
 
     private:
