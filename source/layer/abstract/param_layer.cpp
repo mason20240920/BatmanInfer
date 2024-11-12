@@ -23,6 +23,7 @@ namespace BatmanInfer {
                                      const uint32_t param_channel,
                                      const uint32_t param_height,
                                      const uint32_t param_width) {
+        // 一个大小为 param_count 的矩阵数组
         this->weights_ = std::vector<sftensor>(param_count);
         for (uint32_t i = 0; i < param_count; ++i)
             this->weights_.at(i) = std::make_shared<ftensor>(param_channel,

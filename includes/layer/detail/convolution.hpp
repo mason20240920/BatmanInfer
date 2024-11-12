@@ -8,12 +8,15 @@
 
 namespace BatmanInfer {
     class ConvolutionLayer : public ParamLayer {
+    public:
         explicit ConvolutionLayer(uint32_t output_channel,
                                   uint32_t in_channel,
                                   uint32_t kernel_h,
                                   uint32_t kernel_w,
-                                  uint32_t padding_h,
-                                  uint32_t padding_w,
+                                  uint32_t padding_t,
+                                  uint32_t padding_l,
+                                  uint32_t padding_b,
+                                  uint32_t padding_r,
                                   uint32_t stride_h,
                                   uint32_t stride_w,
                                   uint32_t groups,
@@ -69,8 +72,10 @@ namespace BatmanInfer {
     private:
         bool use_bias_ = false;
         uint32_t groups_ = 1;
-        uint32_t padding_h_ = 0;
-        uint32_t padding_w_ = 0;
+        uint32_t top_padding_ = 0;
+        uint32_t left_padding_ = 0;
+        uint32_t bottom_padding_ = 0;
+        uint32_t right_padding_ = 0;
         uint32_t stride_h_ = 1;
         uint32_t stride_w_ = 1;
         std::vector<arma::frowvec> kernel_matrix_arr_;
