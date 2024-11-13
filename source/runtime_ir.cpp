@@ -373,6 +373,18 @@ namespace BatmanInfer {
             std::cout << current_op->type << std::endl;
         }
 
-        return std::vector<std::shared_ptr<Tensor<float>>>{};
+        for (const auto &op: to_po_operators_)
+            LOG_IF(FATAL, !op->has_forward)
+                  << "The operator: " << op->name << " has not been forward yet!";
+
+        if (operators_maps_.find(output_name_) != operators_maps_.end()) {
+            const auto &output_op = operators_maps_.at(output_name_);
+            CHECK(output_op->output_operands != nullptr) << "Output from " << output_op->name << " is empty";
+            const auto &output_operand = output_op->output_operands;
+            return output_operand->datas;
+        } else {
+            LOG(FATAL) << "Can not find the output tensor" << output_name_;
+            return std::vector<std::shared_ptr<Tensor<float>>>{};
+        }
     }
 }

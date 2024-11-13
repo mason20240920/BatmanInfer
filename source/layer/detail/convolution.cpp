@@ -359,6 +359,7 @@ namespace BatmanInfer{
                                                            std::shared_ptr<Layer> &conv_layer) {
         CHECK(op != nullptr) << "Convolution operator is nullptr";
         const std::map <std::string, std::shared_ptr<RuntimeParameter>> &params = op->params;
+        const std::map<std::string, std::shared_ptr<RuntimeAttribute>> &attributes = op->attribute;
 
         if (params.find("dilations") == params.end()) {
             LOG(ERROR) << "Can not find the dilation parameter";
@@ -408,6 +409,18 @@ namespace BatmanInfer{
             return ParseParameterAttrStatus::bParameterMissingKernel;
         }
 
+        if (attributes.find("conv1.bias") == attributes.end()) {
+            LOG(ERROR) << "Can not find the bias parameter";
+            return ParseParameterAttrStatus::bAttrMissingBias;
+        }
+        auto bias = attributes.at("conv1.bias");
+
+        if (attributes.find("conv1.weight") == attributes.end()) {
+            LOG(ERROR) << "Can not find the weight parameter";
+            return ParseParameterAttrStatus::bAttrMissingWeight;
+        }
+        auto weight = attributes.at("conv1.weight");
+
         auto groups =
                 std::dynamic_pointer_cast<RuntimeParameterInt>(params.at("group"));
         if (!groups) {
@@ -434,10 +447,17 @@ namespace BatmanInfer{
             return ParseParameterAttrStatus::bParameterMissingKernel;
         }
 
+        // 从attribute里面获取onnx的weights和bias
+        // 卷积核数量
+        auto kernel_count = weight->shape.at(0);
+
+        // 卷积核的channel
+        auto kernel_channel = weight->shape.at(1);
+
         // kernel的方向是倒置的
         conv_layer = std::make_shared<ConvolutionLayer>(
-                4,
-                4,
+                kernel_count,
+                kernel_channel,
                 kernels.at(0),
                 kernels.at(1),
                 paddings.at(0),
@@ -446,12 +466,23 @@ namespace BatmanInfer{
                 paddings.at(3),
                 strides.at(0),
                 strides.at(1),
-                groups->value, false);
+                groups->value, true);
 
         // load weights
-        const std::map <std::string, std::shared_ptr<RuntimeAttribute>> &attrs =
-                op->attribute;
+        const std::vector<float>& bias_value = bias->weight_data;
+        conv_layer->set_bias(bias_value);
 
+        const std::vector<int>& weight_shape = weight->shape;
+        if (weight_shape.empty()) {
+            LOG(ERROR) << "The attribute of weight shape is wrong";
+            return ParseParameterAttrStatus::bAttrMissingWeight;
+        }
+        const std::vector<float>& weight_values = weight->weight_data;
+        conv_layer->set_weights(weight_values);
+
+        auto conv_layer_derived = std::dynamic_pointer_cast<ConvolutionLayer>(conv_layer);
+        CHECK(conv_layer_derived != nullptr);
+        conv_layer_derived->InitIm2ColWeight();
         return ParseParameterAttrStatus::bParameterAttrParseSuccess;
     }
 
