@@ -411,17 +411,12 @@ namespace BatmanInfer{
             return ParseParameterAttrStatus::bParameterMissingKernel;
         }
 
-        if (attributes.find("conv1.bias") == attributes.end()) {
-            LOG(ERROR) << "Can not find the bias parameter";
-            return ParseParameterAttrStatus::bAttrMissingBias;
-        }
-        auto bias = attributes.at("conv1.bias");
-
-        if (attributes.find("conv1.weight") == attributes.end()) {
-            LOG(ERROR) << "Can not find the weight parameter";
+        if (attributes.size() != 2) {
+            LOG(ERROR) << "Can not find the weights and bias params";
             return ParseParameterAttrStatus::bAttrMissingWeight;
         }
-        auto weight = attributes.at("conv1.weight");
+        auto weight = attributes.begin()->second;
+        auto bias = (++attributes.begin())->second;
 
         auto groups =
                 std::dynamic_pointer_cast<RuntimeParameterInt>(params.at("group"));

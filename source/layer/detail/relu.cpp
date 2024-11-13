@@ -79,5 +79,5 @@ namespace BatmanInfer {
     }
 
     // 使用工具类注册算子
-    LayerRegistererWrapper bReluGetInstance("nn.ReLU", ReluLayer::GetInstance);
+    LayerRegistererWrapper bReluGetInstance("Relu", ReluLayer::GetInstance);
 }

@@ -104,7 +104,7 @@ TEST(test_ir_topo, build1_output_tensors) {
 
 TEST(test_ir_attribute, test_attr) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model/maxpool2d_model.onnx";
+    const std::string& model_path = "./model/resnet18.onnx";
     RuntimeGraph graph(model_path);
     ASSERT_EQ(int(graph.graph_state()), -2);
     const bool init_success = graph.Init();

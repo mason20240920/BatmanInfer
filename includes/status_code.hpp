@@ -33,6 +33,8 @@ namespace BatmanInfer {
         bInferFailedShapeParameterError = 9,
         bInferFailedChannelParameterError = 10,
         bInferFailedOutputEmpty = 11,
+
+        bInferFailedInputSizeError = 12,
     };
 
     enum class ParseParameterAttrStatus {

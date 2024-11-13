@@ -82,7 +82,9 @@ add_executable(BatmanInfer main.cpp
         test/test_maxpooling.cpp
         source/layer/detail/convolution.cpp
         test/test_convolution.cpp
-        test/test_resnt.cpp)
+        test/test_resnt.cpp
+        source/layer/detail/add.cpp
+        source/layer/detail/global_average_pool.cpp)
 
 #message("hello" ${Protobuf_LIBRARIES})
 

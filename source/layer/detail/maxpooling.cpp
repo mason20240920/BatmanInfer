@@ -221,7 +221,7 @@ namespace BatmanInfer {
         const auto& kernel_values = kernel_size->value;
 
         const uint32_t dims = 2;
-        if (padding_values.size() != dims) {
+        if (padding_values.size() != 4) {
             LOG(ERROR) << "Can not find the right padding parameter";
             return ParseParameterAttrStatus::bParameterMissingPadding;
         }
@@ -247,6 +247,6 @@ namespace BatmanInfer {
         return ParseParameterAttrStatus::bParameterAttrParseSuccess;
     }
 
-    LayerRegistererWrapper bMaxPoolingGetInstance("nn.MaxPool2d",
+    LayerRegistererWrapper bMaxPoolingGetInstance("MaxPool",
                                                   MaxPoolingLayer::GetInstance);
 }
