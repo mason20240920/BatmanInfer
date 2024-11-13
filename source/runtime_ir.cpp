@@ -370,7 +370,6 @@ namespace BatmanInfer {
                 current_op->has_forward = true;
                 ProbeNextLayer(current_op, current_op->output_operands->datas);
             }
-            std::cout << current_op->type << std::endl;
         }
 
         for (const auto &op: to_po_operators_)

@@ -7,7 +7,7 @@
 #include <layer/abstract/layer_factory.hpp>
 
 namespace BatmanInfer{
-    arma::fmat ConvolutionLayer::Im2Col(BatmanInfer::sftensor input,
+    arma::fmat ConvolutionLayer::Im2Col(const BatmanInfer::sftensor& input,
                                         uint32_t kernel_w,
                                         uint32_t kernel_h,
                                         uint32_t input_w,
@@ -21,8 +21,8 @@ namespace BatmanInfer{
         // 计算填充后的输入特征图尺寸
         const uint32_t input_padded_h = input_h + bottom_padding_ + top_padding_;
         const uint32_t input_padded_w = input_w + left_padding_ + right_padding_;
-        auto padding_h_ = bottom_padding_ + top_padding_;
-        auto padding_w_ = left_padding_ + right_padding_;
+        auto padding_h_ = top_padding_;
+        auto padding_w_ = left_padding_;
         const float padding_value = 0.f;
         // 提取当前的输入通道, 将该通道起始值指针赋值给input_channel_ptr
         for (uint32_t ic = 0; ic < input_c_group; ++ic) {
@@ -195,6 +195,7 @@ namespace BatmanInfer{
                                                 "matrix and input tensor do not match";
 
             for (uint32_t g = 0; g < groups_; ++g) {
+                input->Show();
                 const auto& input_matrix = Im2Col(input,
                                                   kernel_w,
                                                   kernel_h,
@@ -204,6 +205,7 @@ namespace BatmanInfer{
                                                   g,
                                                   row_len,
                                                   col_len);
+                input_matrix.print("Input Matrix:");
                 std::shared_ptr<Tensor<float>> output_tensor = outputs.at(i);
                 if (output_tensor == nullptr || output_tensor->empty()) {
                     output_tensor = std::make_shared<Tensor<float>>(kernel_count,
@@ -294,7 +296,7 @@ namespace BatmanInfer{
                            row_len * sizeof(float ));
                 kernel_matrix_arr.at(k) = kernel_matrix_c;
             }
-            printKernelMatrixArr(kernel_matrix_arr);
+//            printKernelMatrixArr(kernel_matrix_arr);
             this->kernel_matrix_arr_ = std::move(kernel_matrix_arr);
         } else {
             // group != 1
@@ -312,7 +314,7 @@ namespace BatmanInfer{
                 }
             }
             CHECK(kernel_matrix_arr.size() == kernel_count);
-            printKernelMatrixArr(kernel_matrix_arr);
+//            printKernelMatrixArr(kernel_matrix_arr);
             this->kernel_matrix_arr_ = std::move(kernel_matrix_arr);
         }
     }

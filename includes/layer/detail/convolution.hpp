@@ -59,7 +59,7 @@ namespace BatmanInfer {
          * @param col_len: 卷积计算的次数
          * @return
          */
-        arma::fmat Im2Col(sftensor input,
+        arma::fmat Im2Col(const sftensor& input,
                           uint32_t kernel_w,
                           uint32_t kernel_h,
                           uint32_t input_w,
