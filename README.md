@@ -188,7 +188,7 @@ for (uint32_t w = 0; w < input_padded_w - kernel_w + 1; w += stride_w_) {
 >
 > 2. 计算平均值：
 >
->    $ \text{Average} = \frac{\text{Sum}}{H \times W} = \frac{10}{2 \times 2} = \frac{10}{4} = 2.5 $
+>    $$ \text{Average} = \frac{\text{Sum}}{H \times W} = \frac{10}{2 \times 2} = \frac{10}{4} = 2.5 $$
 >
 > 因此，输出张量 $ Y $ 为：
 >
