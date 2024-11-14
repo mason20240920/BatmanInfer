@@ -84,7 +84,9 @@ add_executable(BatmanInfer main.cpp
         test/test_convolution.cpp
         test/test_resnt.cpp
         source/layer/detail/add.cpp
-        source/layer/detail/global_average_pool.cpp)
+        source/layer/detail/global_average_pool.cpp
+        source/layer/detail/flatten.cpp
+        source/layer/detail/gemm.cpp)
 
 #message("hello" ${Protobuf_LIBRARIES})
 

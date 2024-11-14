@@ -225,3 +225,75 @@ for (uint32_t w = 0; w < input_padded_w - kernel_w + 1; w += stride_w_) {
 > **应用场景**
 >
 > Flatten 算子通常用于卷积神经网络（CNN）中，在卷积和池化层之后，将特征图展平，以便连接到全连接层。这是因为全连接层通常需要一维输入
+
+#### 4. Gemm算子 - 通用矩阵乘法
+
+> 公式:
+>
+> $Y = \alpha \times (A \times B) + \beta \times C$
+>
+> **1. Attributes(属性)**
+>
+> * **alpha**: (缩放因子), 默认为1, 用于缩放矩阵乘积 $ A \times B $
+> * **beta**: (缩放因子), 默认为1。 用于缩放矩阵$C$
+> * **transB**: 如果为1，表示矩阵$B$需要转置
+>
+> **2. Inputs(输入)**
+>
+> * **A**: 输入矩阵
+> * **B**: 权重矩阵
+> * **C**: 偏置矩阵
+>
+> **3.例子**
+>
+> - $ A $ 是一个 2x3 的矩阵：
+>   $
+>   A = \begin{bmatrix}
+>   1 & 2 & 3 \\
+>   4 & 5 & 6
+>   \end{bmatrix}
+>   $
+>
+> - $ B $ 是一个 3x2 的矩阵：
+>   $
+>   B = \begin{bmatrix}
+>   7 & 8 \\
+>   9 & 10 \\
+>   11 & 12
+>   \end{bmatrix}
+>   $
+>
+> - $ C $ 是一个 2x2 的矩阵：
+>   $
+>   C = \begin{bmatrix}
+>   1 & 1 \\
+>   1 & 1
+>   \end{bmatrix}
+>   $
+>
+> 根据Gemm的计算公式：
+>
+> 1. 计算 $ A \times B $：
+>    $
+>    A \times B = \begin{bmatrix}
+>    1 \times 7 + 2 \times 9 + 3 \times 11 & 1 \times 8 + 2 \times 10 + 3 \times 12 \\
+>    4 \times 7 + 5 \times 9 + 6 \times 11 & 4 \times 8 + 5 \times 10 + 6 \times 12
+>    \end{bmatrix} = \begin{bmatrix}
+>    58 & 64 \\
+>    139 & 154
+>    \end{bmatrix}
+>    $
+>
+> 2. 计算最终输出 $ Y = \alpha \times (A \times B) + \beta \times C $：
+>    $Y = 1 \times \begin{bmatrix}
+>    58 & 64 \\
+>    139 & 154
+>    \end{bmatrix} + 1 \times \begin{bmatrix}
+>    1 & 1 \\
+>    1 & 1
+>    \end{bmatrix} = \begin{bmatrix}
+>    59 & 65 \\
+>    140 & 155
+>    \end{bmatrix}
+>    $
+

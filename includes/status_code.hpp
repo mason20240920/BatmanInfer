@@ -35,6 +35,8 @@ namespace BatmanInfer {
         bInferFailedOutputEmpty = 11,
 
         bInferFailedInputSizeError = 12,
+        bInferFailedInputShapeError = 13,
+        bInferFailedOutputShapeError = 14,
     };
 
     enum class ParseParameterAttrStatus {
@@ -48,15 +50,16 @@ namespace BatmanInfer {
 
         bParameterMissingEps = 7,
         bParameterMissingNumFeatures = 8,
-        bParameterMissingDim = 9,
-        bParameterMissingExpr = 10,
-        bParameterMissingOutHW = 11,
+        bParameterMissingAxis = 9,
+        bParameterMissingAlpha = 10,
+        bParameterMissingBeta = 11,
         bParameterMissingShape = 12,
         bParameterMissingGroups = 13,
         bParameterMissingScale = 14,
         bParameterMissingResizeMode = 15,
         bParameterMissingDilation = 16,
         bParameterMissingPaddingMode = 16,
+        bParameterMissingTransB = 29,
 
         bAttrMissingBias = 21,
         bAttrMissingWeight = 22,

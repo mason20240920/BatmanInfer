@@ -21,4 +21,8 @@ namespace BatmanInfer {
     std::shared_ptr<Tensor<float>> TensorCreate(uint32_t size) {
         return std::make_shared<Tensor<float>>(1, 1, size);
     }
+
+    std::shared_ptr<Tensor<float>> TensorClone(std::shared_ptr<Tensor<float>> tensor) {
+        return std::make_shared<Tensor<float>>(*tensor);
+    }
 }
