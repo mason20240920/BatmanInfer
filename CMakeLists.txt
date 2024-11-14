@@ -86,7 +86,8 @@ add_executable(BatmanInfer main.cpp
         source/layer/detail/add.cpp
         source/layer/detail/global_average_pool.cpp
         source/layer/detail/flatten.cpp
-        source/layer/detail/gemm.cpp)
+        source/layer/detail/gemm.cpp
+        test/test_operators.cpp)
 
 #message("hello" ${Protobuf_LIBRARIES})
 

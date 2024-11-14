@@ -102,11 +102,11 @@ namespace BatmanInfer {
          */
         uint32_t size() const;
 
-//        /**
-//         * 设置张量中的具体数据
-//         * @param data 数据
-//         */
-//        void set_data(const arma::fcube& data);
+        /**
+         * 设置张量中的具体数据
+         * @param data 数据
+         */
+        void set_data(const arma::fcube& data);
 
         /**
          * 返回张量是否为空

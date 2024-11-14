@@ -26,11 +26,30 @@ namespace BatmanInfer {
     std::shared_ptr<Tensor<float>> TensorCreate(uint32_t size);
 
     /**
+     * 对张量进行形状上的扩展
+     * @param tensor1 张量1
+     * @param tensor2 张量2
+     * @return 形状一致的张量
+     */
+    std::tuple<sftensor, sftensor> TensorBroadcast(const sftensor& tensor1,
+                                                   const sftensor& tensor2);
+
+    /**
      * 返回一个深拷贝后的张量
      * @param tensor 待拷贝的张量
      * @return 新的张量
      */
     std::shared_ptr<Tensor<float>> TensorClone(std::shared_ptr<Tensor<float>> tensor);
+
+    /**
+     * 张量相乘
+     * @param tensor1 输入张量1
+     * @param tensor2 输入张量2
+     * @param output_tensor 张量相乘的结果
+     */
+    void TensorElementMultiply(const std::shared_ptr<Tensor<float>>& tensor1,
+                               const std::shared_ptr<Tensor<float>>& tensor2,
+                               const std::shared_ptr<Tensor<float>>& output_tensor);
 }
 
 #endif //BATMAN_INFER_TENSOR_UTIL_HPP

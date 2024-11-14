@@ -331,4 +331,14 @@ namespace BatmanInfer {
         float *mem_ptr = this->raw_ptr() + offset;
         return mem_ptr;
     }
+
+    void Tensor<float>::set_data(const arma::fcube &data) {
+        CHECK(data.n_rows == this->data_.n_rows)
+              << data.n_rows << "!=" << this->data_.n_rows;
+        CHECK(data.n_cols == this->data_.n_cols)
+              << data.n_cols << "!=" << this->data_.n_cols;
+        CHECK(data.n_slices == this->data_.n_slices)
+                        << data.n_slices << " != " << this->data_.n_slices;
+        this->data_ = data;
+    }
 }

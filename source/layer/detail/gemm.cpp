@@ -5,8 +5,62 @@
 #include <layer/detail/gemm.hpp>
 #include <layer/abstract/layer_factory.hpp>
 #include <data/tensor_util.hpp>
+#include <omp.h>
 
 namespace BatmanInfer {
+    InferStatus GemmLayer::Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
+                                   std::vector<std::shared_ptr<Tensor<float>>> &outputs) {
+        if (inputs.empty()) {
+            LOG(ERROR) << "The input tensor array in the gemm layer is empty";
+            return InferStatus::bInferFailedInputEmpty;
+        }
+
+        if (inputs.size() != outputs.size()) {
+            LOG(ERROR) << "The input and output tensor array size of the gemm "
+                       << "layer do not match";
+            return InferStatus::bInferFailedInputOutSizeMatchError;
+        }
+
+        if (weights_.empty()) {
+            LOG(ERROR) << "The number of kernel matrix in the gemm layer should "
+                          "be greater than zero";
+            return InferStatus::bInferFailedWeightParameterError;
+        }
+
+        // 获取batch size
+        const uint32_t batch_size = inputs.size();
+
+        for (uint32_t i = 0; i < batch_size; ++i) {
+            const std::shared_ptr<Tensor<float>> &input = inputs.at(i);
+            std::shared_ptr<Tensor<float>> &output = outputs.at(i);
+
+            if (input == nullptr || input->empty()) {
+                LOG(ERROR) << "The input tensor is null or empty";
+                return InferStatus::bInferFailedInputEmpty;
+            }
+
+            if (output == nullptr || output->empty()) {
+                output = std::make_shared<Tensor<float>>(1, gemm_height_, 1);
+            }
+
+            // 确保输出的尺寸正确
+            CHECK(output->rows() == gemm_height_ && output->cols() == 1)
+                 << "The output tensor size is incorrect";
+
+            // 使用OpenMP 并行化矩阵乘法和加法
+#pragma omp parallel for
+            for (int j = 0; j < gemm_height_; ++j) {
+                float sum = 0.0f;
+                for (int k = 0; k < gemm_width_; ++k) {
+                    sum += input->at(0, 0, k) * weights_.at(j * gemm_width_ + k);
+                }
+                output->at(0, j, 0) = alpha_ * sum + beta_ * bias_.at(j);
+            }
+        }
+
+        return InferStatus::bInferSuccess;
+    }
+
     ParseParameterAttrStatus GemmLayer::GetInstance(const std::shared_ptr<RuntimeOperator> &op,
                                                     std::shared_ptr<Layer> &gemm_layer) {
         CHECK(op != nullptr) << "Convolution operator is nullptr";
@@ -91,7 +145,9 @@ namespace BatmanInfer {
                          int32_t cols) : ParamLayer("Gemm"),
                          alpha_(alpha),
                          beta_(beta),
-                         trans_b_(trans_b){
+                         trans_b_(trans_b),
+                         gemm_height_(row),
+                         gemm_width_(cols){
         this->InitWeightParam(1, 1, row, cols);
         this->InitBiasParam(1, 1, 1, cols);
     }
