@@ -415,8 +415,17 @@ namespace BatmanInfer{
             LOG(ERROR) << "Can not find the weights and bias params";
             return ParseParameterAttrStatus::bAttrMissingWeight;
         }
-        auto bias = attributes.begin()->second;
-        auto weight = (++attributes.begin())->second;
+
+        // Judge which one is bias or weight
+        auto shape_size = attributes.begin()->second->shape.size();
+        std::shared_ptr<RuntimeAttribute> bias, weight;
+        if (shape_size == 1) {
+            bias = attributes.begin()->second;
+            weight = (++attributes.begin())->second;
+        } else {
+            weight = attributes.begin()->second;
+            bias = (++attributes.begin())->second;
+        }
 
         auto groups =
                 std::dynamic_pointer_cast<RuntimeParameterInt>(params.at("group"));
