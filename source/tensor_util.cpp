@@ -73,4 +73,26 @@ namespace BatmanInfer {
             }
         }
     }
+
+    std::shared_ptr<Tensor<float>> MatrixMultiply(const std::shared_ptr<Tensor<float>> &tensor1,
+                                                  const std::shared_ptr<Tensor<float>> &tensor2) {
+        CHECK(!tensor1->empty() && !tensor2->empty());
+
+        // Ensure the number of columns in the first matrix equals the number of rows in the second matrix
+        CHECK_EQ(tensor1->cols(), tensor2->rows()) << "Incompatible dimensions for matrix multiplication";
+
+        // Perform matrix multiplication for each channel
+        uint32_t channels = tensor1->channels();
+        CHECK_EQ(channels, tensor2->channels()) << "Channel mismatch between tensors";
+
+        // Prepare the result tensor
+        sftensor result = TensorCreate(channels, tensor1->rows(), tensor2->cols());
+
+        for (uint32_t c = 0; c < channels; ++c) {
+            // Multiply the slices (2D matrices) of each channel
+            result->slice(c) = tensor1->slice(c) * tensor2->slice(c);
+        }
+
+        return result;
+    }
 }

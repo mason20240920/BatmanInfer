@@ -39,22 +39,32 @@ namespace BatmanInfer {
                 return InferStatus::bInferFailedInputEmpty;
             }
 
+            // 创建权重张量
+            std::shared_ptr<Tensor<float>> weight_tensor = weights_.at(0);
+
             if (output == nullptr || output->empty()) {
                 output = std::make_shared<Tensor<float>>(1, gemm_height_, 1);
             }
 
-            // 确保输出的尺寸正确
-            CHECK(output->rows() == gemm_height_ && output->cols() == 1)
-                 << "The output tensor size is incorrect";
+            // 确保输出张量的尺寸正确
+            if (output == nullptr || output->empty()) {
+                output = std::make_shared<Tensor<float>>(weight_tensor->rows(), 1, 1);
+            }
 
-            // 使用OpenMP 并行化矩阵乘法和加法
+            // 使用 MatrixMultiply 进行矩阵乘法
+            std::shared_ptr<Tensor<float>> result = MatrixMultiply(input, weight_tensor);
+
+            // 将结果赋值给输出
+            *output = *result;
+
+            // 添加偏置和缩放
 #pragma omp parallel for
             for (int j = 0; j < gemm_height_; ++j) {
-                float sum = 0.0f;
-                for (int k = 0; k < gemm_width_; ++k) {
-                    sum += input->at(0, 0, k) * weights_.at(j * gemm_width_ + k);
-                }
-                output->at(0, j, 0) = alpha_ * sum + beta_ * bias_.at(j);
+                // 解引用 output 以访问其元素
+                float& output_value = output->at(0, j, 0);
+                // 解引用 bias_ 中的 shared_ptr，并访问其内部的值
+                float bias_value = bias_.at(j)->at(0, 0, 0); // 假设 bias_ 是单个值的 Tensor
+                output_value = alpha_ * output_value + beta_ * bias_value;
             }
         }
 
