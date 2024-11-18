@@ -50,6 +50,9 @@ namespace BatmanInfer {
     void TensorElementMultiply(const std::shared_ptr<Tensor<float>>& tensor1,
                                const std::shared_ptr<Tensor<float>>& tensor2,
                                const std::shared_ptr<Tensor<float>>& output_tensor);
+
+    std::shared_ptr<Tensor<float>> MatrixMultiply(const std::shared_ptr<Tensor<float>> &tensor1,
+                                                  const std::shared_ptr<Tensor<float>> &tensor2);
 }
 
 #endif //BATMAN_INFER_TENSOR_UTIL_HPP
