@@ -5,6 +5,7 @@
 #include <glog/logging.h>
 #include <data/Tensor.hpp>
 #include <data/tensor_util.hpp>
+#include <omp.h>
 
 namespace BatmanInfer {
     std::shared_ptr<Tensor<float>> TensorCreate(uint32_t channels,
@@ -88,6 +89,8 @@ namespace BatmanInfer {
         // Prepare the result tensor
         sftensor result = TensorCreate(channels, tensor1->rows(), tensor2->cols());
 
+        // 使用 OpenMP 并行化通道的乘法
+#pragma omp parallel for
         for (uint32_t c = 0; c < channels; ++c) {
             // Multiply the slices (2D matrices) of each channel
             result->slice(c) = tensor1->slice(c) * tensor2->slice(c);

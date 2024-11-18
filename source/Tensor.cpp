@@ -4,6 +4,7 @@
 #include <data/Tensor.hpp>
 #include <glog/logging.h>
 #include <memory>
+#include <omp.h>
 
 namespace BatmanInfer {
     Tensor<float>::Tensor(uint32_t size) {
@@ -257,6 +258,36 @@ namespace BatmanInfer {
     std::vector<uint32_t> Tensor<float>::shapes() const {
         CHECK(!this->data_.empty());
         return {this->channels(), this->rows(), this->cols()};
+    }
+
+    void Tensor<float>::Transpose() {
+        CHECK(!this->data_.empty());
+
+        // 获取当前的形状信息
+        uint32_t channels = this->channels();
+        uint32_t rows = this->rows();
+        uint32_t cols = this->cols();
+
+        // 创建一个新的数据容器，用于存储转置后的数据
+        arma::fcube transposed_data(cols, rows, channels);
+
+        // 使用 OpenMP 并行化通道的转置
+#pragma omp parallel for
+        for (uint32_t i = 0; i < channels; ++i) {
+            // 获取当前通道的矩阵
+            arma::fmat current_slice = this->slice(i);
+            // 对矩阵进行转置
+            transposed_data.slice(i) = current_slice.t();
+        }
+
+        // 对数据先进行转置
+        this->data_.reshape(cols, rows, channels);
+
+        // 用转置后的数据替换原始数据
+        this->set_data(transposed_data);
+
+        // 更新 raw_shapes_ 信息
+        this->raw_shapes_ = {channels, cols, rows};
     }
 
     float &Tensor<float>::index(uint32_t offset) {

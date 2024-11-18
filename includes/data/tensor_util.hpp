@@ -51,6 +51,12 @@ namespace BatmanInfer {
                                const std::shared_ptr<Tensor<float>>& tensor2,
                                const std::shared_ptr<Tensor<float>>& output_tensor);
 
+    /**
+     * 矩乘: 两个Tensor进行矩乘
+     * @param tensor1
+     * @param tensor2
+     * @return
+     */
     std::shared_ptr<Tensor<float>> MatrixMultiply(const std::shared_ptr<Tensor<float>> &tensor1,
                                                   const std::shared_ptr<Tensor<float>> &tensor2);
 }
