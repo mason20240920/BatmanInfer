@@ -4,16 +4,17 @@ project(BatmanInfer)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
-# 下载GoogleTest项目
-include(FetchContent)
-FetchContent_Declare(
-        googletest
-        URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-)
+# # 下载GoogleTest项目
+# include(FetchContent)
+# FetchContent_Declare(
+#         googletest
+#         URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+# )
 
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+# # For Windows: Prevent overriding the parent project's compiler/linker settings
+# set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+# FetchContent_MakeAvailable(googletest)
+find_package(GTest REQUIRED)
 
 # 查找Armadillo库
 find_package(Armadillo REQUIRED)
@@ -30,13 +31,16 @@ include_directories(${Protobuf_INCLUDE_DIRS})
 find_package(absl REQUIRED)
 
 # 查找OpenMP
-set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
+# set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
+# set(OpenMP_C_LIB_NAMES "omp")
+# set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
+# set(OpenMP_INCLUDE "/opt/homebrew/opt/libomp/include")
+set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp")
 set(OpenMP_C_LIB_NAMES "omp")
-set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
-set(OpenMP_INCLUDE "/opt/homebrew/opt/libomp/include")
 
-# 查找 ONNX 包
-find_package(onnx REQUIRED)
+# 查找 ONNX 包】
+add_definitions(-DONNX_ML)
+find_package(ONNX REQUIRED)
 include_directories(${ONNX_INCLUDE_DIRS})
 
 set(ONNX_LIBRARIES "/usr/local/lib")
