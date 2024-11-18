@@ -47,6 +47,7 @@ TEST(test_network, resnet1) {
             0.1700, 0.5100, 0.2200, 0.4400, 0.5400, 0.5700
     };
 
+    std::cout << values.size() << std::endl;
     std::shared_ptr<Tensor<float>> my_tensor = std::make_shared<Tensor<float>>(4, 8, 8);
     my_tensor->Fill(values);
     std::vector<sftensor> input{my_tensor};
