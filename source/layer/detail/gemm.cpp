@@ -39,8 +39,15 @@ namespace BatmanInfer {
                 return InferStatus::bInferFailedInputEmpty;
             }
 
+            // 目前没有batch_size的weights, 所以暂时就一层batch_size的weight和bias
             // 创建权重张量
             std::shared_ptr<Tensor<float>> weight_tensor = weights_.at(0);
+
+            // 判断是否需要转置
+            if (this->trans_b_ == 1) {
+                weight_tensor->Transpose();
+            }
+
 
             if (output == nullptr || output->empty()) {
                 output = std::make_shared<Tensor<float>>(1, gemm_height_, 1);
@@ -57,13 +64,15 @@ namespace BatmanInfer {
             // 将结果赋值给输出
             *output = *result;
 
+            auto info_ptr = output->at(0, 0, 1);
+
             // 添加偏置和缩放
 #pragma omp parallel for
             for (int j = 0; j < gemm_height_; ++j) {
                 // 解引用 output 以访问其元素
-                float& output_value = output->at(0, j, 0);
+                float& output_value = output->at(0, 0, j);
                 // 解引用 bias_ 中的 shared_ptr，并访问其内部的值
-                float bias_value = bias_.at(j)->at(0, 0, 0); // 假设 bias_ 是单个值的 Tensor
+                float bias_value = bias_.at(0)->at(0, j, 0); // 假设 bias_ 是单个值的 Tensor
                 output_value = alpha_ * output_value + beta_ * bias_value;
             }
         }
@@ -159,7 +168,7 @@ namespace BatmanInfer {
                          gemm_height_(row),
                          gemm_width_(cols){
         this->InitWeightParam(1, 1, row, cols);
-        this->InitBiasParam(1, 1, 1, cols);
+        this->InitBiasParam(1, 1, row, 1);
     }
 
     LayerRegistererWrapper bGemmGetInstance("Gemm", GemmLayer::GetInstance);

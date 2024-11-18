@@ -264,6 +264,11 @@ namespace BatmanInfer {
         std::vector<uint32_t> unravel_index(uint32_t flat_index,
                                             const std::vector<uint32_t>& shape) const;
 
+        /**
+         * 对Tensor进行转置
+         */
+        void Transpose();
+
 //        /**
 //         * 返回数据的原始指针
 //         * @param offset 数据指针的偏移量
