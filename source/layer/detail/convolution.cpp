@@ -195,7 +195,6 @@ namespace BatmanInfer{
                                                 "matrix and input tensor do not match";
 
             for (uint32_t g = 0; g < groups_; ++g) {
-                input->Show();
                 const auto& input_matrix = Im2Col(input,
                                                   kernel_w,
                                                   kernel_h,
@@ -205,7 +204,6 @@ namespace BatmanInfer{
                                                   g,
                                                   row_len,
                                                   col_len);
-                input_matrix.print("Input Matrix:");
                 std::shared_ptr<Tensor<float>> output_tensor = outputs.at(i);
                 if (output_tensor == nullptr || output_tensor->empty()) {
                     output_tensor = std::make_shared<Tensor<float>>(kernel_count,

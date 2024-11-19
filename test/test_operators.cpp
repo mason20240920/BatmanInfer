@@ -17,6 +17,7 @@ TEST(test_operators, gemm_operator) {
     for (uint32_t i = 0; i < batch_size; ++i) {
         sftensor input = std::make_shared<ftensor>(1, 1, 5);
         input->Rand();
+        input->Show();
 
         inputs.at(i) = input;
     }
@@ -28,6 +29,8 @@ TEST(test_operators, gemm_operator) {
     weight_temp->Rand();
     weight_temp->Transpose();
     bias_temp->Rand();
+    weight_temp->Show();
+    bias_temp->Show();
     weights.push_back(weight_temp);
     auto shapes = bias_temp->shapes();
     bias.push_back(bias_temp);
@@ -35,6 +38,7 @@ TEST(test_operators, gemm_operator) {
     gemmLayer.set_weights(weights);
     gemmLayer.set_bias(bias);
     gemmLayer.Forward(inputs, outputs);
+    outputs.at(0)->Show();
 }
 
 TEST(test_operators, tensor_matrix_mul) {
