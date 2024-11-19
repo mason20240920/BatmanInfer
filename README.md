@@ -247,53 +247,19 @@ for (uint32_t w = 0; w < input_padded_w - kernel_w + 1; w += stride_w_) {
 > **3.例子**
 >
 > - $ A $ 是一个 2x3 的矩阵：
->   $
->   A = \begin{bmatrix}
->   1 & 2 & 3 \\
->   4 & 5 & 6
->   \end{bmatrix}
->   $
->
+>   $A = \begin{bmatrix}1 & 2 & 3 \\4 & 5 & 6\end{bmatrix}$
+>   
 > - $ B $ 是一个 3x2 的矩阵：
->   $
->   B = \begin{bmatrix}
->   7 & 8 \\
->   9 & 10 \\
->   11 & 12
->   \end{bmatrix}
->   $
->
+>   $B = \begin{bmatrix}7 & 8 \\9 & 10 \\11 & 12\end{bmatrix}$
+>   
 > - $ C $ 是一个 2x2 的矩阵：
->   $
->   C = \begin{bmatrix}
->   1 & 1 \\
->   1 & 1
->   \end{bmatrix}
->   $
->
+>  $ C = \begin{bmatrix} 1 & 1 \\1 & 1\end{bmatrix}$
+> 
 > 根据Gemm的计算公式：
->
+> 
 > 1. 计算 $ A \times B $：
->    $
->    A \times B = \begin{bmatrix}
->    1 \times 7 + 2 \times 9 + 3 \times 11 & 1 \times 8 + 2 \times 10 + 3 \times 12 \\
->    4 \times 7 + 5 \times 9 + 6 \times 11 & 4 \times 8 + 5 \times 10 + 6 \times 12
->    \end{bmatrix} = \begin{bmatrix}
->    58 & 64 \\
->    139 & 154
->    \end{bmatrix}
->    $
->
+>    $A \times B = \begin{bmatrix}1 \times 7 + 2 \times 9 + 3 \times 11 & 1\times 8 + 2 \times 10 + 3 \times 12 \\4 \times 7 + 5 \times 9 + 6 \times 11 &4\times 8 + 5 \times 10 + 6 \times 12\end{bmatrix} = \begin{bmatrix}58 & 64 \\139 & 154\end{bmatrix}$
+>    
 > 2. 计算最终输出 $ Y = \alpha \times (A \times B) + \beta \times C $：
->    $Y = 1 \times \begin{bmatrix}
->    58 & 64 \\
->    139 & 154
->    \end{bmatrix} + 1 \times \begin{bmatrix}
->    1 & 1 \\
->    1 & 1
->    \end{bmatrix} = \begin{bmatrix}
->    59 & 65 \\
->    140 & 155
->    \end{bmatrix}
->    $
+>    $Y = 1 \times \begin{bmatrix}58 & 64 \\139 & 154\end{bmatrix} + 1 \times \begin{bmatrix}1 & 1 \\1 & 1\end{bmatrix} = \begin{bmatrix}59 & 65 \\140 & 155\end{bmatrix}$
 
