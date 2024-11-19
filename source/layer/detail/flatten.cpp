@@ -63,7 +63,7 @@ namespace BatmanInfer {
                 output->Reshape({flattened_size}, true);
             }
 
-            if (output->shapes() != std::vector<uint32_t>{flattened_size}) {
+            if (output->shapes() != std::vector<uint32_t>{1, 1, flattened_size}) {
                 LOG(ERROR) << "The output tensor shape of the Flatten layer does not match expected shape";
                 return InferStatus::bInferFailedOutputShapeError;
             }

@@ -7,6 +7,7 @@
 #include "omp.h"
 
 namespace BatmanInfer {
+    // Confirm this one is just one batch size, not multi batches size
     InferStatus GlobalAveragePoolLayer::Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
                                                 std::vector<std::shared_ptr<Tensor<float>>> &outputs) {
         if (inputs.size() != 1) {
@@ -27,8 +28,8 @@ namespace BatmanInfer {
         }
 
         const auto input_shape = input->shapes();
-        if (input_shape.size() != 4) {
-            LOG(ERROR) << "The input tensor must be 4-dimensional [N, C, H, W]";
+        if (input_shape.size() != 3) {
+            LOG(ERROR) << "The input tensor must be 3-dimensional [C, H, W]";
             return InferStatus::bInferFailedInputSizeError;
         }
 
@@ -39,13 +40,14 @@ namespace BatmanInfer {
         const uint32_t pool_size = height * width;
 
         // Output shape should be [N, C, 1, 1]
+        // N - batch size
         if (output == nullptr || output->empty()) {
-            output = std::make_shared<Tensor<float>>(std::vector<uint32_t>{batch_size, channels, 1, 1});
+            output = std::make_shared<Tensor<float>>(std::vector<uint32_t>{channels, 1, 1});
             outputs.at(0) = output;
         }
 
-        if (output->shapes() != std::vector<uint32_t>{batch_size, channels, 1, 1}) {
-            LOG(ERROR) << "The output tensor shape of the GlobalAveragePool layer does not match expected shape [N, C, 1, 1]";
+        if (output->shapes() != std::vector<uint32_t>{channels, 1, 1}) {
+            LOG(ERROR) << "The output tensor shape of the GlobalAveragePool layer does not match expected shape [C, 1, 1]";
             return InferStatus::bInferFailedOutputSizeError;
         }
 
