@@ -57,7 +57,7 @@ namespace BatmanInfer {
             const std::vector<uint32_t> &input_shape = input->raw_shapes();
             uint32_t dim_size = input_shape.size();
             // Just make dim is 2. make it follows the col direction
-            auto dim = static_cast<int>(dim_size - 1);
+            auto dim = softmax_dim_;
 
             // 处理负数的维度值
             int actual_dim = dim;
@@ -127,12 +127,29 @@ namespace BatmanInfer {
     SoftmaxLayer::GetInstance(const std::shared_ptr<RuntimeOperator> &op,
                               std::shared_ptr<Layer> &softmax_layer) {
         CHECK(op != nullptr) << "Softmax operator is nullptr";
-        softmax_layer = std::make_shared<SoftmaxLayer>();
+        const std::map <std::string, std::shared_ptr<RuntimeParameter>> &params = op->params;
+
+        if (params.find("axis") == params.end()) {
+            LOG(ERROR) << "Can not find the axis parameter";
+            return ParseParameterAttrStatus::bParameterMissingAxis;
+        }
+
+        auto axis_param = std::dynamic_pointer_cast<RuntimeParameterInt>(params.at("axis"));
+        if (axis_param == nullptr) {
+            LOG(ERROR) << "Can not find the axis parameter";
+            return ParseParameterAttrStatus::bParameterMissingAxis;
+        }
+
+        softmax_layer = std::make_shared<SoftmaxLayer>(axis_param->value);
         return ParseParameterAttrStatus::bParameterAttrParseSuccess;
     }
 
+    SoftmaxLayer::SoftmaxLayer(int dim) : NonParamLayer("Softmax"), softmax_dim_(dim){
+
+    }
+
     // 使用工具类注册算子
-    LayerRegistererWrapper bSoftmaxGetInstance("nn.Softmax", SoftmaxLayer::GetInstance);
+    LayerRegistererWrapper bSoftmaxGetInstance("Softmax", SoftmaxLayer::GetInstance);
 
 
 }

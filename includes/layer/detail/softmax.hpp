@@ -10,7 +10,9 @@
 namespace BatmanInfer {
     class SoftmaxLayer: public NonParamLayer {
     public:
-        SoftmaxLayer(): NonParamLayer("Softmax") {}
+        explicit SoftmaxLayer(int dim = -1);
+
+//        SoftmaxLayer(): NonParamLayer("Softmax") {}
         InferStatus Forward(
                 const std::vector<std::shared_ptr<Tensor<float>>>& inputs,
                 std::vector<std::shared_ptr<Tensor<float>>>& outputs) override;
@@ -18,6 +20,8 @@ namespace BatmanInfer {
         static ParseParameterAttrStatus GetInstance(
                 const std::shared_ptr<RuntimeOperator>& op,
                 std::shared_ptr<Layer>& softmax_layer);
+    private:
+        int softmax_dim_ = -1;
     };
 }
 

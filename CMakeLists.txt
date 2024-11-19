@@ -18,6 +18,9 @@ FetchContent_MakeAvailable(googletest)
 # 查找Armadillo库
 find_package(Armadillo REQUIRED)
 
+# 查找OpenCV库
+find_package(OpenCV REQUIRED)
+
 # 查找glog
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLOG REQUIRED libglog)
@@ -98,6 +101,7 @@ target_link_libraries(
         ${ARMADILLO_LIBRARIES}
         ${GLOG_LIBRARIES}
         ${Protobuf_LIBRARIES}
+        ${OpenCV_LIBS}
         "/usr/local/lib/libonnx.a"
         "/usr/local/lib/libonnx_proto.a"
         ${OpenMP_omp_LIBRARY}
