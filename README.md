@@ -247,7 +247,7 @@ for (uint32_t w = 0; w < input_padded_w - kernel_w + 1; w += stride_w_) {
 > **3.例子**
 >
 > - $ A $ 是一个 2x3 的矩阵：
->   $A = \begin{bmatrix}1 & 2 & 3 \\4 & 5 & 6\end{bmatrix}$
+>   $A = \begin{bmatrix}1 & 2 & 3 \\ 4 & 5 & 6\end{bmatrix}$
 >   
 > - $ B $ 是一个 3x2 的矩阵：
 >   $B = \begin{bmatrix}7 & 8 \\9 & 10 \\11 & 12\end{bmatrix}$
