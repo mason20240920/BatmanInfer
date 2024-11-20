@@ -44,7 +44,7 @@ namespace BatmanInfer {
             const std::shared_ptr<Tensor<float>> &input = inputs.at(i);
             auto output = outputs.at(i);
 
-#pragma omp critial
+#pragma omp critical
             {
                 if (output == nullptr || output->empty()) {
                     output = std::make_shared<Tensor<float>>(input->shapes());

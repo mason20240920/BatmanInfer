@@ -7,7 +7,7 @@
 #include <runtime/ir.h>
 #include <onnx_conv/OnnxUtils.hpp>
 #include <google/protobuf/util/json_util.h>
-#include <onnx/onnx.pb.h>
+//#include <onnx/onnx.pb.h>
 #include <onnx/shape_inference/implementation.h>
 #include <onnx_conv/OnnxUtils.hpp>
 
