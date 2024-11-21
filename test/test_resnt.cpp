@@ -78,13 +78,13 @@ sftensor PreProcessImage(const cv::Mat &image) {
 
 TEST(test_network, resnet1) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model/simple_conv_model.onnx";
+    const std::string& model_path = "./model_files/simple_conv_model.onnx";
     RuntimeGraph graph(model_path);
     ASSERT_EQ(int(graph.graph_state()), -2);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
     ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build("Input", "Output");
+    graph.Build({ "Input" }, { "Output" });
     ASSERT_EQ(int(graph.graph_state()), 0);
 
     // Flat list of values obtained from PyTorch
@@ -100,22 +100,22 @@ TEST(test_network, resnet1) {
     std::vector<sftensor> input{my_tensor};
 //    input.at(0)->Show();
 
-    auto outputs = graph.Forward(input, true);
+    auto outputs = graph.Forward({ input }, true);
     std::cout << outputs.size() << std::endl;
-    outputs.at(0)->Show();
+    outputs[0].at(0)->Show();
 //    std::cout << "Hello World" << std::endl;
 }
 
 // 测试拓扑结构是否正常
 TEST(test_network, resnet2) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model/resnet18.onnx";
+    const std::string& model_path = "./model_files/resnet18.onnx";
     RuntimeGraph graph(model_path);
     ASSERT_EQ(int(graph.graph_state()), -2);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
     ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build("Input", "Output");
+    graph.Build({ "Input" }, { "Output" });
     ASSERT_EQ(int(graph.graph_state()), 0);
 
     std::shared_ptr<ftensor> input_tensor = std::make_shared<ftensor>(3, 2, 2);
@@ -123,20 +123,20 @@ TEST(test_network, resnet2) {
     std::vector<sftensor> input{input_tensor};
     input.at(0)->Show();
 
-    auto outputs = graph.Forward(input, true);
-    outputs.at(0)->Show();
+    auto outputs = graph.Forward({ input }, true);
+    outputs[0].at(0)->Show();
 }
 
 // 验证图像加载是否成功
 TEST(test_network, resnet3) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model/resetnet18_batch1.onnx";
+    const std::string& model_path = "./model_files/resetnet18_batch1.onnx";
     RuntimeGraph graph(model_path);
     ASSERT_EQ(int(graph.graph_state()), -2);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
     ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build("Input", "Output");
+    graph.Build({ "Input" }, { "Output" });
     ASSERT_EQ(int(graph.graph_state()), 0);
 
     const uint32_t batch_size = 1;
@@ -149,13 +149,13 @@ TEST(test_network, resnet3) {
         sftensor input = PreProcessImage(image);
         inputs.push_back(input);
     }
-    auto outputs = graph.Forward(inputs, true);
-    outputs.at(0)->Show();
+    auto outputs = graph.Forward({ inputs }, true);
+    outputs[0].at(0)->Show();
     ASSERT_EQ(outputs.size(), batch_size);
 
     SoftmaxLayer softmax_layer(0);
     std::vector<sftensor> outputs_softmax(batch_size);
-    softmax_layer.Forward(outputs, outputs_softmax);
+    softmax_layer.Forward(outputs[0], outputs_softmax);
     assert(outputs_softmax.size() == batch_size);
 
     for (int i = 0; i < outputs_softmax.size(); ++i) {

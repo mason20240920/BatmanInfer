@@ -10,12 +10,12 @@
 
 TEST(test_ir_topo, topo) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model/resetnet18_batch1.onnx";
+    const std::string& model_path = "./model_files/resetnet18_batch1.onnx";
     RuntimeGraph graph(model_path);
     const bool init_success = graph.Init();
     // 如果这里加载失败，请首先考虑
     ASSERT_EQ(init_success, true);
-    graph.Build("input", "output");
+    graph.Build({ "Input" }, { "Output" });
     const auto &to_po_queues = graph.get_to_po_queues();
 
     int index = 0;
@@ -28,11 +28,11 @@ TEST(test_ir_topo, topo) {
 
 TEST(test_ir_topo, build_output_ops) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model/simple_square_model.onnx";
+    const std::string& model_path = "./model_files/simple_square_model.onnx";
     RuntimeGraph graph(model_path);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
-    graph.Build("input", "output");
+    graph.Build({ "input" }, { "output" });
     const auto &to_po_queues = graph.get_to_po_queues();
 
     int index = 0;
@@ -44,11 +44,11 @@ TEST(test_ir_topo, build_output_ops) {
 
 TEST(test_ir_topo, build_output_ops2) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model/simple_square_model.onnx";
+    const std::string& model_path = "./model_files/simple_square_model.onnx";
     RuntimeGraph graph(model_path);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
-    graph.Build("input", "output");
+    graph.Build({ "input" }, { "output" });
     const auto &to_po_queues = graph.get_to_po_queues();
 
     int index = 0;
@@ -63,25 +63,25 @@ TEST(test_ir_topo, build_output_ops2) {
 
 TEST(test_ir_topo, build1_status) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model/simple_square_model.onnx";
+    const std::string& model_path = "./model_files/simple_square_model.onnx";
     RuntimeGraph graph(model_path);
     ASSERT_EQ(int(graph.graph_state()), -2);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
     ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build("input", "output");
+    graph.Build({ "input" }, { "output" });
     ASSERT_EQ(int(graph.graph_state()), 0);
 }
 
 TEST(test_ir_topo, build1_output_tensors) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model/simple_square_model.onnx";
+    const std::string& model_path = "./model_files/simple_square_model.onnx";
     RuntimeGraph graph(model_path);
     ASSERT_EQ(int(graph.graph_state()), -2);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
     ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build("input", "output");
+    graph.Build({ "input" }, { "output" });
     ASSERT_EQ(int(graph.graph_state()), 0);
 
     const auto &ops = graph.operators();
@@ -104,13 +104,13 @@ TEST(test_ir_topo, build1_output_tensors) {
 
 TEST(test_ir_attribute, test_attr) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model/resnet18.onnx";
+    const std::string& model_path = "./model_files/resnet18.onnx";
     RuntimeGraph graph(model_path);
     ASSERT_EQ(int(graph.graph_state()), -2);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
     ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build("input", "output");
+    graph.Build({ "input"} , { "output" });
     ASSERT_EQ(int(graph.graph_state()), 0);
 
     const auto &ops = graph.operators();
@@ -128,13 +128,13 @@ TEST(test_ir_attribute, test_attr) {
 
 TEST(test_ir_attribute, test_ops) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model/simple_conv_model.onnx";
+    const std::string& model_path = "./model_files/simple_conv_model.onnx";
     RuntimeGraph graph(model_path);
     ASSERT_EQ(int(graph.graph_state()), -2);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
     ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build("input", "output");
+    graph.Build({ "input" }, { "output" });
     ASSERT_EQ(int(graph.graph_state()), 0);
 
     // 输出数据
