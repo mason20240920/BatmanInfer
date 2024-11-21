@@ -23,7 +23,7 @@
 #include <utility>
 
 namespace BatmanInfer {
-    static bool type_is_integer(int type) {
+    static bool type_is_integer(const int type) {
         if (type == 1) return false;
         if (type == 2) return false;
         if (type == 3) return false;
@@ -39,7 +39,7 @@ namespace BatmanInfer {
         return false;
     }
 
-    static const char *type_to_string(int type) {
+    static const char *type_to_string(const int type) {
         if (type == 1) return "f32";
         if (type == 2) return "f64";
         if (type == 3) return "f16";
@@ -55,7 +55,7 @@ namespace BatmanInfer {
         return "null";
     }
 
-    static const char *type_to_numpy_string(int type) {
+    static const char *type_to_numpy_string(const int type) {
         if (type == 1) return "float32";
         if (type == 2) return "float64";
         if (type == 3) return "float16";
@@ -71,7 +71,7 @@ namespace BatmanInfer {
         return "null";
     }
 
-    static const char *type_to_dtype_string(int type) {
+    static const char *type_to_dtype_string(const int type) {
         if (type == 1) return "torch.float";
         if (type == 2) return "torch.double";
         if (type == 3) return "torch.half";
@@ -87,7 +87,7 @@ namespace BatmanInfer {
         return "null";
     }
 
-    static size_t type_to_elemsize(int type) {
+    static size_t type_to_elemsize(const int type) {
         if (type == 1) return 4;
         if (type == 2) return 8;
         if (type == 3) return 2;

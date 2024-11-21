@@ -53,23 +53,24 @@ namespace BatmanInfer {
 
         /**
          * 构建计算图
-         * @param input_name 计算图输入节点的名称
-         * @param output_name 计算图输出节点的名称
+         * @param input_names_strings 计算图输入节点的名称
+         * @param output_names_strings 计算图输出节点的名称
          */
-        void Build(const std::string &input_name,
-                   const std::string &output_name);
+        void Build(const std::vector<std::string> &input_names_strings,
+                   const std::vector<std::string> &output_names_strings);
 
         const std::vector<std::shared_ptr<RuntimeOperator>> &
         get_to_po_queues() const;
 
         /**
          * 按照顺序依次执行算子序列 (to_po_operators) 中每个算子的 Forward 方法即可
-         * @param inputs
+         * @param inputs 顺序必须按照初始化模型时传入的 input_names_ 的顺序
          * @param debug
          * @return
          */
-        std::vector<std::shared_ptr<Tensor<float>>> Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
-                                                            bool debug);
+        std::vector< std::vector< std::shared_ptr< Tensor<float> > > > Forward(
+            const std::vector< std::vector< std::shared_ptr<Tensor<float>> > > &inputs,
+            bool debug);
 
 
     private:
@@ -121,9 +122,8 @@ namespace BatmanInfer {
 
         /**
          * 拓扑排序制作推理图
-         * @param root_op
          */
-        void ReverseToPo(const std::shared_ptr<RuntimeOperator> &root_op);
+        void TopoSortOperators();
 
         std::shared_ptr<Layer> CreateLayer(const std::shared_ptr<RuntimeOperator> &op);
 
@@ -146,12 +146,12 @@ namespace BatmanInfer {
         /**
          * 计算图输入节点的名称
          */
-        std::string input_name_;
+        std::vector<std::string> input_names_;
 
         /**
          * 计算图输出节点的名称
          */
-        std::string output_name_;
+        std::vector<std::string> output_names_;
 
         /**
          * 模型的文件路径
