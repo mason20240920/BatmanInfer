@@ -12,7 +12,7 @@
 #include <layer/abstract/layer_factory.hpp>
 
 namespace BatmanInfer {
-    RuntimeGraph::RuntimeGraph(std::string model_path) : model_path_(model_path) {
+    RuntimeGraph::RuntimeGraph(std::string model_path) : model_path_(std::move(model_path)) {
 
     }
 
@@ -218,24 +218,51 @@ namespace BatmanInfer {
         return layer;
     }
 
-    void RuntimeGraph::ReverseToPo(const std::shared_ptr<RuntimeOperator> &root_op) {
-        CHECK(root_op != nullptr) << "Current operator is nullptr";
-        root_op->has_forward = true;
-        // 获取后面的算子
-        const auto &next_ops = root_op->output_operators;
-        for (const auto &[_, op]: next_ops) {
-            if (op != nullptr) {
-                // 如果没有前面的算子
-                if (!op->has_forward)
-                    this->ReverseToPo(op);
+    // 此函数不关心用户使用 Build 函数时提供的 input 列表。它将所有的 input 与 output 都构建进图中
+    void RuntimeGraph::TopoSortOperators()
+    {
+        to_po_operators_.clear();
+        to_po_operators_.reserve(this->operators_.size());
+        std::map<std::shared_ptr<RuntimeOperator>, int> op_in_degrees;
+        std::queue< std::shared_ptr<RuntimeOperator> > zero_degree_queue;
+
+        for (auto &op: this->operators_)
+        {
+            if ("Input" == op->type)
+            {
+                zero_degree_queue.push(op);
+            }
+            else
+            {
+                op_in_degrees.insert(std::make_pair(op, op->input_operands_seq.size()));
             }
         }
-        for (const auto &[_, op]: next_ops)
-            CHECK_EQ(op->has_forward, true);
-        this->to_po_operators_.push_back(root_op);
+
+        while (!zero_degree_queue.empty())
+        {
+            auto op = zero_degree_queue.front();
+            zero_degree_queue.pop();
+            this->to_po_operators_.push_back(op);
+
+            const auto &next_ops = op->output_operators;
+            for (const auto &[_, sub_op]: next_ops)
+            {
+                auto iter = op_in_degrees.find(sub_op);
+                CHECK(iter != op_in_degrees.end());
+                CHECK(iter->second > 0);
+
+                --iter->second;
+                if (0 == iter->second)
+                {
+                    zero_degree_queue.push(sub_op);
+                }
+            }
+        }
     }
 
-    void RuntimeGraph::Build(const std::string &input_name, const std::string &output_name) {
+
+    void RuntimeGraph::Build(const std::vector<std::string> &input_names_strings,
+        const std::vector<std::string> &output_names_strings) {
         if (graph_state_ == GraphState::Complete) {
             LOG(INFO) << "Model has been built already!";
             return;
@@ -278,21 +305,46 @@ namespace BatmanInfer {
         RuntimeOperatorUtils::InitOperatorInput(operators_);
         RuntimeOperatorUtils::InitOperatorOutput(graph_->operators, operators_);
 
-        // 构建拓扑顺序
-        to_po_operators_.clear();
-        for (const auto &[_, op] : operators_maps_) {
-            // 根据输入节点构建拓扑排序
-            if (op->type == "Input" && !op->has_forward) {
-                this->ReverseToPo(op);
+        // 检查输入输出是否合法，只会检查提供的输入输出中是否有模型不能识别的
+        input_names_ = input_names_strings;
+        output_names_ = output_names_strings;
+        std::set<std::string> check_input(input_names_.begin(), input_names_.end());
+        std::set<std::string> check_output(output_names_.begin(), output_names_.end());
+        for (const auto &op: this->operators_)
+        {
+            if ("Input" == op->type)
+            {
+                if (auto iter = check_input.find(op->name); iter != check_input.end())
+                {
+                    check_input.erase(iter);
+                }
+            }
+            else if ("Output" == op->type)
+            {
+                if (auto iter = check_output.find(op->name); iter != check_output.end())
+                {
+                    check_output.erase(iter);
+                }
             }
         }
+        std::string unknown_inout;
+        for (auto &tmp_name : check_input)
+        {
+            unknown_inout += (tmp_name + " ");
+        }
+        CHECK(unknown_inout.empty()) << "Unknown inputs: " << unknown_inout;
+        for (auto &tmp_name : check_output)
+        {
+            unknown_inout += (tmp_name + " ");
+        }
+        CHECK(unknown_inout.empty()) << "Unknown outputs: " << unknown_inout;
+
+        // 构建拓扑顺序
+        TopoSortOperators();
 
         CHECK(to_po_operators_.size() == operators_.size()) << "Build wrong to_po queue";
-        std::reverse(to_po_operators_.begin(), to_po_operators_.end());
 
         graph_state_ = GraphState::Complete;
-        input_name_ = input_name;
-        output_name_ = output_name;
         if (graph_ != nullptr) {
             graph_.reset();
             graph_ = nullptr;
@@ -339,8 +391,8 @@ namespace BatmanInfer {
         }
     }
 
-    std::vector<std::shared_ptr<Tensor<float>>>
-    RuntimeGraph::Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
+    std::vector< std::vector< std::shared_ptr< Tensor<float> > > >
+    RuntimeGraph::Forward(const std::vector< std::vector< std::shared_ptr<Tensor<float>> > > &inputs,
                           bool debug) {
         // 检查当前的执行图是否已经初始化完毕
         if (graph_state_ < GraphState::Complete)
@@ -351,15 +403,24 @@ namespace BatmanInfer {
         CHECK(to_po_operators_.size() == operators_.size())
               << "Build wrong to po queues";
 
-        for (const auto &op: to_po_operators_)
-            op->has_forward = false;
+        // for (const auto &op: to_po_operators_)
+        //     op->has_forward = false;
+
+        // 赋值 input
+        CHECK_EQ(inputs.size(), input_names_.size()) << "Build wrong number of inputs";
+        for (int i = 0; i < inputs.size(); ++i)
+        {
+            auto &ipt_name = input_names_[i];
+            auto ipt_out_operand = operators_maps_.at(ipt_name)->output_operands;
+            ipt_out_operand->datas = inputs.at(i);
+        }
 
         for (const auto &current_op : to_po_operators_) {
             if (current_op->type == "Input") {
-                current_op->has_forward = true;
-                ProbeNextLayer(current_op, inputs);
+                // current_op->has_forward = true;
+                ProbeNextLayer(current_op, current_op->output_operands->datas);
             } else if (current_op->type == "Output") {
-                current_op->has_forward = true;
+                // current_op->has_forward = true;
                 CHECK(current_op->input_operands_seq.size() == 1);
                 current_op->output_operands = current_op->input_operands_seq.front();
             } else {
@@ -367,23 +428,24 @@ namespace BatmanInfer {
                 CHECK(status == InferStatus::bInferSuccess)
                      << current_op->layer->layer_name()
                      << " layer forward failed, error code: " << int(status);
-                current_op->has_forward = true;
+                // current_op->has_forward = true;
                 ProbeNextLayer(current_op, current_op->output_operands->datas);
             }
         }
 
-        for (const auto &op: to_po_operators_)
-            LOG_IF(FATAL, !op->has_forward)
-                  << "The operator: " << op->name << " has not been forward yet!";
+        // for (const auto &op: to_po_operators_)
+        //     LOG_IF(FATAL, !op->has_forward)
+        //           << "The operator: " << op->name << " has not been forward yet!";
 
-        if (operators_maps_.find(output_name_) != operators_maps_.end()) {
-            const auto &output_op = operators_maps_.at(output_name_);
+        std::vector< std::vector< std::shared_ptr< Tensor<float> > > > final_outputs;
+        for (const auto &out_name : output_names_)
+        {
+            // 之前已经检查过 out_name 的合法性，这里不再检查
+            const auto &output_op = operators_maps_.at(out_name);
             CHECK(output_op->output_operands != nullptr) << "Output from " << output_op->name << " is empty";
             const auto &output_operand = output_op->output_operands;
-            return output_operand->datas;
-        } else {
-            LOG(FATAL) << "Can not find the output tensor" << output_name_;
-            return std::vector<std::shared_ptr<Tensor<float>>>{};
+            final_outputs.emplace_back(output_operand->datas);
         }
+        return final_outputs;
     }
 }
