@@ -98,4 +98,55 @@ namespace BatmanInfer {
 
         return result;
     }
+
+    std::shared_ptr<Tensor<float>> Concat(const std::vector<std::shared_ptr<Tensor<float>>>& tensors,
+                                          int axis) {
+        CHECK(!tensors.empty());
+
+        const auto& first_shape = tensors[0]->shapes();
+
+        CHECK(axis >= 0 && axis < first_shape.size());
+
+        // 计算输出张量形状
+        std::vector<uint32_t> output_shape = first_shape;
+        uint32_t concat_dim_size = 0;
+
+        for (const auto& tensor : tensors) {
+            const auto& shape = tensor->shapes();
+            for (size_t i = 0; i < shape.size(); ++i) {
+                if (i != static_cast<size_t>(axis)) {
+                    CHECK(shape[i] == first_shape[i]);
+                }
+            }
+            concat_dim_size += shape[axis];
+        }
+        output_shape[axis] = concat_dim_size;
+
+        // 创建输出张量
+        auto output_tensor = std::make_shared<Tensor<T>>(output_shape);
+
+        // 拼接张量
+        uint32_t offset = 0;
+        for (const auto& tensor : tensors) {
+            const auto& shape = tensor->shapes();
+            uint32_t current_size = shape[axis];
+
+            // 使用 OpenMP 并行化拼接过程
+#pragma omp parallel for
+            for (uint32_t c = 0; c < tensor->channels(); ++c) {
+                for (uint32_t r = 0; r < tensor->rows(); ++r) {
+                    for (uint32_t col = 0; col < tensor->cols(); ++col) {
+                        std::vector<uint32_t> src_idx = {c, r, col};
+                        std::vector<uint32_t> dst_idx = src_idx;
+                        dst_idx[axis] += offset;
+
+                        output_tensor->at(dst_idx) = tensor->at(src_idx);
+                    }
+                }
+            }
+            offset += current_size;
+        }
+
+        return output_tensor;
+    }
 }

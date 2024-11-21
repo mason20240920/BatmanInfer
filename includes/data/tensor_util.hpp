@@ -59,6 +59,15 @@ namespace BatmanInfer {
      */
     std::shared_ptr<Tensor<float>> MatrixMultiply(const std::shared_ptr<Tensor<float>> &tensor1,
                                                   const std::shared_ptr<Tensor<float>> &tensor2);
+
+    /**
+     * 拼接函数
+     * @param tensors
+     * @param axis 沿着哪个轴进行合并
+     * @return
+     */
+    std::shared_ptr<Tensor<float>> Concat(const std::vector<std::shared_ptr<Tensor<float>>>& tensors,
+                                          int axis);
 }
 
 #endif //BATMAN_INFER_TENSOR_UTIL_HPP

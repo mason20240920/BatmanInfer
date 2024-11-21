@@ -217,7 +217,7 @@ for (uint32_t w = 0; w < input_padded_w - kernel_w + 1; w += stride_w_) {
 >
 > **实例**
 >
-> 假设有一个输入张量 `X`，其形状为 \([N, C, H, W]\)，其中 \(N\) 是批量大小，\(C\) 是通道数，\(H\) 和 \(W\) 是高度和宽度。
+> 假设有一个输入张量 `X`，其形状为 $[N, C, H, W]$，其中 $N$ 是批量大小，$C$ 是通道数，$H$ 和 $W$ 是高度和宽度。
 >
 > - 如果 `axis=1`，Flatten 操作将把输入张量展平成形状为 $[N, C \times H \times W]$ 的二维张量。
 > - 如果 `axis=2`，Flatten 操作将把输入张量展平成形状为 $[N \times C, H \times W]$的二维张量。
@@ -263,3 +263,56 @@ for (uint32_t w = 0; w < input_padded_w - kernel_w + 1; w += stride_w_) {
 > 2. 计算最终输出 $ Y = \alpha \times (A \times B) + \beta \times C $：
 >    $Y = 1 \times \begin{bmatrix}58 & 64 \\139 & 154\end{bmatrix} + 1 \times \begin{bmatrix}1 & 1 \\1 & 1\end{bmatrix} = \begin{bmatrix}59 & 65 \\140 & 155\end{bmatrix}$
 
+#### 5. Concat (Concatenate) 算子 - 合并张量
+
+> **作用**:
+>
+> 在 ONNX 中，`Concat`（Concatenate）算子用于将多个张量沿指定的轴拼接（连接）起来。它的主要作用是将输入的张量合并为一个更大的张量。
+>
+> 1. **输入**：
+>    - `Concat` 接收多个张量作为输入。这些张量必须在非拼接轴上的形状相同。
+>    - `inputs` 包含两个输入张量 `/attention/Slice_1_output_0` 和 `/attention/Slice_2_output_0`。
+>
+> 2. **属性**：
+>    - **`axis`**：指定沿哪个轴进行拼接。  
+>      在你的截图中，`axis=0`，表示沿第 0 维（通常是 batch 维度）拼接。
+>
+> 3. **输出**：
+>    - 输出是一个新的张量，其形状在拼接轴上是输入张量的形状之和，而其他轴的形状保持不变。
+>    - 在你的截图中，输出张量是 `/attention/Concat_output_0`。
+>
+> **示例**
+>
+> 假设有两个输入张量：
+>
+> - $ \text{Tensor A} $ 形状为 $[2, 3]$:
+>  $
+>   \mathbf{A} = \begin{bmatrix}
+>  1 & 2 & 3 \\
+>   4 & 5 & 6
+>   \end{bmatrix}
+>   $
+> 
+> - $ \text{Tensor B} $ 形状为 $[3, 3]$:
+>   $
+>   \mathbf{B} = \begin{bmatrix}
+>  7 & 8 & 9 \\
+>   10 & 11 & 12 \\
+>   13 & 14 & 15
+>   \end{bmatrix}
+>   $
+> 
+> 如果沿着 $ \text{axis} = 0 $ 进行拼接，结果为：
+> 
+> $
+>\text{Concat}(\mathbf{A}, \mathbf{B}) = \begin{bmatrix}
+> 1 & 2 & 3 \\
+>4 & 5 & 6 \\
+> 7 & 8 & 9 \\
+> 10 & 11 & 12 \\
+> 13 & 14 & 15
+> \end{bmatrix}
+> $
+> 
+> 输出的形状为 $[5, 3]$。
+> 

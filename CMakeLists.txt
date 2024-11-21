@@ -178,7 +178,8 @@ add_executable(BatmanInfer main.cpp
         source/layer/detail/global_average_pool.cpp
         source/layer/detail/flatten.cpp
         source/layer/detail/gemm.cpp
-        test/test_operators.cpp)
+        test/test_operators.cpp
+        source/layer/detail/concat.cpp)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer
