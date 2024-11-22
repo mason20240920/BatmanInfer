@@ -101,34 +101,42 @@ namespace BatmanInfer {
 
     std::shared_ptr<Tensor<float>> Concat(const std::vector<std::shared_ptr<Tensor<float>>>& tensors,
                                           int axis) {
+        // 验证输入的张量数组是否是空的
         CHECK(!tensors.empty());
-
+        // 第一个张量的结构
         const auto& first_shape = tensors[0]->shapes();
-
+        // 轴所在的范围(>= 0 或者 < 张量的shapes), 一般都是3维，这块可以改为 axis < 3
         CHECK(axis >= 0 && axis < first_shape.size());
 
-        // 计算输出张量形状
+        // 计算输出张量形状, 目前是3维不变
         std::vector<uint32_t> output_shape = first_shape;
+        // 合并的维度的大小，比如rows = 3, cols = 1, channels = 3 和[3, 1,3 ]和[2, 1, 3] =? [5, 1, 3]
         uint32_t concat_dim_size = 0;
 
+        // 验证输入的tensors里面除了axis，其他shapes是否一致
         for (const auto& tensor : tensors) {
+            // tensor的结构
             const auto& shape = tensor->shapes();
             for (size_t i = 0; i < shape.size(); ++i) {
                 if (i != static_cast<size_t>(axis)) {
+                    // 验证除了axis结构是否一致
                     CHECK(shape[i] == first_shape[i]);
                 }
             }
             concat_dim_size += shape[axis];
         }
+        // 修改输出的结构
         output_shape[axis] = concat_dim_size;
 
         // 创建输出张量
-        auto output_tensor = std::make_shared<Tensor<T>>(output_shape);
+        auto output_tensor = std::make_shared<Tensor<float>>(output_shape);
 
         // 拼接张量
         uint32_t offset = 0;
         for (const auto& tensor : tensors) {
+            // 获取每一个张量的结构[channel, rows, cols]
             const auto& shape = tensor->shapes();
+            // 当前合并轴的的类型
             uint32_t current_size = shape[axis];
 
             // 使用 OpenMP 并行化拼接过程
@@ -144,6 +152,7 @@ namespace BatmanInfer {
                     }
                 }
             }
+            // 合并完成添加到整体
             offset += current_size;
         }
 
