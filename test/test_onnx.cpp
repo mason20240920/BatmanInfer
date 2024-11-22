@@ -12,7 +12,7 @@
 #include <runtime/ir.h>
 
 TEST(test_ir, onnx_graph_ops) {
-    const std::string& modelPath = "./model/model.onnx";
+    const std::string& modelPath = "../model_files/operators/concat_model_single_input.onnx";
 
     // 初始化Protobuf
     GOOGLE_PROTOBUF_VERIFY_VERSION;

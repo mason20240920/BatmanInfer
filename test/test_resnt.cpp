@@ -78,13 +78,13 @@ sftensor PreProcessImage(const cv::Mat &image) {
 
 TEST(test_network, resnet1) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model_files/simple_conv_model.onnx";
+    const std::string& model_path = "../model_files/simple_conv_model.onnx";
     RuntimeGraph graph(model_path);
     ASSERT_EQ(int(graph.graph_state()), -2);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
     ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build({ "Input" }, { "Output" });
+    graph.Build({ "input" }, { "output" });
     ASSERT_EQ(int(graph.graph_state()), 0);
 
     // Flat list of values obtained from PyTorch
@@ -109,13 +109,13 @@ TEST(test_network, resnet1) {
 // 测试拓扑结构是否正常
 TEST(test_network, resnet2) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model_files/resnet18.onnx";
+    const std::string& model_path = "../model_files/resnet18.onnx";
     RuntimeGraph graph(model_path);
     ASSERT_EQ(int(graph.graph_state()), -2);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
     ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build({ "Input" }, { "Output" });
+    graph.Build({ "input" }, { "output" });
     ASSERT_EQ(int(graph.graph_state()), 0);
 
     std::shared_ptr<ftensor> input_tensor = std::make_shared<ftensor>(3, 2, 2);
@@ -130,13 +130,13 @@ TEST(test_network, resnet2) {
 // 验证图像加载是否成功
 TEST(test_network, resnet3) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model_files/resetnet18_batch1.onnx";
+    const std::string& model_path = "../model_files/resetnet18_batch1.onnx";
     RuntimeGraph graph(model_path);
     ASSERT_EQ(int(graph.graph_state()), -2);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
     ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build({ "Input" }, { "Output" });
+    graph.Build({ "input" }, { "output" });
     ASSERT_EQ(int(graph.graph_state()), 0);
 
     const uint32_t batch_size = 1;
