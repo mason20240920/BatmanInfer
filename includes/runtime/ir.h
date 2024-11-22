@@ -9,6 +9,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 #include <onnx/onnx_pb.h>
 //#include <onnx/proto_utils.h>
@@ -32,11 +33,11 @@ namespace BatmanInfer {
 
         explicit ONNXParameter(const char *_s) : type(4), s(_s) {}
 
-        explicit ONNXParameter(const std::string &_s) : type(4), s(_s) {}
+        explicit ONNXParameter(std::string _s) : type(4), s(std::move(_s)) {}
 
-        explicit ONNXParameter(const std::initializer_list<int> &_ai) : type(5), ai(_ai) {}
+        ONNXParameter(const std::initializer_list<int> &_ai) : type(5), ai(_ai) {}
 
-        explicit ONNXParameter(const std::initializer_list<int64_t> &_ai) : type(5) {
+        ONNXParameter(const std::initializer_list<int64_t> &_ai) : type(5) {
             for (const auto &x: _ai)
                 ai.push_back((int) x);
         }

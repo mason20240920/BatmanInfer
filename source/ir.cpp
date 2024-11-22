@@ -9,18 +9,14 @@
 #include <google/protobuf/util/json_util.h>
 //#include <onnx/onnx.pb.h>
 #include <onnx/shape_inference/implementation.h>
-#include <onnx_conv/OnnxUtils.hpp>
 
 
-#include <climits>
 #include <cstdint>
 #include <cstring>
 #include <algorithm>
-#include <fstream>
 #include <sstream>
 #include <string>
 #include <stack>
-#include <utility>
 
 namespace BatmanInfer {
     static bool type_is_integer(const int type) {
@@ -243,69 +239,6 @@ namespace BatmanInfer {
         return c;
     }
 
-    ONNXParameter ONNXParameter::parse_from_string(const std::string &value) {
-        ONNXParameter p;
-        p.type = 0;
-
-        if (value == "None" || value == "()" || value == "[]") {
-            return p;
-        }
-
-        if (value == "True" || value == "False") {
-            // bool
-            p.type = 1;
-            p.b = value == "True";
-            return p;
-        }
-
-        if (value[0] == '(' || value[0] == '[') {
-            // list
-            std::string lc = value.substr(1, value.size() - 2);
-            std::istringstream lcss(lc);
-
-            while (!lcss.eof()) {
-                std::string elem;
-                std::getline(lcss, elem, ',');
-
-                if ((elem[0] != '-' && (elem[0] < '0' || elem[0] > '9')) ||
-                    (elem[0] == '-' && (elem[1] < '0' || elem[1] > '9'))) {
-                    // string
-                    p.type = 7;
-                    p.as.push_back(elem);
-                } else if (elem.find('.') != std::string::npos || elem.find('e') != std::string::npos) {
-                    // float
-                    p.type = 6;
-                    p.af.push_back(std::stof(elem));
-                } else {
-                    // integer
-                    p.type = 5;
-                    p.ai.push_back(std::stoi(elem));
-                }
-            }
-            return p;
-        }
-
-        if ((value[0] != '-' && (value[0] < '0' || value[0] > '9')) ||
-            (value[0] == '-' && (value[1] < '0' || value[1] > '9'))) {
-            // string
-            p.type = 4;
-            p.s = value;
-            return p;
-        }
-
-        if (value.find('.') != std::string::npos || value.find('e') != std::string::npos) {
-            // float
-            p.type = 3;
-            p.f = std::stof(value);
-            return p;
-        }
-
-        // integer
-        p.type = 2;
-        p.i = std::stoi(value);
-        return p;
-    }
-
     ONNXGraph::ONNXGraph() = default;
 
     ONNXGraph::~ONNXGraph() {
@@ -327,12 +260,13 @@ namespace BatmanInfer {
      * @return
      */
     bool is_initializer(const std::string &input_name, const onnx::GraphProto &graph) {
-        for (const auto &initializer: graph.initializer()) {
-            if (initializer.name() == input_name) {
-                return true; // Input is an initializer (weight)
-            }
-        }
-        return false;
+        return std::any_of(
+                graph.initializer().begin(),
+                graph.initializer().end(),
+                [&input_name](const onnx::TensorProto& initializer) {
+                    return initializer.name() == input_name;
+                }
+        );
     }
 
     /**
@@ -467,11 +401,6 @@ namespace BatmanInfer {
         const onnx::ValueInfoProto& output_info = graph.output(0);
         const std::string& operand_name = output_info.name();
 
-//        // 创建一个新的操作数对象
-//        ONNXOperand *r = new_operand(operand_name);
-//        r->consumer.push_back(op);
-//        op->inputs.emplace_back(r);
-
         // 确保输出类型是 Tensor
         const onnx::TypeProto& output_type = output_info.type();
         if (!output_type.has_tensor_type()) {
@@ -573,6 +502,64 @@ namespace BatmanInfer {
         }
     }
 
+    /**
+     * 根据这个获取input节点被多少个Operators使用
+     * @param graph
+     * @param input_name
+     * @return
+     */
+    int count_input_usage(const onnx::GraphProto &graph,
+                          const std::string& input_name) {
+        int usage_count = 0;
+        for (const auto& node: graph.node()) {
+            for (const auto& input: node.input()) {
+                if (input_name == input)
+                    ++usage_count;
+            }
+        }
+        return usage_count;
+    }
+
+    /**
+     * 根据这个获取output节点多少个Operators使用
+     * @param graph
+     * @param output_name
+     * @return
+     */
+    int count_output_usage(const onnx::GraphProto &graph,
+                           const std::string& output_name) {
+        int usage_count = 0;
+        for (const auto& node : graph.node()) {
+            for (const auto& output: node.output()) {
+                if (output_name == output)
+                    ++usage_count;
+            }
+        }
+        return usage_count;
+    }
+
+    /**
+     * 获取onnx模型的输入的inputs
+     * @param graph
+     * @return
+     */
+    std::vector<std::string_view> load_extra_nodes(const onnx::GraphProto& graph,
+                                                   bool is_input) {
+        std::vector<std::string_view> input_names;
+        if (is_input) {
+            // 预分配内存
+            input_names.reserve(graph.input_size());
+            for (const auto& input : graph.input()) {
+                input_names.emplace_back(input.name());
+            }
+            return input_names;
+        }
+        input_names.reserve(graph.output_size());
+        for (const auto& output: graph.output())
+            input_names.emplace_back(output.name());
+        return input_names;
+    }
+
     int ONNXGraph::load(const std::string &model_path) {
 
         // 读取ONNX模型文件
@@ -604,78 +591,85 @@ namespace BatmanInfer {
                                    operator_count,
                                    operand_count);
 
-        // 新增两个operator, 一个是input,一个是output
-        operator_count += 2;
+        auto input_names = load_extra_nodes(graph_info, true);
+        auto output_names = load_extra_nodes(graph_info, false);
 
-        // 获取算子图
-//        auto graph = modelProto.graph();
+        auto input_size = static_cast<int>(input_names.size());
+        auto output_size = static_cast<int>(output_names.size());
+
+        // 新增两个operator, 一个是input,一个是output
+        operator_count += input_size;
+        operator_count += output_size;
 
         // 获取算子的信息
         for (int i = 0; i < operator_count; ++i) {
-            // 对于第一个算子，进行手动新增，这是一个input node节点
-            if (i == 0) {
-                const std::string& type = "Input";
-                const std::string& name = "Input";
-                int input_count = 0;
-                int output_count = 1;
+            // 对于前面的input的算子
+            if (i < input_size) {
+                const std::string type("Input");
+                const std::string name(input_names.at(i));
 
                 ONNXOperator *op = new_operator(type, name);
 
                 // 新增一个输出的结点
                 std::string operand_name;
 
-                ONNXOperand *r = new_operand(operand_name);
-                r->producer = op;
-                op->outputs.emplace_back(r);
+                // 获取出度
+                int output_count = count_input_usage(graph_info, name);
 
-                // 获取第一个输入
-                const onnx::ValueInfoProto& input_info = graph_info.input(0);
-                // 获取类型信息
-                const onnx::TypeProto& input_type = input_info.type();
+#pragma omp parallel for
+                for (int op_i = 0; op_i < output_count; ++op_i) {
+                    ONNXOperand *r = new_operand(operand_name);
+                    r->producer = op;
+                    op->outputs.emplace_back(r);
 
-                // 确保输入类型是 Tensor
-                if (!input_type.has_tensor_type()) {
-                    std::cerr << "Input is not a tensor type." << std::endl;
-                    return -1;
-                }
+                    // 获取第一个输入
+                    const onnx::ValueInfoProto& input_info = graph_info.input(i);
+                    // 获取类型信息
+                    const onnx::TypeProto& input_type = input_info.type();
 
-                // 获取ONNX Tensor类型
-                const onnx::TypeProto::Tensor& tensor_type = input_type.tensor_type();
-                int onnx_data_type = tensor_type.elem_type();
-
-                // 将ONNX类型映射为自定义类型
-                int custom_type = map_onnx_type_to_custom_type(onnx_data_type);
-
-                // 获取输入的Shape
-                const onnx::TensorShapeProto& shape = tensor_type.shape();
-                std::vector<int32_t> input_shape;
-                for (int j = 0; j < shape.dim_size(); ++j) {
-                    const onnx::TensorShapeProto::Dimension& dim = shape.dim(j);
-                    if (dim.has_dim_value()) {
-                        input_shape.push_back(dim.dim_value());
-                    } else {
-                        input_shape.push_back(-1);  // 未定义的维度
+                    // 确保输入类型是 Tensor
+                    if (!input_type.has_tensor_type()) {
+                        std::cerr << "Input is not a tensor type." << std::endl;
+                        return -1;
                     }
+
+                    // 获取ONNX Tensor类型
+                    const onnx::TypeProto::Tensor& tensor_type = input_type.tensor_type();
+                    int onnx_data_type = tensor_type.elem_type();
+
+                    // 将ONNX类型映射为自定义类型
+                    int custom_type = map_onnx_type_to_custom_type(onnx_data_type);
+
+                    // 获取输入的Shape
+                    const onnx::TensorShapeProto& shape = tensor_type.shape();
+                    std::vector<int32_t> input_shape;
+                    for (int j = 0; j < shape.dim_size(); ++j) {
+                        const onnx::TensorShapeProto::Dimension& dim = shape.dim(j);
+                        if (dim.has_dim_value()) {
+                            input_shape.push_back(dim.dim_value());
+                        } else {
+                            input_shape.push_back(-1);  // 未定义的维度
+                        }
+                    }
+                    r->producer = op;
+                    r->name = name;
+                    r->type = custom_type;
+                    r->shape = input_shape;
                 }
-                r->producer = op;
-                r->name = "input";
-                r->type = custom_type;
-                r->shape = input_shape;
 
                 // 跳过后面的输入
                 continue;
-            } else if (i == operator_count - 1) {
-                const std::string& type = "Output";
-                const std::string& name = "Output";
-                int input_count = 1;
-                int output_count = 0;
+            } else if (i == operator_count - output_size) {
+                const std::string type("Output");
+                const std::string name (output_names[i - operator_count + output_size]);
+                int input_count = count_output_usage(graph_info, name);
 
                 // 创建Output算子
                 ONNXOperator *op = new_operator(type, name);
 
                 for (int j = 0; j < input_count; j++) {
                     // 获取第 j 个输入的名称
-                    const std::string &operand_name = operators.at(operator_count - 2)->outputs[0]->name;
+                    const std::string &operand_name = operators.at(operator_count - output_size - 1)->outputs[j]->name;
 
                     // 获取输入的操作数
                     ONNXOperand *r = get_operand(operand_name);
@@ -692,7 +686,7 @@ namespace BatmanInfer {
 
 
             // 获取每一个算子
-            const onnx::NodeProto &node = graph_info.node(i - 1);
+            const onnx::NodeProto &node = graph_info.node(i - input_size);
 
             const std::string& type = node.op_type();
             const std::string& name = node.name();
