@@ -17,10 +17,15 @@ namespace BatmanInfer {
             return InferStatus::bInferFailedInputEmpty;
         }
 
-        if (inputs.size() != outputs.size()) {
-            LOG(ERROR) << "The input and output tensor array size of the Concat "
+        if (inputs.size() != 2) {
+            LOG(ERROR) << "The input tensor array size of the Concat "
                           "layer do not match";
             return InferStatus::bInferFailedInputOutSizeMatchError;
+        }
+
+        if (outputs.size() != 1) {
+            LOG(ERROR) << "The Add layer requires exactly one output tensor";
+            return InferStatus::bInferFailedOutputSizeError;
         }
 
         // 获取input的size
@@ -69,4 +74,27 @@ namespace BatmanInfer {
 
         return InferStatus::bInferSuccess;
     }
+
+    ParseParameterAttrStatus ConcatLayer::CreateInstance(const std::shared_ptr<RuntimeOperator> &op,
+                                                                std::shared_ptr<Layer> &concat_layer) {
+        CHECK(op != nullptr) << "Concat operator is nullptr";
+        const auto &params = op->params;
+
+        if (params.find("axis") == params.end()) {
+            LOG(ERROR) << "Can not find the axis parameter";
+            return ParseParameterAttrStatus::bParameterMissingAxis;
+        }
+
+        auto axis = std::dynamic_pointer_cast<RuntimeParameterInt>(params.at("axis"));
+        if (axis == nullptr) {
+            LOG(ERROR) << "Axis parameter is invalid";
+            return ParseParameterAttrStatus::bParameterMissingAxis;
+        }
+
+        concat_layer = std::make_shared<ConcatLayer>(axis->value - 1);
+        return ParseParameterAttrStatus::bParameterAttrParseSuccess;
+    }
+
+    LayerRegistererWrapper bConcatCreateInstance("Concat", ConcatLayer::CreateInstance);
+
 }

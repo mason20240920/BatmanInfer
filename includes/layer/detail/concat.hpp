@@ -12,7 +12,7 @@ namespace BatmanInfer {
     public:
         /**
          * 合并的轴
-         * @param axis
+         * @param axis: 0: channel, 1: row, 2: cols
          */
         explicit ConcatLayer(int axis);
 
