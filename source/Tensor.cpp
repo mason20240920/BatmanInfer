@@ -335,7 +335,7 @@ namespace BatmanInfer {
     }
 
     float& Tensor<float>::at(const std::vector<uint32_t>& indices) {
-        CHECK(indices.size() == this->raw_shapes_.size());
+        CHECK(indices.size() == this->shapes().size());
         uint32_t channel = 0, row = 0, col = 0;
 
         if (indices.size() == 1) {

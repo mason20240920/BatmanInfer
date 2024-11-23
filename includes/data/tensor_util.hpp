@@ -68,6 +68,14 @@ namespace BatmanInfer {
      */
     std::shared_ptr<Tensor<float>> Concat(const std::vector<std::shared_ptr<Tensor<float>>>& tensors,
                                           int axis);
+
+    /***
+     * 把两个batch的inputs输入到一个outputs里面
+     * @param tensors
+     * @param merge_tensor
+     */
+    void merge_tensors(const std::vector<sftensor>& tensors,
+                       std::vector<sftensor>& merge_tensor);
 }
 
 #endif //BATMAN_INFER_TENSOR_UTIL_HPP

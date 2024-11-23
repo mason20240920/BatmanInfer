@@ -58,16 +58,16 @@ TEST(test_operators, tensor_concat) {
     auto tensor1 = std::make_shared<Tensor<float>>(2, 2, 2);
     tensor1->Rand();
     tensor1->Show();
-    auto tensor2 = std::make_shared<Tensor<float>>(2, 4, 2);
+    auto tensor2 = std::make_shared<Tensor<float>>(2, 2, 2);
     tensor2->Rand();
     tensor2->Show();
     std::vector<sftensor> inputs{tensor1, tensor2};
-    std::vector<sftensor> outputs(1);
-    ConcatLayer concatLayer(1);
+    std::vector<sftensor> outputs(2);
+    ConcatLayer concatLayer(0);
     concatLayer.Forward(inputs, outputs);
     outputs.at(0)->Show();
     CHECK(outputs.at(0)->shapes()[0] == 2);
-    CHECK(outputs.at(0)->shapes()[1] == 6);
+    CHECK(outputs.at(0)->shapes()[1] == 2);
     CHECK(outputs.at(0)->shapes()[2] == 2);
 }
 
@@ -82,7 +82,7 @@ TEST(test_operators, tensor_concat2) {
     graph.Build({ "input1", "input2" }, { "output" });
     ASSERT_EQ(int(graph.graph_state()), 0);
 
-    std::shared_ptr<ftensor> input_tensor1 = std::make_shared<ftensor>(1, 224, 224);
+    std::shared_ptr<ftensor> input_tensor1 = std::make_shared<ftensor>(2, 224, 224);
     input_tensor1->Ones();
     std::shared_ptr<ftensor> input_tensor2 = std::make_shared<ftensor>(1, 224, 224);
     input_tensor2->Ones();
@@ -90,4 +90,9 @@ TEST(test_operators, tensor_concat2) {
     std::vector<sftensor> input2{input_tensor2};
 
     auto outputs = graph.Forward({ input1, input2 }, true);
+    CHECK(outputs.size() == 1);
+    CHECK(outputs.at(0).at(0)->shapes()[0] == 3);
+    CHECK(outputs.at(0).at(0)->shapes()[1] == 224);
+    CHECK(outputs.at(0).at(0)->shapes()[2] == 224);
+    outputs.at(0).at(0)->Show();
 }

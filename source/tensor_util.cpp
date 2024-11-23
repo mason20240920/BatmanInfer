@@ -158,4 +158,12 @@ namespace BatmanInfer {
 
         return output_tensor;
     }
+
+
+    void merge_tensors(const std::vector<sftensor>& tensors,
+                       std::vector<sftensor>& merge_tensor) {
+        merge_tensor.clear();
+        merge_tensor.reserve(tensors.size());
+        merge_tensor.insert(merge_tensor.end(), tensors.begin(), tensors.end());
+    }
 }
