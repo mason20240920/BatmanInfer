@@ -110,3 +110,26 @@ TEST(test_operators, tensor_expand1) {
     expandLayer.Forward(inputs, outputs);
     outputs.at(0)->Show();
 }
+
+TEST(test_operators, tensor_expand2) {
+    using namespace BatmanInfer;
+    const std::string& model_path = "../model_files/operators/expands_model.onnx";
+    RuntimeGraph graph(model_path);
+    ASSERT_EQ(int(graph.graph_state()), -2);
+    const bool init_success = graph.Init();
+    ASSERT_EQ(init_success, true);
+    ASSERT_EQ(int(graph.graph_state()), -1);
+    graph.Build({ "input" }, { "output" });
+    ASSERT_EQ(int(graph.graph_state()), 0);
+
+    std::shared_ptr<ftensor> input_tensor1 = std::make_shared<ftensor>(1, 1, 1);
+    input_tensor1->Ones();
+    std::vector<sftensor> input1{input_tensor1};
+
+    auto outputs = graph.Forward({ input1 }, true);
+    CHECK(outputs.size() == 1);
+    CHECK(outputs.at(0).at(0)->shapes()[0] == 6);
+    CHECK(outputs.at(0).at(0)->shapes()[1] == 4);
+    CHECK(outputs.at(0).at(0)->shapes()[2] == 5);
+    outputs.at(0).at(0)->Show();
+}

@@ -706,7 +706,10 @@ namespace BatmanInfer {
             for (int j = 0; j < input_count; j++) {
                 // 获取第 j 个输入的名称
                 const std::string &operand_name = node.input(j);
-
+                // 判断是不是initializer的input
+                if (is_initializer(operand_name, graph_info)) {
+                    continue;
+                }
                 // 获取输入的操作数
                 ONNXOperand *r = get_operand(operand_name);
                 r->consumers.push_back(op);

@@ -138,6 +138,13 @@ namespace BatmanInfer {
                     runtime_operator->attribute.insert({name, runtime_attribute});
                     break;
                 }
+                case 5: {
+                    std::shared_ptr<RuntimeAttribute> runtime_attribute = std::make_shared<RuntimeAttribute>();
+                    runtime_attribute->type = RuntimeDataType::kTypeInt64;
+                    runtime_attribute->weight_data = attr.data;
+                    runtime_attribute->shape = attr.shape;
+                    break;
+                }
                 default: {
                     LOG(FATAL) << "Unknown attribute type: " << attr.type;
                 }
