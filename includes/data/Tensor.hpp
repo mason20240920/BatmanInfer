@@ -283,6 +283,16 @@ namespace BatmanInfer {
          */
         float* matrix_raw_ptr(uint32_t index);
 
+        /**
+         * 按照指定形状进行广播(Broadcast)
+         * 规则:
+         *   1. 如果目标形状的维度数大于当前张量的维度数，在前面补充 1
+         *   2. 如果原始维度为 1，可以扩展到目标维度
+         *   3. 如果原始维度与目标维度不相等且不为 1，则报错
+         * @param shapes 目标形状
+         */
+        void Expand(const std::vector<uint32_t>& shapes);
+
     private:
         std::vector<uint32_t > raw_shapes_; // 张量数据的实际尺寸大小
         arma::fcube data_;  //张量数据

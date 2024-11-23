@@ -6,6 +6,7 @@
 #include <layer/detail/gemm.hpp>
 #include <data/tensor_util.hpp>
 #include <layer/detail/concat.hpp>
+#include <layer/detail/expand.hpp>
 #include <vector>
 #include <runtime/runtime_ir.hpp>
 
@@ -95,4 +96,17 @@ TEST(test_operators, tensor_concat2) {
     CHECK(outputs.at(0).at(0)->shapes()[1] == 224);
     CHECK(outputs.at(0).at(0)->shapes()[2] == 224);
     outputs.at(0).at(0)->Show();
+}
+
+TEST(test_operators, tensor_expand1) {
+    using namespace BatmanInfer;
+    auto tensor = std::make_shared<Tensor<float>>(1, 2, 2);
+    tensor->Ones();
+    tensor->Show();
+    auto output_tensor = std::make_shared<ftensor>(2, 2, 2);
+    std::vector<sftensor> inputs{tensor};
+    std::vector<sftensor> outputs{output_tensor};
+    ExpandLayer expandLayer{};
+    expandLayer.Forward(inputs, outputs);
+    outputs.at(0)->Show();
 }

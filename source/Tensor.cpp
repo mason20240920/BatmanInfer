@@ -372,4 +372,57 @@ namespace BatmanInfer {
                         << data.n_slices << " != " << this->data_.n_slices;
         this->data_ = data;
     }
+
+    void Tensor<float>::Expand(const std::vector<uint32_t> &shapes) {
+        CHECK(!shapes.empty()) << "Target shapes can not be empty";
+        CHECK(shapes.size() <= 3) << "Target shapes dimension exceeds 3D!";
+
+        std::vector<uint32_t > current_shapes = this->raw_shapes_;
+        uint32_t current_dims = current_shapes.size();
+        uint32_t target_dims = shapes.size();
+
+        if (current_dims < target_dims)
+            current_shapes.insert(current_shapes.begin(), target_dims - current_dims, 1);
+
+        for (size_t i = 0; i < target_dims; ++i)
+            CHECK(current_shapes[i] == shapes[i] || current_shapes[i] == 1)
+                 << "Shape mismatch: can not broadcast current shape "
+                 << current_shapes[i] << " to target shape " << shapes[i];
+
+        uint32_t target_channels = shapes.size() == 3 ? shapes[0] : 1;
+        uint32_t target_rows = shapes.size() >= 2 ? shapes[target_dims - 2] : 1;
+        uint32_t target_cols = shapes.back();
+
+        arma::fcube expanded_data(target_rows, target_cols, target_channels);
+
+#pragma omp parallel for
+        for (uint32_t c = 0; c < target_channels; ++c) {
+            // 如果当前张量的通道数为 1，则重复第一个通道的数据；
+            // 否则，直接取当前通道的数据
+            uint32_t src_channel = (current_shapes[0] == 1) ? 0 : c;
+
+            // 获取当前通道的二维矩阵数据（`slice`）。
+            arma::fmat slice = this->data_.slice(src_channel);
+
+            // 情况 1：如果当前张量的行数和列数都为 1（即标量扩展），
+            // 则将当前通道的所有元素填充为原始标量值。
+            if (current_shapes[1] == 1 && current_shapes[2] == 1)
+                expanded_data.slice(c).fill(slice(0, 0));
+            else if (current_shapes[1] == 1)
+                // 情况 2：如果当前张量的行数为 1（即一维向量扩展到二维），
+                // 则重复第一行的值，扩展为 `target_rows` 行。
+                expanded_data.slice(c) = arma::repmat(slice.row(0), target_rows, 1);
+            else if (current_shapes[2] == 1)
+                // 情况 3：如果当前张量的列数为 1（即一维向量扩展到二维），
+                // 则重复第一列的值，扩展为 `target_cols` 列。
+                expanded_data.slice(c) == arma::repmat(slice.col(0), 1, target_cols);
+            else
+                // 情况 4：如果当前张量的行数和列数都与目标形状匹配，
+                // 则直接将当前通道的数据复制到目标通道中，无需扩展。
+                expanded_data.slice(c) = slice;
+        }
+
+        this->data_ = std::move(expanded_data);
+        this->raw_shapes_ = shapes;
+    }
 }

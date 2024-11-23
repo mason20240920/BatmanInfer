@@ -111,6 +111,10 @@ else()
     )
     set(UTF8RANGE_LIBRARY "")
 
+    # 查找glog
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GLOG REQUIRED libglog)
+
 endif()
 
 # 下载GoogleTest项目
@@ -124,9 +128,6 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-# 查找glog
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GLOG REQUIRED libglog)
 # 查找OpenCV库
 find_package(OpenCV REQUIRED)
 
@@ -181,7 +182,8 @@ add_executable(BatmanInfer main.cpp
         source/layer/detail/flatten.cpp
         source/layer/detail/gemm.cpp
         test/test_operators.cpp
-        source/layer/detail/concat.cpp)
+        source/layer/detail/concat.cpp
+        source/layer/detail/expand.cpp)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer

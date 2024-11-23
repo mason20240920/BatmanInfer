@@ -616,8 +616,13 @@ namespace BatmanInfer {
                 // 获取出度
                 int output_count = count_input_usage(graph_info, name);
 
+                // 标记错误
+                int error_flag = 0;
+
 #pragma omp parallel for
                 for (int op_i = 0; op_i < output_count; ++op_i) {
+                    // 如果error报错，直接跳过后面
+                    if (error_flag == 1) continue;
                     ONNXOperand *r = new_operand(operand_name);
                     r->producer = op;
                     op->outputs.emplace_back(r);
@@ -629,8 +634,8 @@ namespace BatmanInfer {
 
                     // 确保输入类型是 Tensor
                     if (!input_type.has_tensor_type()) {
-                        std::cerr << "Input is not a tensor type." << std::endl;
-                        return -1;
+#pragma omp critical
+                        error_flag = 1;
                     }
 
                     // 获取ONNX Tensor类型
@@ -656,6 +661,9 @@ namespace BatmanInfer {
                     r->type = custom_type;
                     r->shape = input_shape;
                 }
+
+                if (error_flag == 1)
+                    return -1;
 
                 // 跳过后面的输入
                 continue;

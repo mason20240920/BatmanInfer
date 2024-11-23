@@ -68,7 +68,6 @@ namespace BatmanInfer {
 #pragma omp critical
                 LOG(ERROR) << "One of the input tensors in the Concat layer is empty";
                 shape_mismatch = true;
-                return InferStatus::bInferFailedInputEmpty;
             }
 
             // 验证inputs里面每个张量形状是否一致
@@ -80,7 +79,6 @@ namespace BatmanInfer {
                     LOG(ERROR) << "Input tensor batch size shapes do not match for Concat layer";
                     shape_mismatch = true;
                 }
-                break;
             } else {
                 for (size_t dim = 0; dim < shape.size(); ++dim) {
                     if (dim != static_cast<size_t>(axis_ - 1) && shape[dim] != first_shape[dim]) {
