@@ -37,7 +37,20 @@
 
 > 用于将 SIMD（单指令多数据）向量化应用于后续的循环
 
-### 1.3 算子模块
+### 1.3 Android编译指令
+
+```shell
+cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+      -DANDROID_ABI=arm64-v8a \
+      -DANDROID_NATIVE_API_LEVEL=27 \
+      -DANDROID=ON \
+      -DOpenCV_DIR=../opencv_android_sdk/sdk/native/jni/abi-arm64-v8a \
+      ..
+```
+
+
+
+### 1.4 算子模块
 
 #### 1. `Conv`算子 - 非padding
 
@@ -288,7 +301,7 @@ for (uint32_t w = 0; w < input_padded_w - kernel_w + 1; w += stride_w_) {
 > - $ \text{Tensor A} $ 形状为 $[2, 3]$:
 >  $
 >   \mathbf{A} = \begin{bmatrix}
->  1 & 2 & 3 \\
+>   1 & 2 & 3 \\
 >   4 & 5 & 6
 >   \end{bmatrix}
 >   $
@@ -296,7 +309,7 @@ for (uint32_t w = 0; w < input_padded_w - kernel_w + 1; w += stride_w_) {
 > - $ \text{Tensor B} $ 形状为 $[3, 3]$:
 >   $
 >   \mathbf{B} = \begin{bmatrix}
->  7 & 8 & 9 \\
+>    7 & 8 & 9 \\
 >   10 & 11 & 12 \\
 >   13 & 14 & 15
 >   \end{bmatrix}
@@ -315,4 +328,3 @@ for (uint32_t w = 0; w < input_padded_w - kernel_w + 1; w += stride_w_) {
 > $
 > 
 > 输出的形状为 $[5, 3]$。
-> 
