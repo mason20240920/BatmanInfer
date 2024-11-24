@@ -7,6 +7,7 @@
 #include <data/tensor_util.hpp>
 #include <layer/detail/concat.hpp>
 #include <layer/detail/expand.hpp>
+#include <layer/detail/trilu.hpp>
 #include <vector>
 #include <runtime/runtime_ir.hpp>
 
@@ -131,5 +132,38 @@ TEST(test_operators, tensor_expand2) {
     CHECK(outputs.at(0).at(0)->shapes()[0] == 6);
     CHECK(outputs.at(0).at(0)->shapes()[1] == 4);
     CHECK(outputs.at(0).at(0)->shapes()[2] == 5);
+    outputs.at(0).at(0)->Show();
+}
+
+TEST(test_operators, tensor_trilu) {
+    using namespace BatmanInfer;
+    auto tensor = std::make_shared<Tensor<float>>(3, 3, 3);
+    tensor->Ones();
+    tensor->Show();
+    auto output_tensor = std::make_shared<ftensor>(3, 3, 3);
+    std::vector<sftensor> inputs{tensor};
+    std::vector<sftensor> outputs{output_tensor};
+    TriluLayer triluLayer{1};
+    triluLayer.Forward(inputs, outputs);
+    outputs.at(0)->Show();
+}
+
+TEST(test_operators, tensor_trilu2) {
+    using namespace BatmanInfer;
+    const std::string& model_path = "../model_files/operators/trilu_operator.onnx";
+    RuntimeGraph graph(model_path);
+    ASSERT_EQ(int(graph.graph_state()), -2);
+    const bool init_success = graph.Init();
+    ASSERT_EQ(init_success, true);
+    ASSERT_EQ(int(graph.graph_state()), -1);
+    graph.Build({ "input" }, { "output" });
+    ASSERT_EQ(int(graph.graph_state()), 0);
+
+    auto tensor = std::make_shared<Tensor<float>>(3, 3, 3);
+    tensor->Ones();
+    tensor->Show();
+    std::vector<sftensor> inputs{tensor};
+
+    auto outputs = graph.Forward({inputs}, true);
     outputs.at(0).at(0)->Show();
 }

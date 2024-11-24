@@ -104,6 +104,9 @@ namespace BatmanInfer {
                 case 1:
                     runtime_operand->type = RuntimeDataType::kTypeFloat32;
                     break;
+                case 5:
+                    runtime_operand->type = RuntimeDataType::kTypeInt64;
+                    break;
                 case 0:
                     runtime_operand->type = RuntimeDataType::kTypeUnknown;
                     break;

@@ -76,6 +76,15 @@ namespace BatmanInfer {
      */
     void merge_tensors(const std::vector<sftensor>& tensors,
                        std::vector<sftensor>& merge_tensor);
+
+    /**
+     * 对张量进行下三角或上三角置为0
+     * @param tensor
+     * @param upper
+     * @return
+     */
+    std::shared_ptr<Tensor<float>> Trilu(const std::shared_ptr<Tensor<float>>& tensor,
+                                         int upper);
 }
 
 #endif //BATMAN_INFER_TENSOR_UTIL_HPP

@@ -183,7 +183,8 @@ add_executable(BatmanInfer main.cpp
         source/layer/detail/gemm.cpp
         test/test_operators.cpp
         source/layer/detail/concat.cpp
-        source/layer/detail/expand.cpp)
+        source/layer/detail/expand.cpp
+        source/layer/detail/trilu.cpp)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer

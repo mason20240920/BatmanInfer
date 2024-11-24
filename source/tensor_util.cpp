@@ -166,4 +166,33 @@ namespace BatmanInfer {
         merge_tensor.reserve(tensors.size());
         merge_tensor.insert(merge_tensor.end(), tensors.begin(), tensors.end());
     }
+
+    std::shared_ptr<Tensor<float>> Trilu(const std::shared_ptr<Tensor<float>>& tensor,
+                                         int upper) {
+        // 检查输入的张量是否为空
+        CHECK(tensor != nullptr) << "Input tensor is null!";
+        CHECK(!tensor->empty()) << "Tensor is empty!";
+        CHECK(upper == 0 || upper == 1) << "Parameter 'upper' must be 0 (lower triangle) or 1 (upper triangle)!";
+
+        uint32_t channels = tensor->channels();
+        uint32_t rows = tensor->rows();
+        uint32_t cols = tensor->cols();
+
+        // 创建一个新的张量，形状与输入张量相同
+        auto result = std::make_shared<Tensor<float>>(channels, rows, cols);
+
+        // 使用OpenMP 并行化通道的遍历
+#pragma omp parallel for
+        for (uint32_t c = 0; c < channels; ++c) {
+            const arma::fmat& input_slice = tensor->slice(c);
+            arma::fmat& output_slice = result->slice(c);
+
+            if (upper == 1)
+                output_slice = arma::trimatu(input_slice);
+            else
+                output_slice = arma::trimatl(input_slice);
+        }
+
+        return result;
+    }
 }
