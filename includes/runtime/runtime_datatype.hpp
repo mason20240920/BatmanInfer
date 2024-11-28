@@ -18,6 +18,7 @@ enum class RuntimeDataType {
     kTypeInt16 = 6,
     kTypeInt8 = 7,
     kTypeUInt8 = 8,
+    kTypeBoolean = 9
 };
 
 #endif //BATMANINFER_RUNTIME_DATATYPE_HPP

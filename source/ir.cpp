@@ -17,6 +17,7 @@
 #include <sstream>
 #include <string>
 #include <stack>
+#include <data/Tensor.hpp>
 
 namespace BatmanInfer {
     static bool type_is_integer(const int type) {
@@ -269,6 +270,8 @@ namespace BatmanInfer {
         );
     }
 
+//    void parse_tensor_attribute
+
     /**
      * 新增加载Parameters的函数
      * @param op
@@ -293,12 +296,12 @@ namespace BatmanInfer {
                 case onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_STRING:
                     parameter = ONNXParameter(attribute.s());
                     break;
-                case onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_TENSOR:
+                case onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_TENSOR: {
                     // TODO: Implement the function to implements Tensor
-                    std::cout << "TENSOR" << std::endl;
-                    // Tensor handling can be complex; here we just print the raw data size
-                    std::cout << "  Tensor raw data size: " << attribute.t().raw_data().size() << std::endl;
+                    auto ret = attribute.tensors();
+                    parameter = ONNXParameter(attribute.t());
                     break;
+                }
                 case onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_GRAPH:
                     // TODO: Implement the function to implements Graph
                     std::cout << "GRAPH" << std::endl;
@@ -389,7 +392,7 @@ namespace BatmanInfer {
         for (size_t i = 0; i < op->inputs.size(); i++) {
             // 查找不是权重的值
             const ONNXOperand* operand = op->inputs[i];
-            if (!is_initializer(operand->name, graph)) {
+            if (!is_initializer(operand->name, graph) && !is_constant_value(operand->name)) {
                 find_input_tensor_info(operand->name, graph, op, i);
             }
         }
@@ -536,6 +539,61 @@ namespace BatmanInfer {
             }
         }
         return usage_count;
+    }
+
+
+    ONNXOperand* ONNXGraph::append_constant_operand(const std::string &name,
+                                                    const onnx::GraphProto &graph,
+                                                    const onnx::NodeProto& node) {
+        const onnx::ValueInfoProto* value_info = nullptr;
+        auto find_value_info = [&name](const auto& container) -> const onnx::ValueInfoProto* {
+            for (const auto& info : container) {
+                if (info.name() == name) {
+                    return &info;
+                }
+            }
+            return nullptr;
+        };
+        value_info = find_value_info(graph.value_info());
+        if (!value_info) value_info = find_value_info(graph.output());
+        if (!value_info) value_info = find_value_info(graph.input());
+        if (!value_info) {
+            throw std::runtime_error("Output not found: " + name);
+        }
+        // 获取类型信息
+        const auto& type_proto = value_info->type();
+        if (!type_proto.has_tensor_type()) {
+            throw std::runtime_error("Output is not a tensor type: " + name);
+        }
+
+        // 获取ONNX Tensor类型
+        const onnx::TypeProto::Tensor& tensor_type = type_proto.tensor_type();
+        int onnx_data_type = tensor_type.elem_type();
+
+        // 将ONNX类型映射为自定义类型
+        int custom_type = map_onnx_type_to_custom_type(onnx_data_type);
+        // 获取形状信息
+        std::vector<int32_t> input_shape;
+        if (tensor_type.has_shape()) {
+            const auto& shape = tensor_type.shape();
+            input_shape.reserve(shape.dim_size());  // 预分配内存
+            for (const auto& dim : shape.dim()) {
+                input_shape.push_back(dim.has_dim_value() ? dim.dim_value() : -1);
+            }
+        }
+
+        // 如果是标量就加一个维度
+        if (input_shape.empty())
+            // 目前是一个batch size，一个标量
+            input_shape = {1, 1};
+
+        auto *r = new ONNXOperand;
+        r->name = name;
+        r->type = custom_type;
+        r->shape = input_shape;
+//        r->data_ = get_constant_value(node);
+        operands.emplace_back(r);
+        return r;
     }
 
     /**
@@ -718,9 +776,15 @@ namespace BatmanInfer {
             }
 
             for (int j = 0; j < output_count; j++) {
+                // 判断是不是Constant算子
                 const std::string& operand_name = node.output(j);
-
-                ONNXOperand *r = new_operand(operand_name);
+                ONNXOperand *r = nullptr;
+                if (type == "Constant")
+                    r = append_constant_operand(operand_name,
+                                            graph_info,
+                                            node);
+                else
+                    r = new_operand(operand_name);
                 r->producer = op;
                 op->outputs.emplace_back(r);
             }

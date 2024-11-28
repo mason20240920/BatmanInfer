@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include <onnx/onnx_pb.h>
+#include <data/Tensor.hpp>
 //#include <onnx/proto_utils.h>
 
 namespace BatmanInfer {
@@ -74,11 +75,50 @@ namespace BatmanInfer {
                 : type(7), as(_as) {
         }
 
-        static ONNXParameter parse_from_string(const std::string& value);
+        explicit ONNXParameter(const onnx::TensorProto &tensorProto) {
+            auto shape_size = tensorProto.dims_size();
+            // 获取数据类型
+            int data_type = tensorProto.data_type();
+            if (shape_size == 0) {
+                const std::string &raw_data = tensorProto.raw_data();
+                switch (data_type) {
+                    case onnx::TensorProto::FLOAT: {
+                        type = 3;
+                        std::memcmp(&f, raw_data.data(), sizeof(float));
+                        break;
+                    }
+                    case onnx::TensorProto::INT32: {
+                        type = 2;
+                        std::memcmp(&i, raw_data.data(), sizeof(int32_t));
+                        break;
+                    }
+                    case onnx::TensorProto::INT64: {
+                        type = 2;
+                        std::memcmp(&i, raw_data.data(), sizeof(int64_t));
+                        break;
+                    }
+                    case onnx::TensorProto::DOUBLE: {
+                        type = 3;
+                        std::memcmp(&f, raw_data.data(), sizeof(double));
+                        break;
+                    }
+                    default:
+                        std::cerr << "Unsupported data type in raw_data!" << std::endl;
+
+                }
+                return;
+            }
+            // TODO: Implement the function to implements Tensor
+            tensor = std::make_shared<Tensor<float>>(shape_size);
+            std::cerr << "Tensor has " << tensorProto.dims_size() << " dimensions." << std::endl;
+        }
 
 
-        // 0=null 1=b 2=i 3=f 4=s 5=ai 6=af 7=as 8=others
-        int type;
+        static ONNXParameter parse_from_string(const std::string &value);
+
+
+        // 0=null 1=b 2=i 3=f 4=s 5=ai 6=af 7=as 8=tensor 9=others
+        int type{};
 
         // value
         bool b{};
@@ -90,15 +130,16 @@ namespace BatmanInfer {
         // keep std::string typed member the last for cross cxxabi compatibility
         std::string s;
         std::vector<std::string> as;
+        sftensor tensor;
     };
 
-    bool operator==(const ONNXParameter& lhs, const ONNXParameter& rhs);
+    bool operator==(const ONNXParameter &lhs, const ONNXParameter &rhs);
 
     class ONNXAttribute {
     public:
         ONNXAttribute() : type(0) {}
 
-        explicit ONNXAttribute(const onnx::TensorProto& tensor);
+        explicit ONNXAttribute(const onnx::TensorProto &tensor);
 
         std::vector<int> shape;
         std::vector<float> data;
@@ -106,15 +147,17 @@ namespace BatmanInfer {
         int type;
     };
 
-    bool operator==(const ONNXAttribute& lhs, const ONNXAttribute& rhs);
+    bool operator==(const ONNXAttribute &lhs, const ONNXAttribute &rhs);
+
     // concat two attributes along the first axis
-    ONNXAttribute operator+(const ONNXAttribute& a, const ONNXAttribute& b);
+    ONNXAttribute operator+(const ONNXAttribute &a, const ONNXAttribute &b);
 
     class ONNXOperator;
+
     class ONNXOperand {
     public:
         // 生产者
-        ONNXOperator* producer;
+        ONNXOperator *producer;
 
         // 消费者列表
         std::vector<ONNXOperator *> consumers;
@@ -132,6 +175,9 @@ namespace BatmanInfer {
 
         // 存储参数
         std::map<std::string, ONNXParameter> params;
+
+        // 存储参数: 存储Constant这类的常量参数
+//        std::shared_ptr<Tensor<float>> data_;
     };
 
     class ONNXOperator {
@@ -149,7 +195,7 @@ namespace BatmanInfer {
         std::vector<ONNXOperand *> outputs;
 
         // 输入操作数的名称
-        std::vector<std::string > input_names;
+        std::vector<std::string> input_names;
 
         // 参数
         std::map<std::string, ONNXParameter> params;
@@ -161,9 +207,10 @@ namespace BatmanInfer {
     class ONNXGraph {
     public:
         ONNXGraph();
+
         ~ONNXGraph();
 
-        int load(const std::string& model_path);
+        int load(const std::string &model_path);
 
 //        void save(const std::string& model_path);
 
@@ -173,8 +220,8 @@ namespace BatmanInfer {
          * @param name: 操作符的名称
          * @return: 指向新创建的 ONNX Operator 的指针
          */
-        ONNXOperator* new_operator(const std::string& type,
-                                   const std::string& name);
+        ONNXOperator *new_operator(const std::string &type,
+                                   const std::string &name);
 
         /**
          * 在指定操作符之前插入一个新的操作符
@@ -183,9 +230,9 @@ namespace BatmanInfer {
          * @param cur: 当前操作符的指针
          * @return: 指向新创建的 ONNX Operator 的指针
          */
-        ONNXOperator* new_operator_before(const std::string& type,
-                                          const std::string& name,
-                                          const ONNXOperator* cur);
+        ONNXOperator *new_operator_before(const std::string &type,
+                                          const std::string &name,
+                                          const ONNXOperator *cur);
 
         /**
          * 在指定操作符之后插入一个新的操作符
@@ -194,50 +241,59 @@ namespace BatmanInfer {
          * @param cur: 当前操作符的指针
          * @return: 指向新创建的 ONNX Operator 的指针
          */
-        ONNXOperator* new_operator_after(const std::string& type,
-                                         const std::string& name,
-                                         const ONNXOperator* cur);
+        ONNXOperator *new_operator_after(const std::string &type,
+                                         const std::string &name,
+                                         const ONNXOperator *cur);
 
         /**
          * 创建一个新的操作数
          * @param name: 操作数的名称
          * @return: 指向新创建的 ONNXOperand 的指针
          */
-        ONNXOperand* new_operand(const std::string& name);
+        ONNXOperand *new_operand(const std::string &name);
 
         /**
          * 获取指定名称的操作数
          * @param name: 操作数的名称
          * @return: 指向找到的 ONNXOperand 的指针，如果不存在则返回 nullptr
          */
-        ONNXOperand* get_operand(const std::string& name);
+        ONNXOperand *get_operand(const std::string &name);
 
         /**
          * 获取指定名称的操作数（常量版本）
          * @param name: 操作数的名称
          * @return: 指向找到的常量 ONNXOperand 的指针，如果不存在则返回 nullptr
          */
-        [[nodiscard]] const ONNXOperand* get_operand(const std::string& name) const;
+        [[nodiscard]] const ONNXOperand *get_operand(const std::string &name) const;
+
+        /**
+         * 新增constant节点的输出
+         * @param name
+         * @return
+         */
+        ONNXOperand* append_constant_operand(const std::string &name,
+                                             const onnx::GraphProto &graph,
+                                             const onnx::NodeProto& node);
 
         // 存储图中的所有操作符
-        std::vector<ONNXOperator*> operators;
+        std::vector<ONNXOperator *> operators;
 
         // 存储图中的所有操作数
-        std::vector<ONNXOperand*> operands;
+        std::vector<ONNXOperand *> operands;
 
     private:
         /**
          * 私有复制构造函数：防止对象被复制
          * @param rhs
          */
-        ONNXGraph(const ONNXGraph& rhs);
+        ONNXGraph(const ONNXGraph &rhs);
 
         /**
          * 私有赋值运算符：防止对象被复制
          * @param rhs
          * @return
          */
-        ONNXGraph& operator=(const ONNXGraph& rhs);
+        ONNXGraph &operator=(const ONNXGraph &rhs);
     };
 }
 

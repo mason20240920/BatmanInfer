@@ -107,6 +107,9 @@ namespace BatmanInfer {
                 case 5:
                     runtime_operand->type = RuntimeDataType::kTypeInt64;
                     break;
+                case 9:
+                    runtime_operand->type = RuntimeDataType::kTypeBoolean;
+                    break;
                 case 0:
                     runtime_operand->type = RuntimeDataType::kTypeUnknown;
                     break;
@@ -238,7 +241,7 @@ namespace BatmanInfer {
 
         for (auto &op: this->operators_)
         {
-            if ("Input" == op->type)
+            if ("Input" == op->type || "Constant" == op->type)
             {
                 zero_degree_queue.push(op);
             }

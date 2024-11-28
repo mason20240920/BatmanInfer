@@ -97,6 +97,10 @@ namespace BatmanInfer {
                input_name.find("onnx");
     }
 
+    bool is_constant_value(const std::string& input_name) {
+        return input_name.find("Constant");
+    }
+
     /**
      * 函数用于判断输入是否为数据输入
      * @param input_name

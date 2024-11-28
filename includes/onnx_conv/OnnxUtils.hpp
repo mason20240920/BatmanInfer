@@ -65,6 +65,14 @@ namespace BatmanInfer {
      */
     void convertRepeatedPtrFieldToVector(const google::protobuf::RepeatedPtrField<std::string>& repeatedPtrField,
                                          std::vector<std::string>& af);
+
+
+    /**
+     * 是不是Constant的输入值
+     * @param input_name
+     * @return
+     */
+    bool is_constant_value(const std::string& input_name);
 }
 
 #endif //BATMANINFER_ONNXUTILS_HPP

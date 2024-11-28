@@ -6,8 +6,7 @@
 #include <data/tensor_util.hpp>
 
 namespace BatmanInfer {
-    RuntimeOperator::~RuntimeOperator() {
-    }
+    RuntimeOperator::~RuntimeOperator() = default;
 
     void RuntimeOperatorUtils::InitOperatorInput(const std::vector<std::shared_ptr<RuntimeOperator>> &operators) {
         if (operators.empty()) {
@@ -26,11 +25,11 @@ namespace BatmanInfer {
                     // 遍历每个输入操作数。
 
                     const auto &type = input_operand->type;
-                    CHECK(type == RuntimeDataType::kTypeFloat32)
+                    CHECK(type == RuntimeDataType::kTypeFloat32 || type ==RuntimeDataType::kTypeBoolean)
                          << "The graph only support float32 yet!";
                     const auto &input_operand_shape = input_operand->shapes;
                     // 得到需要初始化空间
-                    auto &input_datas = input_operand->datas;
+                    auto &input_data = input_operand->datas;
 
                     // 确保输入操作数的形状不为空。
                     CHECK(!input_operand_shape.empty());
@@ -42,10 +41,10 @@ namespace BatmanInfer {
                           input_operand_shape.size() == 3)
                           << "Unsupported tensor shape sizes: " << input_operand_shape.size();
 
-                    if (!input_datas.empty())
-                        CHECK_EQ(input_datas.size(), batch);
+                    if (!input_data.empty())
+                        CHECK_EQ(input_data.size(), batch);
                     else
-                        input_datas.resize(batch);
+                        input_data.resize(batch);
                 }
             }
         }
