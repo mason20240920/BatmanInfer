@@ -1,5 +1,13 @@
 # BatmanInfer
 
+## - Why do we fall, Bruce? So we can learn to pick ourselves up
+
+ <p align="center">
+   <img src="./images/image-20241128140900108.png" alt="image-20241128140900108" style="zoom:35%;" />
+ </p>
+
+ </p>
+
 ### 项目目标
 
 * 设备: Mobile GPU、CPU
