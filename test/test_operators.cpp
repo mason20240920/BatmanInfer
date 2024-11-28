@@ -178,4 +178,12 @@ TEST(test_operators, tensor_equal2) {
     ASSERT_EQ(int(graph.graph_state()), -1);
     graph.Build({ "input" }, { "output" });
     ASSERT_EQ(int(graph.graph_state()), 0);
+
+    auto tensor = std::make_shared<Tensor<float>>(1, 2, 2);
+    tensor->Fill(std::vector<float>{10, 10, 1, 1});
+    tensor->Show();
+    std::vector<sftensor> inputs{tensor};
+
+    auto outputs = graph.Forward({inputs}, true);
+    outputs.at(0).at(0)->Show();
 }

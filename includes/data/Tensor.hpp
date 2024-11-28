@@ -293,6 +293,12 @@ namespace BatmanInfer {
          */
         void Expand(const std::vector<uint32_t>& shapes);
 
+        /**
+         * 进行Equal全量比较
+         * @param compare_va
+         */
+        void Equal(const float& compare_va);
+
     private:
         std::vector<uint32_t > raw_shapes_; // 张量数据的实际尺寸大小
         arma::fcube data_;  //张量数据

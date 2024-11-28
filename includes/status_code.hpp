@@ -61,6 +61,7 @@ namespace BatmanInfer {
         bParameterMissingPaddingMode = 16,
         bParameterMissingTransB = 29,
         bParameterMissingUpper = 30,
+        bParameterMissingValue = 31,
 
         bAttrMissingBias = 21,
         bAttrMissingWeight = 22,

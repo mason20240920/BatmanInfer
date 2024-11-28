@@ -415,7 +415,7 @@ namespace BatmanInfer {
             else if (current_shapes[2] == 1)
                 // 情况 3：如果当前张量的列数为 1（即一维向量扩展到二维），
                 // 则重复第一列的值，扩展为 `target_cols` 列。
-                expanded_data.slice(c) == arma::repmat(slice.col(0), 1, target_cols);
+                expanded_data.slice(c) = arma::repmat(slice.col(0), 1, target_cols);
             else
                 // 情况 4：如果当前张量的行数和列数都与目标形状匹配，
                 // 则直接将当前通道的数据复制到目标通道中，无需扩展。
@@ -424,5 +424,18 @@ namespace BatmanInfer {
 
         this->data_ = std::move(expanded_data);
         this->raw_shapes_ = shapes;
+    }
+
+    void Tensor<float>::Equal(const float &compare_va) {
+        // 获取数据指针和总元素数
+        float* data_ptr = data_.memptr();
+        arma::uword total_elements = data_.n_elem;
+
+        // 使用 OpenMP 并行化操作
+#pragma omp parallel for
+        for (arma::uword i = 0; i < total_elements; ++i) {
+            if (data_ptr[i] != compare_va)
+                data_ptr[i] = 0.0f;
+        }
     }
 }

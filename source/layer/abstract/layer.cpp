@@ -52,8 +52,9 @@ namespace BatmanInfer {
         const std::shared_ptr<RuntimeOperand>& output_operand_data =
                 runtime_operator->output_operands;
 
-        CHECK(!layer_input_data.empty())
-             << runtime_operator->name << "Layer input data is empty";
+        if (runtime_operator->type != "Constant")
+            CHECK(!layer_input_data.empty())
+                            << runtime_operator->name << "Layer input data is empty";
         CHECK(output_operand_data != nullptr && !output_operand_data->datas.empty())
              << "Layer output data is empty";
 

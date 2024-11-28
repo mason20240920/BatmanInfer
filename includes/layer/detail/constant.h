@@ -14,7 +14,7 @@ namespace BatmanInfer {
          * 定义常量的值，后期需要优化
          * @param val
          */
-        ConstantLayer(): NonParamLayer("Constant") {}
+        explicit ConstantLayer(std::vector<float> value);
 
         InferStatus Forward(const std::vector<std::shared_ptr<Tensor<float>>>& inputs,
                             std::vector<std::shared_ptr<Tensor<float>>>& outputs) override;
@@ -22,6 +22,8 @@ namespace BatmanInfer {
         static ParseParameterAttrStatus CreateInstance(const std::shared_ptr<RuntimeOperator>& op,
                                                        std::shared_ptr<Layer>& constant_layer);
 
+    private:
+        std::vector<float> value_;
     };
 }
 

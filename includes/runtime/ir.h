@@ -84,7 +84,21 @@ namespace BatmanInfer {
                 switch (data_type) {
                     case onnx::TensorProto::FLOAT: {
                         type = 3;
-                        std::memcmp(&f, raw_data.data(), sizeof(float));
+                        // 优先检查 raw_data
+                        if (tensorProto.has_raw_data()) {
+                            if (raw_data.size() == sizeof(float)) {
+                                float value;
+                                std::memcpy(&value, raw_data.data(), sizeof(float));
+                                f = value;
+                            } else {
+                                std::cerr << "Error: raw_data size does not match expected float size." << std::endl;
+                            }
+                        } else if (tensorProto.float_data_size() > 0) {
+                            // 如果没有 raw_data，则检查 float_data
+                            f = tensorProto.float_data(0);
+                        } else {
+                            std::cerr << "Error: No data found in tensorProto." << std::endl;
+                        }
                         break;
                     }
                     case onnx::TensorProto::INT32: {
