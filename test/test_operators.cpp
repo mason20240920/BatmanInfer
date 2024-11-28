@@ -167,3 +167,15 @@ TEST(test_operators, tensor_trilu2) {
     auto outputs = graph.Forward({inputs}, true);
     outputs.at(0).at(0)->Show();
 }
+
+TEST(test_operators, tensor_equal2) {
+    using namespace BatmanInfer;
+    const std::string& model_path = "../model_files/operators/equal_model.onnx";
+    RuntimeGraph graph(model_path);
+    ASSERT_EQ(int(graph.graph_state()), -2);
+    const bool init_success = graph.Init();
+    ASSERT_EQ(init_success, true);
+    ASSERT_EQ(int(graph.graph_state()), -1);
+    graph.Build({ "input" }, { "output" });
+    ASSERT_EQ(int(graph.graph_state()), 0);
+}

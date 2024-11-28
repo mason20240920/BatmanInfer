@@ -128,7 +128,7 @@ TEST(test_ir_attribute, test_attr) {
 
 TEST(test_ir_attribute, test_ops) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model_files/simple_conv_model.onnx";
+    const std::string& model_path = "../model_files/operators/equal_model.onnx";
     RuntimeGraph graph(model_path);
     ASSERT_EQ(int(graph.graph_state()), -2);
     const bool init_success = graph.Init();
@@ -142,3 +142,5 @@ TEST(test_ir_attribute, test_ops) {
 //    graph.ProbeNextLayer(graph.operators().at(0), data_lst);
     std::cout << "Runtime execute successfully" << std::endl;
 }
+
+
