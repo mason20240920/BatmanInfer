@@ -339,48 +339,77 @@ for (uint32_t w = 0; w < input_padded_w - kernel_w + 1; w += stride_w_) {
 
 #### 6. Trilu 算子
 
-> 作用:
->
-> * `Trilu` 操作会基于输入矩阵，返回其上三角矩阵或下三角矩阵
-> * `upper` 属性:
->   * `upper = 1`：保留上三角矩阵，其他部分置为 0
->   * `upper = 0`：保留下三角矩阵，其他部分置为 0
->
-> **示例**
-> 假设输入矩阵如下：
-> $
-> \text{Input} =
-> \begin{bmatrix}
-> 1 & 2 & 3 \\
-> 4 & 5 & 6 \\
-> 7 & 8 & 9
-> \end{bmatrix}
-> $
->
-> #### **情况 1：`upper = 1` (保留上三角矩阵)**
->
-> 输出为：
-> $
-> \text{Output} =
-> \begin{bmatrix}
-> 1 & 2 & 3 \\
-> 0 & 5 & 6 \\
-> 0 & 0 & 9
-> \end{bmatrix}
-> $
->
-> #### **情况 2：`upper = 0` (保留下三角矩阵)**
->
-> 输出为：
-> $
-> \text{Output} =
-> \begin{bmatrix}
-> 1 & 0 & 0 \\
-> 4 & 5 & 0 \\
-> 7 & 8 & 9
-> \end{bmatrix}
-> $
+##### 在本例中的具体表示
 
----
+假设：
+- $ \text{condition} $ 是布尔张量，表示是否满足某种条件。
+- $ X = -\infty $（负无穷）
+- $ Y = 0 $
 
-> 
+则输出 $ \text{output} $ 的每个元素可以表示为：
+
+$
+\text{output}[i] =
+\begin{cases}
+-\infty, & \text{if } \text{condition}[i] = \text{True} \\
+0, & \text{if } \text{condition}[i] = \text{False}
+\end{cases}
+$
+
+##### 应用场景
+
+`Where`算子常用于深度学习模型中实现条件逻辑操作，例如：
+
+\- 掩码操作：将某些位置的值设为无穷大或零。
+
+\- 动态选择：基于条件选择不同的输入。
+
+----
+
+
+#### 7. Where 算子 - 条件选择算子
+
+##### 定义
+
+给定：
+- 条件张量 $ \text{condition} $
+- 输入张量 $ X $
+- 输入张量 $ Y $
+
+`Where`算子的输出张量 $ \text{output} $ 可以表示为：
+
+$
+\text{output}[i] =
+\begin{cases}
+X[i], & \text{if } \text{condition}[i] \text{ is True} \\
+Y[i], & \text{if } \text{condition}[i] \text{ is False}
+\end{cases}
+$
+
+##### 在本例中的具体表示
+
+假设：
+- $ \text{condition} $ 是布尔张量，表示是否满足某种条件。
+- $ X = -\infty $（负无穷）
+- $ Y = 0 $
+
+则输出 $ \text{output} $ 的每个元素可以表示为：
+
+$
+\text{output}[i] =
+\begin{cases}
+-\infty, & \text{if } \text{condition}[i] = \text{True} \\
+0, & \text{if } \text{condition}[i] = \text{False}
+\end{cases}
+$
+
+##### 应用场景
+
+`Where`算子常用于深度学习模型中实现条件逻辑操作，例如：
+
+\- 掩码操作：将某些位置的值设为无穷大或零。
+
+\- 动态选择：基于条件选择不同的输入。
+
+----
+
