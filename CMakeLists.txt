@@ -186,7 +186,8 @@ add_executable(BatmanInfer main.cpp
         source/layer/detail/expand.cpp
         source/layer/detail/trilu.cpp
         source/layer/detail/constant.cpp
-        source/layer/detail/equal.cpp)
+        source/layer/detail/equal.cpp
+        source/layer/detail/where.cpp)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer

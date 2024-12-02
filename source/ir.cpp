@@ -587,6 +587,9 @@ namespace BatmanInfer {
             // 目前是一个batch size，一个标量
             input_shape = {1, 1};
 
+        if (input_shape.size() == 1)
+            input_shape = {1, input_shape[0]};
+
         auto *r = new ONNXOperand;
         r->name = name;
         r->type = custom_type;

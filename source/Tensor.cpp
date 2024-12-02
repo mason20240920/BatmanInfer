@@ -13,14 +13,38 @@ namespace BatmanInfer {
         this->raw_shapes_ = std::vector<uint32_t>{size};
     }
 
+    Tensor<bool>::Tensor(uint32_t size) {
+        // 传入参数一次是, rows, cols channels, 初始化全 0
+        data_ = arma::Cube<arma::u8>(1, size, 1, arma::fill::zeros);
+        this->raw_shapes_ = std::vector<uint32_t>{size};
+    }
+
     Tensor<float>::Tensor(uint32_t rows, uint32_t cols) {
         // 传入参数 rows, cols, channels
         data_ = arma::fcube(rows, cols, 1);
         this->raw_shapes_ = std::vector<uint32_t>{rows, cols};
     }
 
+    Tensor<bool>::Tensor(uint32_t rows, uint32_t cols) {
+        data_ = arma::Cube<arma::u8>(rows, cols, 1, arma::fill::zeros);
+        this->raw_shapes_ = std::vector<uint32_t>{rows, cols};
+    }
+
     Tensor<float>::Tensor(uint32_t channels, uint32_t rows, uint32_t cols) {
         data_ = arma::fcube(rows, cols, channels);
+        if (channels == 1 && rows == 1)
+            // 当channel和rows同时等于1, raw_shapes的长度也会是1，表示此时Tensor是一维
+            this->raw_shapes_ = std::vector<uint32_t>{cols};
+        else if (channels == 1)
+            // 当channel等于1时，raw_shapes长度等于2, 表示Tensor是二维
+            this->raw_shapes_ = std::vector<uint32_t>{rows, cols};
+        else
+            // 创建3维张量，则raw_shapes的长度为3，表示此时Tensor是三维的
+            this->raw_shapes_ = std::vector<uint32_t>{channels, rows, cols};
+    }
+
+    Tensor<bool>::Tensor(uint32_t channels, uint32_t rows, uint32_t cols) {
+        data_ = arma::Cube<arma::u8>(rows, cols, channels, arma::fill::zeros);
         if (channels == 1 && rows == 1)
             // 当channel和rows同时等于1, raw_shapes的长度也会是1，表示此时Tensor是一维
             this->raw_shapes_ = std::vector<uint32_t>{cols};
@@ -53,7 +77,33 @@ namespace BatmanInfer {
         }
     }
 
+    Tensor<bool>::Tensor(const std::vector<uint32_t>& shapes) {
+        CHECK(!shapes.empty() && shapes.size() <= 3);
+
+        uint32_t remaining = 3 - shapes.size();
+        std::vector<uint32_t> shapes_(3, 1);
+        std::copy(shapes.begin(), shapes.end(), shapes_.begin() + remaining);
+
+        uint32_t channels = shapes_.at(0);
+        uint32_t rows = shapes_.at(1);
+        uint32_t cols = shapes_.at(2);
+
+        data_ = arma::Cube<arma::u8>(rows, cols, channels, arma::fill::zeros);
+        if (channels == 1 && rows == 1) {
+            this->raw_shapes_ = std::vector<uint32_t>{cols};
+        } else if (channels == 1) {
+            this->raw_shapes_ = std::vector<uint32_t>{rows, cols};
+        } else {
+            this->raw_shapes_ = std::vector<uint32_t>{channels, rows, cols};
+        }
+    }
+
     uint32_t Tensor<float>::rows() const {
+        CHECK(!this->data_.empty());
+        return this->data_.n_rows;
+    }
+
+    uint32_t Tensor<bool>::rows() const {
         CHECK(!this->data_.empty());
         return this->data_.n_rows;
     }
@@ -63,7 +113,17 @@ namespace BatmanInfer {
         return this->data_.n_cols;
     }
 
+    uint32_t Tensor<bool>::cols() const {
+        CHECK(!this->data_.empty());
+        return this->data_.n_cols;
+    }
+
     uint32_t Tensor<float>::channels() const {
+        CHECK(!this->data_.empty());
+        return this->data_.n_slices;
+    }
+
+    uint32_t Tensor<bool>::channels() const {
         CHECK(!this->data_.empty());
         return this->data_.n_slices;
     }
@@ -73,7 +133,17 @@ namespace BatmanInfer {
         return this->data_.size();
     }
 
+    uint32_t Tensor<bool>::size() const {
+        CHECK(!this->data_.empty());
+        return this->data_.size();
+    }
+
     void Tensor<float>::Ones() {
+        CHECK(!this->data_.empty());
+        this->data_.fill(1);
+    }
+
+    void Tensor<bool>::Ones() {
         CHECK(!this->data_.empty());
         this->data_.fill(1);
     }
@@ -83,7 +153,21 @@ namespace BatmanInfer {
         this->data_.fill(value);
     }
 
+    void Tensor<bool>::Fill(arma::u8 value) {
+        CHECK(!this->data_.empty());
+        this->data_.fill(value);
+    }
+
+
+
     void Tensor<float>::Show() {
+        for (uint32_t i = 0; i < this->channels(); ++i) {
+            LOG(INFO) << "Channels: " << i;
+            LOG(INFO) << "\n" << this->data_.slice(i);
+        }
+    }
+
+    void Tensor<bool>::Show() {
         for (uint32_t i = 0; i < this->channels(); ++i) {
             LOG(INFO) << "Channels: " << i;
             LOG(INFO) << "\n" << this->data_.slice(i);
@@ -95,12 +179,27 @@ namespace BatmanInfer {
         this->data_.randn();
     }
 
+    void Tensor<bool>::Rand() {
+        CHECK(!this->data_.empty());
+        this->data_.randn();
+    }
+
     const arma::fmat& Tensor<float>::slice(uint32_t channel) const {
         CHECK_LT(channel, this->channels());
         return this->data_.slice(channel);
     }
 
+    const arma::Mat<arma::u8>& Tensor<bool>::slice(uint32_t channel) const {
+        CHECK_LT(channel, this->channels());
+        return this->data_.slice(channel);
+    }
+
     arma::fmat& Tensor<float>::slice(uint32_t channel) {
+        CHECK_LT(channel, this->channels());
+        return this->data_.slice(channel);
+    }
+
+    arma::Mat<arma::u8>& Tensor<bool>::slice(uint32_t channel) {
         CHECK_LT(channel, this->channels());
         return this->data_.slice(channel);
     }
@@ -112,7 +211,21 @@ namespace BatmanInfer {
         return this->data_.at(row, col, channel);
     }
 
+    arma::u8 Tensor<bool>::at(uint32_t channel, uint32_t row, uint32_t col) const {
+        CHECK_LT(row, this->rows());
+        CHECK_LT(col, this->cols());
+        CHECK_LT(channel, this->channels());
+        return this->data_.at(row, col, channel);
+    }
+
     float& Tensor<float>::at(uint32_t channel, uint32_t row, uint32_t col) {
+        CHECK_LT(row, this->rows());
+        CHECK_LT(col, this->cols());
+        CHECK_LT(channel, this->channels());
+        return this->data_.at(row, col, channel);
+    }
+
+    arma::u8& Tensor<bool>::at(uint32_t channel, uint32_t row, uint32_t col) {
         CHECK_LT(row, this->rows());
         CHECK_LT(col, this->cols());
         CHECK_LT(channel, this->channels());
@@ -140,8 +253,34 @@ namespace BatmanInfer {
             std::copy(values.begin(), values.end(), this->data_.memptr());
     }
 
+    void Tensor<bool>::Fill(const std::vector<arma::u8> &values, bool row_major) {
+        CHECK(!this->data_.empty());
+        const uint32_t total_elems = this->data_.size();
+        CHECK_EQ(values.size(), total_elems);
+        if (row_major) {
+            const uint32_t rows = this->rows();
+            const uint32_t cols = this->cols();
+            const uint32_t planes = rows * cols;
+            const uint32_t channels = this->data_.n_slices;
+            for (uint32_t i = 0; i < channels; ++i) {
+                // 获取第i个通道的矩阵
+                auto& channel_data = this->data_.slice(i);
+                // 对矩阵赋值，一个矩阵的长度
+                const auto& channel_data_t = arma::Mat<arma::u8>(values.data() + i * planes, this->cols(), this->rows());
+                // 转置
+                channel_data = channel_data_t.t();
+            }
+        } else
+            std::copy(values.begin(), values.end(), this->data_.memptr());
+    }
+
     // 接收一个float类型参数，返回一个float类型参数
     void Tensor<float>::Transform(const std::function<float(float)> &filter) {
+        CHECK(!this->data_.empty());
+        this->data_.transform(filter);
+    }
+
+    void Tensor<bool>::Transform(const std::function<arma::u8(arma::u8)> &filter) {
         CHECK(!this->data_.empty());
         this->data_.transform(filter);
     }
@@ -436,6 +575,8 @@ namespace BatmanInfer {
         for (arma::uword i = 0; i < total_elements; ++i) {
             if (data_ptr[i] != compare_va)
                 data_ptr[i] = 0.0f;
+            else
+                data_ptr[i] = 1.0f;
         }
     }
 }

@@ -122,8 +122,15 @@ namespace BatmanInfer {
                 }
                 return;
             }
-            // TODO: Implement the function to implements Tensor
+            // TODO: Implement the function to implements Tensor, This just make tensor to a float value
             tensor = std::make_shared<Tensor<float>>(shape_size);
+            float tmpVals;
+            if (tensorProto.has_raw_data()) {
+                type = 3;
+                const std::string &raw_data = tensorProto.raw_data();
+                std::memcpy(&tmpVals, raw_data.data(), sizeof(float));
+                f = tmpVals;
+            }
             std::cerr << "Tensor has " << tensorProto.dims_size() << " dimensions." << std::endl;
         }
 

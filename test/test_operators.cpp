@@ -187,3 +187,23 @@ TEST(test_operators, tensor_equal2) {
     auto outputs = graph.Forward({inputs}, true);
     outputs.at(0).at(0)->Show();
 }
+
+TEST(test_operators, tensor_where2) {
+    using namespace BatmanInfer;
+    const std::string& model_path = "../model_files/operators/where_model.onnx";
+    RuntimeGraph graph(model_path);
+    ASSERT_EQ(int(graph.graph_state()), -2);
+    const bool init_success = graph.Init();
+    ASSERT_EQ(init_success, true);
+    ASSERT_EQ(int(graph.graph_state()), -1);
+    graph.Build({ "condition" }, { "output" });
+    ASSERT_EQ(int(graph.graph_state()), 0);
+
+    auto tensor = std::make_shared<Tensor<float>>(1, 4);
+    tensor->Fill(std::vector<float>{10, 10, 1, 1});
+    tensor->Show();
+    std::vector<sftensor> inputs{tensor};
+
+    auto outputs = graph.Forward({inputs}, true);
+    outputs.at(0).at(0)->Show();
+}
