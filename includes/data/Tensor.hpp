@@ -580,6 +580,11 @@ namespace BatmanInfer {
         void Where(const float& x,
                    const float& y);
 
+        /**
+        *  进行平方根处理
+        */
+        void Sqrt() ;
+
     private:
         std::vector<uint32_t > raw_shapes_; // 张量数据的实际尺寸大小
         arma::fcube data_;  //张量数据

@@ -606,4 +606,19 @@ namespace BatmanInfer {
             data_ptr[indices_equal_1[i]] = y;
         }
     }
+
+    void Tensor<float>::Sqrt() {
+        // 获取指向数据的指针
+        const size_t n_slices = data_.n_slices;
+
+        // 使用 OpenMP 并行化切片操作
+#pragma omp parallel for
+        for (size_t i = 0; i < n_slices; ++i) {
+            // 对每个切片使用 arma::sqrt 进行逐元素平方根操作
+            // Get a non-const reference to the slice
+            arma::Mat<float>& slice = data_.slice(i);
+            slice = arma::sqrt(slice);
+        }
+    }
+
 }

@@ -188,7 +188,8 @@ add_executable(BatmanInfer main.cpp
         source/layer/detail/constant.cpp
         source/layer/detail/equal.cpp
         source/layer/detail/where.cpp
-        source/layer/detail/cast.cpp)
+        source/layer/detail/cast.cpp
+        source/layer/detail/sqrt.cpp)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer
