@@ -567,16 +567,43 @@ namespace BatmanInfer {
 
     void Tensor<float>::Equal(const float &compare_va) {
         // 获取数据指针和总元素数
-        float* data_ptr = data_.memptr();
-        arma::uword total_elements = data_.n_elem;
+        // 使用 Armadillo 的 find 函数找到满足条件的索引
+        arma::uvec indices_not_equal_1 = arma::find(data_ != compare_va);
+        arma::uvec indices_equal_1 = arma::find(data_ == compare_va);
 
-        // 使用 OpenMP 并行化操作
+        float* data_ptr = data_.memptr();
+
 #pragma omp parallel for
-        for (arma::uword i = 0; i < total_elements; ++i) {
-            if (data_ptr[i] != compare_va)
-                data_ptr[i] = 0.0f;
-            else
-                data_ptr[i] = 1.0f;
+        for (arma::uword i = 0; i < indices_not_equal_1.n_elem; ++i) {
+            data_ptr[indices_not_equal_1[i]] = 1.0f;
+        }
+
+        // 并行处理等于 1 的元素
+#pragma omp parallel for
+        for (arma::uword i = 0; i < indices_equal_1.n_elem; ++i) {
+            data_ptr[indices_equal_1[i]] = 0.0f;
+        }
+    }
+
+    void Tensor<float>::Where(const float &x,
+                              const float &y) {
+        // 使用 Armadillo 的 find 函数找到满足条件的索引
+        arma::uvec indices_not_equal_1 = arma::find(data_ != 1.0f);
+        arma::uvec indices_equal_1 = arma::find(data_ == 1.0f);
+
+        // 获取数据指针
+        float* data_ptr = data_.memptr();
+
+        // 并行处理不等于 1 的元素
+#pragma omp parallel for
+        for (arma::uword i = 0; i < indices_not_equal_1.n_elem; ++i) {
+            data_ptr[indices_not_equal_1[i]] = x;
+        }
+
+        // 并行处理等于 1 的元素
+#pragma omp parallel for
+        for (arma::uword i = 0; i < indices_equal_1.n_elem; ++i) {
+            data_ptr[indices_equal_1[i]] = y;
         }
     }
 }

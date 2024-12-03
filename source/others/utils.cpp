@@ -14,4 +14,13 @@ namespace BatmanInfer {
         }
         return ss.str();
     }
+
+    RuntimeDataType convert_runtime_data(const int onnx_type) {
+        switch (onnx_type) {
+            case 11:
+                return RuntimeDataType::kTypeFloat32;
+            default:
+                return RuntimeDataType::kTypeUnknown;
+        }
+    }
 }

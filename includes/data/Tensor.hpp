@@ -572,6 +572,14 @@ namespace BatmanInfer {
          */
         void Equal(const float& compare_va);
 
+        /**
+         * 进行Where操作. 自己是条件张量，进行结果生成
+         * @param x
+         * @param y
+         */
+        void Where(const float& x,
+                   const float& y);
+
     private:
         std::vector<uint32_t > raw_shapes_; // 张量数据的实际尺寸大小
         arma::fcube data_;  //张量数据

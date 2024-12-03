@@ -6,6 +6,8 @@
 #define BATMAN_INFER_TENSOR_UTIL_HPP
 
 #include <data/Tensor.hpp>
+#include <onnx/onnx.pb.h>
+#include <runtime/runtime_datatype.hpp>
 
 namespace BatmanInfer {
 

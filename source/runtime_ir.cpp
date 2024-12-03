@@ -13,7 +13,6 @@
 
 namespace BatmanInfer {
     RuntimeGraph::RuntimeGraph(std::string model_path) : model_path_(std::move(model_path)) {
-
     }
 
 
@@ -21,7 +20,7 @@ namespace BatmanInfer {
         return this->model_path_;
     }
 
-    void RuntimeGraph::set_model_path(const std::string& model_path) {
+    void RuntimeGraph::set_model_path(const std::string &model_path) {
         this->model_path_ = model_path;
     }
 
@@ -79,9 +78,10 @@ namespace BatmanInfer {
                     InitGraphParams(params, runtime_operator);
 
                 this->operators_.push_back(runtime_operator);
-                this->operators_maps_.insert({runtime_operator->name,
-                                              runtime_operator});
-
+                this->operators_maps_.insert({
+                    runtime_operator->name,
+                    runtime_operator
+                });
             }
         }
 
@@ -104,6 +104,10 @@ namespace BatmanInfer {
                 case 1:
                     runtime_operand->type = RuntimeDataType::kTypeFloat32;
                     break;
+                case 2: {
+                    runtime_operand->type = RuntimeDataType::kTypeFloat64;
+                    break;
+                }
                 case 5:
                     runtime_operand->type = RuntimeDataType::kTypeInt64;
                     break;
@@ -123,13 +127,13 @@ namespace BatmanInfer {
 
     void RuntimeGraph::InitGraphOperatorsOutput(const std::vector<ONNXOperand *> &outputs,
                                                 const std::shared_ptr<RuntimeOperator> &runtime_operator) {
-         for (const ONNXOperand *output: outputs) {
-             if (!output)
-                 continue;
-             const auto& consumers = output->consumers;
-             for (const auto& c : consumers)
-                 runtime_operator->output_names.push_back(c->name);
-         }
+        for (const ONNXOperand *output: outputs) {
+            if (!output)
+                continue;
+            const auto &consumers = output->consumers;
+            for (const auto &c: consumers)
+                runtime_operator->output_names.push_back(c->name);
+        }
     }
 
     void RuntimeGraph::InitGraphAttrs(const std::map<std::string, ONNXAttribute> &attrs,
@@ -183,14 +187,16 @@ namespace BatmanInfer {
                 }
 
                 case int(RuntimeParameterType::bParameterFloat): {
-                    std::shared_ptr<RuntimeParameterFloat> runtime_parameter = std::make_shared<RuntimeParameterFloat>();
+                    std::shared_ptr<RuntimeParameterFloat> runtime_parameter = std::make_shared<
+                        RuntimeParameterFloat>();
                     runtime_parameter->value = parameter.f;
                     runtime_operator->params.insert({name, runtime_parameter});
                     break;
                 }
 
                 case int(RuntimeParameterType::bParameterString): {
-                    std::shared_ptr<RuntimeParameterString> runtime_parameter = std::make_shared<RuntimeParameterString>();
+                    std::shared_ptr<RuntimeParameterString> runtime_parameter = std::make_shared<
+                        RuntimeParameterString>();
                     runtime_parameter->value = parameter.s;
                     runtime_operator->params.insert({name, runtime_parameter});
                     break;
@@ -212,7 +218,8 @@ namespace BatmanInfer {
                     break;
                 }
                 case int(RuntimeParameterType::bParameterStringArray): {
-                    std::shared_ptr<RuntimeParameterStringArray> runtime_parameter = std::make_shared<RuntimeParameterStringArray>();
+                    std::shared_ptr<RuntimeParameterStringArray> runtime_parameter = std::make_shared<
+                        RuntimeParameterStringArray>();
                     runtime_parameter->value = parameter.as;
                     runtime_operator->params.insert({name, runtime_parameter});
                     break;
@@ -232,41 +239,33 @@ namespace BatmanInfer {
     }
 
     // 此函数不关心用户使用 Build 函数时提供的 input 列表。它将所有的 input 与 output 都构建进图中
-    void RuntimeGraph::TopoSortOperators()
-    {
+    void RuntimeGraph::TopoSortOperators() {
         to_po_operators_.clear();
         to_po_operators_.reserve(this->operators_.size());
         std::map<std::shared_ptr<RuntimeOperator>, int> op_in_degrees;
-        std::queue< std::shared_ptr<RuntimeOperator> > zero_degree_queue;
+        std::queue<std::shared_ptr<RuntimeOperator> > zero_degree_queue;
 
-        for (auto &op: this->operators_)
-        {
-            if ("Input" == op->type || "Constant" == op->type)
-            {
+        for (auto &op: this->operators_) {
+            if ("Input" == op->type || "Constant" == op->type) {
                 zero_degree_queue.push(op);
-            }
-            else
-            {
+            } else {
                 op_in_degrees.insert(std::make_pair(op, op->input_operands_seq.size()));
             }
         }
 
-        while (!zero_degree_queue.empty())
-        {
+        while (!zero_degree_queue.empty()) {
             auto op = zero_degree_queue.front();
             zero_degree_queue.pop();
             this->to_po_operators_.push_back(op);
 
             const auto &next_ops = op->output_operators;
-            for (const auto &[_, sub_op]: next_ops)
-            {
+            for (const auto &[_, sub_op]: next_ops) {
                 auto iter = op_in_degrees.find(sub_op);
                 CHECK(iter != op_in_degrees.end());
                 CHECK(iter->second > 0);
 
                 --iter->second;
-                if (0 == iter->second)
-                {
+                if (0 == iter->second) {
                     zero_degree_queue.push(sub_op);
                 }
             }
@@ -275,7 +274,7 @@ namespace BatmanInfer {
 
 
     void RuntimeGraph::Build(const std::vector<std::string> &input_names_strings,
-        const std::vector<std::string> &output_names_strings) {
+                             const std::vector<std::string> &output_names_strings) {
         if (graph_state_ == GraphState::Complete) {
             LOG(INFO) << "Model has been built already!";
             return;
@@ -292,7 +291,7 @@ namespace BatmanInfer {
              << "Graph operators is empty, may can not be init";
 
         // 构建图关系
-        for (const auto &current_op : this->operators_) {
+        for (const auto &current_op: this->operators_) {
             // 获取当前节点的所有后继节点的names, 遍历根据next_op_name从operators_maps_中插入所需要的结点
             const std::vector<std::string> &output_names = current_op->output_names;
             for (const auto &b_output_name: output_names) {
@@ -323,31 +322,23 @@ namespace BatmanInfer {
         output_names_ = output_names_strings;
         std::set<std::string> check_input(input_names_.begin(), input_names_.end());
         std::set<std::string> check_output(output_names_.begin(), output_names_.end());
-        for (const auto &op: this->operators_)
-        {
-            if ("Input" == op->type)
-            {
-                if (auto iter = check_input.find(op->name); iter != check_input.end())
-                {
+        for (const auto &op: this->operators_) {
+            if ("Input" == op->type) {
+                if (auto iter = check_input.find(op->name); iter != check_input.end()) {
                     check_input.erase(iter);
                 }
-            }
-            else if ("Output" == op->type)
-            {
-                if (auto iter = check_output.find(op->name); iter != check_output.end())
-                {
+            } else if ("Output" == op->type) {
+                if (auto iter = check_output.find(op->name); iter != check_output.end()) {
                     check_output.erase(iter);
                 }
             }
         }
         std::string unknown_inout;
-        for (auto &tmp_name : check_input)
-        {
+        for (auto &tmp_name: check_input) {
             unknown_inout += (tmp_name + " ");
         }
         CHECK(unknown_inout.empty()) << "Unknown inputs: " << unknown_inout;
-        for (auto &tmp_name : check_output)
-        {
+        for (auto &tmp_name: check_output) {
             unknown_inout += (tmp_name + " ");
         }
         CHECK(unknown_inout.empty()) << "Unknown outputs: " << unknown_inout;
@@ -368,21 +359,21 @@ namespace BatmanInfer {
         return this->graph_state_;
     }
 
-    const std::vector<std::shared_ptr<RuntimeOperator>> &
+    const std::vector<std::shared_ptr<RuntimeOperator> > &
     RuntimeGraph::get_to_po_queues() const {
         return this->to_po_operators_;
     }
 
-    const std::vector<std::shared_ptr<RuntimeOperator>> &RuntimeGraph::operators() const {
+    const std::vector<std::shared_ptr<RuntimeOperator> > &RuntimeGraph::operators() const {
         return this->operators_;
     }
 
     void RuntimeGraph::ProbeNextLayer(const std::shared_ptr<RuntimeOperator> &current_op,
-                                      const std::vector<std::shared_ptr<Tensor<float>>> &layer_output_data) {
+                                      const std::vector<std::shared_ptr<Tensor<float> > > &layer_output_data) {
         // 当前节点的后继节点next_ops
         const auto &next_ops = current_op->output_operators;
         // 对所有后继节点进行遍历
-        for (const auto &[_, next_rt_operator] : next_ops) {
+        for (const auto &[_, next_rt_operator]: next_ops) {
             // 得到后继节点的输入next_input_operands
             const auto &next_input_operands = next_rt_operator->input_operands;
             // 确定后继节点的输入来自于current_op
@@ -395,7 +386,8 @@ namespace BatmanInfer {
                  *    输入2 -- other_op.name: other_op对应的输出空间
                  * }
                  */
-                 std::vector<std::shared_ptr<ftensor>> &next_input_data = next_input_operands.at(current_op->name)->datas;
+                std::vector<std::shared_ptr<ftensor> > &next_input_data = next_input_operands.at(current_op->name)->
+                        datas;
                 CHECK(next_input_data.size() == layer_output_data.size());
                 // 将当前current_op的输出赋值到next_input_data中
                 for (int i = 0; i < next_input_data.size(); ++i)
@@ -404,8 +396,8 @@ namespace BatmanInfer {
         }
     }
 
-    std::vector< std::vector< std::shared_ptr< Tensor<float> > > >
-    RuntimeGraph::Forward(const std::vector< std::vector< std::shared_ptr<Tensor<float>> > > &inputs,
+    std::vector<std::vector<std::shared_ptr<Tensor<float> > > >
+    RuntimeGraph::Forward(const std::vector<std::vector<std::shared_ptr<Tensor<float> > > > &inputs,
                           bool debug) {
         // 检查当前的执行图是否已经初始化完毕
         if (graph_state_ < GraphState::Complete)
@@ -421,14 +413,13 @@ namespace BatmanInfer {
 
         // 赋值 input
         CHECK_EQ(inputs.size(), input_names_.size()) << "Build wrong number of inputs";
-        for (int i = 0; i < inputs.size(); ++i)
-        {
+        for (int i = 0; i < inputs.size(); ++i) {
             auto &ipt_name = input_names_[i];
             auto ipt_out_operand = operators_maps_.at(ipt_name)->output_operands;
             ipt_out_operand->datas = inputs.at(i);
         }
 
-        for (const auto &current_op : to_po_operators_) {
+        for (const auto &current_op: to_po_operators_) {
             if (current_op->type == "Input") {
                 // current_op->has_forward = true;
                 ProbeNextLayer(current_op, current_op->output_operands->datas);
@@ -450,9 +441,8 @@ namespace BatmanInfer {
         //     LOG_IF(FATAL, !op->has_forward)
         //           << "The operator: " << op->name << " has not been forward yet!";
 
-        std::vector< std::vector< std::shared_ptr< Tensor<float> > > > final_outputs;
-        for (const auto &out_name : output_names_)
-        {
+        std::vector<std::vector<std::shared_ptr<Tensor<float> > > > final_outputs;
+        for (const auto &out_name: output_names_) {
             // 之前已经检查过 out_name 的合法性，这里不再检查
             const auto &output_op = operators_maps_.at(out_name);
             CHECK(output_op->output_operands != nullptr) << "Output from " << output_op->name << " is empty";
