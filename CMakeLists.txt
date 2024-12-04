@@ -190,7 +190,8 @@ add_executable(BatmanInfer main.cpp
         source/layer/detail/where.cpp
         source/layer/detail/cast.cpp
         source/layer/detail/sqrt.cpp
-        source/layer/detail/div.cpp)
+        source/layer/detail/div.cpp
+        source/layer/detail/matmul.cpp)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer
