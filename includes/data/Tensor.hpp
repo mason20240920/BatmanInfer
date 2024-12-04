@@ -583,7 +583,12 @@ namespace BatmanInfer {
         /**
         *  进行平方根处理
         */
-        void Sqrt() ;
+        void Sqrt();
+
+        /**
+        * 张量同时除以一个数
+        */
+        void Div(const float& div_num);
 
     private:
         std::vector<uint32_t > raw_shapes_; // 张量数据的实际尺寸大小

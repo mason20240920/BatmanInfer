@@ -232,18 +232,38 @@ TEST(test_operators, tensor_sqrt2) {
     using namespace BatmanInfer;
     const std::string& model_path = "../model_files/operators/sqrt_model.onnx";
     RuntimeGraph graph(model_path);
-    ASSERT_EQ(int(graph.graph_state()), -2);
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), -2);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
-    ASSERT_EQ(int(graph.graph_state()), -1);
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), -1);
     graph.Build({ "input" }, { "output" });
-    ASSERT_EQ(int(graph.graph_state()), 0);
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), 0);
 
-    auto tensor = std::make_shared<Tensor<float>>(2, 3, 3);
+    const auto tensor = std::make_shared<Tensor<float>>(2, 3, 3);
     tensor->Fill(9);
     tensor->Show();
     std::vector<sftensor> inputs{tensor};
 
-    auto outputs = graph.Forward({inputs}, true);
+    const auto outputs = graph.Forward({inputs}, true);
+    outputs.at(0).at(0)->Show();
+}
+
+TEST(test_operators, tensor_div2) {
+    using namespace BatmanInfer;
+    const std::string& model_path = "../model_files/operators/div_model.onnx";
+    RuntimeGraph graph(model_path);
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), -2);
+    const bool init_success = graph.Init();
+    ASSERT_EQ(init_success, true);
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), -1);
+    graph.Build({ "A" }, { "C" });
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), 0);
+
+    const auto tensor = std::make_shared<Tensor<float>>(2, 2, 2);
+    tensor->Fill(9);
+    tensor->Show();
+    std::vector<sftensor> inputs{tensor};
+
+    const auto outputs = graph.Forward({inputs}, true);
     outputs.at(0).at(0)->Show();
 }

@@ -621,4 +621,22 @@ namespace BatmanInfer {
         }
     }
 
+
+    void Tensor<float>::Div(const float &div_num) {
+        if (div_num == 0.0f) {
+            throw std::invalid_argument("Division by zero");
+        }
+
+        // 获取数据指针和尺寸
+        float* data_ptr = data_.memptr();
+        const size_t total_elements = data_.n_elem;
+
+        // 使用 OpenMP 并行化
+#pragma omp parallel for
+        for (size_t i = 0; i < total_elements; ++i) {
+            data_ptr[i] /= div_num;
+        }
+    }
+
+
 }
