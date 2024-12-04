@@ -638,5 +638,16 @@ namespace BatmanInfer {
         }
     }
 
+    void Tensor<float>::Mul(const std::shared_ptr<Tensor<float>>& other) {
+#pragma omp parallel for collapse(3)
+        for (size_t k = 0; k < data_.n_slices; ++k) {
+            for (size_t i = 0; i < data_.n_rows; ++i) {
+                for (size_t j = 0; j < data_.n_cols; ++j) {
+                    data_(i, j, k) = other->data_(i, j, k) * data_(i, j, k);
+                }
+            }
+        }
+    }
+
 
 }

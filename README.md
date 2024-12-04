@@ -502,3 +502,32 @@ $
 > **计算结果矩阵 Y（2x2）****：
 >
 > $Y = A \times B$
+
+#### 12. Mul算子 - 逐元素相乘
+
+> **作用**:
+>
+> 用于执行 **逐元素相乘**（element-wise multiplication）操作。它接收两个张量作为输入，并返回它们逐元素相乘后的结果
+> - 输入：
+  - $ A =
+  \begin{bmatrix}
+  1 & 2 \\
+  3 & 4
+  \end{bmatrix} $
+  - $ B =
+  \begin{bmatrix}
+  5 & 6 \\
+  7 & 8
+  \end{bmatrix} $
+- 输出：
+  - $ C =
+  \begin{bmatrix}
+  1 \times 5 & 2 \times 6 \\
+  3 \times 7 & 4 \times 8
+  \end{bmatrix} =
+  \begin{bmatrix}
+  5 & 12 \\
+  21 & 32
+  \end{bmatrix} $
+
+---

@@ -289,3 +289,25 @@ TEST(test_operators, tensor_matmul2) {
     const auto outputs = graph.Forward({input1, input2}, true);
     outputs.at(0).at(0)->Show();
 }
+
+TEST(test_operators, tesnor_mul2) {
+    using namespace BatmanInfer;
+    const std::string& model_path = "../model_files/operators/elementwise_mul.onnx";
+    RuntimeGraph graph(model_path);
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), -2);
+    const bool init_success = graph.Init();
+    ASSERT_EQ(init_success, true);
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), -1);
+    graph.Build({ "input_A", "input_B" }, { "output_C" });
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), 0);
+
+    std::shared_ptr<ftensor> input_tensor1 = std::make_shared<ftensor>(3, 2, 2);
+    input_tensor1->Fill(2);
+    std::shared_ptr<ftensor> input_tensor2 = std::make_shared<ftensor>(3, 2, 2);
+    input_tensor2->Fill(3);
+    std::vector<sftensor> input1{input_tensor1};
+    std::vector<sftensor> input2{input_tensor2};
+
+    const auto outputs = graph.Forward({input1, input2}, true);
+    outputs.at(0).at(0)->Show();
+}

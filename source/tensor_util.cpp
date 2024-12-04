@@ -99,6 +99,25 @@ namespace BatmanInfer {
         return result;
     }
 
+    std::shared_ptr<Tensor<float>> MultiplyElement(const std::shared_ptr<Tensor<float>> &tensor1,
+                                                   const std::shared_ptr<Tensor<float>> &tensor2) {
+        CHECK(!tensor1->empty() && !tensor2->empty());
+
+        CHECK_EQ(tensor1->cols(), tensor2->cols())  << "Incompatible dimensions for elements multiplication";
+        CHECK_EQ(tensor1->rows(), tensor2->rows())  << "Incompatible dimensions for elements multiplication";
+        CHECK_EQ(tensor1->channels(), tensor2->channels())  << "Incompatible dimensions for elements multiplication";
+
+        const size_t n_rows = tensor1->rows();
+        const size_t n_cols = tensor1->cols();
+        const size_t n_slices = tensor1->channels();
+
+        sftensor result = TensorClone(tensor1);
+
+        result->Mul(tensor2);
+
+        return result;
+    }
+
     std::shared_ptr<Tensor<float>> Concat(const std::vector<std::shared_ptr<Tensor<float>>>& tensors,
                                           int axis) {
         // 验证输入的张量数组是否是空的

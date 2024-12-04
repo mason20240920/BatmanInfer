@@ -63,6 +63,15 @@ namespace BatmanInfer {
                                                   const std::shared_ptr<Tensor<float>> &tensor2);
 
     /**
+     * @brief 按元素相乘
+     * @param tensor1 张量1
+     * @param tensor2 张量2
+     * @return 返回按元素相乘的结果
+     */
+    std::shared_ptr<Tensor<float>> MultiplyElement(const std::shared_ptr<Tensor<float>> &tensor1,
+                                                   const std::shared_ptr<Tensor<float>> &tensor2);
+
+    /**
      * 拼接函数
      * @param tensors
      * @param axis 沿着哪个轴进行合并

@@ -590,6 +590,12 @@ namespace BatmanInfer {
         */
         void Div(const float& div_num);
 
+        /**
+         * @brief 进行逐元素相乘
+         * @param other
+         */
+        void Mul(const std::shared_ptr<Tensor<float>>& other);
+
     private:
         std::vector<uint32_t > raw_shapes_; // 张量数据的实际尺寸大小
         arma::fcube data_;  //张量数据
