@@ -4,6 +4,7 @@
 
 #include <layer/abstract/layer_factory.hpp>
 #include <layer/detail/transpose.hpp>
+#include <data/tensor_util.hpp>
 
 namespace BatmanInfer {
     TransposeLayer::TransposeLayer(std::vector<int> perms): NonParamLayer("Transpose"), perms_(perms) {
@@ -42,6 +43,26 @@ namespace BatmanInfer {
 
     InferStatus TransposeLayer::Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
                                         std::vector<std::shared_ptr<Tensor<float>>> &outputs) {
+        if (inputs.empty()) {
+            LOG(ERROR) << "The input tensor array in the transpose layer is empty";
+            return InferStatus::bInferFailedInputEmpty;
+        }
+
+        if (inputs.size() != outputs.size()) {
+            LOG(ERROR) << "The input and output array size of the transpose layer "
+                          "do not match";
+            return InferStatus::bInferFailedOutputSizeError;
+        }
+
+        const uint32_t batch = inputs.size();
+        for (uint32_t i = 0; i < batch; i++) {
+            const auto& input = inputs.at(i);
+            auto& output = outputs.at(i);
+
+            auto temp = TensorClone(input);
+            temp->Reshape(output->shapes(), true);
+            output = temp;
+        }
         return InferStatus::bInferSuccess;
     }
 

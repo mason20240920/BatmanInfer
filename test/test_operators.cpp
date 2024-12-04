@@ -322,4 +322,11 @@ TEST(test_operators, tensor_transpose2) {
     ASSERT_EQ(static_cast<int>(graph.graph_state()), -1);
     graph.Build({ "input" }, { "output" });
     ASSERT_EQ(static_cast<int>(graph.graph_state()), 0);
+
+    std::shared_ptr<ftensor> input_tensor = std::make_shared<ftensor>(2, 3, 4);
+    input_tensor->Fill(1);
+    std::vector<sftensor> input{input_tensor};
+
+    const auto outputs = graph.Forward({input}, true);
+    outputs.at(0).at(0) -> Show();
 }

@@ -306,28 +306,30 @@ namespace BatmanInfer {
     void Tensor<float>::Reshape(const std::vector<uint32_t> &shapes, bool row_major) {
         CHECK(!this->data_.empty());
         CHECK(!shapes.empty());
+
         const uint32_t origin_size = this->size();
         const uint32_t current_size = std::accumulate(shapes.begin(), shapes.end(), 1, std::multiplies());
         CHECK(shapes.size() <= 3);
         CHECK(current_size == origin_size);
 
-        std::vector<float> values;
-        // 行主序
-        values = this->values(row_major);
         if (shapes.size() == 3) {
-            this->data_.reshape(shapes.at(1), shapes.at(2), shapes.at(0));
-            this->raw_shapes_ = {shapes.at(0), shapes.at(1), shapes.at(2)};
+            data_.reshape(shapes.at(1), shapes.at(2), shapes.at(0));
+            raw_shapes_ = {shapes.at(0), shapes.at(1), shapes.at(2)};
         } else if (shapes.size() == 2) {
             // 这是二维张量
-            this->data_.reshape(shapes.at(0), shapes.at(1), 1);
-            this->raw_shapes_ = {shapes.at(0), shapes.at(1)};
+            data_.reshape(shapes.at(0), shapes.at(1), 1);
+            raw_shapes_ = {shapes.at(0), shapes.at(1)};
         } else {
-            this->data_.reshape(1, shapes.at(0), 1);
-            this->raw_shapes_ = {shapes.at(0)};
+            data_.reshape(1, shapes.at(0), 1);
+            raw_shapes_ = {shapes.at(0)};
         }
 
-        if (row_major)
+        if (row_major) {
+            std::vector<float> values;
+            // 行主序
+            values = this->values(row_major);
             this->Fill(values, true);
+        }
     }
 
     float* Tensor<float>::raw_ptr() {
