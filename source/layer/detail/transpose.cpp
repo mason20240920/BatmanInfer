@@ -7,7 +7,7 @@
 #include <data/tensor_util.hpp>
 
 namespace BatmanInfer {
-    TransposeLayer::TransposeLayer(std::vector<int> perms): NonParamLayer("Transpose"), perms_(perms) {
+    TransposeLayer::TransposeLayer(const std::vector<int>& perms): NonParamLayer("Transpose"), perms_(perms) {
 
     }
 
@@ -59,8 +59,16 @@ namespace BatmanInfer {
             const auto& input = inputs.at(i);
             auto& output = outputs.at(i);
 
+            auto perms_size = perms_.size();
+
+            // 新的执行顺序
+            std::vector<uint32_t> new_order  = {static_cast<unsigned int>(perms_[perms_size - 3] - 1),
+                                                static_cast<unsigned int>(perms_[perms_size - 2] - 1),
+                                                static_cast<unsigned int>(perms_[perms_size - 1] - 1)};
+
             auto temp = TensorClone(input);
-            temp->Reshape(output->shapes(), true);
+            temp->Show();
+            temp->Transpose(new_order, true);
             output = temp;
         }
         return InferStatus::bInferSuccess;

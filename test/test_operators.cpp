@@ -324,7 +324,10 @@ TEST(test_operators, tensor_transpose2) {
     ASSERT_EQ(static_cast<int>(graph.graph_state()), 0);
 
     std::shared_ptr<ftensor> input_tensor = std::make_shared<ftensor>(2, 3, 4);
-    input_tensor->Fill(1);
+    std::vector<float> vec(24);
+    std::iota(vec.begin(), vec.end(), 1.0f);
+    input_tensor->Fill(vec, true);
+    input_tensor->Show();
     std::vector<sftensor> input{input_tensor};
 
     const auto outputs = graph.Forward({input}, true);

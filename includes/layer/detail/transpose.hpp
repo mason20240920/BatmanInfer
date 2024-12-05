@@ -10,7 +10,7 @@
 namespace BatmanInfer {
     class TransposeLayer: public NonParamLayer {
     public:
-        explicit TransposeLayer(std::vector<int> perms);
+        explicit TransposeLayer(const std::vector<int>& perms);
 
         InferStatus Forward(const std::vector<std::shared_ptr<Tensor<float> > > &inputs,
                             std::vector<std::shared_ptr<Tensor<float> > > &outputs) override;

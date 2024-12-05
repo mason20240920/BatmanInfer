@@ -4,6 +4,7 @@
 #include <data/Tensor.hpp>
 #include <glog/logging.h>
 #include <memory>
+#include <set>
 #include <omp.h>
 
 namespace BatmanInfer {
@@ -312,6 +313,10 @@ namespace BatmanInfer {
         CHECK(shapes.size() <= 3);
         CHECK(current_size == origin_size);
 
+        std::vector<float> values;
+        // 行主序
+        values = this->values(row_major);
+
         if (shapes.size() == 3) {
             data_.reshape(shapes.at(1), shapes.at(2), shapes.at(0));
             raw_shapes_ = {shapes.at(0), shapes.at(1), shapes.at(2)};
@@ -325,9 +330,6 @@ namespace BatmanInfer {
         }
 
         if (row_major) {
-            std::vector<float> values;
-            // 行主序
-            values = this->values(row_major);
             this->Fill(values, true);
         }
     }
@@ -586,6 +588,99 @@ namespace BatmanInfer {
             data_ptr[indices_equal_1[i]] = 0.0f;
         }
     }
+
+    void Tensor<float>::Transpose(const std::vector<uint32_t> &new_order, bool row_major) {
+        CHECK(!this->data_.empty());
+        CHECK(new_order.size() == 3);
+
+        // 获取原始形状
+        const auto temp_shape = shapes();
+
+        if (row_major) {
+            // 行主序处理
+            // 1. 首先将数据重新排列成一维向量
+            arma::fvec flat_data(this->values(true));  // 使用 arma::fvec 直接构造
+
+            // 2. 预计算stride
+            const arma::uvec old_stride = {
+                    temp_shape[1] * temp_shape[2],  // stride for dim 0
+                    temp_shape[2],                  // stride for dim 1
+                    1                              // stride for dim 2
+            };
+
+            // 3. 计算新的形状和stride
+            arma::uvec new_shape = {
+                    temp_shape[new_order[0]],
+                    temp_shape[new_order[1]],
+                    temp_shape[new_order[2]]
+            };
+
+            const arma::uvec new_stride = {
+                    new_shape[1] * new_shape[2],  // new stride for dim 0
+                    new_shape[2],                 // new stride for dim 1
+                    1                            // new stride for dim 2
+            };
+
+            // 4. 创建结果向量
+            arma::fvec result(flat_data.n_elem);
+
+            // 5. 使用 OpenMP 并行化转置操作
+#pragma omp parallel for schedule(static)
+            for (arma::uword i = 0; i < flat_data.n_elem; ++i) {
+                // 计算原始坐标
+                const arma::uword old_i = i / old_stride[0];
+                const arma::uword old_j = (i % old_stride[0]) / old_stride[1];
+                const arma::uword old_k = i % old_stride[1];
+
+                // 使用数组操作计算新坐标
+                const arma::uword coords[3] = {old_i, old_j, old_k};
+                const arma::uword new_i = coords[new_order[0]];
+                const arma::uword new_j = coords[new_order[1]];
+                const arma::uword new_k = coords[new_order[2]];
+
+                // 计算新的线性索引
+                const arma::uword new_idx = new_i * new_stride[0] +
+                                            new_j * new_stride[1] +
+                                            new_k;
+
+                result[new_idx] = flat_data[i];
+            }
+
+            // 6. 重塑数据为新的cube
+            data_ = arma::fcube(result.memptr(),
+                                new_shape[1],   // rows
+                                new_shape[2],   // cols
+                                new_shape[0]);  // slices
+        } else {
+            // 列主序处理
+            // 使用 Armadillo 的高级视图操作
+            arma::fcube temp_cube(temp_shape[new_order[1]],
+                                  temp_shape[new_order[2]],
+                                  temp_shape[new_order[0]]);
+
+            // 使用 OpenMP 并行化数据拷贝
+#pragma omp parallel for collapse(3) schedule(static)
+            for (arma::uword i = 0; i < temp_shape[0]; ++i) {
+                for (arma::uword j = 0; j < temp_shape[1]; ++j) {
+                    for (arma::uword k = 0; k < temp_shape[2]; ++k) {
+                        const arma::uword new_i = new_order[0] == 0 ? i : (new_order[0] == 1 ? j : k);
+                        const arma::uword new_j = new_order[1] == 0 ? i : (new_order[1] == 1 ? j : k);
+                        const arma::uword new_k = new_order[2] == 0 ? i : (new_order[2] == 1 ? j : k);
+                        temp_cube(new_j, new_k, new_i) = data_(i, j, k);
+                    }
+                }
+            }
+
+            // 使用移动语义避免额外拷贝
+            data_ = std::move(temp_cube);
+        }
+
+        // 更新形状
+        raw_shapes_ = {temp_shape[new_order[0]],
+                       temp_shape[new_order[1]],
+                       temp_shape[new_order[2]]};
+    }
+
 
     void Tensor<float>::Where(const float &x,
                               const float &y) {

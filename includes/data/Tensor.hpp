@@ -542,6 +542,15 @@ namespace BatmanInfer {
          */
         void Transpose();
 
+
+        /**
+         * @brief 对矩阵进行多维变换
+         * @param new_order 新的维度
+         * @param row_major 是不是行优先
+         */
+        void Transpose(const std::vector<uint32_t>& new_order,
+                       bool row_major);
+
 //        /**
 //         * 返回数据的原始指针
 //         * @param offset 数据指针的偏移量
