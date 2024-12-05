@@ -6,7 +6,6 @@
 #include <layer/detail/constant.h>
 #include <layer/abstract/layer_factory.hpp>
 #include <data/tensor_util.hpp>
-#include <utility>
 
 namespace BatmanInfer {
 
@@ -26,7 +25,7 @@ namespace BatmanInfer {
 
         for (uint32_t i = 0; i < batch_size; ++i) {
             auto& output = outputs.at(i);
-            output = std::make_shared<ftensor>(1);
+            output = std::make_shared<ftensor>(value_.size());
             output->Fill(value_, true);
         }
         return InferStatus::bInferSuccess;
@@ -42,9 +41,17 @@ namespace BatmanInfer {
             return ParseParameterAttrStatus::bParameterMissingValue;
         }
 
-        auto value = std::dynamic_pointer_cast<RuntimeParameterFloat>(params.at("value"));
+        auto value = params.at("value");
 
-        constant_layer = std::make_shared<ConstantLayer>(std::vector<float>{value->value});
+        std::vector<float> tmp_float_vec;
+
+        if (auto int_param = dynamic_cast<RuntimeParameterIntArray*>(value.get())) {
+            tmp_float_vec = convert_to_int_vector(int_param);
+        } else if (auto float_param = dynamic_cast<RuntimeParameterFloat*>(value.get())) {
+            tmp_float_vec = std::vector<float>{float_param->value};
+        }
+
+        constant_layer = std::make_shared<ConstantLayer>(tmp_float_vec);
         return ParseParameterAttrStatus::bParameterAttrParseSuccess;
     }
 

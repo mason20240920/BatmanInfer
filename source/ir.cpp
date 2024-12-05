@@ -350,6 +350,9 @@ namespace BatmanInfer {
             else
                 operand->shape.push_back(-1);
         }
+        while (operand->shape.size() < 4) {
+            operand->shape.insert(operand->shape.begin(), 1);
+        }
     }
 
     void find_input_tensor_info(const std::string& input_name,
@@ -428,6 +431,10 @@ namespace BatmanInfer {
             } else {
                 output_shape.push_back(-1);  // 未定义的维度
             }
+        }
+
+        while (output_shape.size() < 4) {
+            output_shape.insert(output_shape.begin(), 1);
         }
         op->input_names.resize(1);
         op->inputs[0]->name = "output";
@@ -716,6 +723,10 @@ namespace BatmanInfer {
                         } else {
                             input_shape.push_back(-1);  // 未定义的维度
                         }
+                    }
+                    // 如果shapes不满4个维度，怎么办?
+                    while (input_shape.size() < 4) {
+                        input_shape.insert(input_shape.begin(), 1);
                     }
                     r->producer = op;
                     r->name = name;

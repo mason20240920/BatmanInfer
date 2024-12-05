@@ -121,17 +121,32 @@ namespace BatmanInfer {
 
                 }
                 return;
+            } else if (shape_size == 1) {
+                switch (data_type) {
+                    case onnx::TensorProto::FLOAT: {
+                        float tmpVals;
+                        type = 3;
+                        const std::string &raw_data = tensorProto.raw_data();
+                        std::memcpy(&tmpVals, raw_data.data(), sizeof(float));
+                        f = tmpVals;
+                        break;
+                    }
+                    case onnx::TensorProto::INT64: {
+                        type = 5;
+                        std::vector<int64_t> tmpVals;
+                        const std::string &raw_data = tensorProto.raw_data();
+                        // 计算数据长度
+                        size_t num_elements = raw_data.size() / sizeof(int64_t);
+                        // 调整目标向量的大小
+                        tmpVals.resize(num_elements);
+                        std::memcpy(tmpVals.data(), raw_data.data(),  raw_data.size());
+                        for (const auto &x: tmpVals)
+                            ai.push_back((int) x);
+                        break;
+                    }
+                }
             }
-            // TODO: Implement the function to implements Tensor, This just make tensor to a float value
-            tensor = std::make_shared<Tensor<float>>(shape_size);
-            float tmpVals;
-            if (tensorProto.has_raw_data()) {
-                type = 3;
-                const std::string &raw_data = tensorProto.raw_data();
-                std::memcpy(&tmpVals, raw_data.data(), sizeof(float));
-                f = tmpVals;
-            }
-            std::cerr << "Tensor has " << tensorProto.dims_size() << " dimensions." << std::endl;
+            std::cerr << "Tensor has " << shape_size << " dimensions." << std::endl;
         }
 
 
@@ -151,7 +166,6 @@ namespace BatmanInfer {
         // keep std::string typed member the last for cross cxxabi compatibility
         std::string s;
         std::vector<std::string> as;
-        sftensor tensor;
     };
 
     bool operator==(const ONNXParameter &lhs, const ONNXParameter &rhs);

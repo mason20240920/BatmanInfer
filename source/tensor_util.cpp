@@ -214,4 +214,19 @@ namespace BatmanInfer {
 
         return result;
     }
+
+    /**
+     * @brief 把int数组转化为float类型
+     * @param runtime_parameter_int
+     * @return
+     */
+    std::vector<float> convert_to_int_vector(const RuntimeParameterIntArray* runtime_parameter_int) {
+        std::vector<float> float_vec;
+        float_vec.reserve(runtime_parameter_int->value.size());
+        std::transform(runtime_parameter_int->value.begin(),
+                       runtime_parameter_int->value.end(),
+                       std::back_inserter(float_vec),
+                       [](int val) {return static_cast<float>(val);});
+        return float_vec;
+    }
 }

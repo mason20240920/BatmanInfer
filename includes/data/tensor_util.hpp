@@ -8,6 +8,7 @@
 #include <data/Tensor.hpp>
 #include <onnx/onnx.pb.h>
 #include <runtime/runtime_datatype.hpp>
+#include "runtime/runtime_parameter.hpp"
 
 namespace BatmanInfer {
 
@@ -96,6 +97,14 @@ namespace BatmanInfer {
      */
     std::shared_ptr<Tensor<float>> Trilu(const std::shared_ptr<Tensor<float>>& tensor,
                                          int upper);
+
+
+    /**
+     * @brief 数据结构转换
+     * @param runtime_parameter_int
+     * @return
+     */
+    std::vector<float> convert_to_int_vector(const RuntimeParameterIntArray* runtime_parameter_int);
 }
 
 #endif //BATMAN_INFER_TENSOR_UTIL_HPP

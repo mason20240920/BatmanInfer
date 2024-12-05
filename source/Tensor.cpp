@@ -590,41 +590,57 @@ namespace BatmanInfer {
     }
 
     void Tensor<float>::Transpose(const std::vector<uint32_t> &new_order, bool row_major) {
+        using index_type = size_t;  // 统一使用 size_t 作为索引类型
         CHECK(!this->data_.empty());
         CHECK(new_order.size() == 3);
 
         // 原始形状
         const auto temp_shape = shapes();
 
-        // 获取当前数据的值
-        const std::vector<float> values = this->values(row_major);
+        // 获取当前数据的值, 预分配并对齐内存
+        alignas(32) std::vector<float> values = this->values(row_major);
 
         // 提前计算stride以避免重复计算
+        // stride_1 = rows * cols
         const size_t stride_1 = temp_shape[1] * temp_shape[2];
+        // stride_2 = cols;
         const size_t stride_2 = temp_shape[2];
 
         // 根据新的顺序调整形状
-        arma::fcube transposed_data;
-        transposed_data.set_size(temp_shape[new_order[1]], temp_shape[new_order[2]], temp_shape[new_order[0]]);
+        arma::fcube transposed_data(temp_shape[new_order[1]],
+                                    temp_shape[new_order[2]],
+                                    temp_shape[new_order[0]]);
 
         // 填充转置后的数据
         if (row_major) {
+#ifdef _OPENMP
+            omp_set_num_threads(omp_get_max_threads());
+#endif
+
+            // 使用分块策略
+            constexpr size_t BLOCK_SIZE = 64;
+
             // 如果是行主序，需要调整填充顺序
-            const size_t total_size = temp_shape[0] * temp_shape[1] * temp_shape[2];
+#pragma omp parallel for collapse(3) schedule(guided) proc_bind(close)
+            for (size_t i = 0; i < temp_shape[0]; i += BLOCK_SIZE) {
+                for (size_t j = 0; j < temp_shape[1]; j += BLOCK_SIZE) {
+                    for (size_t k = 0; k < temp_shape[2]; k += BLOCK_SIZE) {
+                        // 分块处理
+                        for (size_t ii = i; ii < std::min<index_type>(i + BLOCK_SIZE, temp_shape[0]); ++ii) {
+                            for (size_t jj = j; jj < std::min<index_type>(j + BLOCK_SIZE, temp_shape[1]); ++jj) {
+#pragma omp simd
+                                for (size_t kk = k; kk < std::min<index_type>(k + BLOCK_SIZE, temp_shape[2]); ++kk) {
+                                    const size_t old_index = ii * stride_1 + jj * stride_2 + kk;
 
-#pragma omp parallel for collapse(3) schedule(static)
-            for (size_t i = 0; i < temp_shape[0]; ++i) {
-                for (size_t j = 0; j < temp_shape[1]; ++j) {
-                    for (size_t k = 0; k < temp_shape[2]; ++k) {
-                        // 使用预计算的stride来计算索引
-                        const size_t old_index = i * stride_1 + j * stride_2 + k;
+                                    // 如果 new_order 在编译时已知，这里可以用 if constexpr 优化
+                                    const size_t new_i = new_order[0] == 0 ? ii : (new_order[0] == 1 ? jj : kk);
+                                    const size_t new_j = new_order[1] == 0 ? ii : (new_order[1] == 1 ? jj : kk);
+                                    const size_t new_k = new_order[2] == 0 ? ii : (new_order[2] == 1 ? jj : kk);
 
-                        // 计算新的索引位置
-                        const size_t new_i = new_order[0] == 0 ? i : (new_order[0] == 1 ? j : k);
-                        const size_t new_j = new_order[1] == 0 ? i : (new_order[1] == 1 ? j : k);
-                        const size_t new_k = new_order[2] == 0 ? i : (new_order[2] == 1 ? j : k);
-
-                        transposed_data(new_j, new_k, new_i) = values[old_index];
+                                    transposed_data(new_j, new_k, new_i) = values[old_index];
+                                }
+                            }
+                        }
                     }
                 }
             }
