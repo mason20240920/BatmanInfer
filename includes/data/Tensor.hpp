@@ -600,6 +600,14 @@ namespace BatmanInfer {
         void Div(const float& div_num);
 
         /**
+         * @brief 对Tensor进行切分
+         * @param split_axis 切分的轴
+         * @param split_size 切分的长度
+         */
+        std::vector<std::shared_ptr<Tensor<float>>> Split(const uint32_t & split_axis,
+                                                          const std::vector<uint32_t> & split_lst);
+
+        /**
          * @brief 进行逐元素相乘
          * @param other
          */

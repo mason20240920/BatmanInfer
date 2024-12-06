@@ -102,7 +102,7 @@ TEST(test_network, resnet1) {
 
     auto outputs = graph.Forward({ input }, true);
     std::cout << outputs.size() << std::endl;
-    outputs[0].at(0)->Show();
+//    outputs[0].at(0)->Show();
 //    std::cout << "Hello World" << std::endl;
 }
 
@@ -124,7 +124,7 @@ TEST(test_network, resnet2) {
     input.at(0)->Show();
 
     auto outputs = graph.Forward({ input }, true);
-    outputs[0].at(0)->Show();
+//    outputs[0].at(0)->Show();
 }
 
 // 验证图像加载是否成功
@@ -150,12 +150,12 @@ TEST(test_network, resnet3) {
         inputs.push_back(input);
     }
     auto outputs = graph.Forward({ inputs }, true);
-    outputs[0].at(0)->Show();
+//    outputs[0].at(0)->Show();
     ASSERT_EQ(outputs.size(), batch_size);
 
     SoftmaxLayer softmax_layer(0);
     std::vector<sftensor> outputs_softmax(batch_size);
-    softmax_layer.Forward(outputs[0], outputs_softmax);
+//    softmax_layer.Forward(outputs[0], outputs_softmax);
     assert(outputs_softmax.size() == batch_size);
 
     for (int i = 0; i < outputs_softmax.size(); ++i) {

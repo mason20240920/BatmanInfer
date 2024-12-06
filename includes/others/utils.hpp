@@ -15,6 +15,13 @@ namespace BatmanInfer {
     * 从onnx的type类型转为Runtime类型
     */
     RuntimeDataType convert_runtime_data(const int onnx_type);
+
+    /**
+     * @brief 从float数组转为uint32_t数组
+     * @param input
+     * @return
+     */
+    std::vector<uint32_t> convert_to_uint32(const std::vector<float>& input);
 }
 
 #endif //BATMANINFER_UTILS_H

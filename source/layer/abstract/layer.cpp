@@ -49,18 +49,22 @@ namespace BatmanInfer {
                 layer_input_data.push_back(input_data);
         }
 
-        const std::shared_ptr<RuntimeOperand>& output_operand_data =
-                runtime_operator->output_operands;
+        // layer的输出
+        const auto& output_operand_lst = runtime_operator->output_operands;
+        std::vector<std::shared_ptr<Tensor<float>>> layer_output_data;
+        for (const auto& output_operand_data: output_operand_lst)
+            for (const auto& output_data: output_operand_data.second->datas)
+                layer_output_data.push_back(output_data);
 
         if (runtime_operator->type != "Constant")
             CHECK(!layer_input_data.empty())
                             << runtime_operator->name << "Layer input data is empty";
-        CHECK(output_operand_data != nullptr && !output_operand_data->datas.empty())
+        CHECK(layer_output_data.empty())
              << "Layer output data is empty";
 
         // 执行operator 当中的Layer计算过程
         InferStatus status = runtime_operator->layer->Forward(
-                layer_input_data, output_operand_data->datas);
+                layer_input_data, layer_output_data);
         return status;
     }
 

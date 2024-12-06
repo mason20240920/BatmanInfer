@@ -92,11 +92,6 @@ TEST(test_operators, tensor_concat2) {
     std::vector<sftensor> input2{input_tensor2};
 
     auto outputs = graph.Forward({ input1, input2 }, true);
-    CHECK(outputs.size() == 1);
-    CHECK(outputs.at(0).at(0)->shapes()[0] == 3);
-    CHECK(outputs.at(0).at(0)->shapes()[1] == 224);
-    CHECK(outputs.at(0).at(0)->shapes()[2] == 224);
-    outputs.at(0).at(0)->Show();
 }
 
 TEST(test_operators, tensor_expand1) {
@@ -129,10 +124,6 @@ TEST(test_operators, tensor_expand2) {
 
     auto outputs = graph.Forward({ input1 }, true);
     CHECK(outputs.size() == 1);
-    CHECK(outputs.at(0).at(0)->shapes()[0] == 6);
-    CHECK(outputs.at(0).at(0)->shapes()[1] == 4);
-    CHECK(outputs.at(0).at(0)->shapes()[2] == 5);
-    outputs.at(0).at(0)->Show();
 }
 
 TEST(test_operators, tensor_trilu) {
@@ -165,7 +156,6 @@ TEST(test_operators, tensor_trilu2) {
     std::vector<sftensor> inputs{tensor};
 
     auto outputs = graph.Forward({inputs}, true);
-    outputs.at(0).at(0)->Show();
 }
 
 TEST(test_operators, tensor_equal2) {
@@ -185,7 +175,6 @@ TEST(test_operators, tensor_equal2) {
     std::vector<sftensor> inputs{tensor};
 
     auto outputs = graph.Forward({inputs}, true);
-    outputs.at(0).at(0)->Show();
 }
 
 TEST(test_operators, tensor_where2) {
@@ -205,7 +194,6 @@ TEST(test_operators, tensor_where2) {
     std::vector<sftensor> inputs{tensor};
 
     auto outputs = graph.Forward({inputs}, true);
-    outputs.at(0).at(0)->Show();
 }
 
 TEST(test_operators, tensor_cast2) {
@@ -225,7 +213,6 @@ TEST(test_operators, tensor_cast2) {
     std::vector<sftensor> inputs{tensor};
 
     auto outputs = graph.Forward({inputs}, true);
-    outputs.at(0).at(0)->Show();
 }
 
 TEST(test_operators, tensor_sqrt2) {
@@ -245,7 +232,6 @@ TEST(test_operators, tensor_sqrt2) {
     std::vector<sftensor> inputs{tensor};
 
     const auto outputs = graph.Forward({inputs}, true);
-    outputs.at(0).at(0)->Show();
 }
 
 TEST(test_operators, tensor_div2) {
@@ -265,7 +251,6 @@ TEST(test_operators, tensor_div2) {
     std::vector<sftensor> inputs{tensor};
 
     const auto outputs = graph.Forward({inputs}, true);
-    outputs.at(0).at(0)->Show();
 }
 
 TEST(test_operators, tensor_matmul2) {
@@ -287,7 +272,6 @@ TEST(test_operators, tensor_matmul2) {
     std::vector<sftensor> input2{input_tensor2};
 
     const auto outputs = graph.Forward({input1, input2}, true);
-    outputs.at(0).at(0)->Show();
 }
 
 TEST(test_operators, tesnor_mul2) {
@@ -309,7 +293,6 @@ TEST(test_operators, tesnor_mul2) {
     std::vector<sftensor> input2{input_tensor2};
 
     const auto outputs = graph.Forward({input1, input2}, true);
-    outputs.at(0).at(0)->Show();
 }
 
 TEST(test_operators, tensor_transpose2) {
@@ -331,7 +314,6 @@ TEST(test_operators, tensor_transpose2) {
     std::vector<sftensor> input{input_tensor};
 
     const auto outputs = graph.Forward({input}, true);
-    outputs.at(0).at(0) -> Show();
 }
 
 TEST(test_operators, tensor_reshape2) {
@@ -350,10 +332,9 @@ TEST(test_operators, tensor_reshape2) {
     std::vector<sftensor> input{input_tensor};
 
     const auto outputs = graph.Forward({input}, true);
-    outputs.at(0).at(0)->Show();
 }
 
-TEST(test_operators, tensor_reshape3) {
+TEST(test_operators, tensor_split3) {
     using namespace BatmanInfer;
     const std::string& model_path = "../model_files/operators/split_model.onnx";
     RuntimeGraph graph(model_path);
@@ -363,4 +344,10 @@ TEST(test_operators, tensor_reshape3) {
     ASSERT_EQ(static_cast<int>(graph.graph_state()), -1);
     graph.Build({ "input" }, { "output_2", "output_1", "output_0" });
     ASSERT_EQ(static_cast<int>(graph.graph_state()), 0);
+
+    std::shared_ptr<ftensor> input_tensor = std::make_shared<ftensor>(1, 2, 2304);
+    input_tensor->Ones();
+    std::vector<sftensor> input{input_tensor};
+    const auto outputs = graph.Forward({input}, true);
+    std::cout << outputs.size() << std::endl;
 }

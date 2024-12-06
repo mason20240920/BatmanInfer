@@ -131,8 +131,12 @@ namespace BatmanInfer {
             if (!output)
                 continue;
             const auto &consumers = output->consumers;
-            for (const auto &c: consumers)
+            for (const auto &c: consumers) {
                 runtime_operator->output_names.push_back(c->name);
+                std::shared_ptr<RuntimeOperand> runtime_operand = std::make_shared<RuntimeOperand>();
+                runtime_operand->name = c->name;
+                runtime_operator->output_operands.insert({c->name, runtime_operand});
+            }
         }
     }
 
@@ -369,11 +373,13 @@ namespace BatmanInfer {
     }
 
     void RuntimeGraph::ProbeNextLayer(const std::shared_ptr<RuntimeOperator> &current_op,
-                                      const std::vector<std::shared_ptr<Tensor<float> > > &layer_output_data) {
+                                      const std::map<std::string, std::shared_ptr<RuntimeOperand>> &layer_output_operands) {
         // 当前节点的后继节点next_ops
         const auto &next_ops = current_op->output_operators;
         // 对所有后继节点进行遍历
-        for (const auto &[_, next_rt_operator]: next_ops) {
+        for (const auto &[next_rt_name, next_rt_operator]: next_ops) {
+            // 后续节点的output
+            const auto& layer_output_data = layer_output_operands.at(next_rt_name)->datas;
             // 得到后继节点的输入next_input_operands
             const auto &next_input_operands = next_rt_operator->input_operands;
             // 确定后继节点的输入来自于current_op
@@ -396,7 +402,7 @@ namespace BatmanInfer {
         }
     }
 
-    std::vector<std::vector<std::shared_ptr<Tensor<float> > > >
+    std::map<std::string, std::vector<std::vector<std::shared_ptr<Tensor<float>>>>>
     RuntimeGraph::Forward(const std::vector<std::vector<std::shared_ptr<Tensor<float> > > > &inputs,
                           bool debug) {
         // 检查当前的执行图是否已经初始化完毕
@@ -416,24 +422,24 @@ namespace BatmanInfer {
         for (int i = 0; i < inputs.size(); ++i) {
             auto &ipt_name = input_names_[i];
             auto ipt_out_operand = operators_maps_.at(ipt_name)->output_operands;
-            ipt_out_operand->datas = inputs.at(i);
+            ipt_out_operand.at(ipt_name)->datas = inputs.at(i);
         }
 
         for (const auto &current_op: to_po_operators_) {
             if (current_op->type == "Input") {
                 // current_op->has_forward = true;
-                ProbeNextLayer(current_op, current_op->output_operands->datas);
+                ProbeNextLayer(current_op, current_op->output_operands);
             } else if (current_op->type == "Output") {
                 // current_op->has_forward = true;
                 CHECK(current_op->input_operands_seq.size() == 1);
-                current_op->output_operands = current_op->input_operands_seq.front();
+                current_op->output_operands.at(current_op->name) = current_op->input_operands_seq.front();
             } else {
                 InferStatus status = current_op->layer->Forward();
                 CHECK(status == InferStatus::bInferSuccess)
                      << current_op->layer->layer_name()
                      << " layer forward failed, error code: " << int(status);
                 // current_op->has_forward = true;
-                ProbeNextLayer(current_op, current_op->output_operands->datas);
+                ProbeNextLayer(current_op, current_op->output_operands);
             }
         }
 
@@ -441,13 +447,15 @@ namespace BatmanInfer {
         //     LOG_IF(FATAL, !op->has_forward)
         //           << "The operator: " << op->name << " has not been forward yet!";
 
-        std::vector<std::vector<std::shared_ptr<Tensor<float> > > > final_outputs;
+        std::map<std::string, std::vector<std::vector<std::shared_ptr<Tensor<float>>>>> final_outputs;
         for (const auto &out_name: output_names_) {
             // 之前已经检查过 out_name 的合法性，这里不再检查
             const auto &output_op = operators_maps_.at(out_name);
-            CHECK(output_op->output_operands != nullptr) << "Output from " << output_op->name << " is empty";
+            CHECK(!output_op->output_operands.empty()) << "Output from " << output_op->name << " is empty";
             const auto &output_operand = output_op->output_operands;
-            final_outputs.emplace_back(output_operand->datas);
+            for (const auto& item: output_operand) {
+                final_outputs[item.first].emplace_back(item.second->datas);
+            }
         }
         return final_outputs;
     }

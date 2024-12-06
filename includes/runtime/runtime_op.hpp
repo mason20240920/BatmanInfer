@@ -33,7 +33,7 @@ namespace BatmanInfer {
         // 节点的输出节点名称
         std::vector<std::string> output_names;
         // 节点的输出操作数
-        std::shared_ptr<RuntimeOperand> output_operands;
+        std::map<std::string, std::shared_ptr<RuntimeOperand>> output_operands;
 
         // 节点的输入操作数
         std::map<std::string, std::shared_ptr<RuntimeOperand>> input_operands;

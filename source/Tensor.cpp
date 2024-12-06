@@ -727,4 +727,49 @@ namespace BatmanInfer {
     }
 
 
+    std::vector<sftensor> Tensor<float>::Split(const uint32_t &split_axis, const std::vector<uint32_t> &split_lst) {
+        CHECK(!this->data_.empty());
+
+        std::vector<sftensor> ret;
+
+        uint32_t total_axis_len = 0;
+        // rows: 在行维度进行切分
+        if (split_axis == 0) {
+            // 获取分割的个数
+            auto split_num = split_lst.size();
+            ret.reserve(split_num);
+            for (int i = 0; i < split_num; ++i) {
+                // 提取当前切片的行
+                arma::fcube slice_data = data_.rows(i * split_lst.at(i), (i + 1) * split_lst.at(i) - 1);
+
+                auto tensor = std::make_shared<Tensor<float>>(split_lst.at(i), cols(), channels());
+                tensor->data_ = slice_data;
+                ret.push_back(tensor);
+            }
+        }
+        else if (split_axis == 1) {
+            auto split_num = split_lst.size();
+            ret.reserve(split_num);
+
+            for (int i = 0; i < split_num; ++i) {
+                arma::fcube slice_data = data_.cols(i * split_lst.at(i), (i + 1) * split_lst.at(i) - 1);
+                auto tensor = std::make_shared<Tensor<float>>(rows(), split_lst.at(i), channels());
+                tensor->data_ = slice_data;
+                ret.push_back(tensor);
+            }
+        } else if (split_axis == 2) {
+            total_axis_len = channels();
+            auto split_num = split_lst.size();
+            ret.reserve(split_num);
+
+            for (int i = 0; i < split_num; ++i) {
+                arma::fcube slice_data = data_.slices(i * split_lst.at(i), (i + 1) * split_lst.at(i) - 1);
+                auto tensor = std::make_shared<Tensor<float>>(rows(), cols(), split_lst.at(i));
+                tensor->data_ = slice_data;
+                ret.push_back(tensor);
+            }
+        }
+
+        return ret;
+    }
 }

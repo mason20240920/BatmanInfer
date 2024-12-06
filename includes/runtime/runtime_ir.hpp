@@ -25,13 +25,13 @@ namespace BatmanInfer {
          * 初始化计算图
          * @param model_path 模型的路径
          */
-        RuntimeGraph(std::string  model_path);
+        RuntimeGraph(std::string model_path);
 
         /**
          * 设置模型路径
          * @param model_path 设置模型路径
          */
-        void set_model_path(const std::string& model_path);
+        void set_model_path(const std::string &model_path);
 
         /**
          * 返回模型路径
@@ -68,9 +68,9 @@ namespace BatmanInfer {
          * @param debug
          * @return
          */
-        std::vector< std::vector< std::shared_ptr< Tensor<float> > > > Forward(
-            const std::vector< std::vector< std::shared_ptr<Tensor<float>> > > &inputs,
-            bool debug);
+        std::map<std::string, std::vector<std::vector<std::shared_ptr<Tensor<float>>>>> Forward(
+                const std::vector<std::vector<std::shared_ptr<Tensor<float>>> > &inputs,
+                bool debug);
 
 
     private:
@@ -80,7 +80,7 @@ namespace BatmanInfer {
          * @param runtime_operator 计算图节点
          */
         static void InitGraphOperatorsInput(
-                const std::vector<ONNXOperand *> & inputs,
+                const std::vector<ONNXOperand *> &inputs,
                 const std::shared_ptr<RuntimeOperator> &runtime_operator);
 
         /**
@@ -89,7 +89,7 @@ namespace BatmanInfer {
          * @param layer_output_data 表示当前算子的输出: 在这个函数中，我们需要把当前算子的输出赋值到它后继节点的输入中
          */
         static void ProbeNextLayer(const std::shared_ptr<RuntimeOperator> &current_op,
-                            const std::vector<std::shared_ptr<Tensor<float>>> &layer_output_data);
+                                   const std::map<std::string, std::shared_ptr<RuntimeOperand>> &layer_output_operands);
 
 
         /**
@@ -141,6 +141,7 @@ namespace BatmanInfer {
          * @return 返回模型当前的状态
          */
         GraphState graph_state() const;
+
     private:
         GraphState graph_state_ = GraphState::NeedInit;
         /**

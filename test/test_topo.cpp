@@ -88,17 +88,20 @@ TEST(test_ir_topo, build1_output_tensors) {
     for (const auto &op: ops) {
         LOG(INFO) << op->name;
         // 打印op输出空间的张量
-        const auto &operand = op->output_operands;
-        if (!operand || operand->datas.empty())
-            continue;
-        const uint32_t batch_size = operand->datas.size();
-        LOG(INFO) << "batch: " << batch_size;
-
-        for (uint32_t i = 0; i < batch_size; ++i) {
-            const auto &data = operand->datas.at(i);
-            LOG(INFO) << "channel: " << data->channels()
-                      << " height: " << data->rows() << " cols: " << data->cols();
+        const auto &operands = op->output_operands;
+        for (const auto& operand: operands) {
+            std::cout << operand.first << std::endl;
         }
+//        if (!operand || operand->datas.empty())
+//            continue;
+//        const uint32_t batch_size = operand->datas.size();
+//        LOG(INFO) << "batch: " << batch_size;
+//
+//        for (uint32_t i = 0; i < batch_size; ++i) {
+//            const auto &data = operand->datas.at(i);
+//            LOG(INFO) << "channel: " << data->channels()
+//                      << " height: " << data->rows() << " cols: " << data->cols();
+//        }
     }
 }
 

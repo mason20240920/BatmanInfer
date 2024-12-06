@@ -10,7 +10,7 @@
 namespace BatmanInfer {
     class SplitLayer : public NonParamLayer {
     public:
-        SplitLayer(): NonParamLayer("Split") {}
+        explicit SplitLayer(const int axis);
 
         InferStatus Forward(const std::vector<std::shared_ptr<Tensor<float> > > &inputs,
                             std::vector<std::shared_ptr<Tensor<float> > > &outputs) override;
@@ -18,6 +18,9 @@ namespace BatmanInfer {
 
         static ParseParameterAttrStatus CreateInstance(const std::shared_ptr<RuntimeOperator> &op,
                                                        std::shared_ptr<Layer> &split_layer);
+
+    private:
+        int axis_;
     };
 }
 

@@ -23,4 +23,11 @@ namespace BatmanInfer {
                 return RuntimeDataType::kTypeUnknown;
         }
     }
+
+    std::vector<uint32_t> convert_to_uint32(const std::vector<float>& input) {
+        std::vector<uint32_t> output(input.size());
+        std::transform(input.begin(), input.end(), output.begin(),
+                       [](float value) { return static_cast<uint32_t>(value); });
+        return output;
+    }
 }
