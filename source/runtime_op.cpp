@@ -69,7 +69,7 @@ namespace BatmanInfer {
             // 如果输出空间没有被初始化
             if (output_tensor_dict.second->datas.empty()) {
                 // 需要被初始化的输出张量
-                std::shared_ptr<RuntimeOperand> output_operand = std::make_shared<RuntimeOperand>();
+                auto& output_operand = output_tensor_dict.second;
                 // 将输出操作数赋变量
                 output_operand->shapes = operand_shapes;
                 output_operand->type = RuntimeDataType::kTypeFloat32;
@@ -91,7 +91,7 @@ namespace BatmanInfer {
                         output_operand->datas.push_back(output_tensor);
                     }
                 }
-                runtime_op->output_operands.emplace(output_operand->name, output_operand);
+//                runtime_op->output_operands.emplace(output_operand->name, output_operand);
             } else {
                 // If the input corner is not empty
                 CHECK(batch == output_tensor_dict.second->datas.size());
