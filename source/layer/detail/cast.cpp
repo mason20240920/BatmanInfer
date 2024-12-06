@@ -3,7 +3,7 @@
 //
 
 #include <data/tensor_util.hpp>
-#include <layer/detail/cast.h>
+#include <layer/detail/cast.hpp>
 #include <layer/abstract/layer_factory.hpp>
 #include <others/utils.hpp>
 

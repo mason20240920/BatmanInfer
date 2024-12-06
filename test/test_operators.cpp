@@ -350,5 +350,17 @@ TEST(test_operators, tensor_reshape2) {
     std::vector<sftensor> input{input_tensor};
 
     const auto outputs = graph.Forward({input}, true);
-    outputs.at(0).at(0) -> Show();
+    outputs.at(0).at(0)->Show();
+}
+
+TEST(test_operators, tensor_reshape3) {
+    using namespace BatmanInfer;
+    const std::string& model_path = "../model_files/operators/split_model.onnx";
+    RuntimeGraph graph(model_path);
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), -2);
+    const bool init_success = graph.Init();
+    ASSERT_EQ(init_success, true);
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), -1);
+    graph.Build({ "input" }, { "output_2", "output_1", "output_0" });
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), 0);
 }

@@ -2,8 +2,8 @@
 // Created by Mason on 2024/12/2.
 //
 
-#ifndef BATMANINFER_CAST_H
-#define BATMANINFER_CAST_H
+#ifndef BATMANINFER_CAST_HPP
+#define BATMANINFER_CAST_HPP
 
 #include <layer/abstract/non_param_layer.hpp>
 
@@ -24,4 +24,4 @@ namespace BatmanInfer {
     };
 }
 
-#endif //BATMANINFER_CAST_H
+#endif //BATMANINFER_CAST_HPP

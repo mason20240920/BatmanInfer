@@ -350,7 +350,7 @@ namespace BatmanInfer {
             else
                 operand->shape.push_back(-1);
         }
-        while (operand->shape.size() < 4) {
+        while (operand->shape.size() < 3) {
             operand->shape.insert(operand->shape.begin(), 1);
         }
     }
@@ -402,9 +402,11 @@ namespace BatmanInfer {
     }
 
     static void load_output_key(ONNXOperator *op,
-                                const onnx::GraphProto& graph) {
+                                const onnx::GraphProto& graph,
+                                const int index,
+                                const std::string& name) {
         // 获取最后一个算子的输出作为输入
-        const onnx::ValueInfoProto& output_info = graph.output(0);
+        const onnx::ValueInfoProto& output_info = graph.output(index);
         const std::string& operand_name = output_info.name();
 
         // 确保输出类型是 Tensor
@@ -433,14 +435,14 @@ namespace BatmanInfer {
             }
         }
 
-        while (output_shape.size() < 4) {
+        while (output_shape.size() < 3) {
             output_shape.insert(output_shape.begin(), 1);
         }
         op->input_names.resize(1);
-        op->inputs[0]->name = "output";
+        op->inputs[0]->name = name;
         op->inputs[0]->type = custom_type;
         op->inputs[0]->shape = output_shape;
-        op->input_names[0] = "output";
+        op->input_names[0] = name;
     }
 
     /**
@@ -725,7 +727,7 @@ namespace BatmanInfer {
                         }
                     }
                     // 如果shapes不满4个维度，怎么办?
-                    while (input_shape.size() < 4) {
+                    while (input_shape.size() < 3) {
                         input_shape.insert(input_shape.begin(), 1);
                     }
                     r->producer = op;
@@ -739,29 +741,29 @@ namespace BatmanInfer {
 
                 // 跳过后面的输入
                 continue;
-            } else if (i == operator_count - output_size) {
+            } else if (i >= operator_count - output_size) {
                 const std::string type("Output");
                 const std::string name (output_names[i - operator_count + output_size]);
-                int input_count = count_output_usage(graph_info, name);
+                int output_count = count_output_usage(graph_info, name);
 
                 // 创建Output算子
                 ONNXOperator *op = new_operator(type, name);
 
-                for (int j = 0; j < input_count; j++) {
-                    // 获取第 j 个输入的名称
-                    const std::string &operand_name = operators.at(operator_count - output_size - 1)->outputs[j]->name;
-
+                for (int j = 0; j < output_count; j++) {
                     // 获取输入的操作数
-                    ONNXOperand *r = get_operand(operand_name);
+                    ONNXOperand *r = get_operand(name);
                     r->consumers.push_back(op);
                     // 输入的消费者
                     op->inputs.push_back(r);
 
                 }
 
-                load_output_key(op, graph_info);
+                load_output_key(op,
+                                graph_info,
+                                i - operator_count + output_size,
+                                name);
 
-                break;
+                continue;
             }
 
 

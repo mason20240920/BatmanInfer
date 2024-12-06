@@ -4,6 +4,7 @@
 
 #include <layer/detail/reshape.hpp>
 #include <layer/abstract/layer_factory.hpp>
+#include <data/tensor_util.hpp>
 
 namespace BatmanInfer {
     InferStatus ReshapeLayer::Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
@@ -17,7 +18,17 @@ namespace BatmanInfer {
         auto outputShape = outputs.at(0)->shapes();
 
         // TODO: 目前假设只有一个batch进行推理
+        // 当allowzero设置为1时，形状数组中的零会被解释为将该维度的大小保持与输入数据的相同。
+        // 当allowzero设置为0时，形状数组中的零会被解释为将该维度的大小设置为零，这通常是不允许的
+        auto& output = outputs.at(0);
 
+        auto size = output->shapes();
+
+        auto temp = TensorClone(inputs.at(0));
+
+        temp->Reshape(size, true);
+
+        output = temp;
 
         // 判断allowzero
 

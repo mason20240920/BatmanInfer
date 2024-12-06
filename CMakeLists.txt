@@ -194,7 +194,8 @@ add_executable(BatmanInfer main.cpp
         source/layer/detail/matmul.cpp
         source/layer/detail/mul.cpp
         source/layer/detail/transpose.cpp
-        source/layer/detail/reshape.cpp)
+        source/layer/detail/reshape.cpp
+        source/layer/detail/split.cpp)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer

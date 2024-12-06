@@ -3,7 +3,7 @@
 //
 
 
-#include <layer/detail/constant.h>
+#include <layer/detail/constant.hpp>
 #include <layer/abstract/layer_factory.hpp>
 #include <data/tensor_util.hpp>
 

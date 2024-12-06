@@ -2,8 +2,8 @@
 // Created by Mason on 2024/11/27.
 //
 
-#ifndef BATMANINFER_CONSTANT_H
-#define BATMANINFER_CONSTANT_H
+#ifndef BATMANINFER_CONSTANT_HPP
+#define BATMANINFER_CONSTANT_HPP
 
 #include <layer/abstract/non_param_layer.hpp>
 
@@ -27,4 +27,4 @@ namespace BatmanInfer {
     };
 }
 
-#endif //BATMANINFER_CONSTANT_H
+#endif //BATMANINFER_CONSTANT_HPP
