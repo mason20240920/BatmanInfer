@@ -12,15 +12,15 @@
 #include <onnx/onnx_pb.h>
 
 namespace BatmanInfer {
-    bool onnx_read_proto_from_binary(const char* filepath,
-                                     google::protobuf::Message* message);
+    bool onnx_read_proto_from_binary(const char *filepath,
+                                     google::protobuf::Message *message);
 
-    bool onnx_write_proto_from_binary(const char* filepath,
-                                      const google::protobuf::Message* message);
+    bool onnx_write_proto_from_binary(const char *filepath,
+                                      const google::protobuf::Message *message);
 
-    void getOperatorAndOperandCount(const onnx::ModelProto& model,
-                                    int& operator_count,
-                                    int& operand_count);
+    void get_operator_and_operand_count(const onnx::ModelProto &model,
+                                        int &operator_count,
+                                        int &operand_count);
 
     /**
      * 将ONNX的模型映射为自定义的model里面
@@ -47,13 +47,13 @@ namespace BatmanInfer {
      * @param af
      */
     template<typename T1, typename T2>
-    void convertRepeatedFieldToVector(const google::protobuf::RepeatedField<T1>& repeatedField, std::vector<T2>& af) {
+    void convertRepeatedFieldToVector(const google::protobuf::RepeatedField<T1> &repeatedField, std::vector<T2> &af) {
         // Clear the vector to ensure it's empty before copying
         af.clear();
 
         // Copy elements from RepeatedField to std::vector with conversion
         af.reserve(repeatedField.size()); // Reserve space to improve performance
-        for (const auto& item : repeatedField) {
+        for (const auto &item: repeatedField) {
             af.push_back(static_cast<T2>(item)); // Convert each element to T2
         }
     }
@@ -63,8 +63,8 @@ namespace BatmanInfer {
      * @param repeatedPtrField
      * @param af
      */
-    void convertRepeatedPtrFieldToVector(const google::protobuf::RepeatedPtrField<std::string>& repeatedPtrField,
-                                         std::vector<std::string>& af);
+    void convertRepeatedPtrFieldToVector(const google::protobuf::RepeatedPtrField<std::string> &repeatedPtrField,
+                                         std::vector<std::string> &af);
 
 
     /**
@@ -72,7 +72,7 @@ namespace BatmanInfer {
      * @param input_name
      * @return
      */
-    bool is_constant_value(const std::string& input_name);
+    bool is_constant_value(const std::string &input_name);
 }
 
 #endif //BATMANINFER_ONNXUTILS_HPP

@@ -6,6 +6,7 @@
 #include <layer/abstract/layer_factory.hpp>
 #include <data/tensor_util.hpp>
 #include <omp.h>
+#include "others/utils.hpp"
 
 namespace BatmanInfer {
     InferStatus GemmLayer::Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
@@ -126,8 +127,20 @@ namespace BatmanInfer {
             LOG(ERROR) << "Can not find the weights and bias params";
             return ParseParameterAttrStatus::bAttrMissingWeight;
         }
-        auto weight = attributes.at("fc.weight");
-        auto bias = attributes.at("fc.bias");
+
+        auto weight = find_keys_with_substring(attributes, "weight");
+
+        if (weight == nullptr) {
+            LOG(ERROR) << "Can not find the weight attribute";
+            return ParseParameterAttrStatus::bAttrMissingWeight;
+        }
+
+        auto bias = find_keys_with_substring(attributes,
+                                             "bias");
+        if (bias == nullptr) {
+            LOG(ERROR) << "Can not find the bias attribute";
+            return ParseParameterAttrStatus::bAttrMissingBias;
+        }
 
         auto gemm_width = weight->shape.at(0);
         auto gemm_height = weight->shape.at(1);

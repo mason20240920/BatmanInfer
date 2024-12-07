@@ -26,7 +26,7 @@ namespace BatmanInfer {
 
                     const auto &type = input_operand->type;
                     CHECK(type == RuntimeDataType::kTypeFloat32 || type ==RuntimeDataType::kTypeBoolean || type == RuntimeDataType::kTypeFloat64
-                    || type == RuntimeDataType::kTypeInt64)
+                    || type == RuntimeDataType::kTypeInt64 )
                          << "The graph only support float32 yet!";
                     const auto &input_operand_shape = input_operand->shapes;
                     // 得到需要初始化空间

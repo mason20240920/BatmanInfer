@@ -21,6 +21,10 @@ namespace BatmanInfer {
 
     private:
         int axis_;
+        // 是否是从attribute获取切割系数
+        bool is_attr_;
+        // 切割模块的参数
+        std::vector<float> split_vec;
     };
 }
 

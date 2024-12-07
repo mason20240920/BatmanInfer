@@ -17,7 +17,7 @@
 #include <sstream>
 #include <string>
 #include <stack>
-#include <data/Tensor.hpp>
+#include <others/utils.hpp>
 
 namespace BatmanInfer {
     static bool type_is_integer(const int type) {
@@ -152,21 +152,21 @@ namespace BatmanInfer {
         for (int i = 0; i < tensor.dims_size(); ++i)
             shape.emplace_back(tensor.dims(i));
 
-        // 检查是否有原始值(现在只有float32类型的)
-        if (tensor.has_raw_data()) {
-            const std::string& raw_data = tensor.raw_data();
-            data.resize(raw_data.size() / sizeof(float));
-            std::memcpy(data.data(), raw_data.data(), raw_data.size());
-        } else {
-            // 使用 float_data 字段
-            data.assign(tensor.float_data().begin(), tensor.float_data().end());
-        }
-
         // 确定数据类型并初始化数据
         switch (tensor.data_type()) {
-            case onnx::TensorProto::FLOAT:
+            case onnx::TensorProto::FLOAT: {
                 type = 1; // f32
+                // 检查是否有原始值(现在只有float32类型的)
+                if (tensor.has_raw_data()) {
+                    const std::string& raw_data = tensor.raw_data();
+                    data.resize(raw_data.size() / sizeof(float));
+                    std::memcpy(data.data(), raw_data.data(), raw_data.size());
+                } else {
+                    // 使用 float_data 字段
+                    data.assign(tensor.float_data().begin(), tensor.float_data().end());
+                }
                 break;
+            }
 
             case onnx::TensorProto::DOUBLE:
                 type = 2; // f64
@@ -176,9 +176,21 @@ namespace BatmanInfer {
                 type = 4; // i32
                 break;
 
-            case onnx::TensorProto::INT64:
+            case onnx::TensorProto::INT64: {
                 type = 5; // i64
+                // 检查是否有原始值(现在只有float32类型的)
+                if (tensor.has_raw_data()) {
+                    const std::string& raw_data = tensor.raw_data();
+                    std::vector<int64_t> tmp_data;
+                    tmp_data.resize(raw_data.size() / sizeof(int64_t));
+                    std::memcpy(tmp_data.data(), raw_data.data(), raw_data.size());
+                    data = convert_int64_to_float(tmp_data);
+                } else {
+                    // 使用 float_data 字段
+                    data.assign(tensor.float_data().begin(), tensor.float_data().end());
+                }
                 break;
+            }
 
                 // 处理其他数据类型
             default:
@@ -395,7 +407,11 @@ namespace BatmanInfer {
         for (size_t i = 0; i < op->inputs.size(); i++) {
             // 查找不是权重的值
             const ONNXOperand* operand = op->inputs[i];
-            if (!is_initializer(operand->name, graph) && !is_constant_value(operand->name)) {
+            // 是不是权重参数
+            const auto is_init = is_initializer(operand->name, graph);
+            // 是不是Constant算子参数
+            const auto is_constant = is_constant_value(operand->name);
+            if (!is_init && !is_constant) {
                 find_input_tensor_info(operand->name, graph, op, i);
             }
         }
@@ -657,9 +673,9 @@ namespace BatmanInfer {
         int operator_count = 0;
         int operand_count = 0;
 
-        getOperatorAndOperandCount(modelProto,
-                                   operator_count,
-                                   operand_count);
+        get_operator_and_operand_count(modelProto,
+                                       operator_count,
+                                       operand_count);
 
         auto input_names = load_extra_nodes(graph_info, true);
         auto output_names = load_extra_nodes(graph_info, false);

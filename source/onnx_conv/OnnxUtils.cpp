@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <fstream>
+#include <algorithm>
 
 namespace BatmanInfer {
     bool onnx_read_proto_from_binary(const char* filepath, google::protobuf::Message* message) {
@@ -40,9 +41,9 @@ namespace BatmanInfer {
         return true;
     }
 
-    void getOperatorAndOperandCount(const onnx::ModelProto& model,
-                                    int& operator_count,
-                                    int& operand_count) {
+    void get_operator_and_operand_count(const onnx::ModelProto& model,
+                                        int& operator_count,
+                                        int& operand_count) {
         const onnx::GraphProto& graph = model.graph();
 
         // 获取节点数量
@@ -54,7 +55,7 @@ namespace BatmanInfer {
         int output_count = graph.output_size();
 
         // 计算操作数的总数
-        operand_count = initializer_count + input_count;
+        operand_count = initializer_count + input_count + output_count;
     }
 
     // 将 ONNX 数据类型映射到自定义整数类型
@@ -97,8 +98,13 @@ namespace BatmanInfer {
                input_name.find("onnx");
     }
 
-    bool is_constant_value(const std::string& input_name) {
-        return input_name.find("Constant");
+    bool is_constant_value(const std::string& text) {
+        const std::string& pattern = "Constant";
+        // 创建 Boyer-Moore 搜索器
+        return std::search(
+                text.begin(), text.end(),
+                pattern.begin(), pattern.end()
+        ) != text.end();
     }
 
     /**

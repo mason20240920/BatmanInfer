@@ -354,3 +354,22 @@ TEST(test_operators, tensor_split3) {
     outputs.at("output_2").at(0).at(0)->Show();
     outputs.at("output_1").at(0).at(0)->Show();
 }
+
+TEST(test_operators, tensor_fuse1) {
+    using namespace BatmanInfer;
+    const std::string& model_path = "../model_files/fuse_operators/simplified_custom_model_1.onnx";
+    RuntimeGraph graph(model_path);
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), -2);
+    const bool init_success = graph.Init();
+    ASSERT_EQ(init_success, true);
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), -1);
+    graph.Build({ "hidden_states" }, { "output3", "output2", "output1" });
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), 0);
+
+    std::shared_ptr<ftensor> input_tensor = std::make_shared<ftensor>(1, 2, 768);
+    input_tensor->Ones();
+    std::vector<sftensor> input{input_tensor};
+    const auto outputs = graph.Forward({input}, true);
+    outputs.at("output2").at(0).at(0)->Show();
+    outputs.at("output1").at(0).at(0)->Show();
+}

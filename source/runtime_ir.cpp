@@ -157,6 +157,7 @@ namespace BatmanInfer {
                     runtime_attribute->type = RuntimeDataType::kTypeInt64;
                     runtime_attribute->weight_data = attr.data;
                     runtime_attribute->shape = attr.shape;
+                    runtime_operator->attribute.insert({name, runtime_attribute});
                     break;
                 }
                 default: {
