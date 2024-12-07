@@ -421,40 +421,38 @@ namespace BatmanInfer {
         CHECK_EQ(inputs.size(), input_names_.size()) << "Build wrong number of inputs";
         for (int i = 0; i < inputs.size(); ++i) {
             auto &ipt_name = input_names_[i];
-            auto ipt_out_operand = operators_maps_.at(ipt_name)->output_operands;
-            ipt_out_operand.at(ipt_name)->datas = inputs.at(i);
+            // 进行读取operands
+            for (const auto& output_operand: operators_maps_.at(ipt_name)->output_operands) {
+                output_operand.second->datas = inputs.at(i);
+            }
         }
 
         for (const auto &current_op: to_po_operators_) {
             if (current_op->type == "Input") {
-                // current_op->has_forward = true;
                 ProbeNextLayer(current_op, current_op->output_operands);
             } else if (current_op->type == "Output") {
-                // current_op->has_forward = true;
-                CHECK(current_op->input_operands_seq.size() == 1);
-                current_op->output_operands.at(current_op->name) = current_op->input_operands_seq.front();
+                // TODO: This just make sure only one input in the input
+                for (auto& output_operand: current_op->output_operands) {
+                    output_operand.second = current_op->input_operands_seq.front();
+                }
             } else {
                 InferStatus status = current_op->layer->Forward();
                 CHECK(status == InferStatus::bInferSuccess)
                      << current_op->layer->layer_name()
                      << " layer forward failed, error code: " << int(status);
-                // current_op->has_forward = true;
                 ProbeNextLayer(current_op, current_op->output_operands);
             }
         }
 
-        // for (const auto &op: to_po_operators_)
-        //     LOG_IF(FATAL, !op->has_forward)
-        //           << "The operator: " << op->name << " has not been forward yet!";
-
-        std::map<std::string, std::vector<std::vector<std::shared_ptr<Tensor<float>>>>> final_outputs;
+        std::map<std::string, std::vector<std::vector<std::shared_ptr<Tensor<float>>>>> final_outputs{};
         for (const auto &out_name: output_names_) {
             // 之前已经检查过 out_name 的合法性，这里不再检查
+            final_outputs.insert({out_name, {}});
             const auto &output_op = operators_maps_.at(out_name);
-            CHECK(!output_op->output_operands.empty()) << "Output from " << output_op->name << " is empty";
-            const auto &output_operand = output_op->output_operands;
+            CHECK(!output_op->input_operands.empty()) << "Output from " << output_op->name << " is empty";
+            const auto &output_operand = output_op->input_operands;
             for (const auto& item: output_operand) {
-                final_outputs[item.first].emplace_back(item.second->datas);
+                final_outputs[out_name].emplace_back(item.second->datas);
             }
         }
         return final_outputs;

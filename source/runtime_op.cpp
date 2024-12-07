@@ -73,7 +73,7 @@ namespace BatmanInfer {
                 // 将输出操作数赋变量
                 output_operand->shapes = operand_shapes;
                 output_operand->type = RuntimeDataType::kTypeFloat32;
-                output_operand->name = operand->name;
+//                output_operand->name = operand->name;
                 // 输出空间初始化
                 for (int j = 0; j < batch; ++j) {
                     if (operand_shapes.size() == 4) {

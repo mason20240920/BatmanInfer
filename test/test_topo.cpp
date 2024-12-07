@@ -75,13 +75,13 @@ TEST(test_ir_topo, build1_status) {
 
 TEST(test_ir_topo, build1_output_tensors) {
     using namespace BatmanInfer;
-    const std::string& model_path = "./model_files/simple_square_model.onnx";
+    const std::string& model_path = "../model_files/operators/split_model.onnx";
     RuntimeGraph graph(model_path);
     ASSERT_EQ(int(graph.graph_state()), -2);
     const bool init_success = graph.Init();
     ASSERT_EQ(init_success, true);
     ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build({ "input" }, { "output" });
+    graph.Build({ "input" }, { "output_2", "output_1", "output_0"});
     ASSERT_EQ(int(graph.graph_state()), 0);
 
     const auto &ops = graph.operators();
@@ -90,7 +90,7 @@ TEST(test_ir_topo, build1_output_tensors) {
         // 打印op输出空间的张量
         const auto &operands = op->output_operands;
         for (const auto& operand: operands) {
-            std::cout << operand.first << std::endl;
+            operand.second->datas.at(0)->Show();
         }
 //        if (!operand || operand->datas.empty())
 //            continue;

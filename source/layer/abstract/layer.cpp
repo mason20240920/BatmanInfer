@@ -51,20 +51,37 @@ namespace BatmanInfer {
 
         // layer的输出
         const auto& output_operand_lst = runtime_operator->output_operands;
+        // 确保 output_operands 不为空
+        CHECK(!output_operand_lst.empty()) << "runtime_operator->output_operands is empty";
+        // 创建 layer_output_data，并确保与 output_operands 的 datas 共享内存
         std::vector<std::shared_ptr<Tensor<float>>> layer_output_data;
-        for (const auto& output_operand_data: output_operand_lst)
-            for (const auto& output_data: output_operand_data.second->datas)
-                layer_output_data.push_back(output_data);
+
+        // 遍历 map，将每个 output_operand 的 datas 添加到 layer_output_data 中
+        for (auto& [name, operand] : output_operand_lst) {
+            // 直接插入 datas 的元素到 layer_output_data 中
+            layer_output_data.insert(
+                    layer_output_data.end(),
+                    operand->datas.begin(),
+                    operand->datas.end()
+            );
+        }
+
 
         if (runtime_operator->type != "Constant")
             CHECK(!layer_input_data.empty())
                             << runtime_operator->name << "Layer input data is empty";
-        CHECK(layer_output_data.empty())
+        CHECK(!layer_output_data.empty())
              << "Layer output data is empty";
 
         // 执行operator 当中的Layer计算过程
         InferStatus status = runtime_operator->layer->Forward(
                 layer_input_data, layer_output_data);
+
+        // 根据map进行重新赋值
+        int output_index = 0;
+        for ( auto& [key, value]: output_operand_lst) {
+            value->datas = std::vector<sftensor>{layer_output_data[output_index]};
+        }
         return status;
     }
 

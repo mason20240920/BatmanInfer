@@ -332,6 +332,8 @@ TEST(test_operators, tensor_reshape2) {
     std::vector<sftensor> input{input_tensor};
 
     const auto outputs = graph.Forward({input}, true);
+    auto ret = outputs.at("reshaped");
+    ret.at(0).at(0)->Show();
 }
 
 TEST(test_operators, tensor_split3) {
@@ -349,5 +351,6 @@ TEST(test_operators, tensor_split3) {
     input_tensor->Ones();
     std::vector<sftensor> input{input_tensor};
     const auto outputs = graph.Forward({input}, true);
-    std::cout << outputs.size() << std::endl;
+    outputs.at("output_2").at(0).at(0)->Show();
+    outputs.at("output_1").at(0).at(0)->Show();
 }
