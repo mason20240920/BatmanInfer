@@ -81,6 +81,7 @@ namespace BatmanInfer {
         int output_index = 0;
         for ( auto& [key, value]: output_operand_lst) {
             value->datas = std::vector<sftensor>{layer_output_data[output_index]};
+            output_index += 1;
         }
         return status;
     }
