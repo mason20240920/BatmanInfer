@@ -373,3 +373,16 @@ TEST(test_operators, tensor_fuse1) {
     outputs.at("output2").at(0).at(0)->Show();
     outputs.at("output1").at(0).at(0)->Show();
 }
+
+
+TEST(test_operators, tensor_self_attention) {
+    using namespace BatmanInfer;
+    const std::string& model_path = "../model_files/simplified_gpt2_attention.onnx";
+    RuntimeGraph graph(model_path);
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), -2);
+    const bool init_success = graph.Init();
+    ASSERT_EQ(init_success, true);
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), -1);
+    graph.Build({ "hidden_states" }, { "attention_output" });
+    ASSERT_EQ(static_cast<int>(graph.graph_state()), 0);
+}
