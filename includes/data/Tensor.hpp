@@ -7,6 +7,7 @@
 #include <armadillo>
 #include <memory>
 #include <vector>
+#include <HalideRuntime.h>
 
 namespace BatmanInfer {
     // 模板类: 通用的模板类`Tensor`，可以接受任何类型的`T`（默认是`float`)
@@ -307,6 +308,15 @@ namespace BatmanInfer {
         explicit Tensor(uint32_t channels, uint32_t rows, uint32_t cols);
 
         /**
+         * @brief 创建N, C, W, H张量
+         * @param batch_size
+         * @param channels
+         * @param rows
+         * @param cols
+         */
+        explicit Tensor(uint32_t batch_size, uint32_t channels, uint32_t rows, uint32_t cols);
+
+        /**
          * 创建一个一维向量
          * @param size  一维向量中元素的个数
          */
@@ -576,6 +586,9 @@ namespace BatmanInfer {
     private:
         std::vector<uint32_t > raw_shapes_; // 张量数据的实际尺寸大小
         arma::fcube data_;  //张量数据
+
+        // 新增halide变量
+        halide_buffer_t h_data_;
     };
 
     using ftensor = Tensor<float>;

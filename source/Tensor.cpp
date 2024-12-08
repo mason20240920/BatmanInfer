@@ -772,4 +772,14 @@ namespace BatmanInfer {
 
         return ret;
     }
+
+
+    // ================= 重构代码，用HalideRuntime重构项目 ===============
+    Tensor<float>::Tensor(uint32_t batch_size, uint32_t channels, uint32_t rows, uint32_t cols) {
+        // 设置 dimensions
+        h_data_.dimensions = 4;
+
+        // 分配 halide_dimension_t 数组
+        h_data_.dim = new halide_dimension_t[h_data_.dimensions];
+    }
 }
