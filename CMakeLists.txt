@@ -118,6 +118,9 @@ else()
     # 设置Halide
     set(HALIDE_DIR "/Users/mason/Desktop/Qualmnn/Halide_18_mac")
 
+    # 设置OpenBLAS
+    set(OPEN_BLAS "/Users/mason/Desktop/Qualmnn/OpenBLAS/install")
+
 #    include_directories(${HALIDE_DIR}/include)
 #    link_directories(${HALIDE_DIR}/lib)
 
@@ -149,11 +152,13 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/includes
         ${GLOG_INCLUDE_DIRS}
         ${OpenMP_INCLUDE}
         ${ARMADILLO_INCLUDE_DIRS}
-        ${HALIDE_DIR}/include)
+        ${HALIDE_DIR}/include
+        ${OPEN_BLAS}/include)
 
 link_directories(${GLOG_LIBRARY_DIRS}
         ${ONNX_LIBRARIES}
-        ${HALIDE_DIR}/lib)
+        ${HALIDE_DIR}/lib
+        ${OPEN_BLAS}/lib)
 
 add_executable(BatmanInfer main.cpp
         test/test_operator.cpp
@@ -203,7 +208,8 @@ add_executable(BatmanInfer main.cpp
         source/layer/detail/mul.cpp
         source/layer/detail/transpose.cpp
         source/layer/detail/reshape.cpp
-        source/layer/detail/split.cpp)
+        source/layer/detail/split.cpp
+        test/test_open_blas.cpp)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer
@@ -218,6 +224,7 @@ target_link_libraries(BatmanInfer
         ${ABSEL_LIBARARY}
         ${UTF8RANGE_LIBRARY}
         Halide
+        ${OPEN_BLAS}/lib/libopenblas.a
 )
 
 #message("check\t" ${HALIDE_DIR})
