@@ -115,6 +115,12 @@ else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GLOG REQUIRED libglog)
 
+    # 设置Halide
+    set(HALIDE_DIR "/Users/mason/Desktop/Qualmnn/Halide_18_mac")
+
+#    include_directories(${HALIDE_DIR}/include)
+#    link_directories(${HALIDE_DIR}/lib)
+
 endif()
 
 # 下载GoogleTest项目
@@ -142,10 +148,12 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/includes
         ${ONNX_INCLUDE_DIRS}
         ${GLOG_INCLUDE_DIRS}
         ${OpenMP_INCLUDE}
-        ${ARMADILLO_INCLUDE_DIRS})
+        ${ARMADILLO_INCLUDE_DIRS}
+        ${HALIDE_DIR}/include)
 
 link_directories(${GLOG_LIBRARY_DIRS}
-        ${ONNX_LIBRARIES})
+        ${ONNX_LIBRARIES}
+        ${HALIDE_DIR}/lib)
 
 add_executable(BatmanInfer main.cpp
         test/test_operator.cpp
@@ -209,7 +217,10 @@ target_link_libraries(BatmanInfer
         ${OpenMP_omp_LIBRARY}
         ${ABSEL_LIBARARY}
         ${UTF8RANGE_LIBRARY}
+        Halide
 )
+
+#message("check\t" ${HALIDE_DIR})
 
 if(ANDROID)
     target_link_libraries(BatmanInfer OpenMP::OpenMP_CXX)

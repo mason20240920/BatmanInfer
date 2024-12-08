@@ -53,6 +53,7 @@ namespace BatmanInfer {
             if (output == nullptr || output->empty()) {
                 output = std::make_shared<Tensor<float>>(1, gemm_height_, 1);
             }
+            weight_tensor->Show();
 
             // 确保输出张量的尺寸正确
             if (output == nullptr || output->empty()) {
@@ -64,8 +65,6 @@ namespace BatmanInfer {
 
             // 将结果赋值给输出
             *output = *result;
-
-            auto info_ptr = output->at(0, 0, 1);
 
             // 添加偏置和缩放
 #pragma omp parallel for

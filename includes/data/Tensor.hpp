@@ -326,32 +326,6 @@ namespace BatmanInfer {
         explicit Tensor(const std::vector<uint32_t>& shapes);
 
         /**
-         * 构造拷贝函数
-         * @param tensor
-         */
-//        Tensor(const Tensor& tensor);
-//
-//        /**
-//         * 移动构造函数: 用于从一个临时对象（右值）“移动”资源，而不是复制
-//         * @param tensor
-//         */
-//        Tensor(Tensor&& tensor) noexcept;
-//
-//        /**
-//         * 移动赋值运算符: 用于从一个临时对象（右值）移动资源到已经存在的对象中
-//         * @param tensor
-//         * @return
-//         */
-//        Tensor<float>& operator=(Tensor&& tensor) noexcept;
-//
-//        /**
-//         * 拷贝赋值运算符
-//         * @param tensor
-//         * @return
-//         */
-//        Tensor<float>& operator=(const Tensor& tensor);
-
-        /**
          * 返回张量的行数
          * @return 张量的行数
          */
@@ -386,13 +360,6 @@ namespace BatmanInfer {
          * @return 张量是否为空
          */
         bool empty() const;
-
-//        /**
-//         * 返回张量中offset位置的元素
-//         * @param offset 需要访问的位置
-//         * @return  offset位置的元素
-//         */
-//        float index(uint32_t offset) const;
 
         /**
          * 返回张量中offset位置的元素
@@ -550,13 +517,6 @@ namespace BatmanInfer {
          */
         void Transpose(const std::vector<uint32_t>& new_order,
                        bool row_major);
-
-//        /**
-//         * 返回数据的原始指针
-//         * @param offset 数据指针的偏移量
-//         * @return 返回数据的原始指针
-//         */
-//        float* raw_ptr(uint32_t offset);
 
         /**
          * 返回第index个矩阵的起始地址
