@@ -775,11 +775,53 @@ namespace BatmanInfer {
 
 
     // ================= 重构代码，用HalideRuntime重构项目 ===============
-    Tensor<float>::Tensor(uint32_t batch_size, uint32_t channels, uint32_t rows, uint32_t cols) {
-        // 设置 dimensions
-        h_data_.dimensions = 4;
+    Tensor<float>::Tensor(int32_t batch_size,
+                          int32_t channels,
+                          int32_t rows,
+                          int32_t cols) {
+        // 动态存储维度信息
+        std::vector<halide_dimension_t> dimensions;
+        std::vector<uint32_t> raw_shapes;
 
-        // 分配 halide_dimension_t 数组
+        // 根据输入参数动态生成维度信息
+        if (batch_size > 0) {
+            dimensions.emplace_back(0,
+                                    batch_size,
+                                    channels * rows * cols,
+                                    0);
+            raw_shapes.emplace_back(batch_size);
+        }
+        if (channels > 0) {
+            dimensions.emplace_back(0,
+                                    channels,
+                                    rows * cols,
+                                    0);
+            raw_shapes.emplace_back(channels);
+        }
+        if (rows > 0) {
+            dimensions.emplace_back(0,
+                                    rows,
+                                    cols,
+                                    0);
+            raw_shapes.emplace_back(rows);
+        }
+        if (cols > 0) {
+            dimensions.emplace_back(0,
+                                    cols,
+                                    1,
+                                    0);
+            raw_shapes.emplace_back(cols);
+        }
+        // 设置 h_data_ 的维度信息
+        h_data_.dimensions = static_cast<int32_t>(dimensions.size());
         h_data_.dim = new halide_dimension_t[h_data_.dimensions];
+
+        // 将维度信息复制到h_data.dim
+        std::copy(dimensions.begin(),
+                  dimensions.end(),
+                  h_data_.dim);
+        std::copy(raw_shapes.begin(),
+                  raw_shapes.end(),
+                  raw_shapes_.begin());
     }
 }

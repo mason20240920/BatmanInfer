@@ -314,7 +314,7 @@ namespace BatmanInfer {
          * @param rows
          * @param cols
          */
-        explicit Tensor(uint32_t batch_size, uint32_t channels, uint32_t rows, uint32_t cols);
+        explicit Tensor(int32_t batch_size, int32_t channels, int32_t rows, int32_t cols);
 
         /**
          * 创建一个一维向量
@@ -584,6 +584,7 @@ namespace BatmanInfer {
         void Mul(const std::shared_ptr<Tensor<float>>& other);
 
     private:
+
         std::vector<uint32_t > raw_shapes_; // 张量数据的实际尺寸大小
         arma::fcube data_;  //张量数据
 
