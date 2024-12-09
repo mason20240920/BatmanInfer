@@ -336,6 +336,12 @@ namespace BatmanInfer {
         explicit Tensor(const std::vector<uint32_t>& shapes);
 
         /**
+         * @brief 返回张量的batch size
+         * @return
+         */
+        uint32_t batch_size() const;
+
+        /**
          * 返回张量的行数
          * @return 张量的行数
          */
@@ -407,14 +413,14 @@ namespace BatmanInfer {
          * @param channel 需要返回的通道
          * @return 返回的通道
          */
-        arma::fmat& slice(uint32_t channel);
+        halide_buffer_t* slice(uint32_t channel);
 
         /**
          * 返回张量第channel通道中的数据
          * @param channel 需要返回的通道
          * @return 返回的通道
          */
-        const arma::fmat & slice(uint32_t channel) const;
+        const halide_buffer_t* slice(uint32_t channel) const;
 
         /**
          * 返回特定位置的元素
@@ -423,7 +429,10 @@ namespace BatmanInfer {
          * @param col 列数
          * @return 特定位置的元素
          */
-        float at(uint32_t channel, uint32_t row, uint32_t col) const;
+        float at(uint32_t batch_size,
+                 uint32_t channel,
+                 uint32_t row,
+                 uint32_t col) const;
 
         float at(const std::vector<uint32_t>& indices) const;
 
@@ -436,7 +445,7 @@ namespace BatmanInfer {
          * @param col 列数
          * @return 特定位置的元素
          */
-        float& at(uint32_t channel, uint32_t row, uint32_t col);
+        float at(uint32_t channel, uint32_t row, uint32_t col);
 
         /**
          * 填充张量
@@ -586,7 +595,7 @@ namespace BatmanInfer {
     private:
 
         std::vector<uint32_t > raw_shapes_; // 张量数据的实际尺寸大小
-        arma::fcube data_;  //张量数据
+//        arma::fcube data_;  //张量数据
 
         // 新增halide变量
         halide_buffer_t h_data_;

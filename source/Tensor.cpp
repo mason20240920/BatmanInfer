@@ -3,14 +3,22 @@
 //
 #include <data/Tensor.hpp>
 #include <glog/logging.h>
+#include <data/marco.hpp>
 #include <memory>
 #include <set>
 #include <omp.h>
+#include <Halide.h>
+#include <immintrin.h>
 
 namespace BatmanInfer {
     Tensor<float>::Tensor(uint32_t size) {
         // 传入参数依次是, rows cols channels
-        data_ = arma::fcube(1, size, 1);
+        h_data_.dimensions = 1;
+        h_data_.dim = new halide_dimension_t[h_data_.dimensions];
+        h_data_.dim[0] = {0,
+                          static_cast<int32_t>(size),
+                          1,
+                          0};
         this->raw_shapes_ = std::vector<uint32_t>{size};
     }
 
@@ -22,7 +30,16 @@ namespace BatmanInfer {
 
     Tensor<float>::Tensor(uint32_t rows, uint32_t cols) {
         // 传入参数 rows, cols, channels
-        data_ = arma::fcube(rows, cols, 1);
+        h_data_.dimensions = 2;
+        h_data_.dim = new halide_dimension_t[h_data_.dimensions];
+        h_data_.dim[0] = {0,
+                          static_cast<int32_t>(rows),
+                          static_cast<int32_t>(cols),
+                          0};
+        h_data_.dim[0] = {0,
+                          static_cast<int32_t>(cols),
+                          1,
+                          0};
         this->raw_shapes_ = std::vector<uint32_t>{rows, cols};
     }
 
@@ -32,16 +49,43 @@ namespace BatmanInfer {
     }
 
     Tensor<float>::Tensor(uint32_t channels, uint32_t rows, uint32_t cols) {
-        data_ = arma::fcube(rows, cols, channels);
-        if (channels == 1 && rows == 1)
-            // 当channel和rows同时等于1, raw_shapes的长度也会是1，表示此时Tensor是一维
-            this->raw_shapes_ = std::vector<uint32_t>{cols};
-        else if (channels == 1)
-            // 当channel等于1时，raw_shapes长度等于2, 表示Tensor是二维
-            this->raw_shapes_ = std::vector<uint32_t>{rows, cols};
-        else
-            // 创建3维张量，则raw_shapes的长度为3，表示此时Tensor是三维的
-            this->raw_shapes_ = std::vector<uint32_t>{channels, rows, cols};
+        // 动态存储维度信息
+        std::vector<halide_dimension_t> dimensions;
+        std::vector<uint32_t> raw_shapes;
+
+        // 根据输入参数动态生成维度信息
+        if (channels > 0) {
+            dimensions.emplace_back(0,
+                                    channels,
+                                    rows * cols,
+                                    0);
+            raw_shapes.emplace_back(channels);
+        }
+        if (rows > 0) {
+            dimensions.emplace_back(0,
+                                    rows,
+                                    cols,
+                                    0);
+            raw_shapes.emplace_back(rows);
+        }
+        if (cols > 0) {
+            dimensions.emplace_back(0,
+                                    cols,
+                                    1,
+                                    0);
+            raw_shapes.emplace_back(cols);
+        }
+        // 设置 h_data_ 的维度信息
+        h_data_.dimensions = static_cast<int32_t>(dimensions.size());
+        h_data_.dim = new halide_dimension_t[h_data_.dimensions];
+
+        // 将维度信息复制到h_data.dim
+        std::copy(dimensions.begin(),
+                  dimensions.end(),
+                  h_data_.dim);
+        std::copy(raw_shapes.begin(),
+                  raw_shapes.end(),
+                  raw_shapes_.begin());
     }
 
     Tensor<bool>::Tensor(uint32_t channels, uint32_t rows, uint32_t cols) {
@@ -58,24 +102,62 @@ namespace BatmanInfer {
     }
 
     Tensor<float>::Tensor(const std::vector<uint32_t>& shapes) {
-        CHECK(!shapes.empty() && shapes.size() <= 3);
+        CHECK(!shapes.empty() && shapes.size() <= 4);
 
-        uint32_t remaining = 3 - shapes.size();
-        std::vector<uint32_t> shapes_(3, 1);
+        uint32_t remaining = 4 - shapes.size();
+        std::vector<uint32_t> shapes_(4, 1);
         std::copy(shapes.begin(), shapes.end(), shapes_.begin() + remaining);
 
-        uint32_t channels = shapes_.at(0);
-        uint32_t rows = shapes_.at(1);
-        uint32_t cols = shapes_.at(2);
+        uint32_t batch_size = shapes_.at(0);
+        uint32_t channels = shapes_.at(1);
+        uint32_t rows = shapes_.at(2);
+        uint32_t cols = shapes_.at(3);
 
-        data_ = arma::fcube(rows, cols, channels);
-        if (channels == 1 && rows == 1) {
-            this->raw_shapes_ = std::vector<uint32_t>{cols};
-        } else if (channels == 1) {
-            this->raw_shapes_ = std::vector<uint32_t>{rows, cols};
-        } else {
-            this->raw_shapes_ = std::vector<uint32_t>{channels, rows, cols};
+
+        // 动态存储维度信息
+        std::vector<halide_dimension_t> dimensions;
+        std::vector<uint32_t> raw_shapes;
+
+        // 根据输入参数动态生成维度信息
+        if (batch_size > 0) {
+            dimensions.emplace_back(0,
+                                    batch_size,
+                                    channels * rows * cols,
+                                    0);
+            raw_shapes.emplace_back(batch_size);
         }
+        if (channels > 0) {
+            dimensions.emplace_back(0,
+                                    channels,
+                                    rows * cols,
+                                    0);
+            raw_shapes.emplace_back(channels);
+        }
+        if (rows > 0) {
+            dimensions.emplace_back(0,
+                                    rows,
+                                    cols,
+                                    0);
+            raw_shapes.emplace_back(rows);
+        }
+        if (cols > 0) {
+            dimensions.emplace_back(0,
+                                    cols,
+                                    1,
+                                    0);
+            raw_shapes.emplace_back(cols);
+        }
+        // 设置 h_data_ 的维度信息
+        h_data_.dimensions = static_cast<int32_t>(dimensions.size());
+        h_data_.dim = new halide_dimension_t[h_data_.dimensions];
+
+        // 将维度信息复制到h_data.dim
+        std::copy(dimensions.begin(),
+                  dimensions.end(),
+                  h_data_.dim);
+        std::copy(raw_shapes.begin(),
+                  raw_shapes.end(),
+                  raw_shapes_.begin());
     }
 
     Tensor<bool>::Tensor(const std::vector<uint32_t>& shapes) {
@@ -99,9 +181,16 @@ namespace BatmanInfer {
         }
     }
 
+    uint32_t Tensor<float>::batch_size() const {
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        CHECK(h_data_.dimensions == 4); // NOLINT
+        return h_data_.dim[0].extent;
+    }
+
     uint32_t Tensor<float>::rows() const {
-        CHECK(!this->data_.empty());
-        return this->data_.n_rows;
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr);
+        CHECK(h_data_.dimensions >= 2);
+        return h_data_.dim[h_data_.dimensions - 2].extent;
     }
 
     uint32_t Tensor<bool>::rows() const {
@@ -110,8 +199,9 @@ namespace BatmanInfer {
     }
 
     uint32_t Tensor<float>::cols() const {
-        CHECK(!this->data_.empty());
-        return this->data_.n_cols;
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        CHECK(h_data_.dimensions >= 1); // NOLINT
+        return h_data_.dim[h_data_.dimensions - 1].extent;
     }
 
     uint32_t Tensor<bool>::cols() const {
@@ -120,8 +210,9 @@ namespace BatmanInfer {
     }
 
     uint32_t Tensor<float>::channels() const {
-        CHECK(!this->data_.empty());
-        return this->data_.n_slices;
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        CHECK(h_data_.dimensions >= 3); // NOLINT
+        return h_data_.dim[h_data_.dimensions - 3].extent;
     }
 
     uint32_t Tensor<bool>::channels() const {
@@ -130,8 +221,16 @@ namespace BatmanInfer {
     }
 
     uint32_t Tensor<float>::size() const {
-        CHECK(!this->data_.empty());
-        return this->data_.size();
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        CHECK(h_data_.dimensions >= 1); // NOLINT
+
+        size_t data_size = h_data_.type.bytes();
+
+        for (int i = 0; i < h_data_.dimensions; ++i) {
+            int current_dim_size = h_data_.dim[i].extent;
+            data_size *= current_dim_size; // 累乘每一维的 extent
+        }
+        return data_size;
     }
 
     uint32_t Tensor<bool>::size() const {
@@ -140,8 +239,32 @@ namespace BatmanInfer {
     }
 
     void Tensor<float>::Ones() {
-        CHECK(!this->data_.empty());
-        this->data_.fill(1);
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+
+        // 获取维度信息
+        int dimensions = h_data_.dimensions;
+        std::vector<int> extents(dimensions);
+        for (int i = 0; i < dimensions; ++i)
+            extents[i] = h_data_.dim[i].extent;
+
+        // 定义 Halide 函数
+        Halide::Var x, y, z, w; // 支持最多 4 维
+        Halide::Func assign_ones;
+        assign_ones(x, y, z, w) = Halide::cast<float>(1.0f);
+
+        // 调整函数的调度策略
+        if (dimensions == 1)
+            assign_ones.parallel(x);
+        else if (dimensions == 2)
+            assign_ones.parallel(y).vectorize(x, 8);   // 使用 SIMD 优化
+        else if (dimensions == 3)
+            assign_ones.parallel(z).vectorize(x, 8);
+        else if (dimensions == 4)
+            assign_ones.parallel(w).vectorize(x, 8);
+
+        // 生成 Halide 输出
+        Halide::Buffer<float> output(reinterpret_cast<float *>(h_data_.host), extents);
+        assign_ones.realize(output);
     }
 
     void Tensor<bool>::Ones() {
@@ -150,8 +273,32 @@ namespace BatmanInfer {
     }
 
     void Tensor<float>::Fill(float value) {
-        CHECK(!this->data_.empty());
-        this->data_.fill(value);
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+
+        // 获取维度信息
+        int dimensions = h_data_.dimensions;
+        std::vector<int> extents(dimensions);
+        for (int i = 0; i < dimensions; ++i)
+            extents[i] = h_data_.dim[i].extent;
+
+        // 定义 Halide 函数
+        Halide::Var x, y, z, w; // 支持最多 4 维
+        Halide::Func assign_ones;
+        assign_ones(x, y, z, w) = Halide::cast<float>(value);
+
+        // 调整函数的调度策略
+        if (dimensions == 1)
+            assign_ones.parallel(x);
+        else if (dimensions == 2)
+            assign_ones.parallel(y).vectorize(x, 8);   // 使用 SIMD 优化
+        else if (dimensions == 3)
+            assign_ones.parallel(z).vectorize(x, 8);
+        else if (dimensions == 4)
+            assign_ones.parallel(w).vectorize(x, 8);
+
+        // 生成 Halide 输出
+        Halide::Buffer<float> output(reinterpret_cast<float *>(h_data_.host), extents);
+        assign_ones.realize(output);
     }
 
     void Tensor<bool>::Fill(arma::u8 value) {
@@ -162,10 +309,45 @@ namespace BatmanInfer {
 
 
     void Tensor<float>::Show() {
-        for (uint32_t i = 0; i < this->channels(); ++i) {
-            LOG(INFO) << "Channels: " << i;
-            LOG(INFO) << "\n" << this->data_.slice(i);
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+
+        // 获取数据指针
+        auto* data = reinterpret_cast<float*>(h_data_.host);
+
+        // 获取维度信息
+        int dimensions = h_data_.dimensions;
+        std::vector<int> extents(dimensions);
+        std::vector<int> strides(dimensions);
+        for (int i = 0; i < dimensions; i++) {
+            extents[i] = h_data_.dim[i].extent;
+            strides[i] = h_data_.dim[i].stride;
         }
+
+        // 递归打印数据
+        std::cout << "Buffer Data by Dimensions:" << std::endl;
+        // 定义递归函数
+        std::function<void(int, int, std::vector<int>&)> recursive_print =
+                [&](int dim, int offset, std::vector<int>& indices) {
+                    if (dim == dimensions) {
+                        // 打印实际数据
+                        std::cout << std::setw(6) << data[offset] << " ";
+                        return;
+                    }
+
+                    // 遍历当前维度
+                    std::cout << std::string(dim * 2, ' ') << "[Dim " << dim << "] ";
+                    for (int i = 0; i < extents[dim]; i++) {
+                        indices[dim] = i;
+                        recursive_print(dim + 1, offset + i * strides[dim], indices);
+                        if (dim == dimensions - 1) { // 最内层维度换行
+                            std::cout << std::endl;
+                        }
+                    }
+                };
+
+        // 初始化递归
+        std::vector<int> indices(dimensions, 0); // 用于存储当前索引
+        recursive_print(0, 0, indices);
     }
 
     void Tensor<bool>::Show() {
@@ -176,8 +358,36 @@ namespace BatmanInfer {
     }
 
     void Tensor<float>::Rand() {
-        CHECK(!this->data_.empty());
-        this->data_.randn();
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+
+        // 获取维度信息
+        int dimensions = h_data_.dimensions;
+
+        // 定义 Halide 的变量和函数
+        std::vector<Halide::Var> vars(dimensions);
+        for (int i = 0; i < dimensions; i++) {
+            vars[i] = Halide::Var("dim" + std::to_string(i));
+        }
+
+        Halide::Func random_fill("random_fill");
+
+        // 使用外部随机数生成器生成随机值
+        std::mt19937 rng(std::random_device{}());
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+
+        // 定义 Halide 函数
+        random_fill(vars) = Halide::Expr(dist(rng));
+
+        // 调度：并行化和向量化
+        if (dimensions >= 2) {
+            random_fill.parallel(vars[0]).vectorize(vars[1], 8);
+        } else if (dimensions == 1) {
+            random_fill.vectorize(vars[0], 8);
+        }
+
+        // 将生成的随机数写入 halide_buffer_t
+        Halide::Buffer<float> output(h_data_);
+        random_fill.realize(output);
     }
 
     void Tensor<bool>::Rand() {
@@ -185,9 +395,24 @@ namespace BatmanInfer {
         this->data_.randn();
     }
 
-    const arma::fmat& Tensor<float>::slice(uint32_t channel) const {
+    const halide_buffer_t* Tensor<float>::slice(uint32_t channel) const {
         CHECK_LT(channel, this->channels());
-        return this->data_.slice(channel);
+        const auto channel_dim = h_data_.dimensions - 3;
+        // 获取目标维度的信息
+        const halide_dimension_t* dims = h_data_.dim;
+        uint32_t extent = dims[channel_dim].extent;
+
+        // 动态分配 halide_buffer_t
+        halide_buffer_t* sliced_buffer = new halide_buffer_t(h_data_); // 复制原始 buffer
+
+        // 调整目标维度的min 和 extent
+        sliced_buffer->dim[channel_dim].min += channel;  // 固定到目标 channel
+        sliced_buffer->dim[channel_dim].extent = 1;  // 维度大小设置为1
+
+        // 计算新的host指针
+        size_t offset = channel * dims[channel_dim].stride;  // 计算 channel的偏移量
+        sliced_buffer->host += offset * h_data_.type.bytes(); // 更新host指针
+        return sliced_buffer;
     }
 
     const arma::Mat<arma::u8>& Tensor<bool>::slice(uint32_t channel) const {
@@ -195,9 +420,23 @@ namespace BatmanInfer {
         return this->data_.slice(channel);
     }
 
-    arma::fmat& Tensor<float>::slice(uint32_t channel) {
-        CHECK_LT(channel, this->channels());
-        return this->data_.slice(channel);
+    halide_buffer_t* Tensor<float>::slice(uint32_t channel) {
+        const auto channel_dim = h_data_.dimensions - 3;
+        // 获取目标维度的信息
+        const halide_dimension_t* dims = h_data_.dim;
+        uint32_t extent = dims[channel_dim].extent;
+
+        // 动态分配 halide_buffer_t
+        halide_buffer_t* sliced_buffer = new halide_buffer_t(h_data_); // 复制原始 buffer
+
+        // 调整目标维度的min 和 extent
+        sliced_buffer->dim[channel_dim].min += channel;  // 固定到目标 channel
+        sliced_buffer->dim[channel_dim].extent = 1;  // 维度大小设置为1
+
+        // 计算新的host指针
+        size_t offset = channel * dims[channel_dim].stride;  // 计算 channel的偏移量
+        sliced_buffer->host += offset * h_data_.type.bytes(); // 更新host指针
+        return sliced_buffer;
     }
 
     arma::Mat<arma::u8>& Tensor<bool>::slice(uint32_t channel) {
@@ -205,11 +444,38 @@ namespace BatmanInfer {
         return this->data_.slice(channel);
     }
 
-    float Tensor<float>::at(uint32_t channel, uint32_t row, uint32_t col) const {
-        CHECK_LT(row, this->rows());
-        CHECK_LT(col, this->cols());
-        CHECK_LT(channel, this->channels());
-        return this->data_.at(row, col, channel);
+    float Tensor<float>::at(uint32_t batch_size,
+                            uint32_t channel,
+                            uint32_t row,
+                            uint32_t col) const {
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        std::vector<int> indices;
+
+        if (batch_size > 0)
+            indices.emplace_back(batch_size);
+        if (channel > 0)
+            indices.emplace_back(channel);
+        if (row > 0)
+            indices.emplace_back(row);
+        if (col > 0)
+            indices.emplace_back(col);
+
+        // 计算偏移量
+        size_t offset = 0;
+        for (size_t i = 0; i < indices.size(); i++) {
+            const halide_dimension_t& dim = h_data_.dim[i];
+            int index = indices[i];
+
+            // 检查索引是否在范围内
+            CHECK(index >= dim.min && index < dim.min + dim.extent) << "Index out of bounds!";
+
+            // 计算当前维度的偏移量
+            offset += (index - dim.min) * dim.stride;
+        }
+
+        // 访问对应位置的值
+        auto* data = reinterpret_cast<float*>(h_data_.host);
+        return data[offset];
     }
 
     arma::u8 Tensor<bool>::at(uint32_t channel, uint32_t row, uint32_t col) const {
@@ -219,11 +485,8 @@ namespace BatmanInfer {
         return this->data_.at(row, col, channel);
     }
 
-    float& Tensor<float>::at(uint32_t channel, uint32_t row, uint32_t col) {
-        CHECK_LT(row, this->rows());
-        CHECK_LT(col, this->cols());
-        CHECK_LT(channel, this->channels());
-        return this->data_.at(row, col, channel);
+    float Tensor<float>::at(uint32_t channel, uint32_t row, uint32_t col) {
+        return this->at(0, channel, row, col);
     }
 
     arma::u8& Tensor<bool>::at(uint32_t channel, uint32_t row, uint32_t col) {
@@ -234,24 +497,13 @@ namespace BatmanInfer {
     }
 
     void Tensor<float>::Fill(const std::vector<float> &values, bool row_major) {
-        CHECK(!this->data_.empty());
-        const uint32_t total_elems = this->data_.size();
-        CHECK_EQ(values.size(), total_elems);
-        if (row_major) {
-            const uint32_t rows = this->rows();
-            const uint32_t cols = this->cols();
-            const uint32_t planes = rows * cols;
-            const uint32_t channels = this->data_.n_slices;
-            for (uint32_t i = 0; i < channels; ++i) {
-                // 获取第i个通道的矩阵
-                auto& channel_data = this->data_.slice(i);
-                // 对矩阵赋值, 一个矩阵的长度
-                const arma::fmat& channel_data_t = arma::fmat(values.data() + i * planes, this->cols(), this->rows());
-                // 转置，从列添加到行添加
-                channel_data = channel_data_t.t();
-            }
-        } else
-            std::copy(values.begin(), values.end(), this->data_.memptr());
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+
+        auto total_elements = size();
+        CHECK(total_elements == values.size()) << "Size of values does not match buffer dimensions!";
+
+        // 高性能赋值: 直接拷贝
+        std::memcpy(h_data_.host, values.data(), values.size() * sizeof(float));
     }
 
     void Tensor<bool>::Fill(const std::vector<arma::u8> &values, bool row_major) {
@@ -277,8 +529,32 @@ namespace BatmanInfer {
 
     // 接收一个float类型参数，返回一个float类型参数
     void Tensor<float>::Transform(const std::function<float(float)> &filter) {
-        CHECK(!this->data_.empty());
-        this->data_.transform(filter);
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+
+        // 获取元素总数
+        auto element_count = size();
+
+        float* data = reinterpret_cast<float *>(h_data_.host);
+
+// 使用 SIMD 处理
+        int simd_width = 8; // AVX 每次处理 8 个 float
+        int i = 0;
+        for (; i <= element_count - simd_width; i += simd_width) {
+            // 加载 8 个浮点数
+            __m256 values = _mm256_loadu_ps(&data[i]);
+
+            // 示例：假设 filter 是平方操作
+            __m256 result = _mm256_mul_ps(values, values);
+
+            // 存储结果
+            _mm256_storeu_ps(&data[i], result);
+        }
+
+        // 处理剩余的标量部分
+        for (; i < element_count; ++i) {
+            data[i] = filter(data[i]);
+        }
+
     }
 
     void Tensor<bool>::Transform(const std::function<arma::u8(arma::u8)> &filter) {
