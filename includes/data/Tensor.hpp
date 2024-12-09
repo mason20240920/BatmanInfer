@@ -513,6 +513,13 @@ namespace BatmanInfer {
          */
         float* raw_ptr() const;
 
+
+        /**
+         * 设置张量中的具体数据
+         * @param data 数据
+         */
+        void set_data(const halide_buffer_t & data);
+
         /**
          * 对Tensor进行转置
          */

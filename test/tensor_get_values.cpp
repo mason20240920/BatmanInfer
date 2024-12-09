@@ -66,7 +66,7 @@ TEST(test_fill_shape, reshape1) {
         values.at(i) = float(i + 1);
     f1.Fill(values);
     f1.Show();
-    f1.Reshape({4, 3, 2}, true);
+    f1.Reshape({4, 3, 2});
     f1.Show();
 }
 

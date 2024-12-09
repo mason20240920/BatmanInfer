@@ -8,6 +8,7 @@
 #include <set>
 #include <omp.h>
 #include <Halide.h>
+#include <avxintrin.h>
 #include <immintrin.h>
 
 namespace BatmanInfer {
@@ -1279,5 +1280,10 @@ namespace BatmanInfer {
         std::copy(raw_shapes.begin(),
                   raw_shapes.end(),
                   raw_shapes_.begin());
+    }
+
+    void Tensor<float>::set_data(const halide_buffer_t &data) {
+        CHECK(h_data_.dimensions == data.dimensions);
+        this->h_data_ = data;
     }
 }

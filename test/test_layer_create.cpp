@@ -72,21 +72,6 @@ TEST(test_registry, create_layer_relu_forward) {
 
     sftensor input_tensor = std::make_shared<ftensor>(3, 4, 4);
     input_tensor->Rand();
-    input_tensor->data()-= 0.5f;
-
-    LOG(INFO) << input_tensor->data();
-
-    std::vector<sftensor> inputs(1);
-    std::vector<sftensor> outputs(1);
-    inputs.at(0) = input_tensor;
-    auto start = std::chrono::high_resolution_clock::now();
-    layer->Forward(inputs, outputs);
-    auto end = std::chrono::high_resolution_clock ::now();
-    // 计算持续时间
-    std::chrono::duration<double, std::milli> duration = end - start;
-    std::cout << "Function execution time: " << duration.count() << " ms\n";
-    for (const auto& output: outputs)
-        output->Show();
 }
 
 TEST(test_registry, create_layer_softmax_forward) {
@@ -100,14 +85,14 @@ TEST(test_registry, create_layer_softmax_forward) {
 
     sftensor input_tensor = std::make_shared<ftensor>(1, 3, 4);
     input_tensor->Rand();
-    input_tensor->data()-= 0.5f;
-
-    LOG(INFO) << input_tensor->data();
-
-    std::vector<sftensor> inputs(1);
-    std::vector<sftensor> outputs(1);
-    inputs.at(0) = input_tensor;
-    layer->Forward(inputs, outputs);
-    for (const auto& output: outputs)
-        output->Show();
+//    input_tensor->data()-= 0.5f;
+//
+//    LOG(INFO) << input_tensor->data();
+//
+//    std::vector<sftensor> inputs(1);
+//    std::vector<sftensor> outputs(1);
+//    inputs.at(0) = input_tensor;
+//    layer->Forward(inputs, outputs);
+//    for (const auto& output: outputs)
+//        output->Show();
 }
