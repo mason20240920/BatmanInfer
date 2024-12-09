@@ -335,6 +335,14 @@ namespace BatmanInfer {
          */
         explicit Tensor(const std::vector<uint32_t>& shapes);
 
+
+        /**
+         * @brief 根据halide和类型进行初始化
+         * @param h_data
+         * @param raw_shapes
+         */
+        explicit Tensor(halide_buffer_t h_data, std::vector<uint32_t> raw_shapes);
+
         /**
          * @brief 返回张量的batch size
          * @return
@@ -366,12 +374,6 @@ namespace BatmanInfer {
         uint32_t size() const;
 
         /**
-         * 设置张量中的具体数据
-         * @param data 数据
-         */
-        void set_data(const arma::fcube& data);
-
-        /**
          * 返回张量是否为空
          * @return 张量是否为空
          */
@@ -382,7 +384,7 @@ namespace BatmanInfer {
          * @param offset 需要访问的位置
          * @return  offset位置的元素
          */
-        float& index(uint32_t offset);
+        float& index(uint32_t offset) const;
 
         /**
          * 张量的尺寸大小
@@ -400,13 +402,13 @@ namespace BatmanInfer {
          * 返回张量中的数据
          * @return 张量的数据
          */
-        arma::fcube& data();
+        halide_buffer_t & data();
 
         /**
          * 返回张量中的数据
          * @return 张量中的数据
          */
-        const arma::fcube& data() const;
+        const halide_buffer_t & data() const;
 
         /**
          * 返回张量第channel通道中的数据
@@ -435,8 +437,6 @@ namespace BatmanInfer {
                  uint32_t col) const;
 
         float at(const std::vector<uint32_t>& indices) const;
-
-        float& at(const std::vector<uint32_t>& indices);
 
         /**
          * 返回特定位置的元素
@@ -492,9 +492,8 @@ namespace BatmanInfer {
         /**
          * 张量的实际尺寸大小的Reshape pytorch兼容
          * @param shape 张量的实际尺寸大小
-         * @param row_major 根据行主序还是列主序进行reshape
          */
-        void Reshape(const std::vector<uint32_t>& shape, bool row_major = false);
+        void Reshape(const std::vector<uint32_t>& shapes);
 
         /**
          * 展开张量
@@ -512,16 +511,7 @@ namespace BatmanInfer {
          * 返回数据的原始指针
          * @return  返回数据的原始指针
          */
-        float* raw_ptr();
-
-        /**
-         * 将展开的索引转为多维索引
-         * @param flat_index 扁平化的索引（展开后的序号）
-         * @param shape  张量的形状
-         * @return 多维索引的向量
-         */
-        std::vector<uint32_t> unravel_index(uint32_t flat_index,
-                                            const std::vector<uint32_t>& shape) const;
+        float* raw_ptr() const;
 
         /**
          * 对Tensor进行转置
@@ -538,13 +528,6 @@ namespace BatmanInfer {
                        bool row_major);
 
         /**
-         * 返回第index个矩阵的起始地址
-         * @param index 第index个矩阵
-         * @return 第index个矩阵的起始地址
-         */
-        float* matrix_raw_ptr(uint32_t index);
-
-        /**
          * 按照指定形状进行广播(Broadcast)
          * 规则:
          *   1. 如果目标形状的维度数大于当前张量的维度数，在前面补充 1
@@ -558,7 +541,7 @@ namespace BatmanInfer {
          * 进行Equal全量比较
          * @param compare_va
          */
-        void Equal(const float& compare_va);
+        void Equal(const float& compare_va) const;
 
         /**
          * 进行Where操作. 自己是条件张量，进行结果生成
@@ -583,7 +566,7 @@ namespace BatmanInfer {
          * @param split_axis 切分的轴
          * @param split_size 切分的长度
          */
-        std::vector<std::shared_ptr<Tensor<float>>> Split(const uint32_t & split_axis,
+        std::vector<std::shared_ptr<Tensor<float>>> Split(uint32_t & split_axis,
                                                           const std::vector<uint32_t> & split_lst);
 
         /**

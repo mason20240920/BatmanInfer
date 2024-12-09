@@ -160,6 +160,10 @@ namespace BatmanInfer {
                   raw_shapes_.begin());
     }
 
+    Tensor<float>::Tensor(halide_buffer_t h_data, std::vector<uint32_t> raw_shapes): h_data_(h_data), raw_shapes_(std::move(raw_shapes)) {
+
+    }
+
     Tensor<bool>::Tensor(const std::vector<uint32_t>& shapes) {
         CHECK(!shapes.empty() && shapes.size() <= 3);
 
@@ -486,7 +490,7 @@ namespace BatmanInfer {
     }
 
     float Tensor<float>::at(uint32_t channel, uint32_t row, uint32_t col) {
-        return this->at(0, channel, row, col);
+        return at(0, channel, row, col);
     }
 
     arma::u8& Tensor<bool>::at(uint32_t channel, uint32_t row, uint32_t col) {
@@ -534,7 +538,7 @@ namespace BatmanInfer {
         // 获取元素总数
         auto element_count = size();
 
-        float* data = reinterpret_cast<float *>(h_data_.host);
+        auto* data = reinterpret_cast<float *>(h_data_.host);
 
 // 使用 SIMD 处理
         int simd_width = 8; // AVX 每次处理 8 个 float
@@ -563,178 +567,303 @@ namespace BatmanInfer {
     }
 
     std::vector<float> Tensor<float>::values(bool row_major) {
-        CHECK_EQ(this->data_.empty(), false);
-        std::vector<float> values(this->data_.size());
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
 
-        if (!row_major)
-            std::copy(this->data_.mem, this->data_.mem + this->data_.size(), values.begin());
-        else {
-            uint32_t index = 0;
-            for (uint32_t c = 0; c < this->data_.n_slices; ++c) {
-                const arma::fmat& channel = this->data_.slice(c).t();
-                std::copy(channel.begin(), channel.end(), values.begin() + index);
-                index += channel.size();
+        // 获取buffer里面所有元素
+        int dimensions = h_data_.dimensions;
+        auto total_elements = size();
+
+        // 初始化输出数组
+        std::vector<float> ret(total_elements);
+
+        // 获取raw buffer data
+        const auto* buffer_data = reinterpret_cast<const float*>(h_data_.host);
+
+        // 查看data是否连续存储
+        bool is_contiguous = true;
+        size_t expected_stride = 1;
+        for (int i = 0; i < dimensions; ++i) {
+            if (h_data_.dim[i].stride != expected_stride) {
+                is_contiguous = false;
+                break;
             }
-            CHECK_EQ(index, values.size());
+            expected_stride *= h_data_.dim[i].extent;
         }
-        return values;
-    }
 
-    void Tensor<float>::Reshape(const std::vector<uint32_t> &shapes, bool row_major) {
-        CHECK(!this->data_.empty());
-        CHECK(!shapes.empty());
-
-        const uint32_t origin_size = this->size();
-        const uint32_t current_size = std::accumulate(shapes.begin(), shapes.end(), 1, std::multiplies());
-        CHECK(shapes.size() <= 3);
-        CHECK(current_size == origin_size);
-
-        std::vector<float> values;
-        // 行主序
-        values = this->values(row_major);
-
-        if (shapes.size() == 3) {
-            data_.reshape(shapes.at(1), shapes.at(2), shapes.at(0));
-            raw_shapes_ = {shapes.at(0), shapes.at(1), shapes.at(2)};
-        } else if (shapes.size() == 2) {
-            // 这是二维张量
-            data_.reshape(shapes.at(0), shapes.at(1), 1);
-            raw_shapes_ = {shapes.at(0), shapes.at(1)};
+        if (is_contiguous) {
+            // 如果数据是连续的，直接用内存拷贝
+#pragma omp parallel for schedule(static)
+            for (size_t i = 0; i < total_elements; ++i)
+                ret[i] = buffer_data[i];
         } else {
-            data_.reshape(1, shapes.at(0), 1);
-            raw_shapes_ = {shapes.at(0)};
+#pragma omp parallel for schedule(static)
+            for (size_t i = 0; i < total_elements; ++i) {
+                size_t idx = 0;
+                size_t stride = 1;
+                for (int d = 0; d < dimensions; ++d) {
+                    size_t coord = (i / stride) % h_data_.dim[d].extent;
+                    idx += coord * h_data_.dim[d].stride;
+                    stride *= h_data_.dim[d].extent;
+                }
+                ret[i] = buffer_data[idx];
+            }
+        }
+        return ret;
+    }
+
+    void Tensor<float>::Reshape(const std::vector<uint32_t> &shapes) {
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+
+        const auto total_elements = size();
+
+        size_t new_total_elements = 1;
+        for (size_t dim: shapes)
+            new_total_elements *= dim;
+
+        CHECK(total_elements == new_total_elements) << "The new shapes of Reshape is not match";
+
+        if (shapes.size() > static_cast<size_t>(h_data_.dimensions)) {
+            delete[] h_data_.dim; // 释放旧的 dim 数组
+            h_data_.dim = new halide_dimension_t[shapes.size()]; // 分配新的 dim 数组
         }
 
-        if (row_major) {
-            this->Fill(values, true);
+        raw_shapes_ = shapes;
+
+        // 创建新的halide_buffer_t 进行reshape
+        int new_dimensions = static_cast<int>(shapes.size());
+        h_data_.dimensions = new_dimensions;
+
+        bool is_contiguous = true;
+        size_t expected_stride = 1;
+        for (int i = h_data_.dimensions - 1; i >= 0; --i) {
+            if (h_data_.dim[i].stride != expected_stride) {
+                is_contiguous = false;
+                break;
+            }
+            expected_stride *= h_data_.dim[i].extent;
+        }
+
+        // 连续内存
+        if (is_contiguous) {
+            // Update the dim array
+            size_t stride = 1;
+            for (int i = new_dimensions - 1; i >= 0; --i) {
+                h_data_.dim[i].min = 0;                     // Reset min to 0
+                h_data_.dim[i].extent = shapes[i];       // Set the new extent
+                h_data_.dim[i].stride = stride;            // Update stride
+                stride *= shapes[i];                    // Update stride for the next dimension
+            }
+            return;
+        }
+
+        // 非连续内存
+        // 分配新的连续内存缓冲区
+        size_t element_size = sizeof(float); // 假设数据类型是 float
+        auto* new_data = static_cast<uint8_t*>(malloc(total_elements * element_size));
+        CHECK(!new_data) << "Failed to allocate memory for reshaped buffer.";
+
+        // 拷贝数据到新的连续内存
+        auto* src = reinterpret_cast<float*>(h_data_.host);
+        auto* dst = reinterpret_cast<float*>(new_data);
+
+#pragma omp parallel for schedule(static)
+        for (size_t i = 0; i < total_elements; ++i) {
+            size_t offset = 0;
+            size_t index = i;
+            for (int d = h_data_.dimensions - 1; d >= 0; --d) {
+                size_t coord = index % h_data_.dim[d].extent;
+                offset += coord * h_data_.dim[d].stride;
+                index /= h_data_.dim[d].extent;
+            }
+            dst[i] = src[offset];
+        }
+
+        // 更新 halide_buffer_t 的指针和维度信息
+        free(h_data_.host); // 释放原始数据
+        h_data_.host = new_data;
+
+        h_data_.dimensions = new_dimensions;
+
+        size_t stride = 1;
+        for (int i = new_dimensions - 1; i >= 0; --i) {
+            h_data_.dim[i].min = 0;                     // Reset min to 0
+            h_data_.dim[i].extent = shapes[i];       // Set the new extent
+            h_data_.dim[i].stride = stride;            // Update stride
+            stride *= shapes[i];                    // Update stride for the next dimension
         }
     }
 
-    float* Tensor<float>::raw_ptr() {
-        CHECK(!this->data_.empty());
-        return this->data_.memptr();
+    float* Tensor<float>::raw_ptr() const {
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        return reinterpret_cast<float*>(h_data_.host);
     }
 
     bool Tensor<float>::empty() const {
-        return this->data_.empty();
+        return h_data_.host == nullptr || h_data_.dimensions == 0 || h_data_.dim == nullptr;
     }
 
     const std::vector<uint32_t >& Tensor<float>::raw_shapes() const {
         CHECK(!this->raw_shapes_.empty());
-        CHECK_LE(this->raw_shapes_.size(), 3);
+        CHECK_LE(this->raw_shapes_.size(), 4);
         CHECK_GE(this->raw_shapes_.size(), 1);
         return this->raw_shapes_;
     }
 
     void Tensor<float>::Flatten(bool row_major) {
-        CHECK(!this->data_.empty());
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
         if (this->raw_shapes_.size() == 1)
             return;
         // 获取原始的size
-        uint32_t vec_size = this->data_.size();
-        Reshape({vec_size}, row_major);
+        uint32_t vec_size = size();
+        Reshape({vec_size});
     }
 
     void Tensor<float>::Padding(const std::vector<uint32_t> &pads, float padding_value) {
-        CHECK(!this->data_.empty());
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
         CHECK_EQ(pads.size(), 4);
+
+        // 将 halide_buffer_t 包装为 Halide::Buffer
+        Halide::Buffer<float> input(h_data_);
+
         // 四周填充的维度
         uint32_t pad_rows1 = pads.at(0); // up
         uint32_t pad_rows2 = pads.at(1); // bottom
         uint32_t pad_cols1 = pads.at(2); // left
         uint32_t pad_cols2 = pads.at(3); // right
 
-        // Original dimensions
-        uint32_t original_rows = this->rows();
-        uint32_t original_cols = this->cols();
-        uint32_t channels = this->channels();
+        // 输入的维度信息
+        int batch_size = input.dim(0).extent();
+        int channels = input.dim(1).extent();
+        int rows = input.dim(2).extent();
+        int cols = input.dim(3).extent();
 
         // New dimensions after padding
-        uint32_t new_rows = original_rows + pad_rows1 + pad_rows2;
-        uint32_t new_cols = original_cols + pad_cols1 + pad_cols2;
+        uint32_t new_rows = rows + pad_rows1 + pad_rows2;
+        uint32_t new_cols = cols + pad_cols1 + pad_cols2;
 
-        // Create a new data cube with padded dimensions
-        arma::fcube new_data(new_rows,
-                             new_cols,
-                             channels,
-                             arma::fill::value(padding_value));
+        // 定义 Halide 的变量
+        Halide::Var n("n"), c("c"), x("x"), y("y");
 
-        // Copy original data into the center of the new data cube
-        new_data.subcube(pad_rows1,
-                         pad_cols1,
-                         0,
-                         new_data.n_rows - pad_rows2 - 1,
-                         new_data.n_cols - pad_cols2 - 1,
-                         new_data.n_slices - 1) = this->data_;
+        // 定义 Halide 的函数
+        Halide::Func padded("padded");
 
-        // Replace the old data with the new padded data
-        this->data_ = std::move(new_data);
+        Halide::Expr pad_cols1_expr = Halide::Expr(pad_cols1);
+        Halide::Expr pad_cols2_expr = Halide::Expr(pad_cols2);
+        Halide::Expr pad_rows1_expr = Halide::Expr(pad_rows1);
+        Halide::Expr pad_rows2_expr = Halide::Expr(pad_rows2);
+        Halide::Expr cols_expr = Halide::Expr(cols);
+        Halide::Expr rows_expr = Halide::Expr(rows);
 
-        // Update the raw shapes to reflect the new dimensions
-        this->raw_shapes_ = {channels, new_rows, new_cols};
+        // 定义填充逻辑
+        padded(n, c, x, y) = select(
+                x >= pad_cols1_expr && x < (pad_cols1_expr + cols_expr) &&
+                y >= pad_rows1_expr && y < (pad_rows1_expr + rows_expr),
+                input(n, c, x - pad_cols1_expr, y - pad_rows1_expr), // 原始数据
+                padding_value // 填充区域
+        );
+
+        // 调度优化
+        padded.parallel(n).parallel(c).vectorize(x, 8);
+
+        // 分配输出 Buffer
+        Halide::Buffer<float> output(batch_size, channels, new_rows, new_cols);
+
+        // 生成输出
+        padded.realize(output);
+
+        // 将结果拷贝回 halide_buffer_t
+        output.copy_to_host();
+        h_data_ = *output.raw_buffer();
+        this->raw_shapes_ = {static_cast<unsigned int>(batch_size),
+                             static_cast<unsigned int>(channels),
+                             new_rows,
+                             new_cols};
     }
 
     std::vector<uint32_t> Tensor<float>::shapes() const {
-        CHECK(!this->data_.empty());
-        return {this->channels(), this->rows(), this->cols()};
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        return raw_shapes_;
     }
 
     void Tensor<float>::Transpose() {
-        CHECK(!this->data_.empty());
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        CHECK_GT(h_data_.dimensions, 2);
 
-        // 获取当前的形状信息
-        uint32_t channels = this->channels();
-        uint32_t rows = this->rows();
-        uint32_t cols = this->cols();
+        // 将halide_buffer_ 转为 Halide::Buffer
+        Halide::Buffer<float> input(h_data_);
 
-        // 创建一个新的数据容器，用于存储转置后的数据
-        arma::fcube transposed_data(cols, rows, channels);
+        // 获取输入维度信息
+        int dim_count = input.dimensions();
+        int origin_cols_dim = dim_count - 1;   // cols维度
+        int origin_rows_dim = dim_count - 2;   // rows维度
 
-        // 使用 OpenMP 并行化通道的转置
-#pragma omp parallel for
-        for (uint32_t i = 0; i < channels; ++i) {
-            // 获取当前通道的矩阵
-            arma::fmat current_slice = this->slice(i);
-            // 对矩阵进行转置
-            transposed_data.slice(i) = current_slice.t();
+        // 定义 Halide 的变量
+        std::vector<Halide::Var> vars(dim_count);
+        for (int i = 0; i < dim_count; i++)
+            vars[i] = Halide::Var("dim" + std::to_string(i));
+
+        // 定义Halide函数
+        Halide::Func transpose("transpose");
+
+        // 转置rows和cols, 使用Halide::Buffer 的索引访问
+        transpose(vars) = input(vars[origin_rows_dim], vars[origin_cols_dim]);
+
+        // 调度优化
+        transpose.parallel(vars[0]); // 并行处理第一个维度
+        transpose.vectorize(vars[origin_cols_dim], 8); // 对倒数第一维向量化
+
+        // 分配输出 Buffer
+        std::vector<int> output_extents(dim_count);
+        for (int i = 0; i < dim_count; i++) {
+            output_extents[i] = input.dim(i).extent();
         }
 
-        // 对数据先进行转置
-        this->data_.reshape(cols, rows, channels);
+        // 倒数第一维和倒数第二维的大小需要交换
+        output_extents[origin_cols_dim] = input.dim(origin_rows_dim).extent();
+        output_extents[origin_rows_dim] = input.dim(origin_cols_dim).extent();
 
-        // 用转置后的数据替换原始数据
-        this->set_data(transposed_data);
+        Halide::Buffer<float> output(output_extents);
+
+        // 生成输出
+        transpose.realize(output);
+
+        // 将结果拷贝回 halide_buffer_t
+        output.copy_to_host();
+        h_data_ = *output.raw_buffer();
 
         // 更新 raw_shapes_ 信息
-        this->raw_shapes_ = {channels, cols, rows};
+        std::swap(raw_shapes_[raw_shapes_.size() - 1], raw_shapes_[raw_shapes_.size() - 2]);
     }
 
-    float &Tensor<float>::index(uint32_t offset) {
-        CHECK(offset < this->data_.size()) << "Tensor index out of bound!";
-        return this->data_.at(offset);
+    float &Tensor<float>::index(uint32_t offset) const {
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        CHECK(offset < size()) << "Tensor index out of bound!";
+        // 获取数据指针并转换为 float*
+        auto* data = reinterpret_cast<float*>(h_data_.host);
+        return data[offset];
     }
 
-    arma::fcube &Tensor<float>::data() {
-        return this->data_;
+    halide_buffer_t &Tensor<float>::data() {
+        return h_data_;
     }
 
-    const arma::fcube &Tensor<float>::data() const {
-        return this->data_;
+    const halide_buffer_t &Tensor<float>::data() const {
+        return h_data_;
     }
 
-    std::vector<uint32_t> Tensor<float>::unravel_index(uint32_t flat_index, const std::vector<uint32_t>& shape) const {
-        std::vector<uint32_t> indices(shape.size(), 0);
-        uint32_t remain = flat_index;
-        for (int i = shape.size() - 1; i >= 0; --i) {
-            indices[i] = remain % shape[i];
-            remain /= shape[i];
-        }
-        return indices;
-    }
+//    std::vector<uint32_t> Tensor<float>::unravel_index(uint32_t flat_index, const std::vector<uint32_t>& shape) const {
+//        std::vector<uint32_t> indices(shape.size(), 0);
+//        uint32_t remain = flat_index;
+//        for (int i = shape.size() - 1; i >= 0; --i) {
+//            indices[i] = remain % shape[i];
+//            remain /= shape[i];
+//        }
+//        return indices;
+//    }
 
     float Tensor<float>::at(const std::vector<uint32_t> &indices) const {
         CHECK(indices.size() == this->raw_shapes_.size());
-        uint32_t channel = 0, row = 0, col = 0;
+        uint32_t batch_size = 0, channel = 0, row = 0, col = 0;
 
         if (indices.size() == 1) {
             // 一维张量
@@ -748,58 +877,25 @@ namespace BatmanInfer {
             channel = indices[0];
             row = indices[1];
             col = indices[2];
+        } else if (indices.size() == 4) {
+            batch_size = indices[0];
+            channel = indices[1];
+            row = indices[2];
+            col = indices[3];
         }
 
-        return this->at(channel, row, col);
-    }
-
-    float& Tensor<float>::at(const std::vector<uint32_t>& indices) {
-        CHECK(indices.size() == this->shapes().size());
-        uint32_t channel = 0, row = 0, col = 0;
-
-        if (indices.size() == 1) {
-            // 一维张量
-            col = indices[0];
-        } else if (indices.size() == 2) {
-            // 二维张量
-            row = indices[0];
-            col = indices[1];
-        } else if (indices.size() == 3) {
-            // 三维张量
-            channel = indices[0];
-            row = indices[1];
-            col = indices[2];
-        }
-
-        return this->at(channel, row, col);
-    }
-
-    float *Tensor<float>::matrix_raw_ptr(uint32_t index) {
-        CHECK_LT(index, this->channels());
-        uint32_t offset = index * this->rows() * this -> cols();
-        CHECK_LE(offset, this->size());
-        float *mem_ptr = this->raw_ptr() + offset;
-        return mem_ptr;
-    }
-
-    void Tensor<float>::set_data(const arma::fcube &data) {
-        CHECK(data.n_rows == this->data_.n_rows)
-              << data.n_rows << "!=" << this->data_.n_rows;
-        CHECK(data.n_cols == this->data_.n_cols)
-              << data.n_cols << "!=" << this->data_.n_cols;
-        CHECK(data.n_slices == this->data_.n_slices)
-                        << data.n_slices << " != " << this->data_.n_slices;
-        this->data_ = data;
+        return at(batch_size, channel, row, col);
     }
 
     void Tensor<float>::Expand(const std::vector<uint32_t> &shapes) {
         CHECK(!shapes.empty()) << "Target shapes can not be empty";
-        CHECK(shapes.size() <= 3) << "Target shapes dimension exceeds 3D!";
+        CHECK(shapes.size() <= 4) << "Target shapes dimension exceeds 4D!";
 
         std::vector<uint32_t > current_shapes = this->raw_shapes_;
         uint32_t current_dims = current_shapes.size();
         uint32_t target_dims = shapes.size();
 
+        // 如果当前形状维度少于目标维度，补充 1
         if (current_dims < target_dims)
             current_shapes.insert(current_shapes.begin(), target_dims - current_dims, 1);
 
@@ -808,243 +904,327 @@ namespace BatmanInfer {
                  << "Shape mismatch: can not broadcast current shape "
                  << current_shapes[i] << " to target shape " << shapes[i];
 
-        uint32_t target_channels = shapes.size() == 3 ? shapes[0] : 1;
-        uint32_t target_rows = shapes.size() >= 2 ? shapes[target_dims - 2] : 1;
-        uint32_t target_cols = shapes.back();
-
-        arma::fcube expanded_data(target_rows, target_cols, target_channels);
-
-#pragma omp parallel for
-        for (uint32_t c = 0; c < target_channels; ++c) {
-            // 如果当前张量的通道数为 1，则重复第一个通道的数据；
-            // 否则，直接取当前通道的数据
-            uint32_t src_channel = (current_shapes[0] == 1) ? 0 : c;
-
-            // 获取当前通道的二维矩阵数据（`slice`）。
-            arma::fmat slice = this->data_.slice(src_channel);
-
-            // 情况 1：如果当前张量的行数和列数都为 1（即标量扩展），
-            // 则将当前通道的所有元素填充为原始标量值。
-            if (current_shapes[1] == 1 && current_shapes[2] == 1)
-                expanded_data.slice(c).fill(slice(0, 0));
-            else if (current_shapes[1] == 1)
-                // 情况 2：如果当前张量的行数为 1（即一维向量扩展到二维），
-                // 则重复第一行的值，扩展为 `target_rows` 行。
-                expanded_data.slice(c) = arma::repmat(slice.row(0), target_rows, 1);
-            else if (current_shapes[2] == 1)
-                // 情况 3：如果当前张量的列数为 1（即一维向量扩展到二维），
-                // 则重复第一列的值，扩展为 `target_cols` 列。
-                expanded_data.slice(c) = arma::repmat(slice.col(0), 1, target_cols);
-            else
-                // 情况 4：如果当前张量的行数和列数都与目标形状匹配，
-                // 则直接将当前通道的数据复制到目标通道中，无需扩展。
-                expanded_data.slice(c) = slice;
+        // 构造目标维度描述
+        std::vector<halide_dimension_t> target_dim(target_dims);
+        uint32_t total_size = 1;
+        for (size_t i = 0; i < target_dims; ++i) {
+            target_dim[i].min = 0;
+            target_dim[i].extent = static_cast<int>(shapes[i]);
+            target_dim[i].stride = (i == 0) ? 1 : target_dim[i - 1].stride * target_dim[i - 1].extent;
+            total_size *= shapes[i];
         }
 
-        this->data_ = std::move(expanded_data);
-        this->raw_shapes_ = shapes;
+        // 分配新的 halide_buffer_t
+        halide_buffer_t expanded_data = {
+                0, // device
+                nullptr, // device_interface
+                nullptr, // host
+                0,       // flags
+                halide_type_t(halide_type_float, 32), // 数据类型
+                (int32_t)target_dims, // 维度数
+                nullptr, // dimensions
+                target_dim.data() // 维度描述
+        };
+
+        // 分配 host 内存
+        expanded_data.host = (uint8_t *)malloc(total_size * sizeof(float));
+
+        // 遍历所有元素，进行广播
+#pragma omp parallel for
+        for (uint32_t i = 0; i < total_size; ++i) {
+            // 计算目标位置的多维索引
+            std::vector<uint32_t> idx(target_dims);
+            uint32_t temp = i;
+            for (int d = target_dims - 1; d >= 0; --d) {
+                idx[d] = temp % shapes[d];
+                temp /= shapes[d];
+            }
+
+            // 根据多维索引计算源数据的位置
+            uint32_t src_offset = 0;
+            for (size_t d = 0; d < target_dims; ++d) {
+                uint32_t src_idx = (current_shapes[d] == 1) ? 0 : idx[d];
+                src_offset += src_idx * ((d < current_dims) ? this->h_data_.dim[d].stride : 0);
+            }
+
+            // 复制数据
+            auto *src_data = (float *)(h_data_.host);
+            auto *dst_data = (float *)(expanded_data.host);
+            dst_data[i] = src_data[src_offset];
+        }
+
+        if (h_data_.host)
+            free(h_data_.host);
+
+        h_data_ = expanded_data;
+        raw_shapes_ = shapes;
     }
 
-    void Tensor<float>::Equal(const float &compare_va) {
-        // 获取数据指针和总元素数
-        // 使用 Armadillo 的 find 函数找到满足条件的索引
-        arma::uvec indices_not_equal_1 = arma::find(data_ != compare_va);
-        arma::uvec indices_equal_1 = arma::find(data_ == compare_va);
+    void Tensor<float>::Equal(const float &compare_va) const {
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
 
-        float* data_ptr = data_.memptr();
+        // 获取底层数据指针和总元素数
+        auto *data_ptr = reinterpret_cast<float *>(h_data_.host);
+        const auto total_elements = size();
 
+        // 并行处理数据
 #pragma omp parallel for
-        for (arma::uword i = 0; i < indices_not_equal_1.n_elem; ++i) {
-            data_ptr[indices_not_equal_1[i]] = 1.0f;
-        }
-
-        // 并行处理等于 1 的元素
-#pragma omp parallel for
-        for (arma::uword i = 0; i < indices_equal_1.n_elem; ++i) {
-            data_ptr[indices_equal_1[i]] = 0.0f;
+        for (int i = 0; i < total_elements; ++i) {
+            if (data_ptr[i] == compare_va) {
+                data_ptr[i] = 0.0f;
+            } else {
+                data_ptr[i] = 1.0f;
+            }
         }
     }
 
     void Tensor<float>::Transpose(const std::vector<uint32_t> &new_order, bool row_major) {
-        using index_type = size_t;  // 统一使用 size_t 作为索引类型
-        CHECK(!this->data_.empty());
-        CHECK(new_order.size() == 3);
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        using index_type = uint32_t;  // 统一使用 size_t 作为索引类型
+        CHECK(new_order.size() == 4);
+        CHECK(raw_shapes_.size() == 4);
 
-        // 原始形状
-        const auto temp_shape = shapes();
+        // 计算新形状
+        std::vector<index_type> new_shape(4);
+        for (int i = 0; i < 4; ++i) {
+            new_shape[i] = raw_shapes_[new_order[i]];
+        }
 
-        // 获取当前数据的值, 预分配并对齐内存
-        alignas(32) std::vector<float> values = this->values(row_major);
+        // 创建一个新的缓冲区用于存储转置结果
+        size_t total_elements = raw_shapes_[0] * raw_shapes_[1] * raw_shapes_[2] * raw_shapes_[3];
+        std::vector<float> transposed_data(total_elements);
 
-        // 提前计算stride以避免重复计算
-        // stride_1 = rows * cols
-        const size_t stride_1 = temp_shape[1] * temp_shape[2];
-        // stride_2 = cols;
-        const size_t stride_2 = temp_shape[2];
+        // 获取原始数据指针
+        auto *data_ptr = reinterpret_cast<float *>(h_data_.host);
 
-        // 根据新的顺序调整形状
-        arma::fcube transposed_data(temp_shape[new_order[1]],
-                                    temp_shape[new_order[2]],
-                                    temp_shape[new_order[0]]);
+        // 计算原始步长（stride）
+        std::vector<index_type> old_stride(4);
+        old_stride[3] = 1; // 最内层是列
+        for (int i = 2; i >= 0; --i) {
+            old_stride[i] = old_stride[i + 1] * raw_shapes_[i + 1];
+        }
 
-        // 填充转置后的数据
-        if (row_major) {
+        // 计算新步长（stride）
+        std::vector<index_type> new_stride(4);
+        new_stride[3] = 1; // 最内层是列
+        for (int i = 2; i >= 0; --i)
+            new_stride[i] = new_stride[i + 1] * new_shape[i + 1];
+
+        // 并行处理转置
 #ifdef _OPENMP
-            omp_set_num_threads(omp_get_max_threads());
+        omp_set_num_threads(omp_get_max_threads());
 #endif
+#pragma omp parallel for schedule(static)
+        for (index_type b = 0; b < raw_shapes_[0]; ++b) {         // batch
+            for (index_type c = 0; c < raw_shapes_[1]; ++c) {     // channels
+                for (index_type r = 0; r < raw_shapes_[2]; ++r) { // rows
+                    for (index_type col = 0; col < raw_shapes_[3]; ++col) { // cols
+                        // 计算原始索引
+                        index_type old_index = b * old_stride[0] +
+                                               c * old_stride[1] +
+                                               r * old_stride[2] +
+                                               col * old_stride[3];
 
-            // 使用分块策略
-            constexpr size_t BLOCK_SIZE = 64;
+                        // 计算新索引
+                        index_type new_b = (new_order[0] == 0) ? b : (new_order[0] == 1) ? c : (new_order[0] == 2) ? r : col;
+                        index_type new_c = (new_order[1] == 0) ? b : (new_order[1] == 1) ? c : (new_order[1] == 2) ? r : col;
+                        index_type new_r = (new_order[2] == 0) ? b : (new_order[2] == 1) ? c : (new_order[2] == 2) ? r : col;
+                        index_type new_col = (new_order[3] == 0) ? b : (new_order[3] == 1) ? c : (new_order[3] == 2) ? r : col;
 
-            // 如果是行主序，需要调整填充顺序
-#pragma omp parallel for collapse(3) schedule(guided) proc_bind(close)
-            for (size_t i = 0; i < temp_shape[0]; i += BLOCK_SIZE) {
-                for (size_t j = 0; j < temp_shape[1]; j += BLOCK_SIZE) {
-                    for (size_t k = 0; k < temp_shape[2]; k += BLOCK_SIZE) {
-                        // 分块处理
-                        for (size_t ii = i; ii < std::min<index_type>(i + BLOCK_SIZE, temp_shape[0]); ++ii) {
-                            for (size_t jj = j; jj < std::min<index_type>(j + BLOCK_SIZE, temp_shape[1]); ++jj) {
-#pragma omp simd
-                                for (size_t kk = k; kk < std::min<index_type>(k + BLOCK_SIZE, temp_shape[2]); ++kk) {
-                                    const size_t old_index = ii * stride_1 + jj * stride_2 + kk;
+                        index_type new_index = new_b * new_stride[0] +
+                                               new_c * new_stride[1] +
+                                               new_r * new_stride[2] +
+                                               new_col * new_stride[3];
 
-                                    // 如果 new_order 在编译时已知，这里可以用 if constexpr 优化
-                                    const size_t new_i = new_order[0] == 0 ? ii : (new_order[0] == 1 ? jj : kk);
-                                    const size_t new_j = new_order[1] == 0 ? ii : (new_order[1] == 1 ? jj : kk);
-                                    const size_t new_k = new_order[2] == 0 ? ii : (new_order[2] == 1 ? jj : kk);
-
-                                    transposed_data(new_j, new_k, new_i) = values[old_index];
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            // 列主序的情况
-#pragma omp parallel for collapse(3) schedule(static)
-            for (size_t i = 0; i < temp_shape[0]; ++i) {
-                for (size_t j = 0; j < temp_shape[1]; ++j) {
-                    for (size_t k = 0; k < temp_shape[2]; ++k) {
-                        transposed_data(j, k, i) = data_(i, j, k);
+                        // 写入转置后的数据
+                        transposed_data[new_index] = data_ptr[old_index];
                     }
                 }
             }
         }
 
-        // 使用移动语义避免不必要的拷贝
-        data_ = std::move(transposed_data);
-        raw_shapes_ = {temp_shape[new_order[0]], temp_shape[new_order[1]], temp_shape[new_order[2]]};
+        // 将转置后的数据复制回 halide_buffer_t
+        std::copy(transposed_data.begin(), transposed_data.end(), data_ptr);
+
+        // 更新 halide_buffer_t 的形状
+        for (int i = 0; i < 4; ++i) {
+            h_data_.dim[i].extent = static_cast<int32_t>(new_shape[i]);
+            h_data_.dim[i].stride = static_cast<int32_t>(new_stride[i]);
+        }
+
+        raw_shapes_ = new_shape;
     }
 
 
     void Tensor<float>::Where(const float &x,
                               const float &y) {
-        // 使用 Armadillo 的 find 函数找到满足条件的索引
-        arma::uvec indices_not_equal_1 = arma::find(data_ != 1.0f);
-        arma::uvec indices_equal_1 = arma::find(data_ == 1.0f);
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
 
         // 获取数据指针
-        float* data_ptr = data_.memptr();
+        auto *data_ptr = reinterpret_cast<float *>(h_data_.host);
 
-        // 并行处理不等于 1 的元素
-#pragma omp parallel for
-        for (arma::uword i = 0; i < indices_not_equal_1.n_elem; ++i) {
-            data_ptr[indices_not_equal_1[i]] = x;
+        // 获取维度信息
+        const int dims = h_data_.dimensions;
+        std::vector<int> extents(dims);  // 每个维度的大小
+        std::vector<int> strides(dims); // 每个维度的步长
+
+        for (int i = 0; i < dims; ++i) {
+            extents[i] = h_data_.dim[i].extent;
+            strides[i] = h_data_.dim[i].stride;
         }
 
-        // 并行处理等于 1 的元素
-#pragma omp parallel for
-        for (arma::uword i = 0; i < indices_equal_1.n_elem; ++i) {
-            data_ptr[indices_equal_1[i]] = y;
-        }
-    }
-
-    void Tensor<float>::Sqrt() {
-        // 获取指向数据的指针
-        const size_t n_slices = data_.n_slices;
-
-        // 使用 OpenMP 并行化切片操作
-#pragma omp parallel for
-        for (size_t i = 0; i < n_slices; ++i) {
-            // 对每个切片使用 arma::sqrt 进行逐元素平方根操作
-            // Get a non-const reference to the slice
-            arma::Mat<float>& slice = data_.slice(i);
-            slice = arma::sqrt(slice);
-        }
-    }
-
-
-    void Tensor<float>::Div(const float &div_num) {
-        if (div_num == 0.0f) {
-            throw std::invalid_argument("Division by zero");
-        }
-
-        // 获取数据指针和尺寸
-        float* data_ptr = data_.memptr();
-        const size_t total_elements = data_.n_elem;
-
-        // 使用 OpenMP 并行化
-#pragma omp parallel for
-        for (size_t i = 0; i < total_elements; ++i) {
-            data_ptr[i] /= div_num;
-        }
-    }
-
-    void Tensor<float>::Mul(const std::shared_ptr<Tensor<float>>& other) {
-#pragma omp parallel for collapse(3)
-        for (size_t k = 0; k < data_.n_slices; ++k) {
-            for (size_t i = 0; i < data_.n_rows; ++i) {
-                for (size_t j = 0; j < data_.n_cols; ++j) {
-                    data_(i, j, k) = other->data_(i, j, k) * data_(i, j, k);
+        // 动态多维循环展开
+#pragma omp parallel
+        {
+            if (dims == 1) {
+                // 一维情况
+#pragma omp for
+                for (int i = 0; i < extents[0]; ++i) {
+                    int index = i * strides[0];
+                    data_ptr[index] = (data_ptr[index] == 1.0f) ? y : x;
+                }
+            } else if (dims == 2) {
+                // 二维情况
+#pragma omp for collapse(2)
+                for (int i = 0; i < extents[0]; ++i) {
+                    for (int j = 0; j < extents[1]; ++j) {
+                        int index = i * strides[0] + j * strides[1];
+                        data_ptr[index] = (data_ptr[index] == 1.0f) ? y : x;
+                    }
+                }
+            } else if (dims == 3) {
+                // 三维情况
+#pragma omp for collapse(3)
+                for (int i = 0; i < extents[0]; ++i) {
+                    for (int j = 0; j < extents[1]; ++j) {
+                        for (int k = 0; k < extents[2]; ++k) {
+                            int index = i * strides[0] + j * strides[1] + k * strides[2];
+                            data_ptr[index] = (data_ptr[index] == 1.0f) ? y : x;
+                        }
+                    }
+                }
+            } else if (dims == 4) {
+                // 四维情况
+#pragma omp for collapse(4)
+                for (int i = 0; i < extents[0]; ++i) {
+                    for (int j = 0; j < extents[1]; ++j) {
+                        for (int k = 0; k < extents[2]; ++k) {
+                            for (int l = 0; l < extents[3]; ++l) {
+                                int index = i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                                data_ptr[index] = (data_ptr[index] == 1.0f) ? y : x;
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
+    void Tensor<float>::Sqrt() {
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        CHECK(raw_shapes_.empty() || raw_shapes_.size() > 4) << "Unsupported number of dimensions (must be between 1 and 4).";
 
-    std::vector<sftensor> Tensor<float>::Split(const uint32_t &split_axis, const std::vector<uint32_t> &split_lst) {
-        CHECK(!this->data_.empty());
+        // 获取维度信息
+        const auto total_elements = size();
 
-        std::vector<sftensor> ret;
+        // 获取数据指针
+        auto* data_ptr = reinterpret_cast<float*>(h_data_.host);
 
-        uint32_t total_axis_len = 0;
-        // rows: 在行维度进行切分
-        if (split_axis == 0) {
-            // 获取分割的个数
-            auto split_num = split_lst.size();
-            ret.reserve(split_num);
-            for (int i = 0; i < split_num; ++i) {
-                // 提取当前切片的行
-                arma::fcube slice_data = data_.rows(i * split_lst.at(i), (i + 1) * split_lst.at(i) - 1);
-
-                auto tensor = std::make_shared<Tensor<float>>(split_lst.at(i), cols(), channels());
-                tensor->data_ = slice_data;
-                ret.push_back(tensor);
-            }
+        // 使用 OpenMP 并行化切片操作
+#pragma omp parallel for
+        for (size_t idx = 0; idx < total_elements; ++idx) {
+            // 直接访问数据并计算平方根
+            CHECK(data_ptr[idx] < 0) << "Negative value found in tensor. Sqrt not defined.";
+            data_ptr[idx] = std::sqrt(data_ptr[idx]);
         }
-        else if (split_axis == 1) {
-            auto split_num = split_lst.size();
-            ret.reserve(split_num);
+    }
 
-            for (int i = 0; i < split_num; ++i) {
-                arma::fcube slice_data = data_.cols(i * split_lst.at(i), (i + 1) * split_lst.at(i) - 1);
-                auto tensor = std::make_shared<Tensor<float>>(rows(), split_lst.at(i), channels());
-                tensor->data_ = slice_data;
-                ret.push_back(tensor);
-            }
-        } else if (split_axis == 2) {
-            total_axis_len = channels();
-            auto split_num = split_lst.size();
-            ret.reserve(split_num);
 
-            for (int i = 0; i < split_num; ++i) {
-                arma::fcube slice_data = data_.slices(i * split_lst.at(i), (i + 1) * split_lst.at(i) - 1);
-                auto tensor = std::make_shared<Tensor<float>>(rows(), cols(), split_lst.at(i));
-                tensor->data_ = slice_data;
-                ret.push_back(tensor);
-            }
+    void Tensor<float>::Div(const float &div_num) {
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        CHECK(div_num != 0.0f) << "Division by zero";
+
+        // 获取数据指针和尺寸
+        auto* data_ptr = reinterpret_cast<float*>(h_data_.host);
+        // 获取维度信息
+        const auto total_elements = size();
+
+        // 使用 OpenMP 并行化
+#pragma omp parallel for
+        for (size_t idx = 0; idx < total_elements; ++idx) {
+            data_ptr[idx] /= div_num;
         }
+    }
+
+    void Tensor<float>::Mul(const std::shared_ptr<Tensor<float>>& other) {
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        CHECK(other->h_data_.dimensions == h_data_.dimensions) << "Dimension mismatch between tensors.";
+
+
+        // 获取数据指针
+        auto* data_ptr = reinterpret_cast<float*>(h_data_.host);
+        const auto* other_data_ptr = reinterpret_cast<const float*>(other->h_data_.host);
+
+        const auto total_elements = size();
+
+
+#pragma omp parallel for
+        for (size_t idx = 0; idx < total_elements; ++idx) {
+            data_ptr[idx] *= other_data_ptr[idx];
+        }
+    }
+
+
+    std::vector<sftensor> Tensor<float>::Split(uint32_t &split_axis, const std::vector<uint32_t> &split_lst) {
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        CHECK(raw_shapes_.empty() || raw_shapes_.size() > 4) << "Unsupported number of dimensions (must be between 1 and 4).";
+
+        // 处理负数轴
+        if (split_axis < 0) {
+            split_axis = (split_axis + h_data_.dimensions) % h_data_.dimensions;
+        }
+
+        CHECK(split_axis >= 0 && split_axis < h_data_.dimensions) << "Unsupported number of dimensions (must be between 1 and 4).";
+
+        // 获取当前轴的长度
+        uint32_t axis_extent = raw_shapes_[split_axis];
+
+        // 检查split_lst的总和是否超过当前轴的长度
+        uint32_t total_split_len = 0;
+        for (auto len : split_lst) {
+            total_split_len += len;
+        }
+        CHECK(total_split_len == axis_extent); // 确保切分总长度等于当前轴长度
+
+        // 提前计算每个切片的起始偏移量
+        std::vector<uint32_t> offsets(split_lst.size());
+        uint32_t current_offset = h_data_.dim[split_axis].min;
+        for (size_t i = 0; i < split_lst.size(); ++i) {
+            offsets[i] = current_offset;
+            current_offset += split_lst[i];
+        }
+
+        // 创建结果容器
+        std::vector<std::shared_ptr<Tensor<float>>> ret(split_lst.size());
+
+        // 并行切分
+#pragma omp parallel for
+        for (size_t i = 0; i < split_lst.size(); ++i) {
+            uint32_t split_len = split_lst[i];
+
+            // 创建新的halide_buffer_t
+            halide_buffer_t new_buffer = h_data_; // 复制原始buffer
+            new_buffer.dim[split_axis].min = offsets[i];
+            new_buffer.dim[split_axis].extent = split_len;
+
+            // 修改raw_shapes_以反映新的子张量形状
+            std::vector<uint32_t> new_raw_shapes = raw_shapes_;
+            new_raw_shapes[split_axis] = split_len;
+
+            // 创建新Tensor并存储到结果中
+            ret[i] = std::make_shared<Tensor<float>>(new_buffer, new_raw_shapes);
+        }
+
 
         return ret;
     }
