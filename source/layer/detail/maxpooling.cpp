@@ -247,6 +247,6 @@ namespace BatmanInfer {
         return ParseParameterAttrStatus::bParameterAttrParseSuccess;
     }
 
-    LayerRegistererWrapper bMaxPoolingGetInstance("MaxPool",
-                                                  MaxPoolingLayer::GetInstance);
+//    LayerRegistererWrapper bMaxPoolingGetInstance("MaxPool",
+//                                                  MaxPoolingLayer::GetInstance);
 }

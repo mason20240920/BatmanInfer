@@ -89,9 +89,9 @@ TEST(test_ir_topo, build1_output_tensors) {
         LOG(INFO) << op->name;
         // 打印op输出空间的张量
         const auto &operands = op->output_operands;
-        for (const auto& operand: operands) {
-            operand.second->datas.at(0)->Show();
-        }
+//        for (const auto& operand: operands) {
+//            operand.second->datas.at(0)->Show();
+//        }
 //        if (!operand || operand->datas.empty())
 //            continue;
 //        const uint32_t batch_size = operand->datas.size();

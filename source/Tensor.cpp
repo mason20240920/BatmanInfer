@@ -8,8 +8,7 @@
 #include <set>
 #include <omp.h>
 #include <Halide.h>
-#include <avxintrin.h>
-#include <immintrin.h>
+#include <arm_neon.h>
 
 namespace BatmanInfer {
     Tensor<float>::Tensor(uint32_t size) {
@@ -20,6 +19,10 @@ namespace BatmanInfer {
                           static_cast<int32_t>(size),
                           1,
                           0};
+        // 为 host 分配内存
+        // 假设每个元素是 float 类型
+        h_data_.host = new uint8_t [size * sizeof(float)];
+        h_data_.type = halide_type_t(halide_type_float, 32, 1); // 32 位浮点数，标量
         this->raw_shapes_ = std::vector<uint32_t>{size};
     }
 
@@ -31,16 +34,20 @@ namespace BatmanInfer {
 
     Tensor<float>::Tensor(uint32_t rows, uint32_t cols) {
         // 传入参数 rows, cols, channels
+        h_data_ = {0};
         h_data_.dimensions = 2;
         h_data_.dim = new halide_dimension_t[h_data_.dimensions];
-        h_data_.dim[0] = {0,
-                          static_cast<int32_t>(rows),
-                          static_cast<int32_t>(cols),
-                          0};
         h_data_.dim[0] = {0,
                           static_cast<int32_t>(cols),
                           1,
                           0};
+        h_data_.dim[1] = {0,
+                          static_cast<int32_t>(rows),
+                          static_cast<int32_t>(cols),
+                          0};
+        // 为 host 分配内存
+        h_data_.host = new uint8_t[rows * cols * sizeof(float)]; // 假设每个元素是 float 类型
+        h_data_.type = halide_type_t(halide_type_float, 32, 1); // 32 位浮点数，标量
         this->raw_shapes_ = std::vector<uint32_t>{rows, cols};
     }
 
@@ -54,6 +61,8 @@ namespace BatmanInfer {
         std::vector<halide_dimension_t> dimensions;
         std::vector<uint32_t> raw_shapes;
 
+        uint32_t vec_length = 1;
+
         // 根据输入参数动态生成维度信息
         if (channels > 0) {
             dimensions.emplace_back(0,
@@ -61,6 +70,7 @@ namespace BatmanInfer {
                                     rows * cols,
                                     0);
             raw_shapes.emplace_back(channels);
+            vec_length = vec_length * channels;
         }
         if (rows > 0) {
             dimensions.emplace_back(0,
@@ -68,6 +78,7 @@ namespace BatmanInfer {
                                     cols,
                                     0);
             raw_shapes.emplace_back(rows);
+            vec_length = vec_length * rows;
         }
         if (cols > 0) {
             dimensions.emplace_back(0,
@@ -75,18 +86,22 @@ namespace BatmanInfer {
                                     1,
                                     0);
             raw_shapes.emplace_back(cols);
+            vec_length = vec_length * cols;
         }
+
         // 设置 h_data_ 的维度信息
         h_data_.dimensions = static_cast<int32_t>(dimensions.size());
         h_data_.dim = new halide_dimension_t[h_data_.dimensions];
+        h_data_.host = new uint8_t[vec_length * sizeof(float)];
+        h_data_.type = halide_type_t(halide_type_float, 32, 1); // 32 位浮点数，标量
 
+        // 进行维度转换
+        std::reverse(dimensions.begin(), dimensions.end());
         // 将维度信息复制到h_data.dim
         std::copy(dimensions.begin(),
                   dimensions.end(),
                   h_data_.dim);
-        std::copy(raw_shapes.begin(),
-                  raw_shapes.end(),
-                  raw_shapes_.begin());
+        raw_shapes_ = raw_shapes;
     }
 
     Tensor<bool>::Tensor(uint32_t channels, uint32_t rows, uint32_t cols) {
@@ -118,6 +133,7 @@ namespace BatmanInfer {
         // 动态存储维度信息
         std::vector<halide_dimension_t> dimensions;
         std::vector<uint32_t> raw_shapes;
+        uint32_t vec_length = 1;
 
         // 根据输入参数动态生成维度信息
         if (batch_size > 0) {
@@ -126,6 +142,7 @@ namespace BatmanInfer {
                                     channels * rows * cols,
                                     0);
             raw_shapes.emplace_back(batch_size);
+            vec_length = vec_length * batch_size;
         }
         if (channels > 0) {
             dimensions.emplace_back(0,
@@ -133,6 +150,7 @@ namespace BatmanInfer {
                                     rows * cols,
                                     0);
             raw_shapes.emplace_back(channels);
+            vec_length = vec_length * channels;
         }
         if (rows > 0) {
             dimensions.emplace_back(0,
@@ -140,6 +158,7 @@ namespace BatmanInfer {
                                     cols,
                                     0);
             raw_shapes.emplace_back(rows);
+            vec_length = vec_length * rows;
         }
         if (cols > 0) {
             dimensions.emplace_back(0,
@@ -147,11 +166,15 @@ namespace BatmanInfer {
                                     1,
                                     0);
             raw_shapes.emplace_back(cols);
+            vec_length = vec_length * cols;
         }
         // 设置 h_data_ 的维度信息
         h_data_.dimensions = static_cast<int32_t>(dimensions.size());
         h_data_.dim = new halide_dimension_t[h_data_.dimensions];
+        h_data_.host = new uint8_t[vec_length * sizeof(float)];
+        h_data_.type = halide_type_t(halide_type_float, 32, 1); // 32 位浮点数，标量
 
+        std::reverse(dimensions.begin(), dimensions.end());
         // 将维度信息复制到h_data.dim
         std::copy(dimensions.begin(),
                   dimensions.end(),
@@ -335,7 +358,7 @@ namespace BatmanInfer {
                 [&](int dim, int offset, std::vector<int>& indices) {
                     if (dim == dimensions) {
                         // 打印实际数据
-                        std::cout << std::setw(6) << data[offset] << " ";
+                        std::cout << std::setw(6) << data[offset] << "\t";
                         return;
                     }
 
@@ -376,23 +399,33 @@ namespace BatmanInfer {
 
         Halide::Func random_fill("random_fill");
 
-        // 使用外部随机数生成器生成随机值
-        std::mt19937 rng(std::random_device{}());
-        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-
         // 定义 Halide 函数
-        random_fill(vars) = Halide::Expr(dist(rng));
+        random_fill(vars) = Halide::random_float();
+
+        // 获取rows的数据
+        auto col_len = static_cast<int32_t>(raw_shapes_.at(raw_shapes_.size() - 1));
 
         // 调度：并行化和向量化
         if (dimensions >= 2) {
-            random_fill.parallel(vars[0]).vectorize(vars[1], 8);
+            CHECK(col_len > 0 && col_len % 8 == 0); // 确保列长度适合向量化
+            // 倒数第二维 (行) 并行化，倒数第一维 (列) 向量化
+            random_fill.parallel(vars[1]).vectorize(vars[0], col_len);
         } else if (dimensions == 1) {
-            random_fill.vectorize(vars[0], 8);
+            random_fill.vectorize(vars[0], col_len);
+        }
+
+        CHECK(h_data_.host != nullptr); // 确保 host 指针有效
+        for (int i = 0; i < h_data_.dimensions; i++) {
+            CHECK(h_data_.dim[i].extent > 0); // 确保每个维度的大小有效
         }
 
         // 将生成的随机数写入 halide_buffer_t
         Halide::Buffer<float> output(h_data_);
+
+
         random_fill.realize(output);
+
+
     }
 
     void Tensor<bool>::Rand() {
@@ -408,7 +441,7 @@ namespace BatmanInfer {
         uint32_t extent = dims[channel_dim].extent;
 
         // 动态分配 halide_buffer_t
-        halide_buffer_t* sliced_buffer = new halide_buffer_t(h_data_); // 复制原始 buffer
+        auto* sliced_buffer = new halide_buffer_t(h_data_); // 复制原始 buffer
 
         // 调整目标维度的min 和 extent
         sliced_buffer->dim[channel_dim].min += channel;  // 固定到目标 channel
@@ -432,7 +465,7 @@ namespace BatmanInfer {
         uint32_t extent = dims[channel_dim].extent;
 
         // 动态分配 halide_buffer_t
-        halide_buffer_t* sliced_buffer = new halide_buffer_t(h_data_); // 复制原始 buffer
+        auto* sliced_buffer = new halide_buffer_t(h_data_); // 复制原始 buffer
 
         // 调整目标维度的min 和 extent
         sliced_buffer->dim[channel_dim].min += channel;  // 固定到目标 channel
@@ -541,23 +574,23 @@ namespace BatmanInfer {
 
         auto* data = reinterpret_cast<float *>(h_data_.host);
 
-// 使用 SIMD 处理
-        int simd_width = 8; // AVX 每次处理 8 个 float
+        int simd_width = 4; // NEON 每次处理 4 个 float
         int i = 0;
+
         for (; i <= element_count - simd_width; i += simd_width) {
-            // 加载 8 个浮点数
-            __m256 values = _mm256_loadu_ps(&data[i]);
+            // 加载 4 个浮点数
+            float32x4_t values = vld1q_f32(&data[i]);
 
             // 示例：假设 filter 是平方操作
-            __m256 result = _mm256_mul_ps(values, values);
+            float32x4_t result = vmulq_f32(values, values);
 
             // 存储结果
-            _mm256_storeu_ps(&data[i], result);
+            vst1q_f32(&data[i], result);
         }
 
-        // 处理剩余的标量部分
-        for (; i < element_count; ++i) {
-            data[i] = filter(data[i]);
+        // 处理剩余的元素（非 SIMD 部分）
+        for (; i < element_count; i++) {
+            data[i] = data[i] * data[i];
         }
 
     }
@@ -1239,6 +1272,7 @@ namespace BatmanInfer {
         // 动态存储维度信息
         std::vector<halide_dimension_t> dimensions;
         std::vector<uint32_t> raw_shapes;
+        uint32_t vec_length = 0;
 
         // 根据输入参数动态生成维度信息
         if (batch_size > 0) {
@@ -1247,6 +1281,7 @@ namespace BatmanInfer {
                                     channels * rows * cols,
                                     0);
             raw_shapes.emplace_back(batch_size);
+            vec_length *= batch_size;
         }
         if (channels > 0) {
             dimensions.emplace_back(0,
@@ -1254,6 +1289,7 @@ namespace BatmanInfer {
                                     rows * cols,
                                     0);
             raw_shapes.emplace_back(channels);
+            vec_length *= channels;
         }
         if (rows > 0) {
             dimensions.emplace_back(0,
@@ -1261,6 +1297,7 @@ namespace BatmanInfer {
                                     cols,
                                     0);
             raw_shapes.emplace_back(rows);
+            vec_length *= rows;
         }
         if (cols > 0) {
             dimensions.emplace_back(0,
@@ -1268,22 +1305,83 @@ namespace BatmanInfer {
                                     1,
                                     0);
             raw_shapes.emplace_back(cols);
+            vec_length *= cols;
         }
         // 设置 h_data_ 的维度信息
         h_data_.dimensions = static_cast<int32_t>(dimensions.size());
         h_data_.dim = new halide_dimension_t[h_data_.dimensions];
+        h_data_.host = new uint8_t[vec_length * sizeof(float)];
+        h_data_.type = halide_type_t(halide_type_float, 32, 1); // 32 位浮点数，标量
 
+        std::reverse(dimensions.begin(), dimensions.end());
         // 将维度信息复制到h_data.dim
         std::copy(dimensions.begin(),
                   dimensions.end(),
                   h_data_.dim);
-        std::copy(raw_shapes.begin(),
-                  raw_shapes.end(),
-                  raw_shapes_.begin());
+        raw_shapes_ = raw_shapes;
     }
 
     void Tensor<float>::set_data(const halide_buffer_t &data) {
         CHECK(h_data_.dimensions == data.dimensions);
         this->h_data_ = data;
     }
+
+    void Tensor<float>::Relu() {
+        // Step 1: 用输入Buffer进行包裹
+        Halide::Buffer<float> input(h_data_);
+
+        // Step 2: 定义Halide变量和方法
+        std::vector<Halide::Var> vars(raw_shapes_.size());
+        for (int i = 0; i < raw_shapes_.size(); i++)
+            vars[i] = Halide::Var("dim" + std::to_string(i));
+
+
+        Halide::Func relu("relu");
+
+        // Step 3: 定义动态ReLU操作，
+        // 动态创建indexing expression
+        std::vector<Halide::Expr> index_expr_lst;
+        index_expr_lst.reserve(raw_shapes_.size());
+        for (int i = 0; i < raw_shapes_.size(); i++)
+            index_expr_lst.emplace_back(vars[i]);
+
+        // 获取输入的动态
+        Halide::Expr value = input(index_expr_lst);
+        relu(index_expr_lst) = Halide::max(0.0f, value);
+
+        // Step 4: 并行策略
+        if (input.dimensions() > 1)
+            relu.parallel(vars[0]);
+
+        // Step 5: 初始化输出buffer
+        Halide::Buffer<float> output = Halide::Buffer<float>::make_with_shape_of(input);
+
+        // Step 6: 实现函数放入输出缓存
+        relu.realize(output);
+
+        // Step 7: 拷贝结果返回输入buffer
+        output.copy_to_host();
+
+        h_data_ = *output.raw_buffer();
+    }
+
+//    Tensor<float>::Tensor(const Tensor& tensor) {
+//        // 创建一个新的 halide_buffer_t
+//        halide_buffer_t dst = tensor.h_data_; // 值拷贝元数据
+//
+//        // 计算数据大小
+//        size_t data_size = tensor.size();;
+//
+//        // 为新数据分配内存
+//        auto *new_data = static_cast<uint8_t*>(malloc(data_size * sizeof(float )));
+////        CHECK(!new_data) << "Failed to allocate memory for halide_buffer_t deep copy.";
+//
+//        // 复制原始数据到新内存
+//        memcpy(new_data, tensor.h_data_.host, data_size);
+//
+//        // 更新目标 buffer 的 host 指针
+//        dst.host = static_cast<uint8_t *>(new_data);
+//
+//        h_data_ = dst;
+//    }
 }

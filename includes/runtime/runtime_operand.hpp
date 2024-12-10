@@ -21,7 +21,7 @@ namespace BatmanInfer {
         // 操作数的形状
         std::vector<int32_t> shapes;
         // 存储操作数
-        std::vector<std::shared_ptr<Tensor<float>>> datas;
+        std::shared_ptr<Tensor<float>> data;
         // 操作数的类型，一般是float
         RuntimeDataType type = RuntimeDataType::kTypeUnknown;
     };

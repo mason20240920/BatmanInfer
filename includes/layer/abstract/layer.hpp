@@ -24,8 +24,8 @@ namespace BatmanInfer {
          * @return 执行的状态
          */
         virtual InferStatus Forward(
-                const std::vector<std::shared_ptr<Tensor<float>>>& inputs,
-                std::vector<std::shared_ptr<Tensor<float>>>& outputs);
+                const std::map<std::string , std::shared_ptr<Tensor<float>>>& inputs,
+                std::map<std::string, std::shared_ptr<Tensor<float>>>& outputs);
 
         /**
          * Layer的执行函数

@@ -182,34 +182,34 @@ add_executable(BatmanInfer main.cpp
         source/layer/abstract/param_layer.cpp
         test/test_layer_create.cpp
         test/test_sigmoid.cpp
-        source/layer/detail/relu.cpp
-        source/layer/detail/softmax.cpp
-        source/layer/detail/sigmoid.cpp
-        source/layer/detail/maxpooling.cpp
-        test/test_maxpooling.cpp
-        source/layer/detail/convolution.cpp
-        test/test_convolution.cpp
-        test/test_resnt.cpp
-        source/layer/detail/add.cpp
-        source/layer/detail/global_average_pool.cpp
-        source/layer/detail/flatten.cpp
-        source/layer/detail/gemm.cpp
-        test/test_operators.cpp
-        source/layer/detail/concat.cpp
-        source/layer/detail/expand.cpp
-        source/layer/detail/trilu.cpp
-        source/layer/detail/constant.cpp
-        source/layer/detail/equal.cpp
-        source/layer/detail/where.cpp
-        source/layer/detail/cast.cpp
-        source/layer/detail/sqrt.cpp
-        source/layer/detail/div.cpp
-        source/layer/detail/matmul.cpp
-        source/layer/detail/mul.cpp
-        source/layer/detail/transpose.cpp
-        source/layer/detail/reshape.cpp
-        source/layer/detail/split.cpp
-        test/test_open_blas.cpp)
+        source/layer/detail/relu.cpp)
+#        source/layer/detail/softmax.cpp
+#        source/layer/detail/sigmoid.cpp
+#        source/layer/detail/maxpooling.cpp
+#        test/test_maxpooling.cpp
+#        source/layer/detail/convolution.cpp
+#        test/test_convolution.cpp
+#        test/test_resnt.cpp
+#        source/layer/detail/add.cpp
+#        source/layer/detail/global_average_pool.cpp
+#        source/layer/detail/flatten.cpp
+#        source/layer/detail/gemm.cpp
+#        test/test_operators.cpp
+#        source/layer/detail/concat.cpp
+#        source/layer/detail/expand.cpp
+#        source/layer/detail/trilu.cpp
+#        source/layer/detail/constant.cpp
+#        source/layer/detail/equal.cpp
+#        source/layer/detail/where.cpp
+#        source/layer/detail/cast.cpp
+#        source/layer/detail/sqrt.cpp
+#        source/layer/detail/div.cpp
+#        source/layer/detail/matmul.cpp
+#        source/layer/detail/mul.cpp
+#        source/layer/detail/transpose.cpp
+#        source/layer/detail/reshape.cpp
+#        source/layer/detail/split.cpp
+#        test/test_open_blas.cpp)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer

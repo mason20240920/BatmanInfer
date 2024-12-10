@@ -99,25 +99,25 @@ namespace BatmanInfer {
                 }
             }
 
-            // 计算指数并累加和
-            for (uint32_t n = 0; n < N; ++n) {
-                for (uint32_t k = 0; k < axis_size; ++k) {
-                    uint32_t flat_index = n * axis_size + k;
-                    std::vector<uint32_t> idx = input->unravel_index(flat_index, input_shape);
-                    float exp_val = std::exp(input->at(idx) - max_vals[n]);
-                    output->at(idx) = exp_val;
-                    sum_exps[n] += exp_val;
-                }
-            }
-
-            // 归一化得到最终的 softmax 概率
-            for (uint32_t n = 0; n < N; ++n) {
-                for (uint32_t k = 0; k < axis_size; ++k) {
-                    uint32_t flat_index = n * axis_size + k;
-                    std::vector<uint32_t> idx = input->unravel_index(flat_index, input_shape);
-                    output->at(idx) /= sum_exps[n];
-                }
-            }
+//            // 计算指数并累加和
+//            for (uint32_t n = 0; n < N; ++n) {
+//                for (uint32_t k = 0; k < axis_size; ++k) {
+//                    uint32_t flat_index = n * axis_size + k;
+//                    std::vector<uint32_t> idx = input->unravel_index(flat_index, input_shape);
+//                    float exp_val = std::exp(input->at(idx) - max_vals[n]);
+//                    output->at(idx) = exp_val;
+//                    sum_exps[n] += exp_val;
+//                }
+//            }
+//
+//            // 归一化得到最终的 softmax 概率
+//            for (uint32_t n = 0; n < N; ++n) {
+//                for (uint32_t k = 0; k < axis_size; ++k) {
+//                    uint32_t flat_index = n * axis_size + k;
+//                    std::vector<uint32_t> idx = input->unravel_index(flat_index, input_shape);
+//                    output->at(idx) /= sum_exps[n];
+//                }
+//            }
         }
 
         return InferStatus::bInferSuccess;

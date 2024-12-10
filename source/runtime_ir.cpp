@@ -380,7 +380,7 @@ namespace BatmanInfer {
         // 对所有后继节点进行遍历
         for (const auto &[next_rt_name, next_rt_operator]: next_ops) {
             // 后续节点的output
-            const auto& layer_output_data = layer_output_operands.at(next_rt_name)->datas;
+            const auto& layer_output_data = layer_output_operands.at(next_rt_name)->data;
             // 得到后继节点的输入next_input_operands
             const auto &next_input_operands = next_rt_operator->input_operands;
             // 确定后继节点的输入来自于current_op
@@ -393,18 +393,16 @@ namespace BatmanInfer {
                  *    输入2 -- other_op.name: other_op对应的输出空间
                  * }
                  */
-                std::vector<std::shared_ptr<ftensor> > &next_input_data = next_input_operands.at(current_op->name)->
-                        datas;
-                CHECK(next_input_data.size() == layer_output_data.size());
+                std::shared_ptr<ftensor> &next_input_data = next_input_operands.at(current_op->name)->data;
+                CHECK(next_input_data->shapes() == layer_output_data->shapes());
                 // 将当前current_op的输出赋值到next_input_data中
-                for (int i = 0; i < next_input_data.size(); ++i)
-                    next_input_data.at(i) = layer_output_data.at(i);
+                next_input_data = layer_output_data;
             }
         }
     }
 
-    std::map<std::string, std::vector<std::vector<std::shared_ptr<Tensor<float>>>>>
-    RuntimeGraph::Forward(const std::vector<std::vector<std::shared_ptr<Tensor<float> > > > &inputs,
+    std::map<std::string, std::shared_ptr<Tensor<float>>>
+    RuntimeGraph::Forward(const std::map<std::string, std::shared_ptr<Tensor<float>>> &inputs,
                           bool debug) {
         // 检查当前的执行图是否已经初始化完毕
         if (graph_state_ < GraphState::Complete)
@@ -415,16 +413,13 @@ namespace BatmanInfer {
         CHECK(to_po_operators_.size() == operators_.size())
               << "Build wrong to po queues";
 
-        // for (const auto &op: to_po_operators_)
-        //     op->has_forward = false;
-
         // 赋值 input
         CHECK_EQ(inputs.size(), input_names_.size()) << "Build wrong number of inputs";
         for (int i = 0; i < inputs.size(); ++i) {
             auto &ipt_name = input_names_[i];
             // 进行读取operands
             for (const auto& output_operand: operators_maps_.at(ipt_name)->output_operands) {
-                output_operand.second->datas = inputs.at(i);
+                output_operand.second->data = inputs.at(ipt_name);
             }
         }
 
@@ -445,16 +440,14 @@ namespace BatmanInfer {
             }
         }
 
-        std::map<std::string, std::vector<std::vector<std::shared_ptr<Tensor<float>>>>> final_outputs{};
+        std::map<std::string, std::shared_ptr<Tensor<float>>> final_outputs{};
         for (const auto &out_name: output_names_) {
             // 之前已经检查过 out_name 的合法性，这里不再检查
             final_outputs.insert({out_name, {}});
             const auto &output_op = operators_maps_.at(out_name);
             CHECK(!output_op->input_operands.empty()) << "Output from " << output_op->name << " is empty";
             const auto &output_operand = output_op->input_operands;
-            for (const auto& item: output_operand) {
-                final_outputs[out_name].emplace_back(item.second->datas);
-            }
+            final_outputs[out_name] = output_operand.at(out_name)->data;
         }
         return final_outputs;
     }

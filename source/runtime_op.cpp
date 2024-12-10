@@ -30,22 +30,15 @@ namespace BatmanInfer {
                          << "The graph only support float32 yet!";
                     const auto &input_operand_shape = input_operand->shapes;
                     // 得到需要初始化空间
-                    auto &input_data = input_operand->datas;
+                    auto &input_data = input_operand->data;
 
                     // 确保输入操作数的形状不为空。
                     CHECK(!input_operand_shape.empty());
-                    const int32_t batch = input_operand_shape.at(0);
                     // 获取批处理大小，并确保它是非负的（不支持动态批处理大小）。
-                    CHECK(batch >= 0) << "Dynamic batch size is not supported!";
                     CHECK(input_operand_shape.size() == 2 ||
                           input_operand_shape.size() == 4 ||
                           input_operand_shape.size() == 3)
                           << "Unsupported tensor shape sizes: " << input_operand_shape.size();
-
-                    if (!input_data.empty())
-                        CHECK_EQ(input_data.size(), batch);
-                    else
-                        input_data.resize(batch);
                 }
             }
         }
@@ -60,81 +53,41 @@ namespace BatmanInfer {
         // 得到需要初始化的输出空间
         const auto &output_tensor_map = runtime_op->output_operands;
         for (const auto& output_tensor_dict: output_tensor_map) {
-            // 获取结点的输出张量应有形状
-            const int32_t batch = operand_shapes.at(0);
-            CHECK(batch >= 0) << "Dynamic batch size is not supported!";
             CHECK(operand_shapes.size() == 2 || operand_shapes.size() == 4 || operand_shapes.size() == 3)
                             << "Unsupported shape sizes: " << operand_shapes.size();
 
             // 如果输出空间没有被初始化
-            if (output_tensor_dict.second->datas.empty()) {
+            if (output_tensor_dict.second->data == nullptr) {
                 // 需要被初始化的输出张量
                 auto& output_operand = output_tensor_dict.second;
                 // 将输出操作数赋变量
                 output_operand->shapes = operand_shapes;
                 output_operand->type = RuntimeDataType::kTypeFloat32;
-//                output_operand->name = operand->name;
-                // 输出空间初始化
-                for (int j = 0; j < batch; ++j) {
-                    if (operand_shapes.size() == 4) {
-                        sftensor output_tensor = TensorCreate(operand_shapes.at(1),
-                                                              operand_shapes.at(2),
-                                                              operand_shapes.at(3));
-                        output_operand->datas.push_back(output_tensor);
-                    } else if (operand_shapes.size() == 2) {
-                        sftensor output_tensor = TensorCreate((uint32_t) operand_shapes.at(1));
-                        output_operand->datas.push_back(output_tensor);
-                    } else {
-                        // current shape is 3
-                        sftensor output_tensor = TensorCreate((uint32_t) operand_shapes.at(1),
-                                                              (uint32_t) operand_shapes.at(2));
-                        output_operand->datas.push_back(output_tensor);
-                    }
-                }
-//                runtime_op->output_operands.emplace(output_operand->name, output_operand);
+                if (operand_shapes.size() == 4)
+                    output_operand->data = TensorCreate(operand_shapes.at(0),
+                                                        operand_shapes.at(1),
+                                                        operand_shapes.at(2),
+                                                        operand_shapes.at(3));
+                else if (operand_shapes.size() == 3)
+                    output_operand->data = TensorCreate(operand_shapes.at(0),
+                                                        operand_shapes.at(1),
+                                                        operand_shapes.at(2));
+                else if (operand_shapes.size() == 2)
+                    output_operand->data = TensorCreate(operand_shapes.at(0),
+                                                        operand_shapes.at(1));
+                else
+                    output_operand->data = TensorCreate(operand_shapes.at(0));
             } else {
                 // If the input corner is not empty
-                CHECK(batch == output_tensor_dict.second->datas.size());
+                sftensor output_tensor = output_tensor_dict.second->data;
                 CHECK(output_tensor_dict.second->type == RuntimeDataType::kTypeFloat32);
                 CHECK(output_tensor_dict.second->shapes == operand_shapes);
                 // 逐批次检查输出空间是否合理，不合理则进行reshape
-                for (uint32_t b = 0; b < batch; ++b) {
-                    sftensor output_tensor = output_tensor_dict.second->datas.at(b);
-                    const std::vector<uint32_t> &tensor_shapes = output_tensor->shapes();
-                    if (operand_shapes.size() == 4) {
-                        if (tensor_shapes.at(0) != operand_shapes.at(1) ||
-                            tensor_shapes.at(1) != operand_shapes.at(2) ||
-                            tensor_shapes.at(2) != operand_shapes.at(3)) {
-                            DLOG(WARNING)
-                                    << "The shape of tensor do not adapting with output operand";
-                            const auto &target_shapes = std::vector<uint32_t>{
-                                    (uint32_t) operand_shapes.at(1), (uint32_t) operand_shapes.at(2),
-                                    (uint32_t) operand_shapes.at(3)};
-                            output_tensor->Reshape(target_shapes);
-                        }
-                    } else if (operand_shapes.size() == 2) {
-                        if (tensor_shapes.at(0) != 1 ||
-                            tensor_shapes.at(1) != operand_shapes.at(1) ||
-                            tensor_shapes.at(2) != 1) {
-                            DLOG(WARNING)
-                                    << "The shape of tensor do not adapting with output operand";
-                            const auto &target_shapes =
-                                    std::vector<uint32_t>{(uint32_t) operand_shapes.at(1)};
-                            output_tensor->Reshape(target_shapes);
-                        }
-                    } else {
-                        // current shape is 3
-                        if (tensor_shapes.at(0) != 1 ||
-                            tensor_shapes.at(1) != operand_shapes.at(1) ||
-                            tensor_shapes.at(2) != operand_shapes.at(2)) {
-                            DLOG(WARNING)
-                                    << "The shape of tensor do not adapting with output operand";
-                            const auto &target_shapes = std::vector<uint32_t> {
-                                    (uint32_t) operand_shapes.at(1),
-                                    (uint32_t) operand_shapes.at(2)
-                            };
-                            output_tensor->Reshape(target_shapes);
-                        }
+                const std::vector<uint32_t> &tensor_shapes = output_tensor->shapes();
+                for (size_t i = 0; i < tensor_shapes.size(); ++i) {
+                    if (tensor_shapes.at(i) != operand_shapes.at(i)) {
+                        std::vector<uint32_t> target_shapes(operand_shapes.begin(), operand_shapes.end());
+                        output_tensor->Reshape(target_shapes);
                     }
                 }
             }

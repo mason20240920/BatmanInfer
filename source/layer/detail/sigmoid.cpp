@@ -74,5 +74,5 @@ namespace BatmanInfer {
     }
 
     // 使用工具类注册算子
-    LayerRegistererWrapper bSigmoidGetInstance("nn.Sigmoid", SigmoidLayer::GetInstance);
+//    LayerRegistererWrapper bSigmoidGetInstance("nn.Sigmoid", SigmoidLayer::GetInstance);
 }

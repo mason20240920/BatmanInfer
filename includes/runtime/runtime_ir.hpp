@@ -68,8 +68,8 @@ namespace BatmanInfer {
          * @param debug
          * @return
          */
-        std::map<std::string, std::vector<std::vector<std::shared_ptr<Tensor<float>>>>> Forward(
-                const std::vector<std::vector<std::shared_ptr<Tensor<float>>> > &inputs,
+        std::map<std::string, std::shared_ptr<Tensor<float>>> Forward(
+                const std::map<std::string, std::shared_ptr<Tensor<float>>> &inputs,
                 bool debug);
 
 

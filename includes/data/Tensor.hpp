@@ -56,7 +56,7 @@ namespace BatmanInfer {
          * 构造拷贝函数
          * @param tensor
          */
-//        Tensor(const Tensor& tensor);
+        Tensor(const Tensor& tensor);
 //
 //        /**
 //         * 移动构造函数: 用于从一个临时对象（右值）“移动”资源，而不是复制
@@ -344,6 +344,12 @@ namespace BatmanInfer {
         explicit Tensor(halide_buffer_t h_data, std::vector<uint32_t> raw_shapes);
 
         /**
+         * @brief 拷贝函数
+         * @param tensor
+         */
+//        Tensor(const Tensor& tensor);
+
+        /**
          * @brief 返回张量的batch size
          * @return
          */
@@ -581,6 +587,11 @@ namespace BatmanInfer {
          * @param other
          */
         void Mul(const std::shared_ptr<Tensor<float>>& other);
+
+        /**
+         * @brief 进行ReLu变化
+         */
+        void Relu();
 
     private:
 

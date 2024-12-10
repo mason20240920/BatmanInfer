@@ -12,7 +12,6 @@ namespace BatmanInfer {
     public:
         explicit SoftmaxLayer(int dim = -1);
 
-//        SoftmaxLayer(): NonParamLayer("Softmax") {}
         InferStatus Forward(
                 const std::vector<std::shared_ptr<Tensor<float>>>& inputs,
                 std::vector<std::shared_ptr<Tensor<float>>>& outputs) override;
