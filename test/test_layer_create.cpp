@@ -85,14 +85,14 @@ TEST(test_registry, create_layer_softmax_forward) {
     layer = LayerRegister::CreateLayer(op);
     ASSERT_NE(layer, nullptr);
 
-    sftensor input_tensor = std::make_shared<ftensor>( 1, 8, 8);
+    sftensor input_tensor = std::make_shared<ftensor>( 1, 1, 8, 8);
     input_tensor->Rand();
     input_tensor->Show();
     std::map<std::string, sftensor> input_map{
             {"input", input_tensor}
     };
 
-    sftensor output = std::make_shared<ftensor>(1, 8, 8);
+    sftensor output = std::make_shared<ftensor>(1, 1, 8, 8);
     std::map<std::string, sftensor> output_map {
             {"output", output},
     };

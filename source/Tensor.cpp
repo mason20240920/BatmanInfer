@@ -70,7 +70,7 @@ namespace BatmanInfer {
                                     rows * cols,
                                     0);
             raw_shapes.emplace_back(channels);
-            vec_length = vec_length * channels;
+            vec_length *= channels;
         }
         if (rows > 0) {
             dimensions.emplace_back(0,
@@ -78,7 +78,7 @@ namespace BatmanInfer {
                                     cols,
                                     0);
             raw_shapes.emplace_back(rows);
-            vec_length = vec_length * rows;
+            vec_length *= rows;
         }
         if (cols > 0) {
             dimensions.emplace_back(0,
@@ -86,7 +86,7 @@ namespace BatmanInfer {
                                     1,
                                     0);
             raw_shapes.emplace_back(cols);
-            vec_length = vec_length * cols;
+            vec_length *= cols;
         }
 
         // 设置 h_data_ 的维度信息
@@ -1272,7 +1272,7 @@ namespace BatmanInfer {
         // 动态存储维度信息
         std::vector<halide_dimension_t> dimensions;
         std::vector<uint32_t> raw_shapes;
-        uint32_t vec_length = 0;
+        uint32_t vec_length = 1;
 
         // 根据输入参数动态生成维度信息
         if (batch_size > 0) {
