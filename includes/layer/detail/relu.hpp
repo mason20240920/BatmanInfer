@@ -12,7 +12,8 @@ namespace BatmanInfer {
         public:
         ReluLayer(): NonParamLayer("Relu") {}
 
-        InferStatus Forward(const std::map<std::string, std::shared_ptr<Tensor<float>>> &inputs, std::map<std::string, std::shared_ptr<Tensor<float>>> &outputs) override;
+        InferStatus Forward(const std::map<std::string, std::shared_ptr<Tensor<float>>> &inputs,
+                            std::map<std::string, std::shared_ptr<Tensor<float>>> &outputs) override;
 
         static ParseParameterAttrStatus GetInstance(
                 const std::shared_ptr<RuntimeOperator>& op,

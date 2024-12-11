@@ -12,9 +12,8 @@ namespace BatmanInfer {
     public:
         explicit SoftmaxLayer(int dim = -1);
 
-        InferStatus Forward(
-                const std::vector<std::shared_ptr<Tensor<float>>>& inputs,
-                std::vector<std::shared_ptr<Tensor<float>>>& outputs) override;
+        InferStatus Forward(const std::map<std::string, std::shared_ptr<Tensor<float>>> &inputs,
+                            std::map<std::string, std::shared_ptr<Tensor<float>>> &outputs) override;
 
         static ParseParameterAttrStatus GetInstance(
                 const std::shared_ptr<RuntimeOperator>& op,

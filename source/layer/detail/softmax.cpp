@@ -4,11 +4,20 @@
 
 #include <layer/detail/softmax.hpp>
 #include <layer/abstract/layer_factory.hpp>
-#include "omp.h"
+#include <data/tensor_util.hpp>
+#include <Halide.h>
+#include <cblas.h>
 
 namespace BatmanInfer {
-    InferStatus SoftmaxLayer::Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
-                                      std::vector<std::shared_ptr<Tensor<float>>> &outputs) {
+    // Helper function: 将 std::vector<Var> 转换为 Halide 的参数展开
+    template <typename T>
+    std::vector<Halide::Expr> to_expr_vector(const std::vector<T> &vars) {
+        std::vector<Halide::Expr> exprs(vars.begin(), vars.end());
+        return exprs;
+    }
+
+    InferStatus SoftmaxLayer::Forward(const std::map<std::string, std::shared_ptr<Tensor<float>>> &inputs,
+                                      std::map<std::string, std::shared_ptr<Tensor<float>>> &outputs) {
         if (inputs.empty()) {
             LOG(ERROR) << "The input tensor array in the softmax layer is empty";
             return InferStatus::bInferFailedInputEmpty;
@@ -18,106 +27,72 @@ namespace BatmanInfer {
             return InferStatus::bInferFailedInputOutSizeMatchError;
         }
 
-        const uint32_t batch_size = inputs.size();
-        for (uint32_t i = 0; i < batch_size; ++i) {
-            const std::shared_ptr<Tensor<float>> &input_data = inputs.at(i);
-            const std::shared_ptr<Tensor<float>> &output_data = outputs.at(i);
-            if (input_data == nullptr || input_data->empty()) {
-                LOG(ERROR) << "The input tensor at index " << i << " is empty in the softmax layer";
-                return InferStatus::bInferFailedInputEmpty;
-            }
-            if (output_data != nullptr && !output_data->empty()) {
-                if (input_data->shapes() != output_data->shapes()) {
-                    LOG(ERROR) << "The input and output tensor shapes at index " << i
-                               << " do not match in the softmax layer";
+        for (const auto&[_, input_value]: inputs) {
+            for (const auto[_, output_value]: outputs) {
+                if (input_value->shapes() != output_value->shapes()) {
+                    LOG(ERROR) << "The input and output tensor shapes in softmax mismatch";
                     return InferStatus::bInferFailedInputOutSizeMatchError;
                 }
+                CHECK(input_value->shapes() == output_value->shapes()) <<
+                "The input and output tensor shapes in softmax mismatch";
             }
         }
 
-        // 并行处理批次中的每个样本
+        auto iter = outputs.begin();
+
+        // 获取输入的维度数量
+        for (const auto&[_, input_value] : inputs) {
+            iter->second = TensorClone(input_value);
+            auto& output = iter->second->data();
+
+            Halide::Buffer<float> input(output);
+
+            auto shapes = iter->second->shapes();
+
+            auto dims = input.dimensions();
+
+            std::vector<Halide::Var> vars(dims);
+            for (int i = 0; i < dims; ++i)
+                vars[i] = Halide::Var("v" + std::to_string(i));
+
+            // 创建 Halide 函数
+            Halide::Func f_exp, f_softmax;
+
+            // 计算指数值
+            f_exp(to_expr_vector(vars)) = Halide::exp(input(to_expr_vector(vars)));
+
+            // 定义制定维度的归约操作
+            int dim_size = shapes[softmax_dim_];
+            Halide::RDom r(0, dim_size); // 在指定维度范围进行归约
+
+            // 创建动态维度的 Buffer
+            std::vector<halide_dimension_t> halide_dims(shapes.size());
+            for (int i = 0; i < shapes.size(); i++) {
+                halide_dims[i] = {0, static_cast<int32_t>(shapes[i]), 1}; // {min, extent, stride}
+            }
+            Halide::Buffer<float> exp_buffer(nullptr, static_cast<int>(shapes.size()), halide_dims.data());
+
+            // 将 f_exp 的输出写入 exp_buffer
+            f_exp.realize(exp_buffer);
+
+            // 使用 CBLAS 进行归约求和
+            std::vector<float> sum_buffer(exp_buffer.number_of_elements() / dim_size, 0.0f);
+
+            int outer_size = exp_buffer.number_of_elements() / dim_size; // 归约维度以外的元素数量
 #pragma omp parallel for
-        for (uint32_t i = 0; i < batch_size; ++i) {
-            const std::shared_ptr<Tensor<float>> &input = inputs.at(i);
-            auto output = outputs.at(i);
-
-            // 确保输出张量已正确初始化
-#pragma omp critical
-            {
-                if (output == nullptr || output->empty()) {
-                    output = std::make_shared<Tensor<float>>(input->shapes());
-                    outputs.at(i) = output;
-                }
+            for (int i = 0; i < outer_size; i++) {
+                int offset = i * dim_size;
+                sum_buffer[i] = cblas_sasum(dim_size, exp_buffer.data() + offset, 1);
             }
 
-            CHECK(output->shapes() == input->shapes())
-                            << "The input and output tensor shapes at index " << i << " do not match in the softmax layer";
+            // 将归一化结果写回输入
+            f_softmax(to_expr_vector(vars)) = f_exp(to_expr_vector(vars)) / sum_buffer[vars[softmax_dim_]];
 
-            // 获取输入张量的形状
-            const std::vector<uint32_t> &input_shape = input->raw_shapes();
-            uint32_t dim_size = input_shape.size();
-            // Just make dim is 2. make it follows the col direction
-            auto dim = softmax_dim_;
+            // 实现输出
+            f_softmax.realize(input);
 
-            // 处理负数的维度值
-            int actual_dim = dim;
-            if (dim < 0) {
-                actual_dim = dim + dim_size;
-            }
 
-            // 检查维度是否有效
-            if (actual_dim < 0 || actual_dim >= static_cast<int>(dim_size)) {
-                LOG(ERROR) << "Invalid dimension " << dim << " for softmax computation";
-                continue;
-            }
-
-            // 计算沿指定维度的大小
-            uint32_t axis_size = input_shape[actual_dim];
-
-            // 计算除指定维度外的总元素数 N
-            uint32_t N = 1;
-            for (uint32_t d = 0; d < input_shape.size(); ++d) {
-                if (static_cast<int>(d) != actual_dim) {
-                    N *= input_shape[d];
-                }
-            }
-
-            // 分配临时缓冲区用于存储最大值和指数和
-            std::vector<float> max_vals(N, -std::numeric_limits<float>::infinity());
-            std::vector<float> sum_exps(N, 0.0f);
-
-            // 计算每个切片沿指定维度的最大值
-            for (uint32_t n = 0; n < N; ++n) {
-                for (uint32_t k = 0; k < axis_size; ++k) {
-                    // 计算在原始张量中的索引
-                    uint32_t flat_index = n * axis_size + k;
-                    std::vector<uint32_t> idx = input->unravel_index(flat_index, input_shape);
-                    float val = input->at(idx);
-                    if (val > max_vals[n]) {
-                        max_vals[n] = val;
-                    }
-                }
-            }
-
-//            // 计算指数并累加和
-//            for (uint32_t n = 0; n < N; ++n) {
-//                for (uint32_t k = 0; k < axis_size; ++k) {
-//                    uint32_t flat_index = n * axis_size + k;
-//                    std::vector<uint32_t> idx = input->unravel_index(flat_index, input_shape);
-//                    float exp_val = std::exp(input->at(idx) - max_vals[n]);
-//                    output->at(idx) = exp_val;
-//                    sum_exps[n] += exp_val;
-//                }
-//            }
-//
-//            // 归一化得到最终的 softmax 概率
-//            for (uint32_t n = 0; n < N; ++n) {
-//                for (uint32_t k = 0; k < axis_size; ++k) {
-//                    uint32_t flat_index = n * axis_size + k;
-//                    std::vector<uint32_t> idx = input->unravel_index(flat_index, input_shape);
-//                    output->at(idx) /= sum_exps[n];
-//                }
-//            }
+            ++iter;
         }
 
         return InferStatus::bInferSuccess;

@@ -182,8 +182,8 @@ add_executable(BatmanInfer main.cpp
         source/layer/abstract/param_layer.cpp
         test/test_layer_create.cpp
         test/test_sigmoid.cpp
-        source/layer/detail/relu.cpp)
-#        source/layer/detail/softmax.cpp
+        source/layer/detail/relu.cpp
+        source/layer/detail/softmax.cpp)
 #        source/layer/detail/sigmoid.cpp
 #        source/layer/detail/maxpooling.cpp
 #        test/test_maxpooling.cpp
