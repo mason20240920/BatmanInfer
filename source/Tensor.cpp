@@ -337,45 +337,43 @@ namespace BatmanInfer {
 
 
     void Tensor<float>::Show() {
-        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        CHECK(h_data_.host != nullptr && h_data_.dimensions >= 2 && h_data_.dim != nullptr); // NOLINT
 
-        // 获取数据指针
-        auto* data = reinterpret_cast<float*>(h_data_.host);
+        int dims = h_data_.dimensions;
 
-        // 获取维度信息
-        int dimensions = h_data_.dimensions;
-        std::vector<int> extents(dimensions);
-        std::vector<int> strides(dimensions);
-        for (int i = 0; i < dimensions; i++) {
-            extents[i] = h_data_.dim[i].extent;
-            strides[i] = h_data_.dim[i].stride;
+        // Step 2: Get the size of the last two dimensions (rows and cols)
+        int rows = h_data_.dim[1].extent; // Second to last dimension
+        int cols = h_data_.dim[0].extent; // Last dimension
+
+        // Step 3: Handle higher dimensions (Batch, Channel, etc.)
+        int batch_size = (dims > 3) ? h_data_.dim[dims - 1].extent : 1; // Batch size
+        int channels = (dims > 2) ? h_data_.dim[dims - 2].extent : 1;   // Channels
+
+        // Step 4: Cast the data pointer to the appropriate type
+        // Assuming the buffer contains float data
+        const auto *data = (const float *)h_data_.host;
+
+        // Step 5: Calculate strides for accessing data
+        int row_stride = h_data_.dim[1].stride;
+        int col_stride = h_data_.dim[0].stride;
+        int channel_stride = (dims > 3) ? h_data_.dim[dims - 2].stride : rows * cols;
+        int batch_stride = (dims > 2) ? h_data_.dim[dims - 1].stride : channels * rows * cols;
+
+        // Step 6: Iterate over Batch and Channels, then print the matrix
+        for (int b = 0; b < batch_size; b++) {
+            for (int c = 0; c < channels; c++) {
+                std::cout << "[Batch " << b << "] [Channel " << c << "]:\n";
+                for (int r = 0; r < rows; r++) {
+                    for (int col = 0; col < cols; col++) {
+                        // Calculate the linear index in the data array
+                        int index = b * batch_stride + c * channel_stride + r * row_stride + col * col_stride;
+                        std::cout << data[index] << "\t";
+                    }
+                    std::cout << "\n"; // End of row
+                }
+                std::cout << "\n"; // End of channel
+            }
         }
-
-        // 递归打印数据
-        std::cout << "Buffer Data by Dimensions:" << std::endl;
-        // 定义递归函数
-        std::function<void(int, int, std::vector<int>&)> recursive_print =
-                [&](int dim, int offset, std::vector<int>& indices) {
-                    if (dim == dimensions) {
-                        // 打印实际数据
-                        std::cout << std::setw(6) << data[offset] << "\t";
-                        return;
-                    }
-
-                    // 遍历当前维度
-                    std::cout << std::string(dim * 2, ' ') << "[Dim " << dim << "] ";
-                    for (int i = 0; i < extents[dim]; i++) {
-                        indices[dim] = i;
-                        recursive_print(dim + 1, offset + i * strides[dim], indices);
-                        if (dim == dimensions - 1) { // 最内层维度换行
-                            std::cout << std::endl;
-                        }
-                    }
-                };
-
-        // 初始化递归
-        std::vector<int> indices(dimensions, 0); // 用于存储当前索引
-        recursive_print(0, 0, indices);
     }
 
     void Tensor<bool>::Show() {
@@ -400,7 +398,7 @@ namespace BatmanInfer {
         Halide::Func random_fill("random_fill");
 
         // 定义 Halide 函数
-        random_fill(vars) = Halide::random_float();
+        random_fill(vars) = Halide::random_float() * 2 - 1;
 
         // 获取rows的数据
         auto col_len = static_cast<int32_t>(raw_shapes_.at(raw_shapes_.size() - 1));
@@ -1353,35 +1351,31 @@ namespace BatmanInfer {
         if (input.dimensions() > 1)
             relu.parallel(vars[0]);
 
-        // Step 5: 初始化输出buffer
-        Halide::Buffer<float> output = Halide::Buffer<float>::make_with_shape_of(input);
-
         // Step 6: 实现函数放入输出缓存
-        relu.realize(output);
+        relu.realize(input);
 
         // Step 7: 拷贝结果返回输入buffer
-        output.copy_to_host();
-
-        h_data_ = *output.raw_buffer();
+        input.copy_to_host();
     }
 
-//    Tensor<float>::Tensor(const Tensor& tensor) {
-//        // 创建一个新的 halide_buffer_t
-//        halide_buffer_t dst = tensor.h_data_; // 值拷贝元数据
-//
-//        // 计算数据大小
-//        size_t data_size = tensor.size();;
-//
-//        // 为新数据分配内存
-//        auto *new_data = static_cast<uint8_t*>(malloc(data_size * sizeof(float )));
-////        CHECK(!new_data) << "Failed to allocate memory for halide_buffer_t deep copy.";
-//
-//        // 复制原始数据到新内存
-//        memcpy(new_data, tensor.h_data_.host, data_size);
-//
-//        // 更新目标 buffer 的 host 指针
-//        dst.host = static_cast<uint8_t *>(new_data);
-//
-//        h_data_ = dst;
-//    }
+    Tensor<float>::Tensor(const Tensor& tensor) {
+        // 创建一个新的 halide_buffer_t
+        halide_buffer_t dst = tensor.h_data_; // 值拷贝元数据
+
+        // 计算数据大小
+        size_t data_size = tensor.size();;
+
+        // 为新数据分配内存
+        auto *new_data = static_cast<uint8_t*>(malloc(data_size * sizeof(float )));
+//        CHECK(!new_data) << "Failed to allocate memory for halide_buffer_t deep copy.";
+
+        // 复制原始数据到新内存
+        memcpy(new_data, tensor.h_data_.host, data_size);
+
+        // 更新目标 buffer 的 host 指针
+        dst.host = static_cast<uint8_t *>(new_data);
+
+        h_data_ = dst;
+        raw_shapes_ = tensor.raw_shapes_;
+    }
 }

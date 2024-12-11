@@ -347,7 +347,7 @@ namespace BatmanInfer {
          * @brief 拷贝函数
          * @param tensor
          */
-//        Tensor(const Tensor& tensor);
+        Tensor(const Tensor& tensor);
 
         /**
          * @brief 返回张量的batch size
@@ -596,7 +596,6 @@ namespace BatmanInfer {
     private:
 
         std::vector<uint32_t > raw_shapes_; // 张量数据的实际尺寸大小
-//        arma::fcube data_;  //张量数据
 
         // 新增halide变量
         halide_buffer_t h_data_;

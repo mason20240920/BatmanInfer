@@ -5,7 +5,6 @@
 #include <layer/detail/relu.hpp>
 #include "layer/abstract/layer_factory.hpp"
 #include <data/tensor_util.hpp>
-#include "omp.h"
 
 namespace BatmanInfer {
     InferStatus ReluLayer::Forward(const std::map<std::string, std::shared_ptr<Tensor<float>>> &inputs,
@@ -26,8 +25,10 @@ namespace BatmanInfer {
 
 
         for (int i = 0; i < inputs.size(); ++i) {
-            output_iter->second = input_iter->second;
+            output_iter->second = TensorClone(input_iter->second);
             output_iter->second->Relu();
+            ++input_iter;
+            ++output_iter;
         }
         return InferStatus::bInferSuccess;
     }

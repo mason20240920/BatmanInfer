@@ -85,69 +85,76 @@ TEST(test_registry, create_layer_softmax_forward) {
     layer = LayerRegister::CreateLayer(op);
     ASSERT_NE(layer, nullptr);
 
-    sftensor input_tensor = std::make_shared<ftensor>( 1, 1, 8, 8);
+    sftensor input_tensor = std::make_shared<ftensor>( 1, 1, 8, 768);
     input_tensor->Rand();
     input_tensor->Show();
     std::map<std::string, sftensor> input_map{
             {"input", input_tensor}
     };
 
-    sftensor output = std::make_shared<ftensor>(1, 1, 8, 8);
+    sftensor output = std::make_shared<ftensor>(1, 1, 8, 768);
     std::map<std::string, sftensor> output_map {
             {"output", output},
     };
 
     layer->Forward(input_map, output_map);
 
-//    output->Show();
+    output_map.at("output")->Show();
 
 }
 
 TEST(test_registry, test_halide_buffer) {
-    try {
-        // 创建 halide_buffer_t
-        halide_buffer_t h_data_ = {0};
-        size_t size = 1024; // 假设一维数据
-        h_data_.dimensions = 2;
-        h_data_.dim = new halide_dimension_t[h_data_.dimensions];
-        h_data_.dim[0] = {0, 8, 1, 0}; // 一维数据
-        h_data_.dim[1] = {0, 128, 8, 0};
-        h_data_.host = new uint8_t[size * sizeof(float)];
-        h_data_.type = halide_type_t(halide_type_float, 32, 1); // float 类型
+    using namespace Halide;
+    const int N = 2, C = 3, H = 4, W = 4; // Example dimensions
+    halide_dimension_t dimensions[4] = {
+            {0, N, 1},        // Batch dimension
+            {0, C, N},        // Channel dimension
+            {0, H, N * C},    // Height dimension
+            {0, W, N * C * H} // Width dimension
+    };
+    halide_buffer_t input = {0};
+    input.dimensions = 4;
+    input.dim = dimensions;
+    input.type = halide_type_of<float>();
+    float input_data[N * C * H * W];
+    input.host = (uint8_t *)input_data;
 
-        // 获取维度信息
-        int dimensions = h_data_.dimensions;
+    // Create an output buffer
+    halide_buffer_t output = {0};
+    output.dimensions = 4;
+    output.dim = dimensions;
+    output.type = halide_type_of<float>();
+    float output_data[N * C * H * W];
+    output.host = (uint8_t *)output_data;
 
-        // 定义 Halide 的变量和函数
-        std::vector<Halide::Var> vars(dimensions);
-        for (int i = 0; i < dimensions; i++) {
-            vars[i] = Halide::Var("dim" + std::to_string(i));
+    // Initialize input data
+    for (int i = 0; i < N * C * H * W; i++) {
+        input_data[i] = (i % 10) - 5; // Some test data
+    }
+
+    Buffer<float> in(input);
+
+    Var n, c, h, w;
+
+    // Step 3: Define the ReLU function
+    Func relu;
+    relu(n, c, h, w) = max(0.0f, in(n, c, h, w));
+
+    Buffer<float> out(output);
+    relu.realize(out);
+
+    out.copy_to_host();
+
+    // Print the output
+    for (int n = 0; n < N; n++) {
+        for (int c = 0; c < C; c++) {
+            for (int h = 0; h < H; h++) {
+                for (int w = 0; w < W; w++) {
+                    int index = n * C * H * W + c * H * W + h * W + w;
+                    std::cout << "output[" << n << "][" << c << "][" << h << "][" << w << "] = "
+                              << input_data[index] << "\n";
+                }
+            }
         }
-
-        Halide::Func random_fill("random_fill");
-
-        // 使用 Halide 内置随机数生成器
-        random_fill(vars) = Halide::random_float();
-
-        // 调度：并行化和向量化
-        if (dimensions >= 2) {
-            random_fill.parallel(vars[0]).vectorize(vars[1], 8);
-        } else if (dimensions == 1) {
-            random_fill.vectorize(vars[0], 8);
-        }
-
-        // 将生成的随机数写入 halide_buffer_t
-        Halide::Buffer<float> output(h_data_);
-        random_fill.realize(output);
-
-        // 打印第一个元素
-        float* data = reinterpret_cast<float*>(h_data_.host);
-        std::cout << "First element: " << data[0] << std::endl;
-
-        // 释放内存
-        delete[] h_data_.host;
-        delete[] h_data_.dim;
-    } catch (const Halide::Error &e) {
-        std::cerr << "Halide error: " << e.what() << std::endl;
     }
 }
