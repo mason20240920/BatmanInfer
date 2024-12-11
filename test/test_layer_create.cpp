@@ -103,6 +103,34 @@ TEST(test_registry, create_layer_softmax_forward) {
 
 }
 
+TEST(test_registry, create_softmax_1) {
+    std::shared_ptr<RuntimeOperator> op = std::make_shared<RuntimeOperator>();
+    op->type = "Softmax";
+    std::string name = "axis";
+    op->params = std::map<std::string, std::shared_ptr<RuntimeParameter>>{{name, std::make_shared<RuntimeParameterInt>(0)}};
+    std::shared_ptr<Layer> layer;
+    ASSERT_EQ(layer, nullptr);
+    layer = LayerRegister::CreateLayer(op);
+    ASSERT_NE(layer, nullptr);
+
+    sftensor input_tensor = std::make_shared<ftensor>(1, 1, 8, 8);
+    input_tensor->Ones();
+    input_tensor->Show();
+    std::map<std::string, sftensor> input_map {
+            {"input", input_tensor}
+    };
+
+    sftensor output = std::make_shared<ftensor>(1, 1, 8, 8);
+    std::map<std::string, sftensor> output_map {
+            {"output", output}
+    };
+
+    layer->Forward(input_map, output_map);
+
+    output_map.at("output")->Show();
+
+}
+
 TEST(test_registry, test_halide_buffer) {
     using namespace Halide;
     const int N = 2, C = 3, H = 4, W = 4; // Example dimensions

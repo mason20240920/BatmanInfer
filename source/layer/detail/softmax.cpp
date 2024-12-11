@@ -86,7 +86,7 @@ namespace BatmanInfer {
             }
 
             // 将归一化结果写回输入
-            f_softmax(to_expr_vector(vars)) = f_exp(to_expr_vector(vars)) / sum_buffer[vars[softmax_dim_]];
+            f_softmax(to_expr_vector(vars)) = f_exp(to_expr_vector(vars)) / sum_buffer[softmax_dim_]; // 修正索引
 
             // 实现输出
             f_softmax.realize(input);
