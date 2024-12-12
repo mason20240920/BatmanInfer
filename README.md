@@ -114,8 +114,6 @@ cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cma
       ..
 ```
 
-
-
 ### 1.4 算子模块
 
 #### 1. `Conv`算子 - 非padding
@@ -756,4 +754,17 @@ $
 > ```
 >
 > 
+
+#### 1.5.2 Halide的Debug信息方式
+
+```shell
+# 增加变量
+export HL_DEBUG_CODEGEN=3
+```
+
+然后从C++代码里面查询
+
+```c++
+std::cout << Halide::Internal::debug::debug_level() << std::endl;
+```
 
