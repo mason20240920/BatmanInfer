@@ -352,8 +352,8 @@ namespace BatmanInfer {
         int cols = h_data_.dim[0].extent; // Last dimension
 
         // Step 3: Handle higher dimensions (Batch, Channel, etc.)
-        int batch_size = (dims > 3) ? h_data_.dim[dims - 1].extent : 1; // Batch size
-        int channels = (dims > 2) ? h_data_.dim[dims - 2].extent : 1;   // Channels
+        int batch_size = raw_shapes_.size() > 3 ? static_cast<int>(raw_shapes_[dims - 4]) : 1;
+        int channels = raw_shapes_.size() > 2 ? static_cast<int>(raw_shapes_[dims - 3]) : 1;
 
         // Step 4: Cast the data pointer to the appropriate type
         // Assuming the buffer contains float data
@@ -362,8 +362,8 @@ namespace BatmanInfer {
         // Step 5: Calculate strides for accessing data
         int row_stride = h_data_.dim[1].stride;
         int col_stride = h_data_.dim[0].stride;
-        int channel_stride = (dims > 3) ? h_data_.dim[dims - 2].stride : rows * cols;
-        int batch_stride = (dims > 2) ? h_data_.dim[dims - 1].stride : channels * rows * cols;
+        int channel_stride = (dims > 3) ? h_data_.dim[3].stride : rows * cols;
+        int batch_stride = (dims > 2) ? h_data_.dim[2].stride : channels * rows * cols;
 
         // Step 6: Iterate over Batch and Channels, then print the matrix
         for (int b = 0; b < batch_size; b++) {
