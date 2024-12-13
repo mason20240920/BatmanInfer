@@ -97,10 +97,6 @@ namespace BatmanInfer {
                     exp_values(x, y, z) = exp(input(x, y, z) - max_val(x, y));
                     sum_exp(x, y) = sum(exp_values(x, y, r));
                     softmax(x, y, z) = exp_values(x, y, z) / sum_exp(x, y);
-                    // 并行化和向量化
-//                    max_val.parallel(y).vectorize(x, 1);
-//                    exp_values.parallel(y).vectorize(x, 8);
-//                    sum_exp.parallel(y).vectorize(x, 8);
 //                    softmax.parallel(y).vectorize(x, 8);
                 } else if (axis == 1) {
                     Halide::RDom r(0, input.dim(1).extent(), "r");
@@ -116,6 +112,40 @@ namespace BatmanInfer {
                     sum_exp(y, z) = sum(exp_values(r, y, z));
                     softmax(x, y, z) = exp_values(x, y, z) / sum_exp(y, z);
                     softmax.parallel(x).vectorize(y, 8);
+                }
+            } else if (input.dimensions() == 4) {
+                if (axis == 0) {
+                    Halide::RDom r(0,
+                                   input.dim(3).extent(),
+                                   "r");
+                    max_val(x, y, z) = maximum(input(x, y, z, r));
+                    exp_values(x, y, z, t) = exp(input(x, y, z, t) - max_val(x, y, z));
+                    sum_exp(x, y, z) = sum(exp_values(x, y, z, r));
+                    softmax(x, y, z, t) = exp_values(x, y, z, t) / sum_exp(x, y, z);
+                } else if (axis == 1) {
+                    Halide::RDom r(0,
+                                   input.dim(2).extent(),
+                                   "r");
+                    max_val(x, y, t) = maximum(input(x, y, r, t));
+                    exp_values(x, y, z, t) = exp(input(x, y, z, t) - max_val(x, y, t));
+                    sum_exp(x, y, t) = sum(exp_values(x, y, r, t));
+                    softmax(x, y, z, t) = exp_values(x, y, z, t) / sum_exp(x, y, t);
+                } else if (axis == 2) {
+                    Halide::RDom r(0,
+                                   input.dim(1).extent(),
+                                   "r");
+                    max_val(x, z, t) = maximum(input(x, r, z, t));
+                    exp_values(x, y, z, t) = exp(input(x, y, z, t) - max_val(x, z, t));
+                    sum_exp(x, z, t) = sum(exp_values(x, r, z, t));
+                    softmax(x, y, z, t) = exp_values(x, y, z, t) / sum_exp(x, z, t);
+                } else if (axis == 3) {
+                    Halide::RDom r(0,
+                                   input.dim(0).extent(),
+                                   "r");
+                    max_val(y, z, t) = maximum(input(r, y, z, t));
+                    exp_values(x, y, z, t) = exp(input(x, y, z, t) - max_val(y, z, t));
+                    sum_exp(y, z, t) = sum(exp_values(r, y, z, t));
+                    softmax(x, y, z, t) = exp_values(x, y, z, t) / sum_exp(y, z, t);
                 }
             }
 

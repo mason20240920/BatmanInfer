@@ -271,9 +271,9 @@ namespace BatmanInfer {
 
         // 获取维度信息
         int dimensions = h_data_.dimensions;
-        std::vector<int> extents(dimensions);
-        for (int i = 0; i < dimensions; ++i)
-            extents[i] = h_data_.dim[i].extent;
+//        std::vector<int> extents(dimensions);
+//        for (int i = 0; i < dimensions; ++i)
+//            extents[i] = h_data_.dim[i].extent;
 
         // 定义 Halide 函数
         Halide::Var x, y, z, w; // 支持最多 4 维
@@ -285,11 +285,11 @@ namespace BatmanInfer {
             assign_ones.parallel(x);
         } else if (dimensions == 2) {
             assign_ones(x, y) = Halide::cast<float>(1.0f);
-            assign_ones.parallel(y).vectorize(x, 4);   // 使用 SIMD 优化
+            assign_ones.parallel(y).vectorize(x, 8);   // 使用 SIMD 优化
         }
         else if (dimensions == 3) {
             assign_ones(x, y, z) = Halide::cast<float>(1.0f);
-            assign_ones.parallel(z).vectorize(x, 4);
+            assign_ones.parallel(z).vectorize(x, 8);
         }
         else if (dimensions == 4) {
             assign_ones(x, y, z, w) = Halide::cast<float>(1.0f);
@@ -297,8 +297,11 @@ namespace BatmanInfer {
         }
 
         // 生成 Halide 输出
-        Halide::Buffer<float> output(reinterpret_cast<float *>(h_data_.host), extents);
+        Halide::Buffer<float> output(h_data_);
         assign_ones.realize(output);
+
+        // 将结果同步回 halide_buffer_t
+        output.copy_to_host();
     }
 
     void Tensor<bool>::Ones() {
@@ -362,8 +365,8 @@ namespace BatmanInfer {
         // Step 5: Calculate strides for accessing data
         int row_stride = h_data_.dim[1].stride;
         int col_stride = h_data_.dim[0].stride;
-        int channel_stride = (dims > 3) ? h_data_.dim[3].stride : rows * cols;
-        int batch_stride = (dims > 2) ? h_data_.dim[2].stride : channels * rows * cols;
+        int channel_stride = (dims > 2) ? h_data_.dim[2].stride : rows * cols;
+        int batch_stride = (dims > 3) ? h_data_.dim[3].stride : channels * rows * cols;
 
         // Step 6: Iterate over Batch and Channels, then print the matrix
         for (int b = 0; b < batch_size; b++) {
