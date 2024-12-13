@@ -43,73 +43,76 @@ namespace BatmanInfer {
         // 获取输入的维度数量
         for (const auto&[_, input_value] : inputs) {
             iter->second = TensorClone(input_value);
-            auto& output = iter->second->data();
+            auto& output_halide = iter->second->data();
 
+            // 将输入和输出包装为 Halide::Buffer
             Halide::Buffer<float> input(input_value->data());
+            Halide::Buffer<float> output(output_halide);
 
-            auto shapes = iter->second->shapes();
+            // 确定确定的维度
+            const int axis = input.dimensions() - softmax_dim_;
 
-            auto dims = input.dimensions();
+            // 检查输入和输出缓冲区是否定义
+            CHECK(input.defined() && output.defined()) << "Buffer not properly defined";
 
-            std::vector<Halide::Var> vars(dims);
-            for (int i = 0; i < dims; ++i)
-                vars[i] = Halide::Var("v" + std::to_string(i));
+            // 定义 Halide 变量
+            Halide::Var x("x"), y("y"), z("z"), t("t");
 
-            // 创建 Halide 函数
-            Halide::Func f_exp, f_softmax;
+            Halide::Func max_val("max_val"), exp_values("exp_values"), sum_exp("sum_exp"), softmax("softmax");
 
-            // 计算指数值
-            f_exp(to_expr_vector(vars)) = Halide::exp(input(to_expr_vector(vars)));
+            if (input.dimensions() == 1) {
+                // Handle 1D case
+                Halide::RDom r(0, input.width(), "r");
+                max_val() = maximum(input(r));
+                exp_values(x) = exp(input(x) - max_val());
+                sum_exp() = sum(exp_values(r));
+                softmax(x) = exp_values(x) / sum_exp();
+                softmax.parallel(x).vectorize(x, 8);
+            } else if (input.dimensions() == 2) {
+                // Handle 2D case with axis
+                if (axis == 0) { // Column-wise
+                    Halide::RDom r(0, input.height(), "r");
+                    max_val(x) = maximum(input(x, r));
+                    exp_values(x, y) = exp(input(x, y) - max_val(x));
+                    sum_exp(x) = sum(exp_values(x, r));
+                    softmax(x, y) = exp_values(x, y) / sum_exp(x);
+                    softmax.parallel(x).vectorize(y, 8);
+                } else {
+                    Halide::RDom r(0, input.width(), "r");
+                    // 注意: 这里y是固定的,
+                    max_val(y) = maximum(input(r, y));
+                    exp_values(x, y) = exp(input(x, y) - max_val(y));
+                    sum_exp(y) = sum(exp_values(r, y));
+                    softmax(x, y) = exp_values(x, y) / sum_exp(y);
+                    // OpenMP and SIMD
+                    softmax.parallel(y).vectorize(x, 8);
+                }
+            } else if (input.dimensions() == 3) {
+                // Handle 3D case with axis
+                if (axis == 0) { // Depth-wise (z-axis)
+                    Halide::RDom r(0,
+                           input.dim(2).extent(),
+                           "r");
+                    max_val(x, y) = maximum(input(x, y, r));
+                    exp_values(x, y, z) = exp(input(x, y, z) - max_val(x, y));
+                    sum_exp(x, y) = sum(exp_values(x, y, r));
+                    softmax(x, y, z) = exp_values(x, y, z) / sum_exp(x, y);
+                } else if (axis == 1) {
+                    Halide::RDom r(0, input.dim(1).extent(), "r");
+                    max_val(x, z) = maximum(input(x, r, z));
+                    exp_values(x, y, z) = exp(input(x, y, z) - max_val(x, z));
+                    sum_exp(x, z) = sum(exp_values(x, r, z));
+                    softmax(x, y, z) = exp_values(x, y, z) / sum_exp(x, z);
+                } else {
+                    Halide::RDom r(0, input.dim(0).extent(), "r");
+                    max_val(y, z) = maximum(input(r, y, z));
+                    exp_values(x, y, z) = exp(input(x, y, z) - max_val(y, z));
+                    sum_exp(y, z) = sum(exp_values(r, y, z));
+                    softmax(x, y, z) = exp_values(x, y, z) / sum_exp(y, z);
+                }
+            }
 
-            // 定义制定维度的归约操作
-            int dim_size = static_cast<int>(shapes[softmax_dim_]);
-            Halide::RDom r(0, dim_size); // 在指定维度范围进行归约
-            Halide::Expr row_max = Halide::maximum(input(r, vars[1]));
-
-            // 计算经过指数变换的值
-            Halide::Func exp_values;
-            exp_values(vars) = exp_values(input(to_expr_vector(vars)) - row_max);
-
-            // 计算指数和
-            Halide::Expr sum_exp = Halide::sum(exp_values(vars[0], vars[1]));
-
-            // 计算Softmax
-            Halide::Func softmax;
-            softmax(to_expr_vector(vars)) = exp_values(to_expr_vector(vars)) / sum_exp;
-
-            // 将 halide_buffer_t 包装为 Halide::Buffer
-            Halide::Buffer<float> output_buffer(output);
-
-            softmax.realize(output_buffer);
-
-            // 创建动态维度的 Buffer
-//            std::vector<halide_dimension_t> halide_dims(shapes.size());
-
-//            for (int i = 0; i < shapes.size(); i++) {
-//                halide_dims[i] = {0, static_cast<int32_t>(shapes[i]), 1}; // {min, extent, stride}
-//            }
-//            Halide::Buffer<float> exp_buffer(nullptr, static_cast<int>(shapes.size()), halide_dims.data());
-
-            // 将 f_exp 的输出写入 exp_buffer
-//            f_exp.realize(exp_buffer);
-
-//            // 使用 CBLAS 进行归约求和
-//            std::vector<float> sum_buffer(exp_buffer.number_of_elements() / dim_size, 0.0f);
-//
-//            int outer_size = static_cast<int>(exp_buffer.number_of_elements() / dim_size); // 归约维度以外的元素数量
-//#pragma omp parallel for
-//            for (int i = 0; i < outer_size; i++) {
-//                int offset = i * dim_size;
-//                sum_buffer[i] = cblas_sasum(dim_size, exp_buffer.data() + offset, 1);
-//            }
-//
-//            // 将归一化结果写回输入
-//            f_softmax(to_expr_vector(vars)) = f_exp(to_expr_vector(vars)) / sum_buffer[softmax_dim_]; // 修正索引
-//
-//            // 实现输出
-//            f_softmax.realize(input);
-
-
+            softmax.realize(output);
             ++iter;
         }
 

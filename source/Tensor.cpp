@@ -278,17 +278,23 @@ namespace BatmanInfer {
         // 定义 Halide 函数
         Halide::Var x, y, z, w; // 支持最多 4 维
         Halide::Func assign_ones;
-        assign_ones(x, y, z, w) = Halide::cast<float>(1.0f);
 
         // 调整函数的调度策略
-        if (dimensions == 1)
+        if (dimensions == 1) {
+            assign_ones(x) = Halide::cast<float>(1.0f);
             assign_ones.parallel(x);
-        else if (dimensions == 2)
-            assign_ones.parallel(y).vectorize(x, 8);   // 使用 SIMD 优化
-        else if (dimensions == 3)
-            assign_ones.parallel(z).vectorize(x, 8);
-        else if (dimensions == 4)
-            assign_ones.parallel(w).vectorize(x, 8);
+        } else if (dimensions == 2) {
+            assign_ones(x, y) = Halide::cast<float>(1.0f);
+            assign_ones.parallel(y).vectorize(x, 4);   // 使用 SIMD 优化
+        }
+        else if (dimensions == 3) {
+            assign_ones(x, y, z) = Halide::cast<float>(1.0f);
+            assign_ones.parallel(z).vectorize(x, 4);
+        }
+        else if (dimensions == 4) {
+            assign_ones(x, y, z, w) = Halide::cast<float>(1.0f);
+            assign_ones.parallel(w).vectorize(x, 4);
+        }
 
         // 生成 Halide 输出
         Halide::Buffer<float> output(reinterpret_cast<float *>(h_data_.host), extents);

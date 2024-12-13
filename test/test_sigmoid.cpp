@@ -69,36 +69,35 @@ void compute_softmax(halide_buffer_t &input_buffer,
         // Handle 3D case with axis
         if (axis == 0) { // Depth-wise (z-axis)
             RDom r(0,
-                   input.height(),
-                   0,
-                   input.width());
-            max_val(z) = maximum(input(z, r.x, r.y));
-            exp_values(z, y, x) = exp(input(z, y, x) - max_val(z));
-            sum_exp(z) = sum(exp_values(z, r.x, r.y));
-            softmax(z, y, x) = exp_values(z, y, x) / sum_exp(z);
-//            softmax.parallel(z).vectorize(x, 8);
+                   input.dim(2).extent(),
+                   "r");
+            max_val(x, y) = maximum(input(x, y, r));
+            exp_values(x, y, z) = exp(input(x, y, z) - max_val(x, y));
+            sum_exp(x, y) = sum(exp_values(x, y, r));
+            softmax(x, y, z) = exp_values(x, y, z) / sum_exp(x, y);
         } else if (axis == 1) {
-            RDom r(0, input.channels(), 0, input.width());
-            max_val(y) = maximum(input(r.x, y, r.y));
-            exp_values(z, y, x) = exp(input(z, y, x) - max_val(y));
-            sum_exp(y) = sum(exp_values(r.x, y, r.y));
-            softmax(z, y, x) = exp_values(z, y, x) / sum_exp(y);
-//            softmax.parallel(y).vectorize(x, 8);
+            RDom r(0, input.dim(1).extent(), "r");
+            max_val(x, z) = maximum(input(x, r, z));
+            exp_values(x, y, z) = exp(input(x, y, z) - max_val(x, z));
+            sum_exp(x, z) = sum(exp_values(x, r, z));
+            softmax(x, y, z) = exp_values(x, y, z) / sum_exp(x, z);
         } else {
-            RDom r(0, input.channels(), 0, input.height());
-            max_val(x) = maximum(input(r.x, r.y, x));
-            exp_values(z, y, x) = exp(input(z, y, x) - max_val(x));
-            sum_exp(x) = sum(exp_values(r.x, r.y, x));
-            softmax(z, y, x) = exp_values(z, y, x) / sum_exp(x);
-//            softmax.parallel(x).vectorize(y, 8);
+            RDom r(0, input.dim(0).extent(), "r");
+            max_val(y, z) = maximum(input(r, y, z));
+            exp_values(x, y, z) = exp(input(x, y, z) - max_val(y, z));
+            sum_exp(y, z) = sum(exp_values(r, y, z));
+            softmax(x, y, z) = exp_values(x, y, z) / sum_exp(y, z);
         }
     }
 
     softmax.realize(output);
 }
 
-void compute_max_val(halide_buffer_t &input_halide, int axis) {
+void compute_max_val(halide_buffer_t &input_halide,
+                     halide_buffer_t &output_halide,
+                     int axis) {
     Buffer<float> input(input_halide);
+    Buffer<float> output(output_halide);
     // 定义变量
     Var x("x"), y("y"), z("z");
 
@@ -121,18 +120,19 @@ void compute_max_val(halide_buffer_t &input_halide, int axis) {
         softmax(x, y, z) = exp_val(x, y, z) / sum_exp(x, y);
 
         // 创建一个 Buffer 来存储结果
-        Buffer<float> result(input.width(), input.height(), input.channels());
+//        Buffer<float> result(output.width(), output.height(), output.channels());
 
         // 实现并填充结果 Buffer
-        softmax.realize(result);
+        softmax.realize(output);
 
+//        result.copy_to_host();
         // 打印结果（可选）
         // 打印结果为矩阵形式
-        for (int k = 0; k < result.channels(); k++) {
+        for (int k = 0; k < output.channels(); k++) {
             printf("Channel %d:\n", k);
-            for (int i = 0; i < result.width(); i++) {
-                for (int j = 0; j < result.height(); j++) {
-                    printf("%f ", result(i, j, k));
+            for (int i = 0; i < output.width(); i++) {
+                for (int j = 0; j < output.height(); j++) {
+                    printf("%f ", output(i, j, k));
                 }
                 printf("\n");
             }
@@ -155,22 +155,22 @@ void compute_max_val(halide_buffer_t &input_halide, int axis) {
         softmax(x, y, z) = exp_val(x, y, z) / sum_exp(x, z);
 
         // 创建一个 Buffer 来存储结果
-        Buffer<float> result(input.width(), input.height(), input.channels());
+        Buffer<float> result(output);
 
         // 实现并填充结果 Buffer
         softmax.realize(result);
 
         // 打印结果为矩阵形式
-        for (int z = 0; z < result.channels(); z++) {
-            printf("Channel %d:\n", z);
-            for (int x = 0; x < result.width(); x++) {
-                for (int y = 0; y < result.height(); y++) {
-                    printf("%f ", result(x, y, z));
-                }
-                printf("\n");
-            }
-            printf("\n"); // 分隔不同的通道
-        }
+//        for (int z = 0; z < result.channels(); z++) {
+//            printf("Channel %d:\n", z);
+//            for (int x = 0; x < result.width(); x++) {
+//                for (int y = 0; y < result.height(); y++) {
+//                    printf("%f ", result(x, y, z));
+//                }
+//                printf("\n");
+//            }
+//            printf("\n"); // 分隔不同的通道
+//        }
     } else if (axis == 2)  {
         // 定义一个归约域，范围是 x 轴的所有值
         RDom r(0, input.dim(0).extent(), "r");
@@ -347,8 +347,20 @@ TEST(test_halide_softmax, softmax_tensor_3_dim) {
     output_buffer.type = halide_type_of<float>();
 
     // 调用 compute_softmax，假设沿着 width (x-axis) 进行 softmax
-    compute_max_val(input_buffer, 2);
-//    compute_softmax(input_buffer, output_buffer, 0);
+//    compute_max_val(input_buffer, output_buffer, 0);
+    compute_softmax(input_buffer, output_buffer, 2);
+
+    // 打印结果为矩阵形式
+    for (int z = 0; z < depth; ++z) {
+        std::cout << "Depth " << z << ":\n";
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                std::cout << result[z][y][x] << " ";
+            }
+            std::cout << "\n"; // 换行，表示一行结束
+        }
+        std::cout << "\n"; // 换行，分隔不同的深度
+    }
 
 
 
