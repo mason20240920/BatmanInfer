@@ -50,7 +50,7 @@ namespace BatmanInfer {
             Halide::Buffer<float> output(output_halide);
 
             // 确定确定的维度
-            const int axis = input.dimensions() - softmax_dim_;
+            const int axis = softmax_dim_;
 
             // 检查输入和输出缓冲区是否定义
             CHECK(input.defined() && output.defined()) << "Buffer not properly defined";
@@ -97,18 +97,25 @@ namespace BatmanInfer {
                     exp_values(x, y, z) = exp(input(x, y, z) - max_val(x, y));
                     sum_exp(x, y) = sum(exp_values(x, y, r));
                     softmax(x, y, z) = exp_values(x, y, z) / sum_exp(x, y);
+                    // 并行化和向量化
+//                    max_val.parallel(y).vectorize(x, 1);
+//                    exp_values.parallel(y).vectorize(x, 8);
+//                    sum_exp.parallel(y).vectorize(x, 8);
+//                    softmax.parallel(y).vectorize(x, 8);
                 } else if (axis == 1) {
                     Halide::RDom r(0, input.dim(1).extent(), "r");
                     max_val(x, z) = maximum(input(x, r, z));
                     exp_values(x, y, z) = exp(input(x, y, z) - max_val(x, z));
                     sum_exp(x, z) = sum(exp_values(x, r, z));
                     softmax(x, y, z) = exp_values(x, y, z) / sum_exp(x, z);
+                    softmax.parallel(z).vectorize(x, 8);
                 } else {
                     Halide::RDom r(0, input.dim(0).extent(), "r");
                     max_val(y, z) = maximum(input(r, y, z));
                     exp_values(x, y, z) = exp(input(x, y, z) - max_val(y, z));
                     sum_exp(y, z) = sum(exp_values(r, y, z));
                     softmax(x, y, z) = exp_values(x, y, z) / sum_exp(y, z);
+                    softmax.parallel(x).vectorize(y, 8);
                 }
             }
 

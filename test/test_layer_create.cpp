@@ -107,27 +107,43 @@ TEST(test_registry, create_softmax_1) {
     std::shared_ptr<RuntimeOperator> op = std::make_shared<RuntimeOperator>();
     op->type = "Softmax";
     std::string name = "axis";
-    op->params = std::map<std::string, std::shared_ptr<RuntimeParameter>>{{name, std::make_shared<RuntimeParameterInt>(0)}};
+    op->params = std::map<std::string, std::shared_ptr<RuntimeParameter>>{{name, std::make_shared<RuntimeParameterInt>(2)}};
     std::shared_ptr<Layer> layer;
     ASSERT_EQ(layer, nullptr);
     layer = LayerRegister::CreateLayer(op);
     ASSERT_NE(layer, nullptr);
 
-    sftensor input_tensor = std::make_shared<ftensor>(1, 8, 8);
+    sftensor input_tensor = std::make_shared<ftensor>(2, 8, 768);
     input_tensor->Ones();
     input_tensor->Show();
     std::map<std::string, sftensor> input_map {
             {"input", input_tensor}
     };
 
-    sftensor output = std::make_shared<ftensor>(1, 8, 8);
+    sftensor output = std::make_shared<ftensor>(2, 8, 768);
     std::map<std::string, sftensor> output_map {
             {"output", output}
     };
 
-    layer->Forward(input_map, output_map);
+    int num_runs = 10;
+    double total_time = 0.0;
 
-    output_map.at("output")->Show();
+    for (int i = 0; i < num_runs; ++i) {
+        auto start = std::chrono::high_resolution_clock::now();
+
+        // 调用 compute_softmax，假设沿着 width (x-axis) 进行 softmax
+        layer->Forward(input_map, output_map);
+
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = end - start;
+        total_time += elapsed.count();
+    }
+
+    double average_time = total_time / num_runs;
+    std::cout << "Average execution time over " << num_runs << " runs: "
+              << average_time << " seconds." << std::endl;
+
+//    output_map.at("output")->Show();
 
 }
 
