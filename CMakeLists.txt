@@ -184,9 +184,10 @@ add_executable(BatmanInfer main.cpp
         test/test_sigmoid.cpp
         source/layer/detail/relu.cpp
         source/layer/detail/softmax.cpp
-        source/layer/detail/sigmoid.cpp)
-#        source/layer/detail/maxpooling.cpp
-#        test/test_maxpooling.cpp
+        source/layer/detail/sigmoid.cpp
+        source/layer/detail/maxpooling.cpp
+        test/test_halide_drom.cpp
+        test/test_maxpooling.cpp)
 #        source/layer/detail/convolution.cpp
 #        test/test_convolution.cpp
 #        test/test_resnt.cpp
@@ -204,6 +205,7 @@ add_executable(BatmanInfer main.cpp
 #        source/layer/detail/cast.cpp
 #        source/layer/detail/sqrt.cpp
 #        source/layer/detail/div.cpp
+
 #        source/layer/detail/matmul.cpp
 #        source/layer/detail/mul.cpp
 #        source/layer/detail/transpose.cpp

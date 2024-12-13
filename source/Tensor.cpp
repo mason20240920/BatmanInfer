@@ -212,13 +212,13 @@ namespace BatmanInfer {
     uint32_t Tensor<float>::batch_size() const {
         CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
         CHECK(h_data_.dimensions == 4); // NOLINT
-        return h_data_.dim[0].extent;
+        return h_data_.dim[3].extent;
     }
 
     uint32_t Tensor<float>::rows() const {
         CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr);
         CHECK(h_data_.dimensions >= 2);
-        return h_data_.dim[h_data_.dimensions - 2].extent;
+        return h_data_.dim[1].extent;
     }
 
     uint32_t Tensor<bool>::rows() const {
@@ -229,7 +229,7 @@ namespace BatmanInfer {
     uint32_t Tensor<float>::cols() const {
         CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
         CHECK(h_data_.dimensions >= 1); // NOLINT
-        return h_data_.dim[h_data_.dimensions - 1].extent;
+        return h_data_.dim[0].extent;
     }
 
     uint32_t Tensor<bool>::cols() const {
@@ -240,7 +240,7 @@ namespace BatmanInfer {
     uint32_t Tensor<float>::channels() const {
         CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
         CHECK(h_data_.dimensions >= 3); // NOLINT
-        return h_data_.dim[h_data_.dimensions - 3].extent;
+        return h_data_.dim[2].extent;
     }
 
     uint32_t Tensor<bool>::channels() const {
@@ -289,7 +289,7 @@ namespace BatmanInfer {
         }
         else if (dimensions == 3) {
             assign_ones(x, y, z) = Halide::cast<float>(1.0f);
-            assign_ones.parallel(z).vectorize(x, 8);
+            assign_ones.parallel(z).vectorize(x, 4);
         }
         else if (dimensions == 4) {
             assign_ones(x, y, z, w) = Halide::cast<float>(1.0f);

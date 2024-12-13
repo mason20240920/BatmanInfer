@@ -37,6 +37,7 @@ namespace BatmanInfer {
             Halide::Func sigmoid;
             // 构建动态索引的表达式
             std::vector<Halide::Expr> indices;
+            indices.reserve(dimensions);
             for (int i = 0; i < dimensions; ++i) {
                 indices.push_back(vars[i]);
             }

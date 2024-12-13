@@ -4,7 +4,7 @@
 
 #include <layer/detail/maxpooling.hpp>
 #include "layer/abstract/layer_factory.hpp"
-#include "omp.h"
+#include <Halide.h>
 
 namespace BatmanInfer {
     MaxPoolingLayer::MaxPoolingLayer(uint32_t padding_h,
@@ -20,8 +20,8 @@ namespace BatmanInfer {
                                      stride_h_(stride_h),
                                      stride_w_(stride_w) {}
 
-    InferStatus MaxPoolingLayer::Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
-                                         std::vector<std::shared_ptr<Tensor<float>>> &outputs) {
+    InferStatus MaxPoolingLayer::Forward(const std::map<std::string, std::shared_ptr<Tensor<float>>> &inputs,
+                                         std::map<std::string, std::shared_ptr<Tensor<float>>> &outputs) {
         if (inputs.empty()) {
             LOG(ERROR) << "The input tensor array in the max pooling layer is empty";
             return InferStatus::bInferFailedInputEmpty;
@@ -33,7 +33,6 @@ namespace BatmanInfer {
             return InferStatus::bInferFailedOutputSizeError;
         }
 
-        const uint32_t batch = inputs.size();
         const uint32_t pooling_h = pooling_size_h_;
         const uint32_t pooling_w = pooling_size_w_;
         if (!stride_h_ || !stride_w_) {
@@ -43,138 +42,134 @@ namespace BatmanInfer {
         }
 
         // First loop to check inputs and set up outputs
-        // 输入和输出尺寸的计算, 计算公式在README.md
-#pragma omp parallel for
-        for (uint32_t i = 0; i < batch; ++i) {
-            const std::shared_ptr<ftensor>& input_data = inputs.at(i);
-            if (input_data == nullptr || input_data->empty()) {
+        auto output_iter = outputs.begin();
+        for (const auto&[input_name, input_tensor]: inputs) {
+            if (input_tensor == nullptr || input_tensor->empty()) {
                 LOG(ERROR) << "The input tensor array in the max pooling layer has an "
                            << "empty tensor "
-                           << i << "th";
+                           << input_name;
                 continue;
             } else {
-                uint32_t input_h = input_data->rows();
-                uint32_t input_w = input_data->cols();
+                uint32_t input_h = input_tensor->rows();
+                uint32_t input_w = input_tensor->cols();
                 auto output_h = uint32_t(std::floor((int(input_h) - int(pooling_h) + 2 * padding_h_) / stride_h_ + 1));
                 auto output_w = uint32_t(std::floor(int(input_w) - int(pooling_w) + 2 * padding_w_) / stride_w_ + 1);
                 if (!output_h || !output_w) {
-                    LOG(ERROR) << "The output size of tensor" << i << "th"
+                    LOG(ERROR) << "The output size of tensor" << input_name << "th"
                                << " in the max pooling layer is less than zero";
                     continue;
                 } else {
-                    std::shared_ptr<ftensor>& output_data = outputs.at(i);
+                    std::shared_ptr<ftensor>& output_data = output_iter->second;
                     if (output_data != nullptr && !output_data->empty()) {
                         if (output_data->rows() != output_h ||
                             output_data->cols() != output_w) {
                             LOG(ERROR) << "The output tensor array in the max pooling layer "
                                        << "has an incorrectly sized tensor "
-                                       << i << "th";
+                                       << input_name;
                             continue;
                         }
                     } else {
                         // Allocate output tensor if not already allocated
                         output_data = std::make_shared<Tensor<float>>(
-                                input_data->channels(),
+                                input_tensor->channels(),
                                 output_h,
                                 output_w);
                     }
                 }
             }
+            output_iter++;
         }
 
-        // Main computation loop
-#pragma omp parallel for
-        for (uint32_t i = 0; i < batch; ++i) {
-            // 验证一个batch里面的输入是否为空
-            const std::shared_ptr<Tensor<float>>& input_data = inputs.at(i);
-            if (input_data == nullptr || input_data->empty()) {
+        output_iter = outputs.begin();
+        for (const auto&[input_name, input_tensor]: inputs) {
+            if (input_tensor->empty()) {
                 LOG(ERROR) << "The input tensor array in the max pooling layer has an "
-                              "empty tensor " << i << "th";
+                              "empty tensor " << input_name << "th";
                 continue;
             }
 
-            // 输入矩阵的高度
-            const uint32_t input_h = input_data->rows();
-            // 输入矩阵的宽度
-            const uint32_t input_w = input_data->cols();
-            // 输入矩阵(padding)之后的高度
-            const uint32_t input_padded_h = input_h + 2 * padding_h_;
-            // 输入矩阵(padding)之后的宽度
-            const uint32_t input_padded_w = input_w + 2 * padding_w_;
-            // 输入矩阵的(channel)的数量(进行池化的次数)
-            const uint32_t input_c = input_data->channels();
+            // 定义输入和输出的 Halide 张量
+            Halide::Buffer<float> input(input_tensor->data());
 
-            // 输出矩阵的高度
-            const auto output_h = uint32_t(
-                    std::floor((int(input_padded_h) - int(pooling_h)) / stride_h_ + 1));
-            // 输出矩阵的宽度
-            const auto output_w = uint32_t(
-                    std::floor((int(input_padded_w) - int(pooling_w)) / stride_w_ + 1));
+            // 确定维度数
+            int dimensions = input.dimensions();
+
+            // 输入矩阵的高度
+            const int input_h = static_cast<int>(input_tensor->rows());
+            // 输入矩阵的宽度
+            const int input_w = static_cast<int>(input_tensor->cols());
 
             // 输出的矩阵数据
-            std::shared_ptr<Tensor<float>>& output_data = outputs.at(i);
+            std::shared_ptr<Tensor<float>>& output_data = output_iter->second;
 
             CHECK(output_data != nullptr && !output_data->empty())
                             << "The output tensor array in the max pooling layer "
                                "has an incorrectly sized tensor "
-                            << i << "th";
+                            << input_name << "th";
 
             // 每个channel进行池化
-            for (uint32_t ic = 0; ic < input_c; ++ic) {
-                const arma::fmat& input_channel = input_data->slice(ic);
-                arma::fmat& output_channel = output_data->slice(ic);
+            Halide::Buffer<float> output(output_data->data());
 
-                uint32_t total_output_elements = output_h * output_w;
+            // 定义 Halide 变量
+            std::vector<Halide::Var> vars(dimensions);
+            for (int i = 0; i < dimensions; ++i)
+                vars[i] = Halide::Var("dim" + std::to_string(i));
 
-#pragma omp parallel for
-                for (uint32_t idx = 0; idx < total_output_elements; ++idx) {
-                    // 计算输出矩阵中当前元素的行和列位置
-                    uint32_t output_row = idx / output_w;
-                    uint32_t output_col = idx % output_w;
 
-                    // 计算输入矩阵中池化窗口的起始列和行位置
-                    // This is where the pooling window will be applied
-                    uint32_t c = output_col * stride_w_;
-                    uint32_t r = output_row * stride_h_;
+            const int pooling_w_halide = static_cast<int>(pooling_w);
+            const int pooling_h_halide = static_cast<int>(pooling_h);
 
-                    // 获取指向输出矩阵当前列的指针，用于后续的最大值赋值
-                    float* output_channel_ptr = output_channel.colptr(output_col);
+            // 输入填充函数
+            Halide::Func padded_input("padded_input");
 
-                    // 初始化 max_value 为最小可能值，以便在池化窗口中寻找最大值
-                    float max_value = std::numeric_limits<float>::lowest();
+            // 构建参数列表
+            std::vector<Halide::Expr> args;
+            args.reserve(dimensions);
+            for (int i = 0; i < dimensions; ++i)
+                args.push_back(vars[i]);
 
-                    // 遍历池化窗口的每一列，并检查列索引是否超出输入矩阵的范围。
-                    for (uint32_t w = 0; w < pooling_w; ++w) {
-                        // Calculate the column index in the input tensor
-                        const uint32_t col_idx = c + w - padding_w_;
+            // 构建条件
+            std::vector<Halide::Expr> conditions;
+            for (int i = 0; i < dimensions; ++i)
+                if (i == 0 || i == 1)  // 空间维度
+                    conditions.push_back(vars[i] >= 0 && vars[i] < input_tensor->data().dim[i].extent);
 
-                        // Skip if the column index is out of bounds
-                        if (col_idx >= input_w) continue;
+            // 组合所有条件
+            Halide::Expr all_conditions = conditions[0];
+            for (size_t i = 1; i < conditions.size(); ++i)
+                all_conditions = all_conditions && conditions[i];
 
-                        // Get a pointer to the current column in the input channel
-                        const float* col_ptr = input_channel.colptr(col_idx);
 
-                        // Iterate over each row in the pooling window
-                        for (uint32_t h = 0; h < pooling_h; ++h) {
-                            // Calculate the row index in the input tensor
-                            const uint32_t row_idx = r + h - padding_h_;
-
-                            // Skip if the row index is out of bounds
-                            if (row_idx >= input_h) continue;
-
-                            // Get the value at the current position in the input tensor
-                            float current_value = *(col_ptr + row_idx);
-
-                            // Update max_value if the current value is greater
-                            if (current_value > max_value) {
-                                max_value = current_value;
-                            }
-                        }
-                    }
-                    // Set the maximum value found in the pooling window to the current position in the output tensor
-                    *(output_channel_ptr + output_row) = max_value;
+            // 构建输入参数
+            std::vector<Halide::Expr> input_args;
+            for (int i = 0; i < dimensions; ++i) {
+                if (i == 0 || i == 1) {
+                    input_args.push_back(clamp(vars[i], 0, input_tensor->data().dim[i].extent-1));
+                } else {
+                    input_args.push_back(vars[i]);
                 }
             }
+
+            padded_input(args) = select(all_conditions,
+                                        input(input_args),
+                                        0.0f);
+            // 定义 Halide 函数
+            Halide::RDom r(0, pooling_w_halide, 0, pooling_h_halide);
+            Halide::Func pool("pool");
+
+            // 构建池化函数的参数
+            std::vector<Halide::Expr> pool_args = args;  // 复制原始参数列表
+            // 只修改最后两个维度（空间维度）
+            pool_args[0] = vars[0] * static_cast<int>(stride_w_) + r.x - static_cast<int>(padding_w_);  // width维度
+            pool_args[1] = vars[1] * static_cast<int>(stride_h_) + r.y - static_cast<int>(padding_h_);  // height维度
+
+            // 修改池化操作
+            pool(args) = maximum(padded_input(pool_args));
+
+            // 计算输出
+            pool.realize(output);
+
+            output.copy_to_host();
         }
         return InferStatus::bInferSuccess;
     }
@@ -247,6 +242,6 @@ namespace BatmanInfer {
         return ParseParameterAttrStatus::bParameterAttrParseSuccess;
     }
 
-//    LayerRegistererWrapper bMaxPoolingGetInstance("MaxPool",
-//                                                  MaxPoolingLayer::GetInstance);
+    LayerRegistererWrapper bMaxPoolingGetInstance("MaxPool",
+                                                  MaxPoolingLayer::GetInstance);
 }
