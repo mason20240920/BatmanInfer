@@ -4,11 +4,11 @@
 
 #include <layer/detail/sigmoid.hpp>
 #include <layer/abstract/layer_factory.hpp>
-#include "omp.h"
+#include <Halide.h>
 
 namespace BatmanInfer {
-    InferStatus SigmoidLayer::Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
-                                      std::vector<std::shared_ptr<Tensor<float>>> &outputs) {
+    InferStatus SigmoidLayer::Forward(const std::map<std::string, std::shared_ptr<Tensor<float>>> &inputs,
+                                      std::map<std::string, std::shared_ptr<Tensor<float>>> &outputs) {
         if (inputs.empty()) {
             LOG(ERROR) << "The input tensor array in the relu layer is empty";
             return InferStatus::bInferFailedInputEmpty;
@@ -19,49 +19,41 @@ namespace BatmanInfer {
             return InferStatus::bInferFailedInputOutSizeMatchError;
         }
 
-        const uint32_t batch_size = inputs.size();
-        for (uint32_t i = 0; i < batch_size; ++i) {
-            const sftensor &input_data = inputs.at(i);
-            const sftensor &output_data = outputs.at(i);
-            if (input_data == nullptr || input_data->empty()) {
-                LOG(ERROR) << "The input tensor array in the sigmoid layer has an empty tensor "
-                           << i << " th";
-                return InferStatus::bInferFailedInputEmpty;
-            }
-            if (output_data != nullptr && !output_data->empty()) {
-                if (input_data->shapes() != output_data->shapes()) {
-                    LOG(ERROR) << "The input and output tensor shapes of the sigmoid "
-                                  "layer do not match "
-                               << i << " th";
-                    return InferStatus::bInferFailedInputOutSizeMatchError;
-                }
-            }
-        }
+        auto output_iter = outputs.begin();
+        for (const auto&[_, input_tensor]: inputs) {
+            // 将 halide_buffer_t 转换为Halide::Buffer
+            Halide::Buffer<float> input(input_tensor->data());
+            Halide::Buffer<float> output(output_iter->second->data());
 
-        // Parallelize the outer loop for batch processing
-#pragma omp parallel for
-        for (uint32_t i = 0; i < batch_size; ++i) {
-            const std::shared_ptr<Tensor<float>> &input = inputs.at(i);
-            auto output = outputs.at(i);
+            // 确定维度数
+            int dimensions = input.dimensions();
 
-#pragma omp critical
-            {
-                if (output == nullptr || output->empty()) {
-                    output = std::make_shared<Tensor<float>>(input->shapes());
-                    outputs.at(i) = output;
-                }
+            // 定义 Halide 变量
+            std::vector<Halide::Var> vars(dimensions);
+            for (int i = 0; i < dimensions; ++i)
+                vars[i] = Halide::Var("dim" + std::to_string(i));
+
+            // 定义 Halide 函数
+            Halide::Func sigmoid;
+            // 构建动态索引的表达式
+            std::vector<Halide::Expr> indices;
+            for (int i = 0; i < dimensions; ++i) {
+                indices.push_back(vars[i]);
             }
 
-            CHECK(output->shapes() == input->shapes())
-            << "The input and output tensor shapes of the sigmoid layer do not match at index "
-            << i;
+            Halide::Expr val = input(indices);
+            sigmoid(indices) = 1.0f / (1.0f + exp(-val));
 
-            // Use OpenMP SIMD for vectorization
-#pragma omp simd
-            for (uint32_t j = 0; j < input->size(); ++j) {
-                // Compute the sigmoid function
-                output->index(j) = 1.0f / (1.0f + expf(-input->index(j)));
-            }
+            // 调度策略: 对最外层维度进行并行化
+            if (dimensions > 0)
+                sigmoid.parallel(vars[0]);
+
+            sigmoid.realize(output);
+
+            // 结果同步回 halide_buffer_t
+            output.copy_to_host();
+
+            ++output_iter;
         }
         return InferStatus::bInferSuccess;
     }
@@ -74,5 +66,5 @@ namespace BatmanInfer {
     }
 
     // 使用工具类注册算子
-//    LayerRegistererWrapper bSigmoidGetInstance("nn.Sigmoid", SigmoidLayer::GetInstance);
+    LayerRegistererWrapper bSigmoidGetInstance("Sigmoid", SigmoidLayer::GetInstance);
 }

@@ -8,16 +8,16 @@
 #include <layer/abstract/non_param_layer.hpp>
 
 namespace BatmanInfer {
-    class SigmoidLayer: public NonParamLayer {
+    class SigmoidLayer : public NonParamLayer {
     public:
-        SigmoidLayer(): NonParamLayer ("Softmax") {}
-        InferStatus Forward(
-                const std::vector<std::shared_ptr<Tensor<float>>>& inputs,
-                std::vector<std::shared_ptr<Tensor<float>>>& outputs) override;
+        SigmoidLayer() : NonParamLayer("Softmax") {}
+
+        InferStatus Forward(const std::map<std::string, std::shared_ptr<Tensor<float>>> &inputs,
+                            std::map<std::string, std::shared_ptr<Tensor<float>>> &outputs) override;
 
         static ParseParameterAttrStatus GetInstance(
-                const std::shared_ptr<RuntimeOperator>& op,
-                std::shared_ptr<Layer>& sigmoid_layer);
+                const std::shared_ptr<RuntimeOperator> &op,
+                std::shared_ptr<Layer> &sigmoid_layer);
     };
 }
 

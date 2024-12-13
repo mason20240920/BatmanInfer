@@ -362,23 +362,29 @@ TEST(test_halide_softmax, softmax_tensor_3_dim) {
         std::cout << "\n"; // 换行，分隔不同的深度
     }
 
+}
 
+TEST(test_sigmoids, test_sigmoid_operator) {
+    std::shared_ptr<RuntimeOperator> op = std::make_shared<RuntimeOperator>();
+    op->type = "Sigmoid";
+    std::shared_ptr<Layer> layer;
+    ASSERT_EQ(layer, nullptr);
+    layer = LayerRegister::CreateLayer(op);
+    ASSERT_NE(layer, nullptr);
 
-//    int num_runs = 10;
-//    double total_time = 0.0;
-//
-//    for (int i = 0; i < num_runs; ++i) {
-//        auto start = std::chrono::high_resolution_clock::now();
-//
-//        // 调用 compute_softmax，假设沿着 width (x-axis) 进行 softmax
-//        compute_softmax(input_buffer, output_buffer, 1);
-//
-//        auto end = std::chrono::high_resolution_clock::now();
-//        std::chrono::duration<double> elapsed = end - start;
-//        total_time += elapsed.count();
-//    }
-//
-//    double average_time = total_time / num_runs;
-//    std::cout << "Average execution time over " << num_runs << " runs: "
-//              << average_time << " seconds." << std::endl;
+    sftensor input_tensor = std::make_shared<ftensor>(1, 2, 8, 8);
+    input_tensor->Ones();
+    input_tensor->Show();
+    std::map<std::string, sftensor> input_map {
+            {"input", input_tensor}
+    };
+
+    sftensor output = std::make_shared<ftensor>(1, 2, 8, 8);
+    std::map<std::string, sftensor> output_map {
+            {"output", output}
+    };
+
+    layer->Forward(input_map, output_map);
+
+    output->Show();
 }
