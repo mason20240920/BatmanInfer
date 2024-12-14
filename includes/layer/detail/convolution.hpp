@@ -26,9 +26,8 @@ namespace BatmanInfer {
                 const std::shared_ptr<RuntimeOperator>& op,
                 std::shared_ptr<Layer>& conv_layer);
 
-        InferStatus Forward(
-                const std::vector<std::shared_ptr<Tensor<float>>>& inputs,
-                std::vector<std::shared_ptr<Tensor<float>>>& outputs) override;
+        InferStatus Forward(const std::map<std::string, std::shared_ptr<Tensor<float>>> &inputs,
+                            std::map<std::string, std::shared_ptr<Tensor<float>>> &outputs) override;
 
         /**
          * 初始化kernel的im2col排布

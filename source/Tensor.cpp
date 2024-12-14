@@ -287,11 +287,11 @@ namespace BatmanInfer {
         }
         else if (dimensions == 3) {
             assign_ones(x, y, z) = Halide::cast<float>(1.0f);
-            assign_ones.parallel(z).vectorize(x, 4);
+            assign_ones.parallel(z).vectorize(x, 8, Halide::TailStrategy::GuardWithIf);
         }
         else if (dimensions == 4) {
             assign_ones(x, y, z, w) = Halide::cast<float>(1.0f);
-            assign_ones.parallel(w).vectorize(x, 4);
+//            assign_ones.parallel(w).vectorize(x, 4);
         }
 
         // 生成 Halide 输出
@@ -463,23 +463,22 @@ namespace BatmanInfer {
         return this->data_.slice(channel);
     }
 
-    halide_buffer_t* Tensor<float>::slice(uint32_t channel) {
-        const auto channel_dim = h_data_.dimensions - 3;
-        // 获取目标维度的信息
-        const halide_dimension_t* dims = h_data_.dim;
-        uint32_t extent = dims[channel_dim].extent;
+    float* Tensor<float>::slice(uint32_t channel) {
+        CHECK(raw_shapes_.size() > 2) << "The dimensions of tensor is less than 3D";
+        uint32_t channel_len= h_data_.dim[2].extent;
+        CHECK(channel < channel_len) << "Channel index out of range";
 
-        // 动态分配 halide_buffer_t
-        auto* sliced_buffer = new halide_buffer_t(h_data_); // 复制原始 buffer
+        // 计算每个 channel 的大小
+        size_t channel_size = rows() * cols();
 
-        // 调整目标维度的min 和 extent
-        sliced_buffer->dim[channel_dim].min += channel;  // 固定到目标 channel
-        sliced_buffer->dim[channel_dim].extent = 1;  // 维度大小设置为1
+        // 获取 host 数据指针
+        auto* data = reinterpret_cast<float*>(h_data_.host);
 
-        // 计算新的host指针
-        size_t offset = channel * dims[channel_dim].stride;  // 计算 channel的偏移量
-        sliced_buffer->host += offset * h_data_.type.bytes(); // 更新host指针
-        return sliced_buffer;
+        // 计算目标 channel 的 起始地址
+        size_t offset = channel * channel_size;
+        float* target_channel_ptr = data + offset;
+
+        return target_channel_ptr;
     }
 
     arma::Mat<arma::u8>& Tensor<bool>::slice(uint32_t channel) {
@@ -889,6 +888,8 @@ namespace BatmanInfer {
     const halide_buffer_t &Tensor<float>::data() const {
         return h_data_;
     }
+
+
 
 //    std::vector<uint32_t> Tensor<float>::unravel_index(uint32_t flat_index, const std::vector<uint32_t>& shape) const {
 //        std::vector<uint32_t> indices(shape.size(), 0);
@@ -1384,5 +1385,44 @@ namespace BatmanInfer {
 
         h_data_ = dst;
         raw_shapes_ = tensor.raw_shapes_;
+    }
+
+    void Tensor<float>::divide_by(const float &dom) {
+        // Step 1: Wrap the input
+        using namespace Halide;
+        Buffer<float> in(h_data_);
+
+        const int dimensions = h_data_.dimensions;
+
+        // Step 2: Define Halide variables and a function
+        std::vector<Var> vars;
+        vars.reserve(dimensions);
+        for (int i = 0; i < dimensions; ++i)
+            vars.emplace_back("dim" + std::to_string(i));
+        Func divide("divide");
+
+        std::vector<Expr> args;
+        args.reserve(dimensions);
+        for (int i = 0; i < dimensions; ++i)
+            args.emplace_back(vars[i]);
+
+        // Step 3: Define the computation
+        divide(args) = in(args) / dom;
+
+        // Step 4: Schedule the computation
+        // Parallelize across rows and vectorize across columns
+        if (dimensions == 1)
+            divide.vectorize(vars[0], 8, TailStrategy::GuardWithIf);
+        else if (dimensions == 2)
+            divide.parallel(vars[1]).vectorize(vars[0], 8, TailStrategy::GuardWithIf);
+        else {
+            // For higher dimensions, parallelize the outermost dimension
+            divide.parallel(vars[dimensions - 1]);
+            divide.vectorize(vars[0], 8, TailStrategy::GuardWithIf);
+        }
+
+        divide.realize(in);
+
+        in.copy_to_host();
     }
 }

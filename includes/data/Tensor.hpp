@@ -421,7 +421,7 @@ namespace BatmanInfer {
          * @param channel 需要返回的通道
          * @return 返回的通道
          */
-        halide_buffer_t* slice(uint32_t channel);
+        float* slice(uint32_t channel);
 
         /**
          * 返回张量第channel通道中的数据
@@ -592,6 +592,12 @@ namespace BatmanInfer {
          * @brief 进行ReLu变化
          */
         void Relu();
+
+        /**
+         * @brief 高效整除
+         * @param dom 除数
+         */
+        void divide_by(const float& dom);
 
     private:
 

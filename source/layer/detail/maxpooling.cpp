@@ -95,11 +95,6 @@ namespace BatmanInfer {
             // 确定维度数
             int dimensions = input.dimensions();
 
-            // 输入矩阵的高度
-            const int input_h = static_cast<int>(input_tensor->rows());
-            // 输入矩阵的宽度
-            const int input_w = static_cast<int>(input_tensor->cols());
-
             // 输出的矩阵数据
             std::shared_ptr<Tensor<float>>& output_data = output_iter->second;
 

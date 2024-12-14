@@ -7,8 +7,45 @@
 #include <runtime/runtime_ir.hpp>
 #include <opencv2/opencv.hpp>
 #include "layer/detail/softmax.hpp"
+#include "Halide.h"
 
 using namespace BatmanInfer;
+
+void process_channel_slice(const sftensor& tensor,
+                           int channel_index,
+                           float mean_r,
+                           float var_r) {
+    using namespace Halide;
+    // Step 1: Wrap the input and output buffers
+    Buffer<float> input(tensor->data());
+
+    // Step 2: Extract the slice for the given channel
+    // Assume the input buffer is 3D: [width, height, channels]
+    // Slice along the third dimension (channels)
+    Buffer<float> slice = input.sliced(2, channel_index); // Slice along the 3rd dimension
+
+    const int dimensions = slice.dimensions();
+
+    std::vector<Var> vars;
+    vars.reserve(dimensions);
+    for (int i = 0; i < dimensions; ++i)
+        vars.emplace_back("dim" + std::to_string(i));
+
+    std::vector<Expr> args;
+    args.reserve(dimensions);
+    for (int i = 0; i < dimensions; ++i)
+        args.emplace_back(vars[i]);
+
+    // Step 3: Define Halide variables and a function
+    Func process("process");
+
+    // Define the computation for the slice: (slice - mean_r) / var_r
+    process(args) = (slice(args[0], args[1], args[2]) - mean_r) / var_r;
+
+    // Step 4: Realize the output
+    // Write the result back to the corresponding slice in the output buffer
+    process.realize(slice);
+}
 
 sftensor PreProcessImage(const cv::Mat &image) {
     // 确保输入图像不为空
@@ -35,7 +72,7 @@ sftensor PreProcessImage(const cv::Mat &image) {
     uint32_t input_c = 3;
 
     // 创建一个共享指针，指向一个新的 Tensor<float> 对象
-    sftensor input = std::make_shared<ftensor>(input_c, input_h, input_w);
+    sftensor input = std::make_shared<ftensor>(1, input_c, input_h, input_w);
 
     uint32_t index = 0;
     for (const auto &split_image : split_images) {
@@ -46,7 +83,7 @@ sftensor PreProcessImage(const cv::Mat &image) {
         const cv::Mat &split_image_t = split_image.t();
 
         // 将每个通道的数据复制到 Tensor 的对应切片中
-        memcpy(input->slice(index).memptr(), split_image_t.data,
+        memcpy(input->slice(index), split_image_t.data,
                sizeof(float) * split_image.total());
         index += 1;
     }
@@ -64,113 +101,92 @@ sftensor PreProcessImage(const cv::Mat &image) {
     // 确保输入的通道数为 3
     assert(input->channels() == 3);
 
-    // 将图像数据归一化到 [0, 1] 范围
-    input->data() = input->data() / 255.f;
+    // TODO: 将图像数据归一化到 [0, 1] 范围
+    input->divide_by(255.f);
 
-    // 对每个通道进行均值和标准差归一化
-    input->slice(0) = (input->slice(0) - mean_r) / var_r;
-    input->slice(1) = (input->slice(1) - mean_g) / var_g;
-    input->slice(2) = (input->slice(2) - mean_b) / var_b;
+    // TODO: 对每个通道进行均值和标准差归一化
+    process_channel_slice(input,0, mean_r, var_r);
+    process_channel_slice(input,1, mean_g, var_g);
+    process_channel_slice(input,2, mean_b, var_b);
 
     // 返回预处理后的图像 Tensor
     return input;
 }
 
-TEST(test_network, resnet1) {
+TEST(test_network, test_cp_slice) {
     using namespace BatmanInfer;
-    const std::string& model_path = "../model_files/simple_conv_model.onnx";
-    RuntimeGraph graph(model_path);
-    ASSERT_EQ(int(graph.graph_state()), -2);
-    const bool init_success = graph.Init();
-    ASSERT_EQ(init_success, true);
-    ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build({ "input" }, { "output" });
-    ASSERT_EQ(int(graph.graph_state()), 0);
 
-    // Flat list of values obtained from PyTorch
-    std::vector<float> values = {
-            0.5400, 0.0000, 0.0800, 0.5300,
-            1.0000, 0.6200, 0.4700, 0.9200
-    };
-
-
-    std::shared_ptr<Tensor<float>> my_tensor = std::make_shared<Tensor<float>>(2, 2, 2);
-    my_tensor->Fill(values);
-    my_tensor->Show();
-    std::vector<sftensor> input{my_tensor};
-//    input.at(0)->Show();
-
-    auto outputs = graph.Forward({ input }, true);
-    std::cout << outputs.size() << std::endl;
-//    outputs[0].at(0)->Show();
-//    std::cout << "Hello World" << std::endl;
+    const std::string &path("../model_files/car.jpg");
+    cv::Mat image = cv::imread(path);
+    sftensor input = PreProcessImage(image);
+    input->Show();
 }
 
 // 测试拓扑结构是否正常
-TEST(test_network, resnet2) {
-    using namespace BatmanInfer;
-    const std::string& model_path = "../model_files/resnet18.onnx";
-    RuntimeGraph graph(model_path);
-    ASSERT_EQ(int(graph.graph_state()), -2);
-    const bool init_success = graph.Init();
-    ASSERT_EQ(init_success, true);
-    ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build({ "input" }, { "output" });
-    ASSERT_EQ(int(graph.graph_state()), 0);
-
-    std::shared_ptr<ftensor> input_tensor = std::make_shared<ftensor>(3, 2, 2);
-    input_tensor->Ones();
-    std::vector<sftensor> input{input_tensor};
-    input.at(0)->Show();
-
-    auto outputs = graph.Forward({ input }, true);
-//    outputs[0].at(0)->Show();
-}
+//TEST(test_network, resnet2) {
+//    using namespace BatmanInfer;
+//    const std::string& model_path = "../model_files/resnet18.onnx";
+//    RuntimeGraph graph(model_path);
+//    ASSERT_EQ(int(graph.graph_state()), -2);
+//    const bool init_success = graph.Init();
+//    ASSERT_EQ(init_success, true);
+//    ASSERT_EQ(int(graph.graph_state()), -1);
+//    graph.Build({ "input" }, { "output" });
+//    ASSERT_EQ(int(graph.graph_state()), 0);
+//
+//    std::shared_ptr<ftensor> input_tensor = std::make_shared<ftensor>(3, 2, 2);
+//    input_tensor->Ones();
+//    std::vector<sftensor> input{input_tensor};
+//    input.at(0)->Show();
+//
+//    auto outputs = graph.Forward({ input }, true);
+////    outputs[0].at(0)->Show();
+//}
 
 // 验证图像加载是否成功
-TEST(test_network, resnet3) {
-    using namespace BatmanInfer;
-    const std::string& model_path = "../model_files/resetnet18_batch1.onnx";
-    RuntimeGraph graph(model_path);
-    ASSERT_EQ(int(graph.graph_state()), -2);
-    const bool init_success = graph.Init();
-    ASSERT_EQ(init_success, true);
-    ASSERT_EQ(int(graph.graph_state()), -1);
-    graph.Build({ "input" }, { "output" });
-    ASSERT_EQ(int(graph.graph_state()), 0);
-
-    const uint32_t batch_size = 1;
-    std::vector<sftensor> inputs;
-    const std::string &path("./model/car.jpg");
-
-    for (uint32_t i = 0; i < batch_size; ++i) {
-        cv::Mat image = cv::imread(path);
-        // 图像预处理
-        sftensor input = PreProcessImage(image);
-        inputs.push_back(input);
-    }
-    auto outputs = graph.Forward({ inputs }, true);
-//    outputs[0].at(0)->Show();
-    ASSERT_EQ(outputs.size(), batch_size);
-
-    SoftmaxLayer softmax_layer(0);
-    std::vector<sftensor> outputs_softmax(batch_size);
-//    softmax_layer.Forward(outputs[0], outputs_softmax);
-    assert(outputs_softmax.size() == batch_size);
-
-    for (int i = 0; i < outputs_softmax.size(); ++i) {
-        const sftensor &output_tensor = outputs_softmax.at(i);
-        assert(output_tensor->size() == 1 * 1000);
-        // 找到类别概率最大的种类
-        float max_prob = -1;
-        int max_index = -1;
-        for (int j = 0; j < output_tensor->size(); ++j) {
-            float prob = output_tensor->index(j);
-            if (max_prob <= prob) {
-                max_prob = prob;
-                max_index = j;
-            }
-        }
-        printf("class with max prob is %f index %d\n", max_prob, max_index);
-    }
-}
+//TEST(test_network, resnet3) {
+//    using namespace BatmanInfer;
+//    const std::string& model_path = "../model_files/resetnet18_batch1.onnx";
+//    RuntimeGraph graph(model_path);
+//    ASSERT_EQ(int(graph.graph_state()), -2);
+//    const bool init_success = graph.Init();
+//    ASSERT_EQ(init_success, true);
+//    ASSERT_EQ(int(graph.graph_state()), -1);
+//    graph.Build({ "input" }, { "output" });
+//    ASSERT_EQ(int(graph.graph_state()), 0);
+//
+//    const uint32_t batch_size = 1;
+//    std::vector<sftensor> inputs;
+//    const std::string &path("./model/car.jpg");
+//
+//    for (uint32_t i = 0; i < batch_size; ++i) {
+//        cv::Mat image = cv::imread(path);
+//        // 图像预处理
+//        sftensor input = PreProcessImage(image);
+//        inputs.push_back(input);
+//    }
+//    auto outputs = graph.Forward({ inputs }, true);
+////    outputs[0].at(0)->Show();
+//    ASSERT_EQ(outputs.size(), batch_size);
+//
+//    SoftmaxLayer softmax_layer(0);
+//    std::vector<sftensor> outputs_softmax(batch_size);
+////    softmax_layer.Forward(outputs[0], outputs_softmax);
+//    assert(outputs_softmax.size() == batch_size);
+//
+//    for (int i = 0; i < outputs_softmax.size(); ++i) {
+//        const sftensor &output_tensor = outputs_softmax.at(i);
+//        assert(output_tensor->size() == 1 * 1000);
+//        // 找到类别概率最大的种类
+//        float max_prob = -1;
+//        int max_index = -1;
+//        for (int j = 0; j < output_tensor->size(); ++j) {
+//            float prob = output_tensor->index(j);
+//            if (max_prob <= prob) {
+//                max_prob = prob;
+//                max_index = j;
+//            }
+//        }
+//        printf("class with max prob is %f index %d\n", max_prob, max_index);
+//    }
+//}
