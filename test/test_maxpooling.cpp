@@ -102,7 +102,7 @@ TEST(test_registry, create_layer_poolingforward_1) {
     layer = LayerRegister::CreateLayer(op);
     ASSERT_NE(layer, nullptr);
 
-    sftensor tensor = std::make_shared<ftensor>(1, 1, 4, 4);
+    sftensor tensor = std::make_shared<ftensor>( 1, 1, 4, 8);
     tensor->Ones();
     tensor->Show();
     std::map<std::string, sftensor> inputs{{"input", tensor}};

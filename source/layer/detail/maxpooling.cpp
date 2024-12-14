@@ -69,11 +69,12 @@ namespace BatmanInfer {
                             continue;
                         }
                     } else {
+                        // 先进行shapes, 对shapes进行更新
+                        auto origin_shapes = input_tensor->shapes();
+                        origin_shapes.at(origin_shapes.size() - 1) = output_w;
+                        origin_shapes.at(origin_shapes.size() - 2) = output_h;
                         // Allocate output tensor if not already allocated
-                        output_data = std::make_shared<Tensor<float>>(
-                                input_tensor->channels(),
-                                output_h,
-                                output_w);
+                        output_data = std::make_shared<Tensor<float>>(origin_shapes);
                     }
                 }
             }

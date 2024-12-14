@@ -179,9 +179,7 @@ namespace BatmanInfer {
         std::copy(dimensions.begin(),
                   dimensions.end(),
                   h_data_.dim);
-        std::copy(raw_shapes.begin(),
-                  raw_shapes.end(),
-                  raw_shapes_.begin());
+        raw_shapes_ = raw_shapes;
     }
 
     Tensor<float>::Tensor(halide_buffer_t h_data, std::vector<uint32_t> raw_shapes): h_data_(h_data), raw_shapes_(std::move(raw_shapes)) {
