@@ -471,7 +471,7 @@ namespace BatmanInfer {
          * @param values 用来初始化张量的数据
          * @param row_major 是否是行主序列的
          */
-        void Fill(const std::vector<float>& values, bool row_major = true);
+        void Fill(const std::vector<float>& values, bool row_major = true) const;
 
         /**
          * 返回Tensor内的所有数据
@@ -511,7 +511,7 @@ namespace BatmanInfer {
          * 对张量中的元素进行过滤
          * @param filter 过滤函数
          */
-        void Transform(const std::function<float(float)>& filter);
+        void Transform(const std::function<float(float)>& filter) const;
 
         /**
          * 返回数据的原始指针
@@ -598,6 +598,13 @@ namespace BatmanInfer {
          * @param dom 除数
          */
         void divide_by(const float& dom);
+
+        /**
+        * 返回第index个矩阵的起始地址
+        * @param index 第index个矩阵
+        * @return 第index个矩阵的起始地址
+        */
+        float* matrix_raw_ptr(uint32_t index) const;
 
     private:
 

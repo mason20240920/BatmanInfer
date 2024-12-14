@@ -122,6 +122,16 @@ TEST(test_network, test_cp_slice) {
     input->Show();
 }
 
+TEST(test_network, test_matrix_raw_ptr) {
+    // 假设四维矩阵的维度信息
+    sftensor tensor = std::make_shared<ftensor>(1, 1, 2, 2);
+    tensor->Fill(std::vector<float>{1, 2, 3, 4});
+    float* matrix_start = tensor->matrix_raw_ptr(0);
+    int row = 0, col = 0;
+    float value = *(matrix_start + row * tensor->data().dim[1].stride + col);
+    std::cout << value << std::endl;
+}
+
 // 测试拓扑结构是否正常
 //TEST(test_network, resnet2) {
 //    using namespace BatmanInfer;

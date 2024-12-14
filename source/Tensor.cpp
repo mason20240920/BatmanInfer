@@ -256,7 +256,7 @@ namespace BatmanInfer {
             int current_dim_size = h_data_.dim[i].extent;
             data_size *= current_dim_size; // 累乘每一维的 extent
         }
-        return data_size;
+        return data_size / sizeof(float);
     }
 
     uint32_t Tensor<bool>::size() const {
@@ -538,7 +538,7 @@ namespace BatmanInfer {
         return this->data_.at(row, col, channel);
     }
 
-    void Tensor<float>::Fill(const std::vector<float> &values, bool row_major) {
+    void Tensor<float>::Fill(const std::vector<float> &values, bool row_major) const {
         CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
 
         auto total_elements = size();
@@ -570,7 +570,7 @@ namespace BatmanInfer {
     }
 
     // 接收一个float类型参数，返回一个float类型参数
-    void Tensor<float>::Transform(const std::function<float(float)> &filter) {
+    void Tensor<float>::Transform(const std::function<float(float)> &filter) const {
         CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
 
         // 获取元素总数
@@ -1424,5 +1424,27 @@ namespace BatmanInfer {
         divide.realize(in);
 
         in.copy_to_host();
+    }
+
+    float *Tensor<float>::matrix_raw_ptr(uint32_t index) const {
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+
+        const int dimensions = h_data_.dimensions;
+
+        // 计算每个维度的多维索引
+        std::vector<int> indices(dimensions, 0);
+        for (int i = 0; i < dimensions; ++i) {
+            int extent = h_data_.dim[i].extent; // 当前维度的大小
+            indices[i] = static_cast<int>(index) % extent + h_data_.dim[i].min; // 计算当前维度的索引
+            index /= extent; // 减少线性索引
+        }
+
+        // 计算偏移量
+        int64_t offset = 0;
+        for (int i = 0; i < dimensions; ++i)
+            offset += (indices[i] - h_data_.dim[i].min) * h_data_.dim[i].stride;
+
+        // 返回目标指针
+        return reinterpret_cast<float*>(h_data_.host) + offset;
     }
 }

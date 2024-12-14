@@ -58,15 +58,15 @@ namespace BatmanInfer {
          * @param col_len: 卷积计算的次数
          * @return
          */
-        arma::fmat Im2Col(const sftensor& input,
-                          uint32_t kernel_w,
-                          uint32_t kernel_h,
-                          uint32_t input_w,
-                          uint32_t input_h,
-                          uint32_t input_c_group,
-                          uint32_t group,
-                          uint32_t row_len,
-                          uint32_t col_len) const;
+        halide_buffer_t Im2Row(const sftensor& input,
+                               uint32_t kernel_w,
+                               uint32_t kernel_h,
+                               uint32_t input_w,
+                               uint32_t input_h,
+                               uint32_t input_c_group,
+                               uint32_t group,
+                               uint32_t row_len,
+                               uint32_t col_len) const;
 
     private:
         bool use_bias_ = false;
