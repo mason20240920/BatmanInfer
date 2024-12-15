@@ -32,7 +32,7 @@ namespace BatmanInfer {
         /**
          * 初始化kernel的im2col排布
          */
-        void InitIm2ColWeight();
+        void InitIm2RowWeight();
 
     private:
         void ConvGemmBias(const arma::fmat& input_matrix,
@@ -77,7 +77,7 @@ namespace BatmanInfer {
         uint32_t right_padding_ = 0;
         uint32_t stride_h_ = 1;
         uint32_t stride_w_ = 1;
-        std::vector<arma::frowvec> kernel_matrix_arr_;
+        std::vector<sftensor> kernel_tensor_;
     };
 }
 

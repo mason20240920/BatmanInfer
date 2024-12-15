@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <layer/detail/convolution.hpp>
+#include <Halide.h>
 
 using namespace BatmanInfer;
 
@@ -58,7 +59,7 @@ protected:
 
 TEST_F(ConvolutionLayerTest, TestInitIm2ColWeight) {
     // 调用 InitIm2ColWeight 函数ju
-    conv_layer->InitIm2ColWeight();
+    conv_layer->InitIm2RowWeight();
 }
 
 TEST(test_registry, create_layer_conv_forward) {
@@ -74,6 +75,7 @@ TEST(test_registry, create_layer_conv_forward) {
                                                  2,
                                                  kernel_h,
                                                  kernel_w);
+    weights->Ones();
     inputs.at("input")->Fill(std::vector<float>{1, 2, 3, 4,
                                                 5, 6, 7, 8,
                                                 9, 10, 11, 12,
@@ -102,4 +104,102 @@ TEST(test_registry, create_layer_conv_forward) {
     conv_layer.set_weights(weights);
     conv_layer.Forward(inputs, outputs);
 //    outputs.at(0)->Show();
+}
+
+void print_buffer_properties_as_matrix(Halide::Buffer<float> buffer) {
+    // Check if the buffer has at least 4 dimensions (batch, channel, height, width)
+    if (buffer.dimensions() < 2) {
+        std::cerr << "Error: Buffer must have at least 4 dimensions (batch, channel, height, width)!" << std::endl;
+        return;
+    }
+    // Extract dimensions2
+    int height = buffer.dim(1).extent();    // Height (rows)
+    int width = buffer.dim(0).extent();     // Width (columns)
+
+    // Print buffer contents as matrices for each batch and channel
+    for (int h = 0; h < height; h++) {
+        for (int w = 0; w < width; w++) {
+            std::cout << buffer(w, h) << "\t"; // Print each element with tab spacing
+        }
+        std::cout << std::endl; // Move to the next row
+    }
+}
+
+
+
+
+std::vector<Halide::Buffer<float>> im2row_split(Halide::Buffer<float> input, const int group) {
+    using namespace Halide;
+    // Input dimensions: kernel_count (K), channel (C), rows (H), cols (W)
+    int kernel_count = input.dim(3).extent();
+    int channel = input.dim(2).extent();
+    int rows = input.dim(1).extent();
+    int cols = input.dim(0).extent();
+
+    // Ensure the channel can be evenly divided by the group
+    assert(kernel_count % group == 0 && "Channel count must be divisible by group");
+
+    // 切分后的channel
+    int split_kernel_count = kernel_count / group;
+
+    // Output dimensions: kernel_count x (C * H * W)
+    int flattened_size = channel * rows * cols;
+
+    // To store the output buffers for each group
+    std::vector<Halide::Buffer<float>> output_buffers;
+
+    // Process each group separately
+    for (int g = 0; g < group; ++g) {
+        // Halide function for Im2Row transformation
+        Func im2row;
+        Var k, n;
+
+        // Define the computation for the current group
+        // Map the input indices to the appropriate group
+        // Define the computation for the current group
+        // Map the input indices to the appropriate group
+        im2row(k, n) = input(
+                n % cols,                            // W
+                (n / cols) % rows,                   // H
+                (n / (cols * rows)),                 // C
+                g * split_kernel_count + k           // K
+        );
+
+        // Schedule: optimize for parallelism and vectorization if needed
+        // im2row.parallel(k).vectorize(n, 16);
+
+        // Realize the output buffer for the current group
+        Buffer<float> output(split_kernel_count, flattened_size);
+        im2row.realize(output);
+
+        // Store the output buffer in the vector
+        output_buffers.push_back(output);
+    }
+
+    return output_buffers;
+}
+
+TEST(test_conv, split_conv_kernel) {
+    using namespace Halide;
+// Example input: 2 kernels, 3 channels, 2x2 size
+    Buffer<float> input(2, 2, 4, 2);
+
+    int index = 0;
+
+    // Fill the input with some values
+    for (int k = 0; k < 2; ++k) {
+        for (int c = 0; c < 2; ++c) {
+            for (int h = 0; h < 4; ++h) {
+                for (int w = 0; w < 2; ++w) {
+                    input(k, c, h, w) = index;
+                    index++;
+                }
+            }
+        }
+    }
+
+    // Perform Im2Row split
+    std::vector<Halide::Buffer<float>> result = im2row_split(input, 2);
+    for (auto item: result)
+        print_buffer_properties_as_matrix(item);
 }
