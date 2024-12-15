@@ -5,6 +5,7 @@
 #include <layer/detail/convolution.hpp>
 #include <glog/logging.h>
 #include <layer/abstract/layer_factory.hpp>
+#include <Halide.h>
 
 namespace BatmanInfer {
     halide_buffer_t ConvolutionLayer::Im2Row(const BatmanInfer::sftensor &input,
@@ -20,36 +21,34 @@ namespace BatmanInfer {
         // 维度解释:
         // - 行数: row_len
         // - 列数: input_c_group * col_len
-        halide_buffer_t input_matrix = {0};
-        input_matrix.host = new uint8_t[input_c_group * row_len * col_len * sizeof(float)];
-        input_matrix.type = halide_type_t(halide_type_float, 32);  // 数据类型为 float
-        input_matrix.dimensions = 2;
-
-        // Step 2: 获取输入张量的维度信息
-        const auto channels = input->channels();
-        const auto height = input->rows();
-        const auto width = input->cols();
-
-        // Step 3: 计算输出矩阵形状
-        uint32_t output_height = (height + top_padding_ + bottom_padding_ - kernel_h) / stride_h_ + 1;
-        uint32_t output_width = (width + left_padding_ + right_padding_ - kernel_w) / stride_w_ + 1;
+        uint32_t output_height = (input_h + top_padding_ + bottom_padding_ - kernel_h) / stride_h_ + 1;
+        uint32_t output_width = (input_w + left_padding_ + right_padding_ - kernel_w) / stride_w_ + 1;
         uint32_t output_row_size = output_height * output_width; // 输出的矩阵的行数
-        uint32_t output_col_size = channels * kernel_h * kernel_w; // 输出矩阵的列数
+        uint32_t output_col_size = input_c_group * kernel_h * kernel_w; // 输出矩阵的列数
 
         // 更新维度
         halide_dimension_t dim[2] = {
                 {0, static_cast<int>(output_col_size), 1},
                 {0, static_cast<int>(output_row_size), static_cast<int>(output_col_size)}
         };
+
+        halide_buffer_t input_matrix = {0};
+        input_matrix.dim = dim;
+        input_matrix.host = new uint8_t[input_c_group * row_len * col_len * sizeof(float)];
+        input_matrix.type = halide_type_t(halide_type_float, 32);  // 数据类型为 float
+        input_matrix.dimensions = 2;
+
         input_matrix.dim = dim;
 
         // Step 4: 遍历每个通道，填充输出矩阵
         auto* output_data = reinterpret_cast<float*>(input_matrix.host); // 强制转换为 float 指针
 
         // Step 4: 遍历每个通道
-        for (int c = 0; c < channels; ++c) {
-            for (int oh = 0; oh < output_height; ++oh) {
-                for (int ow = 0; ow < output_width; ++ow) {
+        for (int ic = 0; ic < input_c_group; ++ic) {
+            // 计算当前通道的全局索引
+            uint32_t global_channel_index = group * input_c_group + ic;
+            for (int oh = 0; oh < output_height; oh += static_cast<int>(stride_h_)) {
+                for (int ow = 0; ow < output_width; ow += static_cast<int>(stride_w_)) {
                     // 计算输入张量中卷积窗口的起始位置
                     auto h_start = oh * stride_h_ - top_padding_;
                     auto w_start = ow * stride_w_ - left_padding_;
@@ -63,13 +62,13 @@ namespace BatmanInfer {
 
                             // 计算输出矩阵的偏移量
                             auto output_row = oh * output_width + ow;
-                            auto output_col = c * kernel_h * kernel_w + kh * kernel_w + kw;
+                            auto output_col = ic * kernel_h * kernel_w + kh * kernel_w + kw;
                             // 检查是否越界
-                            if (h < height && w < width) {
+                            if (h < input_h && w < input_w) {
                                 // 计算输入张量的偏移量
-                                int input_offset = c * input->data().dim[2].stride +
-                                                   h * input->data().dim[1].stride +
-                                                   w * input->data().dim[0].stride;
+                                uint32_t input_offset = global_channel_index * input->data().dim[2].stride +
+                                                        h * input->data().dim[1].stride +
+                                                        w * input->data().dim[0].stride;
 
                                 // 写入输出矩阵
                                 output_data[output_row * output_col_size + output_col] =
@@ -81,11 +80,11 @@ namespace BatmanInfer {
                         }
                     }
                 }
-                std::cout << std::endl;
             }
         }
         return input_matrix;
     }
+
 
     ConvolutionLayer::ConvolutionLayer(uint32_t output_channel,
                                        uint32_t in_channel,
@@ -119,26 +118,19 @@ namespace BatmanInfer {
                                           std::map<std::string, std::shared_ptr<Tensor<float>>> &outputs) {
         auto input = inputs.at("input");
         // 卷积核的总数量(关注特征不同)
-        const uint32_t kernel_count = this->weights_.size();
+        const uint32_t kernel_count = this->weights_->batch_size();
         // 单个卷积核的高度
-        const uint32_t kernel_h = this->weights_.at(0)->rows();
+        const uint32_t kernel_h = this->weights_->rows();
         // 单个卷积核的宽度
-        const uint32_t kernel_w = this->weights_.at(0)->cols();
+        const uint32_t kernel_w = this->weights_->cols();
         // 单个卷积核的通道数（与输入特征必须一致）
-        const uint32_t kernel_c = this->weights_.at(0)->channels();
+        const uint32_t kernel_c = this->weights_->channels();
         // 单个卷积核的一个通道展开成一行后的长度
         const uint32_t row_len = kernel_h * kernel_w;
         CHECK(kernel_h > 0 && kernel_w > 0 && kernel_c > 0)
               << "The size of kernel matrix in the convolution layer should be greater "
               << "than zero";
 
-        // 关注不同的卷积核的height, width, channel是否一致
-        for (uint32_t k = 0; k < kernel_count; ++k) {
-            const std::shared_ptr<Tensor<float>>& kernel = this->weights_.at(k);
-            CHECK(kernel->rows() == kernel_h);
-            CHECK(kernel->cols() == kernel_w);
-            CHECK(kernel->channels() == kernel_c);
-        }
         // 表示每个组内的卷积核数量 (每个组内的卷积核数量)
         // 分组卷积将输入通道和卷积核分为多个组，每个组只在内部进行卷积操作。这样可以减少计算量和参数数量
         const uint32_t kernel_count_group = kernel_count / groups_;
@@ -150,26 +142,29 @@ namespace BatmanInfer {
         const uint32_t output_h = std::floor((int(input_padded_h) - int(kernel_h)) / stride_h_ + 1);
         const uint32_t output_w = std::floor((int(input_padded_w) - int(kernel_w)) / stride_w_ + 1);
         uint32_t col_len = output_h * output_w;
-        const auto& input_matrix = Im2Row(inputs.at("input"),
-                                                  kernel_w,
-                                                  kernel_h,
-                                                  input->cols(),
-                                                  input->rows(),
-                                                  input_c_group,
-                                                  0,
-                                                  row_len,
-                                                  col_len);
-        const auto *data = (const float *)input_matrix.host;
-        const int inside_row_len = input_matrix.dim[1].extent;
-        const int inside_col_len = input_matrix.dim[0].extent;
-        const int inside_row_stride = input_matrix.dim[1].stride;
-        for (int i = 0; i < inside_row_len; ++i) {
-            for (int j = 0; j < inside_col_len; ++j) {
-                int index = i * inside_row_stride + j;
-                // Calculate the linear index in the data array
-                std::cout << data[index]  << "\t";
+        for (int g = 0; g < groups_; g++) {
+            const auto input_matrix = Im2Row(inputs.at("input"),
+                                             kernel_w,
+                                             kernel_h,
+                                             input->cols(),
+                                             input->rows(),
+                                             input_c_group,
+                                             g,
+                                             row_len,
+                                             col_len);
+            const auto *data = (const float *)input_matrix.host;
+            const int inside_row_len = input_matrix.dim[1].extent;
+            const int inside_col_len = input_matrix.dim[0].extent;
+            const int inside_row_stride = input_matrix.dim[1].stride;
+            for (int i = 0; i < inside_row_len; ++i) {
+                for (int j = 0; j < inside_col_len; ++j) {
+                    int index = i * inside_row_stride + j;
+                    // Calculate the linear index in the data array
+                    std::cout << data[index]  << "\t";
+                }
+                std::cout << std::endl;
             }
-            std::cout << std::endl;
+            std::cout << "\n" << std::endl;
         }
 //        if (inputs.empty()) {
 //            LOG(ERROR) << "The input tensor array in the convolution layer is empty";
@@ -330,15 +325,15 @@ namespace BatmanInfer {
      */
     void ConvolutionLayer::InitIm2ColWeight() {
         // 1. 检查卷积核数量
-        const uint32_t kernel_count = this->weights_.size();
+        const uint32_t kernel_count = weights_->batch_size();
         CHECK(kernel_count > 0) << "kernel count must greater than zero";
         // 2. 获取卷积核的尺寸和通道数
         // 卷积核高度
-        const uint32_t kernel_h = this->weights_.at(0)->rows();
+        const uint32_t kernel_h = weights_->rows();
         // 卷积核宽度
-        const uint32_t kernel_w = this->weights_.at(0)->cols();
+        const uint32_t kernel_w = weights_->cols();
         // 通道数
-        const uint32_t kernel_c = this->weights_.at(0)->channels();
+        const uint32_t kernel_c = weights_->channels();
         const uint32_t row_len = kernel_h * kernel_w;
         // 3. 验证每个卷积核的尺寸和通道数一致性
 //        for (uint32_t k = 0; k < kernel_count; ++k) {

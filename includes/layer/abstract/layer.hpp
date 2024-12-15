@@ -37,26 +37,26 @@ namespace BatmanInfer {
          * 返回层的权重
          * @return  返回的权重
          */
-        virtual const std::vector<std::shared_ptr<Tensor<float>>>& weights() const;
+        virtual const std::shared_ptr<Tensor<float>>& weights() const;
 
         /**
          * 返回层的偏移量
          * @return  返回层的偏移量
          */
-        virtual const std::vector<std::shared_ptr<Tensor<float>>>& bias() const;
+        virtual const std::shared_ptr<Tensor<float>>& bias() const;
 
         /**
          * 设置Layer的权重
          * @param weights  权重
          */
-        virtual void set_weights(const std::vector<std::shared_ptr<Tensor<float>>>& weights);
+        virtual void set_weights(const std::shared_ptr<Tensor<float>>& weights);
 
         /**
     * 设置Layer的偏移量
     * @param bias 偏移量
     */
         virtual void set_bias(
-                const std::vector<std::shared_ptr<Tensor<float>>>& bias);
+                const std::shared_ptr<Tensor<float>>& bias);
 
         /**
          * 设置Layer的权重

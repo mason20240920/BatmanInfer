@@ -6,11 +6,11 @@
 #include <glog/logging.h>
 
 namespace BatmanInfer {
-    const std::vector<std::shared_ptr<Tensor<float>>>& Layer::weights() const {
+    const std::shared_ptr<Tensor<float>>& Layer::weights() const {
         LOG(FATAL) << this->layer_name_ << " layer not implement yet!";
     }
 
-    const std::vector<std::shared_ptr<Tensor<float>>>& Layer::bias() const {
+    const std::shared_ptr<Tensor<float>>& Layer::bias() const {
         LOG(FATAL) << this->layer_name_ << " layer not implement yet!";
     }
 
@@ -22,11 +22,11 @@ namespace BatmanInfer {
         LOG(FATAL) << this->layer_name_ << " layer not implement yet!";
     }
 
-    void Layer::set_bias(const std::vector<std::shared_ptr<Tensor<float>>> &bias) {
+    void Layer::set_bias(const std::shared_ptr<Tensor<float>> &bias) {
         LOG(FATAL) << this->layer_name_ << " layer not implement yet!";
     }
 
-    void Layer::set_weights(const std::vector<std::shared_ptr<Tensor<float>>> &weights) {
+    void Layer::set_weights(const std::shared_ptr<Tensor<float>> &weights) {
         LOG(FATAL) << this->layer_name_ << " layer not implement yet!";
     }
 

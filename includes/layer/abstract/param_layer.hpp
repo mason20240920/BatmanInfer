@@ -39,13 +39,13 @@ namespace BatmanInfer {
          * 返回权重参数
          * @return  权重参数
          */
-        [[nodiscard]] const std::vector<std::shared_ptr<Tensor<float>>> &weights() const override;
+        [[nodiscard]] const std::shared_ptr<Tensor<float>>& weights() const override;
 
         /**
          * 返回偏移参数
          * @return  偏移参数
          */
-        [[nodiscard]] const std::vector<std::shared_ptr<Tensor<float>>> &bias() const override;
+        [[nodiscard]] const std::shared_ptr<Tensor<float>> &bias() const override;
 
         /**
          * 设置权重参数
@@ -63,17 +63,17 @@ namespace BatmanInfer {
          * 设置权重参数
          * @param weights 权重参数
          */
-        void set_weights(const std::vector<std::shared_ptr<Tensor<float>>> &weights) override;
+        void set_weights(const std::shared_ptr<Tensor<float>> &weights) override;
 
         /**
          * 设置偏移量参数
          * @param bias 偏移量参数
          */
-        void set_bias(const std::vector<std::shared_ptr<Tensor<float>>> &bias) override;
+        void set_bias(const std::shared_ptr<Tensor<float>> &bias) override;
 
     protected:
-        std::vector<std::shared_ptr<Tensor<float>>> weights_;
-        std::vector<std::shared_ptr<Tensor<float>>> bias_;
+        std::shared_ptr<Tensor<float>> weights_;
+        std::shared_ptr<Tensor<float>> bias_;
     };
 }
 

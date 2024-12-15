@@ -1429,22 +1429,7 @@ namespace BatmanInfer {
     float *Tensor<float>::matrix_raw_ptr(uint32_t index) const {
         CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
 
-        const int dimensions = h_data_.dimensions;
-
-        // 计算每个维度的多维索引
-        std::vector<int> indices(dimensions, 0);
-        for (int i = 0; i < dimensions; ++i) {
-            int extent = h_data_.dim[i].extent; // 当前维度的大小
-            indices[i] = static_cast<int>(index) % extent + h_data_.dim[i].min; // 计算当前维度的索引
-            index /= extent; // 减少线性索引
-        }
-
-        // 计算偏移量
-        int64_t offset = 0;
-        for (int i = 0; i < dimensions; ++i)
-            offset += (indices[i] - h_data_.dim[i].min) * h_data_.dim[i].stride;
-
         // 返回目标指针
-        return reinterpret_cast<float*>(h_data_.host) + offset;
+        return reinterpret_cast<float*>(h_data_.host) + index * h_data_.dim[2].stride;
     }
 }
