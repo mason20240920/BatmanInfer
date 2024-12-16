@@ -768,3 +768,8 @@ export HL_DEBUG_CODEGEN=3
 std::cout << Halide::Internal::debug::debug_level() << std::endl;
 ```
 
+#### 1.5.3 Halide的SIMD和并行
+
+```c++
+```
+

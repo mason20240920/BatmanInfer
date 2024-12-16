@@ -8,7 +8,7 @@
 #include <Halide.h>
 
 namespace BatmanInfer {
-    halide_buffer_t ConvolutionLayer::Im2Row(const BatmanInfer::sftensor &input,
+    sftensor ConvolutionLayer::Im2Col(const BatmanInfer::sftensor &input,
                                              uint32_t kernel_w,
                                              uint32_t kernel_h,
                                              uint32_t input_w,
@@ -17,68 +17,48 @@ namespace BatmanInfer {
                                              uint32_t group,
                                              uint32_t row_len,
                                              uint32_t col_len) const {
-        // Step 1: 创建一个 halide_buffer_t 来存储结果
-        // 维度解释:
-        // - 行数: row_len
-        // - 列数: input_c_group * col_len
-        uint32_t output_height = (input_h + top_padding_ + bottom_padding_ - kernel_h) / stride_h_ + 1;
-        uint32_t output_width = (input_w + left_padding_ + right_padding_ - kernel_w) / stride_w_ + 1;
-        uint32_t output_row_size = output_height * output_width; // 输出的矩阵的行数
-        uint32_t output_col_size = input_c_group * kernel_h * kernel_w; // 输出矩阵的列数
-
-        // 更新维度
-        halide_dimension_t dim[2] = {
-                {0, static_cast<int>(output_col_size), 1},
-                {0, static_cast<int>(output_row_size), static_cast<int>(output_col_size)}
-        };
-
-        halide_buffer_t input_matrix = {0};
-        input_matrix.dim = dim;
-        input_matrix.host = new uint8_t[input_c_group * row_len * col_len * sizeof(float)];
-        input_matrix.type = halide_type_t(halide_type_float, 32);  // 数据类型为 float
-        input_matrix.dimensions = 2;
-
-        // Step 4: 遍历每个通道，填充输出矩阵
-        auto* output_data = reinterpret_cast<float*>(input_matrix.host); // 强制转换为 float 指针
-
-        // Step 4: 遍历每个通道
-        for (int ic = 0; ic < input_c_group; ++ic) {
-            // 计算当前通道的全局索引
-            uint32_t global_channel_index = group * input_c_group + ic;
-            for (int oh = 0; oh < output_height; oh += static_cast<int>(stride_h_)) {
-                for (int ow = 0; ow < output_width; ow += static_cast<int>(stride_w_)) {
-                    // 计算输入张量中卷积窗口的起始位置
-                    auto h_start = oh * stride_h_ - top_padding_;
-                    auto w_start = ow * stride_w_ - left_padding_;
-
-                    // 遍历卷积核
-                    for (int kh = 0; kh < kernel_h; ++kh) {
-                        for (int kw = 0; kw < kernel_w; ++kw) {
-                            // 计算输入张量中的坐标
-                            auto h = h_start + kh;
-                            auto w = w_start + kw;
-
-                            // 计算输出矩阵的偏移量
-                            auto output_row = oh * output_width + ow;
-                            auto output_col = ic * kernel_h * kernel_w + kh * kernel_w + kw;
-                            // 检查是否越界
-                            if (h < input_h && w < input_w) {
-                                // 计算输入张量的偏移量
-                                uint32_t input_offset = global_channel_index * input->data().dim[2].stride +
-                                                        h * input->data().dim[1].stride +
-                                                        w * input->data().dim[0].stride;
-
-                                // 写入输出矩阵
-                                output_data[output_row * output_col_size + output_col] =
-                                        reinterpret_cast<const float*>(input->data().host)[input_offset];
+        /**
+         * @brief 输出的矩阵:
+         * @row 行数: 组内的条数 * 卷积核平摊长度
+         * @col 列数: 平摊输出矩阵的长度
+         */
+        auto input_matrix = std::make_shared<ftensor>(input_c_group * row_len, col_len);
+        // 输入的矩阵高度
+        const uint32_t input_padded_h = input_h + top_padding_ + bottom_padding_;
+        // 输入矩阵的宽度
+        const uint32_t input_padded_w = input_w + left_padding_ + right_padding_;
+        // padding的数字为0
+        const float padding_value = 0.f;
+        for (uint32_t ic = 0; ic < input_c_group; ++ic) {
+            // 输入矩阵的第一个元素指针
+            float* input_channel_ptr = input->matrix_raw_ptr(ic + group * input_c_group);
+            // 当前列号
+            uint32_t current_col = 0;
+            // 当前通道index * 卷积核长度
+            uint32_t channel_row = ic * row_len;
+            for (uint32_t w = 0; w < input_padded_w - kernel_w + 1; w += stride_w_) {
+                for (uint32_t r = 0; r < input_padded_h - kernel_h + 1; r += stride_h_) {
+                    float* input_matrix_ptr =
+                            input_matrix.colptr(current_col) + channel_row;
+                    current_col += 1;
+                    for (uint32_t kw = 0; kw < kernel_w; ++kw) {
+                        const uint32_t region_w = input_h * (w + kw - padding_w_);
+                        for (uint32_t kh = 0; kh < kernel_h; ++kh) {
+                            if ((kh + r >= padding_h_ && kw + w >= padding_w_) &&
+                                (kh + r < input_h + padding_h_ &&
+                                 kw + w < input_w + padding_w_)) {
+                                float* region_ptr =
+                                        input_channel_ptr + region_w + (r + kh - padding_h_);
+                                *input_matrix_ptr = *region_ptr;
                             } else {
-                                // 填充值（如 0）
-                                output_data[output_row * output_col_size + output_col] = 0.0f;
+                                *input_matrix_ptr = padding_value;  // only support zero mode
                             }
+                            input_matrix_ptr += 1;
                         }
                     }
                 }
             }
+
         }
         return input_matrix;
     }
@@ -109,79 +89,107 @@ namespace BatmanInfer {
             in_channel /= groups;
         this->InitWeightParam(output_channel, in_channel, kernel_h, kernel_w);
         if (use_bias)
-            this->InitBiasParam(output_channel, 1, 1, 1);
+            this->InitBiasParam(output_channel, 0, 0, 0);
     }
 
     InferStatus ConvolutionLayer::Forward(const std::map<std::string, std::shared_ptr<Tensor<float>>> &inputs,
                                           std::map<std::string, std::shared_ptr<Tensor<float>>> &outputs) {
-        InitIm2RowWeight();
-//        if (inputs.empty()) {
-//            LOG(ERROR) << "The input tensor array in the convolution layer is empty";
-//            return InferStatus::bInferFailedInputEmpty;
-//        }
-//
-//        if (inputs.size() != outputs.size()) {
-//            LOG(ERROR) << "The input and output tensor array size of the convolution "
-//                       << "layer do not match";
-//            return InferStatus::bInferFailedInputOutSizeMatchError;
-//        }
-//
-//        if (weights_.empty()) {
-//            LOG(ERROR) << "The number of kernel matrix in the convolution layer should "
-//                          "be greater than zero";
-//            return InferStatus::bInferFailedWeightParameterError;
-//        }
-//
-//        if (this->use_bias_ && this->bias_.size() != this->weights_.size()) {
-//            LOG(ERROR) << "The number of kernel matrix and bias matrix do not match";
-//            return InferStatus::bInferFailedBiasParameterError;
-//        }
-//
-//        if (!stride_h_ || !stride_w_) {
-//            LOG(ERROR) << "The stride parameter is set incorrectly. It must always be "
-//                          "greater than 0";
-//            return InferStatus::bInferFailedStrideParameterError;
-//        }
-//
-//        // 卷积核的总数量(关注特征不同)
-//        const uint32_t kernel_count = this->weights_.size();
-//        // 单个卷积核的高度
-//        const uint32_t kernel_h = this->weights_.at(0)->rows();
-//        // 单个卷积核的宽度
-//        const uint32_t kernel_w = this->weights_.at(0)->cols();
-//        // 单个卷积核的通道数（与输入特征必须一致）
-//        const uint32_t kernel_c = this->weights_.at(0)->channels();
-//        // 单个卷积核的一个通道展开成一行后的长度
-//        const uint32_t row_len = kernel_h * kernel_w;
-//        CHECK(kernel_h > 0 && kernel_w > 0 && kernel_c > 0)
-//              << "The size of kernel matrix in the convolution layer should be greater "
-//              << "than zero";
-//
-//        // 关注不同的卷积核的height, width, channel是否一致
-//        for (uint32_t k = 0; k < kernel_count; ++k) {
-//            const std::shared_ptr<Tensor<float>>& kernel = this->weights_.at(k);
-//            CHECK(kernel->rows() == kernel_h);
-//            CHECK(kernel->cols() == kernel_w);
-//            CHECK(kernel->channels() == kernel_c);
-//        }
-//        // 表示每个组内的卷积核数量 (每个组内的卷积核数量)
-//        // 分组卷积将输入通道和卷积核分为多个组，每个组只在内部进行卷积操作。这样可以减少计算量和参数数量
-//        const uint32_t kernel_count_group = kernel_count / groups_;
-//        const uint32_t batch_size = inputs.size();
-//
-//        if (kernel_matrix_arr_.empty()) {
-//            this->InitIm2ColWeight();
-//        }
-//
-//        if (!kernel_matrix_arr_.empty()) {
-//            if (groups_ == 1)
-//                CHECK(kernel_matrix_arr_.size() == kernel_count_group)
-//                << "The number of kernel matrix and kernel_count_group do not match";
-//            else
-//                CHECK(kernel_matrix_arr_.size() == kernel_count)
-//                << "The number of kernel matrix and kernel_count do not match";
-//        }
-//
+        if (inputs.empty()) {
+            LOG(ERROR) << "The input tensor array in the convolution layer is empty";
+            return InferStatus::bInferFailedInputEmpty;
+        }
+
+        if (inputs.size() != outputs.size()) {
+            LOG(ERROR) << "The input and output tensor array size of the convolution "
+                       << "layer do not match";
+            return InferStatus::bInferFailedInputOutSizeMatchError;
+        }
+
+        if (weights_->empty()) {
+            LOG(ERROR) << "The number of kernel matrix in the convolution layer should "
+                          "be greater than zero";
+            return InferStatus::bInferFailedWeightParameterError;
+        }
+
+        if (this->use_bias_ && this->bias_->cols() != this->weights_->batch_size()) {
+            LOG(ERROR) << "The number of kernel matrix and bias matrix do not match";
+            return InferStatus::bInferFailedBiasParameterError;
+        }
+
+        if (!stride_h_ || !stride_w_) {
+            LOG(ERROR) << "The stride parameter is set incorrectly. It must always be "
+                          "greater than 0";
+            return InferStatus::bInferFailedStrideParameterError;
+        }
+
+        // 卷积核的总数量(关注特征不同)
+        const uint32_t kernel_count = weights_->batch_size();
+        // 单个卷积核的高度
+        const uint32_t kernel_h = weights_->rows();
+        // 单个卷积核的宽度
+        const uint32_t kernel_w = weights_->cols();
+        // 单个卷积核的通道数（与输入特征必须一致）
+        const uint32_t kernel_c = weights_->channels();
+        // 单个卷积核的一个通道展开成一行后的长度
+        const uint32_t row_len = kernel_h * kernel_w;
+        CHECK(kernel_h > 0 && kernel_w > 0 && kernel_c > 0)
+              << "The size of kernel matrix in the convolution layer should be greater "
+              << "than zero";
+
+        // 表示每个组内的卷积核数量 (每个组内的卷积核数量)
+        // 分组卷积将输入通道和卷积核分为多个组，每个组只在内部进行卷积操作。这样可以减少计算量和参数数量
+        const uint32_t kernel_count_group = kernel_count / groups_;
+        const uint32_t batch_size = inputs.size();
+
+        if (kernel_tensor_.empty()) {
+            this->InitIm2ColWeight();
+        }
+
+        if (!kernel_tensor_.empty()) {
+            if (groups_ == 1)
+                CHECK(kernel_tensor_.size() == kernel_count_group)
+                << "The number of kernel matrix and kernel_count_group do not match";
+            else
+                CHECK(kernel_tensor_.size() == kernel_count)
+                << "The number of kernel matrix and kernel_count do not match";
+        }
+
+        for (const auto&[_, input_tensor]: inputs) {
+            // 输入的channels
+            const uint32_t input_c = input_tensor->channels();
+            // 输入的padding的值
+            const uint32_t input_padded_h = input_tensor->rows() + top_padding_ + bottom_padding_;
+            const uint32_t input_padded_w = input_tensor->cols() + left_padding_ + right_padding_;
+
+            const uint32_t output_h = std::floor((int(input_padded_h) - int(kernel_h)) / stride_h_ + 1);
+            const uint32_t output_w =
+                    std::floor((int(input_padded_w) - int(kernel_w)) / stride_w_ + 1);
+            CHECK(output_h > 0 && output_w > 0)
+                            << "The size of the output tensor should be greater than zero ";
+
+            uint32_t col_len = output_h * output_w;
+            CHECK(col_len > 0) << "Output_h x output_w for the convolution layer "
+                                  "should be greater than zero";
+
+            uint32_t input_c_group = input_c / groups_;
+            CHECK(input_c_group == kernel_c) << "The number of channel for the kernel "
+                                                "matrix and input tensor do not match";
+
+            for (uint32_t g = 0; g < groups_; ++g) {
+                const auto& input_matrix = Im2Col(input_tensor,
+                                                  kernel_w,
+                                                  kernel_h,
+                                                  input_tensor->cols(),
+                                                  input_tensor->rows(),
+                                                  input_c_group,
+                                                  g,
+                                                  row_len,
+                                                  col_len);
+                std::cout << "Hello World" << std::endl;
+            }
+        }
+
+
 //        for (uint32_t i = 0; i < batch_size; ++i) {
 //            const std::shared_ptr<Tensor<float>>& input = inputs.at(i);
 //            CHECK(input != nullptr && !input->empty())
@@ -272,7 +280,7 @@ namespace BatmanInfer {
      * * 每个卷积核的尺寸3 x 3(kernel_h和kernel_w)
      * *
      */
-    void ConvolutionLayer::InitIm2RowWeight() {
+    void ConvolutionLayer::InitIm2ColWeight() {
         // 1. 检查卷积核数量
         const uint32_t kernel_count = weights_->batch_size();
         CHECK(kernel_count > 0) << "kernel count must greater than zero";
@@ -290,34 +298,35 @@ namespace BatmanInfer {
         const uint32_t split_kernel_count = kernel_count / groups_;
 
         // Output dimensions: kernel_count x (C * H * W)
-        const uint32_t flattened_size = kernel_c * kernel_h * kernel_w;
+        const uint32_t flattened_size = split_kernel_count * kernel_c * kernel_h * kernel_w;
 
         Halide::Buffer<float> input(weights_->data());
 
         // Process each group separately
         for (int g = 0; g < groups_; ++g) {
             // Create the output halide_buffer_t
-            auto temp_tensor = std::make_shared<ftensor>(flattened_size, 1);
+            auto temp_tensor = std::make_shared<ftensor>(1, flattened_size);
 
             // Halide function for Im2Row transformation
-            Halide::Func im2row;
-            Halide::Var k, n;
+            Halide::Func im2col;
+            // 定义展开逻辑
+            Halide::Var i, n;
 
             // Define the computation for the current group
             // Map the input indices to the appropriate group
-            im2row(k, n) = input(
-                    n % static_cast<int>(kernel_w),                            // W
-                    (n / static_cast<int>(kernel_w)) % static_cast<int>(kernel_h),                   // H
-                    n / static_cast<int>(kernel_h * kernel_w),                 // C
-                    g * static_cast<int>(split_kernel_count) + k         // K
+            im2col(n, i) = input(
+                    (n % static_cast<int>(kernel_w)),                                // W
+                    (n / static_cast<int>(kernel_w)) % static_cast<int>(kernel_h),                        // H
+                    (n / static_cast<int>(kernel_w * kernel_h)) % static_cast<int>(kernel_c),            // C
+                    g * static_cast<int>(split_kernel_count) + (n / static_cast<int>(kernel_w * kernel_h * kernel_c)) // K
             );
             // Schedule: optimize for parallelism and vectorization if needed
-            im2row.parallel(k).vectorize(n, 8, Halide::TailStrategy::GuardWithIf);
+            im2col.parallel(i).vectorize(n, 8, Halide::TailStrategy::GuardWithIf);
 
             // Realize the output buffer for the current group
             Halide::Buffer<float> output(temp_tensor->data());
-            im2row.realize(output);
-            output.copy_to_host();
+            im2col.realize(output);
+
             temp_tensor->Show();
 
             // Store the output buffer in the vector
@@ -494,7 +503,7 @@ namespace BatmanInfer {
 
         auto conv_layer_derived = std::dynamic_pointer_cast<ConvolutionLayer>(conv_layer);
         CHECK(conv_layer_derived != nullptr);
-        conv_layer_derived->InitIm2RowWeight();
+        conv_layer_derived->InitIm2ColWeight();
         return ParseParameterAttrStatus::bParameterAttrParseSuccess;
     }
 

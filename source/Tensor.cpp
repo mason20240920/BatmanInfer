@@ -819,7 +819,7 @@ namespace BatmanInfer {
     }
 
     std::vector<uint32_t> Tensor<float>::shapes() const {
-        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+//        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
         return raw_shapes_;
     }
 

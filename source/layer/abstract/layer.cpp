@@ -46,7 +46,7 @@ namespace BatmanInfer {
         std::map<std::string, std::shared_ptr<Tensor<float>>> layer_input_map;
         for (const auto& input_operand_data : input_operand_lst) {
             for (const auto& input_data : input_operand_lst)
-                layer_input_map[runtime_operator->name] = input_data->data;
+                layer_input_map[input_data->name] = input_data->data;
         }
 
         // layer的输出
@@ -59,7 +59,7 @@ namespace BatmanInfer {
         // 遍历 map，将每个 output_operand 的 data 添加到 layer_output_data 中
         for (auto& [name, operand] : output_operand_lst) {
             // 直接插入 data 的元素到 layer_output_data 中
-            layer_input_map[name] = operand->data;
+            layer_output_map[name] = operand->data;
         }
 
 

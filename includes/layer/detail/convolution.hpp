@@ -32,7 +32,7 @@ namespace BatmanInfer {
         /**
          * 初始化kernel的im2col排布
          */
-        void InitIm2RowWeight();
+        void InitIm2ColWeight();
 
     private:
         void ConvGemmBias(const arma::fmat& input_matrix,
@@ -58,7 +58,7 @@ namespace BatmanInfer {
          * @param col_len: 卷积计算的次数
          * @return
          */
-        halide_buffer_t Im2Row(const sftensor& input,
+        sftensor Im2Col(const sftensor& input,
                                uint32_t kernel_w,
                                uint32_t kernel_h,
                                uint32_t input_w,

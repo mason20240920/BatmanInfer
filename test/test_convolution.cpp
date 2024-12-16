@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <layer/detail/convolution.hpp>
 #include <Halide.h>
+#include "runtime/runtime_ir.hpp"
 
 using namespace BatmanInfer;
 
@@ -57,53 +58,34 @@ protected:
 
 
 
-TEST_F(ConvolutionLayerTest, TestInitIm2ColWeight) {
+TEST(ConvolutionLayerTest, TestInitIm2ColWeight) {
     // 调用 InitIm2ColWeight 函数ju
-    conv_layer->InitIm2RowWeight();
+    using namespace BatmanInfer;
+    const std::string& model_path = "../model_files/simple_conv_model.onnx";
+    RuntimeGraph graph(model_path);
+    ASSERT_EQ(int(graph.graph_state()), -2);
+    const bool init_success = graph.Init();
+    ASSERT_EQ(init_success, true);
+    ASSERT_EQ(int(graph.graph_state()), -1);
+    graph.Build({ "input" }, { "output" });
+    ASSERT_EQ(int(graph.graph_state()), 0);
+
+    std::shared_ptr<ftensor> input_tensor1 = std::make_shared<ftensor>(1, 2, 2, 2);
+    input_tensor1->Ones();
+    std::map<std::string, sftensor> input_from{{"input", input_tensor1}};
+
+//    std::shared_ptr<ftensor> input_tensor2 = std::make_shared<ftensor>(1,1, 3, 3);
+//    input_tensor2->Ones();
+//    std::map<std::string, sftensor> output_from{{"output", input_tensor2}};
+
+    auto outputs = graph.Forward(input_from, true);
 }
 
 TEST(test_registry, create_layer_conv_forward) {
     std::map<std::string, sftensor> inputs{{"input", std::make_shared<ftensor>(4, 4, 4)}};
     std::map<std::string, sftensor> outputs{{"output", nullptr}};
 
-    const uint32_t kernel_h = 3;
-    const uint32_t kernel_w = 3;
-    const uint32_t stride_h = 1;
-    const uint32_t stride_w = 1;
-    const uint32_t kernel_count = 2;
-    sftensor weights = std::make_shared<ftensor>(kernel_count,
-                                                 2,
-                                                 kernel_h,
-                                                 kernel_w);
-    weights->Ones();
-    inputs.at("input")->Fill(std::vector<float>{1, 2, 3, 4,
-                                                5, 6, 7, 8,
-                                                9, 10, 11, 12,
-                                                13, 14, 15, 16,
-                                                17, 18, 19, 20,
-                                                21, 22, 23, 24,
-                                                25, 26, 27, 28,
-                                                29, 30, 31, 32,
-                                                33, 34, 35, 36,
-                                                37, 38, 39, 40,
-                                                41, 42, 43, 44,
-                                                45, 46, 47, 48,
-                                                49, 50, 51, 52,
-                                                53, 54, 55, 56,
-                                                57, 58, 59, 60,
-                                                61, 62, 63, 64});
 
-    ConvolutionLayer conv_layer(kernel_count,
-                                4,
-                                kernel_h,
-                                kernel_w,
-                                0, 0, 0, 0,
-                                stride_h, stride_w,
-                                2,
-                                false);
-    conv_layer.set_weights(weights);
-    conv_layer.Forward(inputs, outputs);
-//    outputs.at(0)->Show();
 }
 
 void print_buffer_properties_as_matrix(Halide::Buffer<float> buffer) {

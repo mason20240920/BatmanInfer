@@ -99,6 +99,9 @@ namespace BatmanInfer {
             std::shared_ptr<RuntimeOperand> runtime_operand = std::make_shared<RuntimeOperand>();
             runtime_operand->name = producer->name;
             runtime_operand->shapes = input->shape;
+            std::vector<uint32_t> sfensor_shapes(input->shape.size());
+            std::memcpy(sfensor_shapes.data(), input->shape.data(), input->shape.size() * sizeof(int));
+            runtime_operand->data = std::make_shared<ftensor>(sfensor_shapes);
 
             switch (input->type) {
                 case 1:
@@ -135,7 +138,7 @@ namespace BatmanInfer {
                 runtime_operator->output_names.push_back(c->name);
                 std::shared_ptr<RuntimeOperand> runtime_operand = std::make_shared<RuntimeOperand>();
                 runtime_operand->name = c->name;
-                runtime_operator->output_operands.insert({c->name, runtime_operand});
+                runtime_operator->output_operands.insert({runtime_operator->name, runtime_operand});
             }
         }
     }
@@ -380,7 +383,7 @@ namespace BatmanInfer {
         // 对所有后继节点进行遍历
         for (const auto &[next_rt_name, next_rt_operator]: next_ops) {
             // 后续节点的output
-            const auto& layer_output_data = layer_output_operands.at(next_rt_name)->data;
+            const auto& layer_output_data = layer_output_operands.at(current_op->name)->data;
             // 得到后继节点的输入next_input_operands
             const auto &next_input_operands = next_rt_operator->input_operands;
             // 确定后继节点的输入来自于current_op
@@ -413,10 +416,10 @@ namespace BatmanInfer {
         CHECK(to_po_operators_.size() == operators_.size())
               << "Build wrong to po queues";
 
-        // 赋值 input
+        // 查询input的数组是否正确
         CHECK_EQ(inputs.size(), input_names_.size()) << "Build wrong number of inputs";
         for (int i = 0; i < inputs.size(); ++i) {
-            auto &ipt_name = input_names_[i];
+            const auto &ipt_name = input_names_[i];
             // 进行读取operands
             for (const auto& output_operand: operators_maps_.at(ipt_name)->output_operands) {
                 output_operand.second->data = inputs.at(ipt_name);
