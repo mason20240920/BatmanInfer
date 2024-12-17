@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include "Halide.h"
 #include <data/Tensor.hpp>
+#include <cblas.h>
 
 void print_buffer(const Halide::Buffer<int> &buffer) {
     for (int y = 0; y < buffer.height(); y++) {
@@ -98,4 +99,15 @@ TEST(test_halide_rdom, transpose_matrix) {
     transpose_buffer(input_tensor->data());
 
     input_tensor->Show();
+}
+
+/**
+ * @brief 提取 halide_buffer_t 的数据指针
+ * @param buffer
+ * @return
+ */
+float* extract_data_from_halide_buffer(const halide_buffer_t* buffer) {
+    if (buffer->host == nullptr)
+        std::cerr << "halide_buffer_t has no host data.";
+    return (float*)buffer->host;
 }
