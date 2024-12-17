@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 #include "Halide.h"
+#include <data/Tensor.hpp>
 
 void print_buffer(const Halide::Buffer<int> &buffer) {
     for (int y = 0; y < buffer.height(); y++) {
@@ -66,4 +67,35 @@ TEST(test_halide_rdom, rdom_multi_dim) {
 
     // Print the result
     std::cout << "The sum of the values in the buffer is: " << result(0) << std::endl;
+}
+
+void transpose_buffer(halide_buffer_t input) {
+    using namespace Halide;
+    // 获取原始维度信息
+    halide_dimension_t* dim = input.dim;
+
+    // 交换 stride 和 extent
+    int32_t temp_extent = dim[0].extent;
+    int32_t temp_stride = dim[0].stride;
+
+    dim[0].extent = dim[1].extent;
+    dim[0].stride = dim[1].stride;
+
+    dim[1].extent = temp_extent;
+    dim[1].stride = temp_stride;
+}
+
+TEST(test_halide_rdom, transpose_matrix) {
+    using namespace BatmanInfer;
+    // Example usage
+    // Create an example halide_buffer_t (e.g., 4x3 image)
+    sftensor input_tensor = std::make_shared<ftensor>(3, 4);
+    std::vector<float> values{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    input_tensor->Fill(values, true);
+    input_tensor->Show();
+    sftensor output_tensor = std::make_shared<ftensor>(4, 3);
+    // Perform transpose
+    transpose_buffer(input_tensor->data());
+
+    input_tensor->Show();
 }

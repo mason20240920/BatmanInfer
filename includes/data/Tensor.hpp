@@ -405,6 +405,13 @@ namespace BatmanInfer {
         const std::vector<uint32_t >& raw_shapes() const;
 
         /**
+         * @brief 获取行列式的一行的index索引
+         * @param index
+         * @return
+         */
+        float* row_ptr(uint32_t index) const;
+
+        /**
          * 返回张量中的数据
          * @return 张量的数据
          */

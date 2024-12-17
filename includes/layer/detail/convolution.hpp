@@ -35,12 +35,12 @@ namespace BatmanInfer {
         void InitIm2ColWeight();
 
     private:
-        void ConvGemmBias(const arma::fmat& input_matrix,
+        void ConvGemmBias(const sftensor& input_matrix,
                           sftensor output_tensor,
                           uint32_t group,
                           uint32_t kernel_index,
                           uint32_t kernel_count_group,
-                          const arma::frowvec& kernel,
+                          const sftensor & kernel,
                           uint32_t output_w,
                           uint32_t output_h) const;
 

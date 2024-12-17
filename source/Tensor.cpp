@@ -825,50 +825,19 @@ namespace BatmanInfer {
 
     void Tensor<float>::Transpose() {
         CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
-        CHECK_GT(h_data_.dimensions, 2);
+        CHECK_GE(h_data_.dimensions, 2);
 
-        // 将halide_buffer_ 转为 Halide::Buffer
-        Halide::Buffer<float> input(h_data_);
+        halide_dimension_t* dim = h_data_.dim;
 
-        // 获取输入维度信息
-        int dim_count = input.dimensions();
-        int origin_cols_dim = dim_count - 1;   // cols维度
-        int origin_rows_dim = dim_count - 2;   // rows维度
+        // 交换 stride 和 extent
+        int32_t temp_extent = dim[0].extent;
+        int32_t temp_stride = dim[0].stride;
 
-        // 定义 Halide 的变量
-        std::vector<Halide::Var> vars(dim_count);
-        for (int i = 0; i < dim_count; i++)
-            vars[i] = Halide::Var("dim" + std::to_string(i));
+        dim[0].extent = dim[1].extent;
+        dim[0].stride = dim[1].stride;
 
-        // 定义Halide函数
-        Halide::Func transpose("transpose");
-
-        // 转置rows和cols, 使用Halide::Buffer 的索引访问
-        transpose(vars) = input(vars[origin_rows_dim], vars[origin_cols_dim]);
-
-        // 调度优化
-        transpose.parallel(vars[0]); // 并行处理第一个维度
-        transpose.vectorize(vars[origin_cols_dim], 8); // 对倒数第一维向量化
-
-        // 分配输出 Buffer
-        std::vector<int> output_extents(dim_count);
-        for (int i = 0; i < dim_count; i++) {
-            output_extents[i] = input.dim(i).extent();
-        }
-
-        // 倒数第一维和倒数第二维的大小需要交换
-        output_extents[origin_cols_dim] = input.dim(origin_rows_dim).extent();
-        output_extents[origin_rows_dim] = input.dim(origin_cols_dim).extent();
-
-        Halide::Buffer<float> output(output_extents);
-
-        // 生成输出
-        transpose.realize(output);
-
-        // 将结果拷贝回 halide_buffer_t
-        output.copy_to_host();
-        h_data_ = *output.raw_buffer();
-
+        dim[1].extent = temp_extent;
+        dim[1].stride = temp_stride;
         // 更新 raw_shapes_ 信息
         std::swap(raw_shapes_[raw_shapes_.size() - 1], raw_shapes_[raw_shapes_.size() - 2]);
     }
@@ -1431,5 +1400,13 @@ namespace BatmanInfer {
 
         // 返回目标指针
         return reinterpret_cast<float*>(h_data_.host) + index * h_data_.dim[2].stride;
+    }
+
+    float *Tensor<float>::row_ptr(uint32_t index) const {
+        CHECK(h_data_.host != nullptr && h_data_.dimensions != 0 && h_data_.dim != nullptr); // NOLINT
+        CHECK(h_data_.dimensions == 2);
+
+        // 返回目标指针
+        return reinterpret_cast<float*>(h_data_.host) + index * h_data_.dim[1].stride;
     }
 }
