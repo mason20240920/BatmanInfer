@@ -265,7 +265,25 @@ namespace BatmanInfer {
                     1.0f,              // 缩放因子 alpha
                     tensor1_data, lda,        // 矩阵 A 和其列主存储间距
                     tensor2_data, ldb,        // 矩阵 B 和其列主存储间距
-                    0.0f,               // 缩放因子 beta
+                    bias,               // 缩放因子 beta
                     result_data, ldc);       // 矩阵 C 和其列主存储间距
+
+
+//        if (bias != 0.0f) {
+//            Halide::Buffer<float> input(result->data());
+//
+//            // Step 1: 定义 Halide 变量
+//            Halide::Var x, y;
+//
+//            // Step 2: 定义 Halide Func
+//            Halide::Func add_scalar;
+//            add_scalar(x, y) = input(x, y) + bias;
+//
+//            // Step 3: 调度优化（可选）
+//            add_scalar.parallel(y).vectorize(x, 8, Halide::TailStrategy::GuardWithIf);
+//
+//            // Step 4: 实现计算并写入输出 buffer
+//            add_scalar.realize(input);
+//        }
     }
 }
