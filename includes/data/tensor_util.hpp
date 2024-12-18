@@ -98,6 +98,19 @@ namespace BatmanInfer {
      * @return
      */
     std::vector<float> convert_to_int_vector(const RuntimeParameterIntArray *runtime_parameter_int);
+
+    /**
+     * @brief Gemm高性能运算
+     * @param tensor1: 第一个矩阵
+     * @param tensor2: 第二个矩阵
+     * @param result: 计算出来的结果
+     * @param bias
+     * @return
+     */
+    void Gemm(const sftensor& tensor1,
+              const sftensor& tensor2,
+              sftensor& result,
+              float bias);
 }
 
 #endif //BATMAN_INFER_TENSOR_UTIL_HPP

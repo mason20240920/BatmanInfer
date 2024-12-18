@@ -613,6 +613,18 @@ namespace BatmanInfer {
         */
         float* matrix_raw_ptr(uint32_t index) const;
 
+        /**
+         * @brief 获取底层数据指针
+         * @return
+         */
+        uint8_t* matrix_host() const;
+
+        /**
+         * @brief 张量维度
+         * @return
+         */
+        uint8_t dimensions() const;
+
     private:
 
         std::vector<uint32_t > raw_shapes_; // 张量数据的实际尺寸大小

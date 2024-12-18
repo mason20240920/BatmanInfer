@@ -316,20 +316,30 @@ namespace BatmanInfer {
         for (int i = 0; i < dimensions; ++i)
             extents[i] = h_data_.dim[i].extent;
 
-        // 定义 Halide 函数
-        Halide::Var x, y, z, w; // 支持最多 4 维
+
         Halide::Func assign_ones;
-        assign_ones(x, y, z, w) = Halide::cast<float>(value);
 
         // 调整函数的调度策略
-        if (dimensions == 1)
-            assign_ones.parallel(x);
-        else if (dimensions == 2)
-            assign_ones.parallel(y).vectorize(x, 8);   // 使用 SIMD 优化
-        else if (dimensions == 3)
-            assign_ones.parallel(z).vectorize(x, 8);
-        else if (dimensions == 4)
-            assign_ones.parallel(w).vectorize(x, 8);
+        if (dimensions == 1) {
+            Halide::Var x;
+            assign_ones(x) = Halide::cast<float>(value);
+            assign_ones.parallel(x); // 使用 SIMD 优化
+        } else if (dimensions == 2) {
+            // 定义 Halide 函数
+            Halide::Var x, y;
+            assign_ones(x, y) = Halide::cast<float>(value);
+            assign_ones.parallel(y).vectorize(x, 8, Halide::TailStrategy::GuardWithIf);   // 使用 SIMD 优化
+        }
+        else if (dimensions == 3) {
+            Halide::Var x, y, z;
+            assign_ones(x, y, z) = Halide::cast<float>(value);
+            assign_ones.parallel(z).vectorize(x, 8, Halide::TailStrategy::GuardWithIf);
+        }
+        else if (dimensions == 4) {
+            Halide::Var x, y, z, w; // 支持最多 4 维
+            assign_ones(x, y, z, w) = Halide::cast<float>(value);
+            assign_ones.parallel(w).vectorize(x, 8, Halide::TailStrategy::GuardWithIf);
+        }
 
         // 生成 Halide 输出
         Halide::Buffer<float> output(reinterpret_cast<float *>(h_data_.host), extents);
@@ -739,6 +749,8 @@ namespace BatmanInfer {
     bool Tensor<float>::empty() const {
         return h_data_.host == nullptr || h_data_.dimensions == 0 || h_data_.dim == nullptr;
     }
+
+
 
     const std::vector<uint32_t >& Tensor<float>::raw_shapes() const {
         CHECK(!this->raw_shapes_.empty());
@@ -1408,5 +1420,13 @@ namespace BatmanInfer {
 
         // 返回目标指针
         return reinterpret_cast<float*>(h_data_.host) + index * h_data_.dim[1].stride;
+    }
+
+    uint8_t* Tensor<float>::matrix_host() const {
+        return h_data_.host;
+    }
+
+    uint8_t Tensor<float>::dimensions() const {
+        return raw_shapes_.size();
     }
 }

@@ -58,9 +58,10 @@ namespace BatmanInfer {
         // 使用 OpenMP 并行化通道的乘法
         for (uint32_t c = 0; c < channels; ++c) {
             // 获取每个通道的矩阵数据指针
-            const float* data1 = tensor1->raw_ptr() + c * tensor1->rows() * tensor1->cols();
-            const float* data2 = tensor2->raw_ptr() + c * tensor2->rows() * tensor2->cols();
-            float* result_data = result->raw_ptr() + c * result_shapes[result_shapes.size() - 2] * result_shapes[result_shapes.size() - 1];
+            const float *data1 = tensor1->raw_ptr() + c * tensor1->rows() * tensor1->cols();
+            const float *data2 = tensor2->raw_ptr() + c * tensor2->rows() * tensor2->cols();
+            float *result_data = result->raw_ptr() +
+                                 c * result_shapes[result_shapes.size() - 2] * result_shapes[result_shapes.size() - 1];
 
             // 使用 OpenBLAS 的 cblas_sgemm 进行矩阵乘法
             // C = alpha * A * B + beta * C
@@ -113,7 +114,7 @@ namespace BatmanInfer {
         uint32_t concat_dim_size = 0;
 
         // 验证输入张量的形状，并计算合并维度的总大小
-        for (const auto &tensor : tensors) {
+        for (const auto &tensor: tensors) {
             const auto &shape = tensor->shapes();
             for (size_t i = 0; i < shape.size(); ++i) {
                 if (i != static_cast<size_t>(axis)) {
@@ -129,7 +130,7 @@ namespace BatmanInfer {
 
         // 获取合并维度的跨度
         uint32_t offset = 0;
-        for (const auto &tensor : tensors) {
+        for (const auto &tensor: tensors) {
             const auto &shape = tensor->shapes();
             uint32_t current_size = shape[axis];
 
@@ -225,5 +226,46 @@ namespace BatmanInfer {
                        std::back_inserter(float_vec),
                        [](int val) { return static_cast<float>(val); });
         return float_vec;
+    }
+
+    void Gemm(const sftensor &tensor1,
+              const sftensor &tensor2,
+              sftensor &result,
+              float bias) {
+        CHECK(tensor1->dimensions() == 2 && tensor2->dimensions()  == 2 && result->dimensions() == 2) << "Dimensions not right in gemm";
+        // 获取矩阵的维度信息
+        int tensor_1_rows = tensor1->rows();
+        int tensor_1_cols = tensor1->cols();
+        int tensor_2_cols = tensor2->cols();
+
+
+        // 检查维度是否匹配
+        if (tensor2->rows() != tensor_1_cols || result->cols() != tensor_1_rows || result->rows() != tensor_2_cols) {
+            LOG(ERROR) << "Error: Matrix dimensions do not match for multiplication.";
+            return;
+        }
+
+        // 获取矩阵的步长（Halide 的 stride 表示每一维的内存跨度）
+        int lda = tensor1->cols();  // 矩阵 A 的列主存储间距
+        int ldb = tensor2->cols();  // 矩阵 B 的列主存储间距
+        int ldc = result->cols();  // 矩阵 C 的列主存储间距
+
+        // 获取底层数据指针
+        const float *tensor1_data = reinterpret_cast<const float *>(tensor1->matrix_host());
+        const float *tensor2_data = reinterpret_cast<const float *>(tensor2->matrix_host());
+        float *result_data = reinterpret_cast<float *>(result->matrix_host());
+
+        // 调用 OpenBLAS 的 cblas_sgemm
+        cblas_sgemm(CblasRowMajor,      // 数据存储方式：行主序
+                    CblasNoTrans,       // 矩阵 A 不转置
+                    CblasNoTrans,       // 矩阵 B 不转置
+                    tensor_1_rows,                  // 矩阵 A 的行数
+                    tensor_2_cols,                  // 矩阵 B 的列数
+                    tensor_1_cols,                  // 矩阵 A 的列数 / 矩阵 B 的行数
+                    1.0f,              // 缩放因子 alpha
+                    tensor1_data, lda,        // 矩阵 A 和其列主存储间距
+                    tensor2_data, ldb,        // 矩阵 B 和其列主存储间距
+                    0.0f,               // 缩放因子 beta
+                    result_data, ldc);       // 矩阵 C 和其列主存储间距
     }
 }
