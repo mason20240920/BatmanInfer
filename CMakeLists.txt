@@ -167,29 +167,32 @@ link_directories(${GLOG_LIBRARY_DIRS}
 
 add_executable(BatmanInfer main.cpp
         source/Tensor.cpp
-        test/tensor_get_values.cpp
-        test/test_onnx.cpp
-        source/others/utils.cpp
-        source/onnx_conv/OnnxUtils.cpp
-        source/ir.cpp
-        source/runtime_attr.cpp
-        source/runtime_op.cpp
-        source/runtime_ir.cpp
-        source/tensor_util.cpp
-        test/test_topo.cpp
-        source/operators/batman_operator.cpp
-        source/layer/abstract/layer.cpp
-        source/layer/abstract/layer_factory.cpp
-        source/layer/abstract/param_layer.cpp
-        source/layer/detail/relu.cpp
-        source/layer/detail/softmax.cpp
-        source/layer/detail/sigmoid.cpp
-        source/layer/detail/maxpooling.cpp
-        test/test_halide_drom.cpp
-        source/layer/detail/convolution.cpp
-        test/test_convolution.cpp
-        test/test_resnt.cpp
-        source/runtime/bi_memory.cpp)
+        source/data/core/bi_tensor_info.cpp
+        source/data/core/bi_helpers.cpp
+        #        test/tensor_get_values.cpp
+#        test/test_onnx.cpp
+#        source/others/utils.cpp
+#        source/onnx_conv/OnnxUtils.cpp
+#        source/ir.cpp
+#        source/runtime_attr.cpp
+#        source/runtime_op.cpp
+#        source/runtime_ir.cpp
+#        source/tensor_util.cpp
+#        test/test_topo.cpp
+#        source/operators/batman_operator.cpp
+#        source/layer/abstract/layer.cpp
+#        source/layer/abstract/layer_factory.cpp
+#        source/layer/abstract/param_layer.cpp
+#        source/layer/detail/relu.cpp
+#        source/layer/detail/softmax.cpp
+#        source/layer/detail/sigmoid.cpp
+#        source/layer/detail/maxpooling.cpp
+#        test/test_halide_drom.cpp
+#        source/layer/detail/convolution.cpp
+#        test/test_convolution.cpp
+#        test/test_resnt.cpp
+#        source/runtime/bi_memory.cpp
+)
 #        source/layer/detail/add.cpp
 #        source/layer/detail/global_average_pool.cpp
 #        source/layer/detail/flatten.cpp

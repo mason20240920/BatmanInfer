@@ -19,7 +19,7 @@ namespace BatmanInfer {
          * @param coords
          */
         template <typename... Ts>
-        constexpr BICoordinates(Ts... coords): BIDimensions{coords...}
+        constexpr explicit BICoordinates(Ts... coords): BIDimensions{coords...}
         {
 
         }

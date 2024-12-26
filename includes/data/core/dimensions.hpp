@@ -201,6 +201,15 @@ namespace BatmanInfer {
             return end();
         }
 
+        /** Collapses all dimensions to a single linear total size.
+        *
+        * @return The total tensor size in terms of elements.
+       */
+        size_t total_size() const
+        {
+            return std::accumulate(_id.begin(), _id.end(), 1, std::multiplies<size_t>());
+        }
+
 
 
 

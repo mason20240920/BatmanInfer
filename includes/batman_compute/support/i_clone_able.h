@@ -24,7 +24,7 @@ namespace BatmanInfer {
              * @brief 提供类 T 当前对象的克隆
              * @return 克隆类T的对象
              */
-            virtual std::unique_ptr<T> clone() const;
+            virtual std::unique_ptr<T> clone() const = 0;
         };
     }
 }

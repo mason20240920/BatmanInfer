@@ -5,7 +5,7 @@
 #ifndef BATMANINFER_BI_I_TENSOR_INFO_HPP
 #define BATMANINFER_BI_I_TENSOR_INFO_HPP
 
-#include <support/i_clone_able.h>
+#include <batman_compute/support/i_clone_able.h>
 #include <data/core/bi_types.hpp>
 #include <data/bi_tensor_shape.hpp>
 #include <data/core/bi_strides.hpp>
@@ -160,6 +160,18 @@ namespace BatmanInfer {
          * @return
          */
         virtual const BIStrides &strides_in_bytes() const = 0;
+
+        /** Set the format of an already initialized tensor.
+         *
+         * @note If the data type has already been configured (i.e. not UNKNOWN) it
+         * must match the new format. If data type hasn't been configured it will
+         * be based on the format.
+         *
+         * @param[in] format Single-plane format of the tensor.
+         *
+         * @return Reference to this ITensorInfo object
+         */
+        virtual BIITensorInfo &set_format(Format format) = 0;
 
         /**
          * @brief 从内存分配的开始到张量的第一个元素的偏移量。
