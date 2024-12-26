@@ -169,6 +169,8 @@ add_executable(BatmanInfer main.cpp
         source/Tensor.cpp
         source/data/core/bi_tensor_info.cpp
         source/data/core/bi_helpers.cpp
+        source/runtime/bi_allocator.cpp
+        source/runtime/bi_tensor_allocator.cpp
         #        test/tensor_get_values.cpp
 #        test/test_onnx.cpp
 #        source/others/utils.cpp

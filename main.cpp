@@ -2,93 +2,68 @@
 
 #include <gtest/gtest.h>
 
-#include <iostream>
-#include <vector>
-#include <arm_neon.h> // ARM Neon SIMD 指令支持
+// 抽象基类
+class Allocator {
+public:
+    virtual ~Allocator() = default;
 
-// 定义矩阵类型
-using Matrix = std::vector<std::vector<float>>;
+    /**
+     * @brief 由子类实现的接口，用于分配字节。
+     * @param size 分配的大小
+     * @param alignment 返回的指针应遵循的对齐方式
+     * @return 指向已分配内存的指针
+     */
+    virtual void* allocate(size_t size, size_t alignment) = 0;
 
-// 打印矩阵
-void print_matrix(const Matrix &matrix) {
-    for (const auto &row : matrix) {
-        for (float val : row) {
-            std::cout << val << " ";
+    /**
+     * @brief 用于释放内存的接口
+     * @param ptr 要释放的内存指针
+     */
+    virtual void deallocate(void* ptr) = 0;
+};
+
+// 子类实现
+class AlignedAllocator : public Allocator {
+public:
+    // 分配内存
+    void* allocate(size_t size, size_t alignment) override {
+        void* ptr = nullptr;
+
+        // 使用 C++17 的 std::aligned_alloc
+        ptr = std::aligned_alloc(alignment, size);
+
+        if (!ptr) {
+            throw std::bad_alloc(); // 分配失败，抛出异常
         }
-        std::cout << "\n";
-    }
-    std::cout << "\n";
-}
 
-// 填充矩阵
-Matrix pad_matrix(const Matrix &input, int extra_pad_x, int pad_x, int pad_y) {
-    int original_rows = input.size();
-    int original_cols = input[0].size();
-
-    // 新的行数和列数
-    int new_rows = original_rows + 2 * pad_y;
-    int new_cols = original_cols + pad_x + extra_pad_x;
-
-    // 创建填充后的矩阵
-    Matrix padded(new_rows, std::vector<float>(new_cols, 0));
-
-    // 复制原始矩阵到填充后的矩阵中
-    for (int i = 0; i < original_rows; ++i) {
-        for (int j = 0; j < original_cols; ++j) {
-            padded[i + pad_y][j + pad_x] = input[i][j];
-        }
+        return ptr;
     }
 
-    return padded;
-}
-
-// 使用 ARM Neon 进行矩阵加法示例
-void simd_add_matrix(Matrix &matrix, float value) {
-    int rows = matrix.size();
-    int cols = matrix[0].size();
-
-    // 每次处理 4 个浮点数
-    for (int i = 0; i < rows; ++i) {
-        for (int j = 0; j < cols; j += 4) {
-            // 加载 4 个浮点数
-            float32x4_t data = vld1q_f32(&matrix[i][j]);
-            // 加上常数值
-            float32x4_t result = vaddq_f32(data, vdupq_n_f32(value));
-            // 存回矩阵
-            vst1q_f32(&matrix[i][j], result);
-        }
+    // 释放内存
+    void deallocate(void* ptr) override {
+        std::free(ptr); // 释放内存
     }
-}
+};
 
 int main(int argc, char ** argv) {
+    AlignedAllocator allocator;
 
-// 原始矩阵 (3x3)
-    Matrix matrix = {
-            {1, 2, 3},
-            {4, 5, 6},
-            {7, 8, 9}
-    };
+    size_t size = 64;       // 分配 64 字节
+    size_t alignment = 16;  // 对齐到 16 字节
 
-    std::cout << "Original Matrix:\n";
-    print_matrix(matrix);
+    // 分配内存
+    void* ptr = allocator.allocate(size, alignment);
 
-    // 填充参数
-    int extra_pad_x = 32; // 额外填充 32 列
-    int pad_x = 4;        // 基础填充 4 列
-    int pad_y = 4;        // 基础填充 4 行
+    // 检查指针地址是否满足对齐要求
+    std::cout << "Allocated memory address: " << ptr << std::endl;
+    if (reinterpret_cast<uintptr_t>(ptr) % alignment == 0) {
+        std::cout << "Memory is aligned to " << alignment << " bytes." << std::endl;
+    } else {
+        std::cout << "Memory is NOT aligned!" << std::endl;
+    }
 
-    // 填充矩阵
-    Matrix padded_matrix = pad_matrix(matrix, extra_pad_x, pad_x, pad_y);
-
-    std::cout << "Padded Matrix:\n";
-    print_matrix(padded_matrix);
-
-    // 使用 SIMD 对填充后的矩阵加上一个常数值
-    float add_value = 10.0f;
-    simd_add_matrix(padded_matrix, add_value);
-
-    std::cout << "Matrix after SIMD addition:\n";
-    print_matrix(padded_matrix);
+    // 使用完毕，释放内存
+    allocator.deallocate(ptr);
 
     return EXIT_SUCCESS;
 //    ::testing::InitGoogleTest(&argc, argv);
