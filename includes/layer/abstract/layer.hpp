@@ -6,7 +6,7 @@
 #define BATMAN_INFER_LAYER_HPP
 #include <string>
 #include "status_code.hpp"
-#include <data/Tensor.hpp>
+#include <data/tensor.hpp>
 #include <runtime/runtime_op.hpp>
 
 namespace BatmanInfer {

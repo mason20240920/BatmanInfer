@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include "Halide.h"
-#include <data/Tensor.hpp>
+#include <data/tensor.hpp>
 #include <data/tensor_util.hpp>
 #include <cblas.h>
 
@@ -101,7 +101,7 @@ TEST(test_halide_rdom, transpose_matrix) {
     output_tensor->Show();
     // Perform transpose
 //    transpose_buffer(input_tensor->data());
-    float total_time = 0.0f;
+//    float total_time = 0.0f;
 
 //    for (int i = 0; i < 100; i++) {
 //        // 开始计时

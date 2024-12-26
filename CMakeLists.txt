@@ -121,8 +121,11 @@ else()
     # 设置OpenBLAS
     set(OPEN_BLAS "/Users/mason/Desktop/Qualmnn/OpenBLAS/install")
 
-#    include_directories(${HALIDE_DIR}/include)
-#    link_directories(${HALIDE_DIR}/lib)
+    # 设置 ARM Compute Library 的路径
+    set(ARM_COMPUTE_LIB_PATH "/Users/mason/Downloads/QwenModel/arm_compute-v24.12-macos-aarch64-cpu-bin/lib/armv8.2-a-neon") # 替换为实际路径
+    set(ARM_COMPUTE_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/includes")
+
+    set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DARM_COMPUTE_ASSERTS_ENABLED -DARM_COMPUTE_DEBUG_ENABLED")
 
 endif()
 
@@ -153,17 +156,17 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/includes
         ${OpenMP_INCLUDE}
         ${ARMADILLO_INCLUDE_DIRS}
         ${HALIDE_DIR}/include
-        ${OPEN_BLAS}/include)
+        ${OPEN_BLAS}/include
+        ${ARM_COMPUTE_INCLUDE_PATH})
 
 link_directories(${GLOG_LIBRARY_DIRS}
         ${ONNX_LIBRARIES}
         ${HALIDE_DIR}/lib
-        ${OPEN_BLAS}/lib)
+        ${OPEN_BLAS}/lib
+        ${ARM_COMPUTE_LIB_PATH})
 
 add_executable(BatmanInfer main.cpp
-        test/test_operator.cpp
         source/Tensor.cpp
-        test/test_create_tensor.cpp
         test/tensor_get_values.cpp
         test/test_onnx.cpp
         source/others/utils.cpp
@@ -172,25 +175,21 @@ add_executable(BatmanInfer main.cpp
         source/runtime_attr.cpp
         source/runtime_op.cpp
         source/runtime_ir.cpp
-        test/test_ir.cpp
         source/tensor_util.cpp
         test/test_topo.cpp
         source/operators/batman_operator.cpp
-        test/test_ir_op.cpp
         source/layer/abstract/layer.cpp
         source/layer/abstract/layer_factory.cpp
         source/layer/abstract/param_layer.cpp
-        test/test_layer_create.cpp
-        test/test_sigmoid.cpp
         source/layer/detail/relu.cpp
         source/layer/detail/softmax.cpp
         source/layer/detail/sigmoid.cpp
         source/layer/detail/maxpooling.cpp
         test/test_halide_drom.cpp
-        test/test_maxpooling.cpp
         source/layer/detail/convolution.cpp
         test/test_convolution.cpp
-        test/test_resnt.cpp)
+        test/test_resnt.cpp
+        source/runtime/bi_memory.cpp)
 #        source/layer/detail/add.cpp
 #        source/layer/detail/global_average_pool.cpp
 #        source/layer/detail/flatten.cpp
@@ -227,6 +226,8 @@ target_link_libraries(BatmanInfer
         ${UTF8RANGE_LIBRARY}
         Halide
         ${OPEN_BLAS}/lib/libopenblas.a
+        ${ARM_COMPUTE_LIB_PATH}/libarm_compute-static.a
+        ${ARM_COMPUTE_LIB_PATH}/libarm_compute_graph-static.a
 )
 
 #message("check\t" ${HALIDE_DIR})

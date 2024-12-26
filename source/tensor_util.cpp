@@ -3,7 +3,7 @@
 //
 
 #include <glog/logging.h>
-#include <data/Tensor.hpp>
+#include <data/tensor.hpp>
 #include <data/tensor_util.hpp>
 #include <omp.h>
 #include <cblas.h>

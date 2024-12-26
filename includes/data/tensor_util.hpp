@@ -5,7 +5,7 @@
 #ifndef BATMAN_INFER_TENSOR_UTIL_HPP
 #define BATMAN_INFER_TENSOR_UTIL_HPP
 
-#include <data/Tensor.hpp>
+#include <data/tensor.hpp>
 #include <onnx/onnx.pb.h>
 #include <runtime/runtime_datatype.hpp>
 #include "runtime/runtime_parameter.hpp"

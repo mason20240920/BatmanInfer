@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 #include <onnx/onnx_pb.h>
-#include <data/Tensor.hpp>
+#include <data/tensor.hpp>
 //#include <onnx/proto_utils.h>
 
 namespace BatmanInfer {

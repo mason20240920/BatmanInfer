@@ -9,7 +9,7 @@
 #include <memory>
 #include "status_code.hpp"
 #include "runtime_datatype.hpp"
-#include <data/Tensor.hpp>
+#include <data/tensor.hpp>
 
 namespace BatmanInfer {
     /**

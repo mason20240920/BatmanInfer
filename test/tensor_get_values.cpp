@@ -2,7 +2,7 @@
 // Created by Mason on 2024/10/11.
 //
 
-#include <data/Tensor.hpp>
+#include <data/tensor.hpp>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
