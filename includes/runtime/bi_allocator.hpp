@@ -20,6 +20,12 @@ namespace BatmanInfer {
         BIAllocator() = default;
 
         // 接口继承
+        /**
+         * @brief 这里的alignment没有起作用
+         * @param size
+         * @param alignment
+         * @return
+         */
         void * allocate(size_t size, size_t alignment) override;
         void free(void *ptr) override;
         std::unique_ptr<BIIMemoryRegion> make_region(size_t size, size_t alignment) override;
