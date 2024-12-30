@@ -30,7 +30,7 @@ namespace BatmanInfer {
          * @brief 释放与一个内存组相关的元素
          * @param group
          */
-        virtual void release_group(BIIMemoryGroup *group) = 0;
+        virtual bool release_group(BIIMemoryGroup *group) = 0;
 
         /**
          * @brief 注册并开始对象的生命周期

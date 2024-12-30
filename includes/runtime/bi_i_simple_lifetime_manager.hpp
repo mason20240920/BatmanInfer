@@ -30,10 +30,10 @@ namespace BatmanInfer {
 
         // 继承方法
         void register_group(BatmanInfer::BIIMemoryGroup *group) override;
-        void release_group(BatmanInfer::BIIMemoryGroup *group) override;
+        bool release_group(BatmanInfer::BIIMemoryGroup *group) override;
         void start_lifetime(void *obj) override;
         void end_life_time(void *obj, BatmanInfer::BIIMemory &obj_memory, size_t size, size_t alignment) override;
-        bool are_all_finalized() const override;
+        [[nodiscard]] bool are_all_finalized() const override;
 
     protected:
         /**
@@ -46,7 +46,7 @@ namespace BatmanInfer {
          * @brief 元素结构体
          */
         struct Element {
-            Element(void *id_ = nullptr,
+            explicit Element(void *id_ = nullptr,
                     BIIMemory *handle_ = nullptr,
                     size_t size_ = 0,
                     size_t alignment_ = 0,

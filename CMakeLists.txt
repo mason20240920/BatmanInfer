@@ -172,6 +172,7 @@ add_executable(BatmanInfer main.cpp
         source/runtime/bi_allocator.cpp
         source/runtime/bi_tensor_allocator.cpp
         source/runtime/bi_memory_manager_on_demand.cpp
+        source/runtime/bi_i_siample_lifetime_manager.cpp
         #        test/tensor_get_values.cpp
 #        test/test_onnx.cpp
 #        source/others/utils.cpp
