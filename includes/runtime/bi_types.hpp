@@ -37,7 +37,7 @@ namespace BatmanInfer {
      */
     struct BIBlobInfo {
 
-        BIBlobInfo(size_t size_ = 0,
+        explicit BIBlobInfo(size_t size_ = 0,
                    size_t alignment_ = 0,
                    size_t owners_ = 1) :
                    size(size_),
