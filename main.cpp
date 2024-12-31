@@ -2,37 +2,59 @@
 
 #include <gtest/gtest.h>
 
-#include <thread>
-#include <semaphore> // C++20 信号量
+/**
+ * @brief 模拟内存管理类
+ */
+class BIIMemory {
+public:
+    void *allocate(size_t size, size_t alignment) {
+        void *ptr = nullptr;
+        posix_memalign(&ptr, alignment, size);
+        return ptr;
+    }
 
-std::counting_semaphore<10> parking_lot(10); // 初始化信号量为 5，表示有 5 个车位
+    void deallocate(void *ptr) {
+        free(ptr);
+    }
+};
 
-void driver(int id) {
-    std::cout << "Driver " << id << " is looking for a parking spot...\n";
+class ObjectManager {
+public:
+    virtual void end_life_time(void *obj,
+                               BIIMemory &obj_memory,
+                               size_t size,
+                               size_t alignment) = 0;
+};
 
-    // 请求车位（wait）
-    parking_lot.acquire();
-    std::cout << "Driver " << id << " has parked the car.\n";
+class MemoryManager : public ObjectManager {
+public:
+    void end_life_time(void *obj, BIIMemory &obj_memory, size_t size, size_t alignment) override {
+        if (obj) {
+            std::cout << "Cleaning up object memory..." << std::endl;
+            std::memset(obj, 0, size);
+        }
 
-    // 模拟停车一段时间
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-
-    // 释放车位（signal）
-    std::cout << "Driver " << id << " is leaving the parking lot.\n";
-    parking_lot.release();
-}
+        obj_memory.deallocate(obj);
+        std::cout << "Memory of size " << size << " bytes freed." << std::endl;
+    }
+};
 
 int main(int argc, char ** argv) {
-    // 创建 10 个司机线程
-    std::thread drivers[10];
-    for (int i = 0; i < 10; ++i) {
-        drivers[i] = std::thread(driver, i + 1);
-    }
+    BIIMemory memory;
+    MemoryManager my_memory_manager;
 
-    // 等待所有线程完成
-    for (int i = 0; i < 10; ++i) {
-        drivers[i].join();
-    }
+    size_t size = 64;         // 对象大小
+    size_t alignment = 8;     // 对齐要求
+    void *obj = memory.allocate(size, alignment);
+
+    // 初始化对象
+    std::memset(obj, 42, size); // 将对象内存填充为42
+    std::cout << "Object created and initialized." << std::endl;
+
+    // 打印对象的部分数据
+    std::cout << "Object data (first byte): " << *((char *)obj) << std::endl;
+
+    my_memory_manager.end_life_time(obj, memory, size, alignment);
 
     return EXIT_SUCCESS;
 //    ::testing::InitGoogleTest(&argc, argv);

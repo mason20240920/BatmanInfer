@@ -24,6 +24,7 @@
 #include <data/bi_tensor_shape.hpp>
 
 #include <string>
+#include <utility>
 
 namespace BatmanInfer {
     /** Container for 2D border size */
@@ -220,6 +221,71 @@ namespace BatmanInfer {
     inline bool operator==(const BIValidRegion &lhs, const BIValidRegion &rhs) {
         return (lhs.anchor == rhs.anchor) && (lhs.shape == rhs.shape);
     }
+
+    /**
+     * @brief IO格式信息类
+     */
+    struct BIIOFormatInfo {
+        /**
+         * @brief 打印浮点数的精度类型
+         */
+        enum class PrecisionType {
+            /**
+             * @brief 默认精度为当前流所具有的精度
+             */
+            Default,
+            /**
+             * @brief 用户通过精度参数指定的自定义精度
+             */
+            Custom,
+            /**
+             * @brief 浮点表示的最大精度
+             */
+            Full
+        };
+
+        enum class PrintRegion {
+            /**
+             * @brief 打印 Tensor 对象的有效区域
+             */
+            ValidRegion,
+            /**
+             * @brief 打印没有填充的张量对象
+             */
+            NoPadding,
+            /**
+             * @brief 打印包含填充的张量对象
+             */
+            Full
+        };
+
+        explicit BIIOFormatInfo(PrintRegion print_region = PrintRegion::ValidRegion,
+                       PrecisionType precision_type = PrecisionType::Default,
+                       unsigned int precision = 10,
+                       bool align_columns = true,
+                       std::string element_delim = "",
+                       std::string row_delim = "\n") : print_region(print_region),
+                       precision_type(precision_type),
+                       precision(precision),
+                       element_delim(std::move(element_delim)),
+                       row_delim(std::move(row_delim)),
+                       align_columns(align_columns) {
+
+        }
+
+        /** Area to be printed by Tensor objects */
+        PrintRegion print_region;
+        /** Floating point precision type */
+        PrecisionType precision_type;
+        /** Floating point precision */
+        unsigned int precision;
+        /** Element delimeter */
+        std::string element_delim;
+        /** Row delimeter */
+        std::string row_delim;
+        /** Align columns */
+        bool align_columns;
+    };
 }
 
 #endif //BATMANINFER_BI_TYPES_HPP
