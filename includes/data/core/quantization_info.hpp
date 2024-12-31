@@ -6,6 +6,7 @@
 #define BATMANINFER_QUANTIZATION_INFO_HPP
 
 #include <vector>
+#include <cstdint>
 
 namespace BatmanInfer {
 
