@@ -17,7 +17,6 @@ namespace BatmanInfer {
     /** Permutation vector */
     using PermutationVector = BIStrides;
 
-    using TensorID   = unsigned int;
     /**
  * @brief 可用的数据类型
  */
