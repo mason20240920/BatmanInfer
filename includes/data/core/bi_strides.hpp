@@ -7,6 +7,8 @@
 
 #include <data/core/dimensions.hpp>
 
+#include <cstdint>
+
 namespace BatmanInfer {
     /**
      * @brief 一个元素的字节步数
