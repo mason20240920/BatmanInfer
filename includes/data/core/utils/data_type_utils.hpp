@@ -37,7 +37,7 @@ namespace BatmanInfer {
             case BIDataType::SIZET:
                 return sizeof(size_t);
             default:
-                ARM_COMPUTE_ERROR("Invalid data type");
+                BI_COMPUTE_ERROR("Invalid data type");
                 return 0;
         }
     }
@@ -73,7 +73,7 @@ namespace BatmanInfer {
             case Format::IYUV:
             case Format::YUV444:
             default:
-                ARM_COMPUTE_ERROR("Not supported data_type for given format");
+                BI_COMPUTE_ERROR("Not supported data_type for given format");
                 return BIDataType::UNKNOWN;
         }
     }

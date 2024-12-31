@@ -15,14 +15,46 @@ namespace BatmanInfer {
     /**
      * @brief Blob内存池
      */
-    class BlobMemoryPool : public BIIMemoryPool {
+    class BIBlobMemoryPool : public BIIMemoryPool {
+    public:
+        /**
+         * @brief
+         *
+         * @note 分配器应该比内存池的生命周期更长。
+         *
+         * @param allocator 分配器
+         * @param blob_info 内存信息
+         */
+        explicit BIBlobMemoryPool(BIIAllocator *allocator,
+                                  std::vector<BIBlobInfo> blob_info);
+
+        ~BIBlobMemoryPool();
+
+        BIBlobMemoryPool(const BIBlobMemoryPool &) = delete;
+
+        BIBlobMemoryPool &operator=(const BIBlobMemoryPool &) = delete;
+
+        BIBlobMemoryPool(BIBlobMemoryPool &&) = default;
+
+        BIBlobMemoryPool &operator=(BIBlobMemoryPool &&) = default;
+
+        // 继承的方法重写:
+        void acquire(BatmanInfer::BIMemoryMappings &handles) override;
+        void release(BatmanInfer::BIMemoryMappings &handles) override;
+        BIMappingType mapping_type() const override;
+        std::unique_ptr<BIIMemoryPool> duplicate() override;
 
     private:
         /**
-         * @brief 分配
+         * @brief 分配内在的内存块
          * @param blob_info
          */
         void allocate_blobs(const std::vector<BIBlobInfo> &blob_info);
+
+        /**
+         * @brief 释放内存块
+         */
+        void free_blobs();
 
     private:
         /**

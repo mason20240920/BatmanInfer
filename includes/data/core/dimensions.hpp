@@ -5,7 +5,7 @@
 #ifndef BATMANINFER_DIMENSIONS_H
 #define BATMANINFER_DIMENSIONS_H
 
-#include "arm_compute/core/Error.h"
+#include <data/core/bi_error.h>
 
 #include <algorithm>
 #include <array>
@@ -69,7 +69,7 @@ namespace BatmanInfer {
         void set(size_t dimension,
                  T value,
                  bool increase_dim_unit = true) {
-            ARM_COMPUTE_ERROR_ON(dimension >= num_max_dimensions);
+            BI_COMPUTE_ERROR_ON(dimension >= num_max_dimensions);
             _id[dimension] = value;
             // 如果新维度是1，就不要增加维度的数量。
             if (increase_dim_unit || value != 1)
@@ -98,7 +98,7 @@ namespace BatmanInfer {
          */
         void increment(size_t dim,
                        T step = 1) {
-            ARM_COMPUTE_ERROR_ON(dim >= _num_dimensions);
+            BI_COMPUTE_ERROR_ON(dim >= _num_dimensions);
             // std::numeric_limits<T>::max(): 获取类型 T 能表示的最大值
             // _id[dim]: 当前维度的值
             if ((std::numeric_limits<T>::max() - _id[dim]) >= step)
@@ -106,12 +106,12 @@ namespace BatmanInfer {
         }
 
         const T &operator[](size_t dimension) const {
-            ARM_COMPUTE_ERROR_ON(dimension >= num_max_dimensions);
+            BI_COMPUTE_ERROR_ON(dimension >= num_max_dimensions);
             return _id[dimension];
         }
 
         T &operator[](size_t dimension) {
-            ARM_COMPUTE_ERROR_ON(dimension >= num_max_dimensions);
+            BI_COMPUTE_ERROR_ON(dimension >= num_max_dimensions);
             return _id[dimension];
         }
 
@@ -160,7 +160,7 @@ namespace BatmanInfer {
         }
 
         void remove(size_t idx) {
-            ARM_COMPUTE_ERROR_ON(_num_dimensions < 1);
+            BI_COMPUTE_ERROR_ON(_num_dimensions < 1);
             if (idx >= _num_dimensions)
                 return;
 

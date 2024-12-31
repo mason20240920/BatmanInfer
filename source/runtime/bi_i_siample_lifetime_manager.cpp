@@ -4,7 +4,7 @@
 
 #include <runtime/bi_i_simple_lifetime_manager.hpp>
 #include <runtime/bi_i_memory_group.hpp>
-#include "arm_compute/core/Error.h"
+#include <data/core/bi_error.h>
 
 namespace BatmanInfer {
     BIISimpleLifetimeManager::BIISimpleLifetimeManager() :
@@ -15,7 +15,7 @@ namespace BatmanInfer {
     void BIISimpleLifetimeManager::register_group(BatmanInfer::BIIMemoryGroup *group) {
         // 如果激活的内存组是空
         if (_active_group == nullptr) {
-            ARM_COMPUTE_ERROR_ON(group == nullptr);
+            BI_COMPUTE_ERROR_ON(group == nullptr);
             // 就把这个注册的内存组放到激活的组里面
             _active_group = group;
         }
@@ -31,8 +31,8 @@ namespace BatmanInfer {
     }
 
     void BIISimpleLifetimeManager::start_lifetime(void *obj) {
-        ARM_COMPUTE_ERROR_ON(obj == nullptr);
-        ARM_COMPUTE_ERROR_ON_MSG(_active_elements.find(obj) != std::end(_active_elements),
+        BI_COMPUTE_ERROR_ON(obj == nullptr);
+        BI_COMPUTE_ERROR_ON_MSG(_active_elements.find(obj) != std::end(_active_elements),
                                  "Memory object is already registered!");
 
         // Check if there is a free blob
@@ -51,11 +51,11 @@ namespace BatmanInfer {
                                                  BatmanInfer::BIIMemory &obj_memory,
                                                  size_t size,
                                                  size_t alignment) {
-        ARM_COMPUTE_ERROR_ON(obj == nullptr);
+        BI_COMPUTE_ERROR_ON(obj == nullptr);
 
         // 查找到元素
         auto active_object_it = _active_elements.find(obj);
-        ARM_COMPUTE_ERROR_ON(active_object_it == std::end(_active_elements));
+        BI_COMPUTE_ERROR_ON(active_object_it == std::end(_active_elements));
 
         // Update object fields and mark object as complete
         Element &el  = active_object_it->second;
@@ -67,7 +67,7 @@ namespace BatmanInfer {
         // 在被占用的列表中查找对象
         auto occupied_blob_it = std::find_if(std::begin(_occupied_blobs), std::end(_occupied_blobs),
                                              [&obj](const Blob &b) { return obj == b.id; });
-        ARM_COMPUTE_ERROR_ON(occupied_blob_it == std::end(_occupied_blobs));
+        BI_COMPUTE_ERROR_ON(occupied_blob_it == std::end(_occupied_blobs));
 
 
         // 更新占用返回free
@@ -79,7 +79,7 @@ namespace BatmanInfer {
 
         // 检查是否所有对象都已完成并重置活动组
         if (are_all_finalized()) {
-            ARM_COMPUTE_ERROR_ON(!_occupied_blobs.empty());
+            BI_COMPUTE_ERROR_ON(!_occupied_blobs.empty());
 
             // 更新内存块和组映射
             update_blobs_and_mappings();

@@ -3,13 +3,13 @@
 //
 
 #include <runtime/bi_allocator.hpp>
-#include "arm_compute/core/Error.h"
+#include <data/core/bi_error.h>
 #include <runtime/bi_memory_region.hpp>
 
 using namespace BatmanInfer;
 
 void *BIAllocator::allocate(size_t size, size_t alignment) {
-    ARM_COMPUTE_UNUSED(alignment);
+    BI_COMPUTE_UNUSED(alignment);
     return ::operator new(size);
 }
 
