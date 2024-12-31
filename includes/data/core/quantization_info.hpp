@@ -122,6 +122,30 @@ namespace BatmanInfer {
         bool _is_dynamic = false;
 
     };
+
+    /** Check whether two quantization info are equal.
+ *
+ * @param[in] lhs RHS quantization info.
+ * @param[in] rhs LHS quantization info.
+ *
+ * @return True if the given quantization info is the same.
+ */
+    inline bool operator==(const BIQuantizationInfo &lhs, const BIQuantizationInfo &rhs)
+    {
+        return (lhs.scale() == rhs.scale()) && (lhs.offset() == rhs.offset());
+    }
+
+    /** Check whether two quantization info are not equal.
+ *
+ * @param[in] lhs RHS quantization info.
+ * @param[in] rhs LHS quantization info.
+ *
+ * @return True if the given quantization info is the same.
+ */
+    inline bool operator!=(const BIQuantizationInfo &lhs, const BIQuantizationInfo &rhs)
+    {
+        return !(operator==(lhs, rhs));
+    }
 }
 
 #endif //BATMANINFER_QUANTIZATION_INFO_HPP
