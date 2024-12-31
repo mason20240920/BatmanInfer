@@ -97,7 +97,8 @@ namespace BatmanInfer {
         BIIMemoryGroup *_active_group;
 
         /**
-         * @brief 包含激活元素的字典
+         * @brief 包含激活元素的字典，
+         * 存储对象的地址
          */
         std::map<void *, Element> _active_elements;
 

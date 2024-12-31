@@ -125,7 +125,7 @@ else()
     set(ARM_COMPUTE_LIB_PATH "/Users/mason/Downloads/QwenModel/arm_compute-v24.12-macos-aarch64-cpu-bin/lib/armv8.2-a-neon") # 替换为实际路径
     set(ARM_COMPUTE_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/includes")
 
-    set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DARM_COMPUTE_ASSERTS_ENABLED -DARM_COMPUTE_DEBUG_ENABLED")
+    set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED")
 
 endif()
 
@@ -173,6 +173,10 @@ add_executable(BatmanInfer main.cpp
         source/runtime/bi_tensor_allocator.cpp
         source/runtime/bi_memory_manager_on_demand.cpp
         source/runtime/bi_i_siample_lifetime_manager.cpp
+        source/runtime/bi_blob_lifetime_manager.cpp
+        source/runtime/bi_blob_memory_pool.cpp
+        source/data/core/bi_error.cpp
+        source/runtime/bi_pool_manager.cpp
         #        test/tensor_get_values.cpp
 #        test/test_onnx.cpp
 #        source/others/utils.cpp
