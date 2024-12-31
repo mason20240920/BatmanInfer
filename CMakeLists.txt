@@ -177,6 +177,8 @@ add_executable(BatmanInfer main.cpp
         source/runtime/bi_blob_memory_pool.cpp
         source/data/core/bi_error.cpp
         source/runtime/bi_pool_manager.cpp
+        source/data/core/bi_i_tensor.cpp
+        source/runtime/bi_i_tensor_allocator.cpp
         #        test/tensor_get_values.cpp
 #        test/test_onnx.cpp
 #        source/others/utils.cpp

@@ -36,6 +36,17 @@ namespace BatmanInfer {
                 func(std::forward<T>(argc));
                 for_each(std::forward<F>(func), std::forward<Ts>(args)...);
             }
+
+            /**
+             * @brief 验证一个指针是否按照编译对齐了
+             * @param ptr
+             * @param alignment
+             * @return
+             */
+            inline bool check_aligned(void *ptr,
+                                      const size_t alignment) {
+                return (reinterpret_cast<std::uintptr_t>(ptr) % alignment) == 0;
+            }
         }
     }
 }

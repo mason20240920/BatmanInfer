@@ -2,8 +2,8 @@
 // Created by Mason on 2024/12/27.
 //
 
-#ifndef BATMANINFER_BI_TYPES_HPP
-#define BATMANINFER_BI_TYPES_HPP
+#ifndef BATMANINFER_RUNTIME_BI_TYPES_HPP
+#define BATMANINFER_RUNTIME_BI_TYPES_HPP
 
 #include <runtime/bi_i_memory.hpp>
 
@@ -64,4 +64,4 @@ namespace BatmanInfer {
 
 }
 
-#endif //BATMANINFER_BI_TYPES_HPP
+#endif //BATMANINFER_RUNTIME_BI_TYPES_HPP

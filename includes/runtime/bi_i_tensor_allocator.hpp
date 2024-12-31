@@ -95,7 +95,7 @@ namespace BatmanInfer {
          * @brief 张量的元数据
          * @return
          */
-        BITensorInfo _info_owned() {};
+        BITensorInfo _info_owned {};
 
         /**
          * @brief 额外的张量信息

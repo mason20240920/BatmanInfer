@@ -1,0 +1,10 @@
+//
+// Created by Mason on 2024/12/31.
+//
+
+#ifndef BATMANINFER_BI_TENSOR_HPP
+#define BATMANINFER_BI_TENSOR_HPP
+
+
+
+#endif //BATMANINFER_BI_TENSOR_HPP
