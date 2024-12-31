@@ -132,7 +132,7 @@ namespace BatmanInfer {
                             size_t num_channels,
                             BIDataType data_type)
     {
-        ARM_COMPUTE_ERROR_ON(num_channels == 0);
+        BI_COMPUTE_ERROR_ON(num_channels == 0);
 
         _data_type    = data_type;
         _num_channels = num_channels;
@@ -148,7 +148,7 @@ namespace BatmanInfer {
                           size_t             offset_first_element_in_bytes,
                           size_t             total_size_in_bytes)
     {
-        ARM_COMPUTE_ERROR_ON(num_channels == 0);
+        BI_COMPUTE_ERROR_ON(num_channels == 0);
 
         _data_type                     = data_type;
         _num_channels                  = num_channels;
@@ -174,7 +174,7 @@ namespace BatmanInfer {
 
     size_t BITensorInfo::init_auto_padding(const BITensorShape &tensor_shape, size_t num_channels, BIDataType data_type)
     {
-        ARM_COMPUTE_ERROR_ON(num_channels == 0);
+        BI_COMPUTE_ERROR_ON(num_channels == 0);
 
         _data_type    = data_type;
         _num_channels = num_channels;
@@ -190,7 +190,7 @@ namespace BatmanInfer {
 
     bool BITensorInfo::auto_padding()
     {
-        ARM_COMPUTE_ERROR_ON(!_is_resizable);
+        BI_COMPUTE_ERROR_ON(!_is_resizable);
 
         // 一些内核同时计算32个元素，最坏情况下它们 （例如 SIMD 矢量化操作）
         // 将在最后一个元素之后读取32个值。
@@ -258,8 +258,8 @@ namespace BatmanInfer {
 
     bool BITensorInfo::extend_padding(const BIPaddingSize &padding)
     {
-        ARM_COMPUTE_ERROR_ON(_lock_paddings);
-        ARM_COMPUTE_ERROR_ON(!_is_resizable);
+        BI_COMPUTE_ERROR_ON(_lock_paddings);
+        BI_COMPUTE_ERROR_ON(!_is_resizable);
 
         bool updated = false;
 
@@ -322,8 +322,8 @@ namespace BatmanInfer {
         }
         else
         {
-            ARM_COMPUTE_ERROR_ON(num_channels_from_format(format) != _num_channels);
-            ARM_COMPUTE_ERROR_ON(data_type_from_format(format) != _data_type);
+            BI_COMPUTE_ERROR_ON(num_channels_from_format(format) != _num_channels);
+            BI_COMPUTE_ERROR_ON(data_type_from_format(format) != _data_type);
         }
         return *this;
     }

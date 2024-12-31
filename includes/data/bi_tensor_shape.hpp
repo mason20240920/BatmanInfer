@@ -6,7 +6,6 @@
 #define BATMANINFER_BI_TENSOR_SHAPE_HPP
 
 #include "data/core/dimensions.hpp"
-#include <arm_compute/core/Error.h>
 #include <data/core/utils/misc/utils.hpp>
 
 namespace BatmanInfer {

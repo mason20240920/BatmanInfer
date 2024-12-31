@@ -161,7 +161,7 @@ namespace BatmanInfer {
         BIValidRegion(const BICoordinates &an_anchor,
                     const BITensorShape &a_shape,
                     size_t num_dimensions) : anchor{an_anchor}, shape{a_shape} {
-            ARM_COMPUTE_ERROR_ON(num_dimensions < std::max(anchor.num_dimensions(), shape.num_dimensions()));
+            BI_COMPUTE_ERROR_ON(num_dimensions < std::max(anchor.num_dimensions(), shape.num_dimensions()));
             anchor.set_num_dimensions(num_dimensions);
         }
 
