@@ -11,24 +11,6 @@
 #include <data/core/bi_helpers.hpp>
 
 namespace BatmanInfer {
-//    // 反向映射表（可选）
-//    constexpr std::array<arm_compute::DataLayoutDimension, 5> BIDataLayoutToDataLayoutMap = {
-//            arm_compute::DataLayoutDimension::CHANNEL, // BIDataLayoutDimension::CHANNEL -> DataLayoutDimension::CHANNEL
-//            arm_compute::DataLayoutDimension::HEIGHT,  // BIDataLayoutDimension::HEIGHT -> DataLayoutDimension::HEIGHT
-//            arm_compute::DataLayoutDimension::WIDTH,   // BIDataLayoutDimension::WIDTH -> DataLayoutDimension::WIDTH
-//            arm_compute::DataLayoutDimension::DEPTH,   // BIDataLayoutDimension::DEPTH -> DataLayoutDimension::DEPTH
-//            arm_compute::DataLayoutDimension::BATCHES  // BIDataLayoutDimension::BATCHES -> DataLayoutDimension::BATCHES
-//    };
-//
-//    /**
-//     * @brief 编译期优化：使用 constexpr 和静态数组，映射表会在编译时生成，运行时几乎没有开销
-//     * @param dim
-//     * @return
-//     */
-//    constexpr arm_compute::DataLayoutDimension convertToDataLayout(BIDataLayoutDimension dim)
-//    {
-//        return BIDataLayoutToDataLayoutMap[static_cast<int>(dim)];
-//    }
 
     /**
      * @brief 存储张量元数据
@@ -306,6 +288,25 @@ namespace BatmanInfer {
         BIITensorInfo::Id  _id;
         bool               _lock_paddings;
     };
+
+    /** Check whether two tensor info are equal.
+ *
+ * @param[in] lhs LHS tensor info.
+ * @param[in] rhs RHS tensor info.
+ *
+ * @return True if the given tensor infos are the same.
+ */
+    inline bool operator==(const BITensorInfo &lhs, const BITensorInfo &rhs)
+    {
+        return (lhs._total_size == rhs._total_size) &&
+               (lhs._offset_first_element_in_bytes == rhs._offset_first_element_in_bytes) &&
+               (lhs._strides_in_bytes == rhs._strides_in_bytes) && (lhs._num_channels == rhs._num_channels) &&
+               (lhs._tensor_shape == rhs._tensor_shape) && (lhs._dims_state == rhs._dims_state) &&
+               (lhs._data_type == rhs._data_type) && (lhs._format == rhs._format) &&
+               (lhs._is_resizable == rhs._is_resizable) && (lhs._valid_region == rhs._valid_region) &&
+               (lhs._padding == rhs._padding) && (lhs._quantization_info == rhs._quantization_info) && (lhs._are_values_constant == rhs._are_values_constant) &&
+               (lhs._id == rhs._id);
+    }
 }
 
 #endif //BATMANINFER_BI_TENSOR_INFO_HPP

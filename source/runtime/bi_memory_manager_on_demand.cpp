@@ -6,7 +6,7 @@
 
 #include <data/core/bi_error.h>
 #include <runtime/bi_blob_lifetime_manager.hpp>
-//#include <runtime/pool>
+#include <runtime/bi_pool_manager.hpp>
 
 namespace BatmanInfer {
     BIMemoryManagerOnDemand::BIMemoryManagerOnDemand(std::shared_ptr<BIILifetimeManager> lifetime_manager,
@@ -27,10 +27,17 @@ namespace BatmanInfer {
 
     void BIMemoryManagerOnDemand::populate(BatmanInfer::BIIAllocator &allocator,
                                             size_t num_pools) {
+        // 确保生命周期管理器（_lifetime_mgr）已被正确初始化
         BI_COMPUTE_ERROR_ON(!_lifetime_mgr);
+
+        // 确保内存池管理器（_pool_mgr）已被正确初始化
         BI_COMPUTE_ERROR_ON(!_pool_mgr);
+
+        // 确保生命周期管理器中的所有对象都已完成初始化和生命周期的最终化
         BI_COMPUTE_ERROR_ON_MSG(!_lifetime_mgr->are_all_finalized(),
                                 "All the objects have not been finalized!");
+
+        // 确保内存池管理器当前不包含任何内存池，以避免重复初始化
         BI_COMPUTE_ERROR_ON_MSG(_pool_mgr->num_pools() != 0,
                                 "Pool manager already contains pools!");
 
@@ -50,6 +57,9 @@ namespace BatmanInfer {
 
     std::shared_ptr<BIMemoryManagerOnDemand> BIMemoryManagerOnDemand::make_default() {
         auto lifetime_mgr = std::make_shared<BIBlobLifetimeManager>();
-//        auto pool_mgr = std::make_shared<>()
+        auto pool_mgr = std::make_shared<BIPoolManager>();
+        auto mm = std::make_shared<BIMemoryManagerOnDemand>(lifetime_mgr, pool_mgr);
+
+        return mm;
     }
 }
