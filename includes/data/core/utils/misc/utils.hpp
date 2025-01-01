@@ -47,6 +47,32 @@ namespace BatmanInfer {
                                       const size_t alignment) {
                 return (reinterpret_cast<std::uintptr_t>(ptr) % alignment) == 0;
             }
+
+            /**
+             * @brief  generate_array继承自generate_array<T, N - 1, val, val, vals...>，即通过递归模板，
+             *         将N逐步减小，直到N == 0时停止递归
+             * @tparam T 数组中元素的类型
+             * @tparam N 数组的大小
+             * @tparam val  数组中每个元素的值
+             * @tparam vals 可变参数模版，用于存储数组中的元素
+             */
+            template <typename T, std::size_t N, T val, T... vals>
+            struct generate_array: generate_array<T, N - 1, val, val, vals...>
+            {
+
+            };
+
+            /**
+             * @brief 当N == 0时，递归终止，进入这个特化的模板
+             * @tparam T 数组中元素的类型
+             * @tparam val 数组中每个元素的值
+             * @tparam vals 可变参数模版，用于存储数组中的元素
+             */
+            template <typename T, T val, T... vals>
+            struct generate_array<T, 0, val, vals...>
+            {
+                static constexpr std::array<T, sizeof...(vals)> value{vals...};
+            };
         }
     }
 }
