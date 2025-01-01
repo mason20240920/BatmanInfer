@@ -2,7 +2,6 @@
 // Created by Mason on 2024/12/26.
 //
 
-#include <runtime/bi_allocator.hpp>
 #include <data/core/bi_tensor_info.hpp>
 #include <runtime/bi_tensor_allocator.hpp>
 #include <runtime/bi_memory_region.hpp>

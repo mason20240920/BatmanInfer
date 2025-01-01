@@ -24,7 +24,7 @@ namespace BatmanInfer {
     class BIDimensions {
     public:
         /**
-         * @brief 张量有的维度数量化
+         * @brief 张量最大维度数
          */
         static constexpr size_t num_max_dimensions = MAX_DIMS;
 
