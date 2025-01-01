@@ -6,6 +6,7 @@
 #define BATMANINFER_BI_HELPERS_HPP
 
 #include <data/core/bi_types.hpp>
+#include <data/core/bi_window.hpp>
 
 namespace BatmanInfer {
     /**
@@ -30,6 +31,34 @@ namespace BatmanInfer {
   * [N D H W C]
   */
     const std::vector<BIDataLayoutDimension> &get_layout_map();
+
+    /**
+     * @brief 迭代器: 由@ref execute_window_loop进行迭代更新
+     */
+    class BIIterator {
+    private:
+
+        void initialize(size_t num_dims,
+                        const BIStrides &strides,
+                        uint8_t *buffer,
+                        size_t offset,
+                        const BIWindow &window);
+
+        uint8_t *_ptr;
+
+        class BIDimension {
+        public:
+            constexpr BIDimension(): _dim_start(0), _stride(0)
+            {
+
+            }
+
+            size_t _dim_start;
+            size_t _stride;
+        };
+
+        std::array<BIDimension, BICoordinates::num_max_dimensions> _dims;
+    };
 }
 
 #include <data/core/bi_helpers.inl>
