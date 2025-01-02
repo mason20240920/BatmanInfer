@@ -201,7 +201,7 @@ namespace BatmanInfer {
             return end();
         }
 
-        /** Collapses all dimensions to a single linear total size.
+        virtual /** Collapses all dimensions to a single linear total size.
         *
         * @return The total tensor size in terms of elements.
        */

@@ -77,6 +77,23 @@ namespace BatmanInfer {
                 return BIDataType::UNKNOWN;
         }
     }
+
+    /**
+     * @brief  检查给定的数据类型是否为浮点类型。
+     * @param dt
+     * @return
+     */
+    inline bool is_data_type_float(BIDataType dt)
+    {
+        switch (dt)
+        {
+            case BIDataType::F16:
+            case BIDataType::F32:
+                return true;
+            default:
+                return false;
+        }
+    }
 }
 
 #endif //BATMANINFER_DATA_TYPE_UTILS_HPP

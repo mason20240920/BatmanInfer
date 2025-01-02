@@ -14,6 +14,7 @@ namespace BatmanInfer {
      * @brief CPU张量的接口
      */
     class BIITensor {
+    public:
         /**
          * @brief 接口函数: 返回张量原始数据
          * @return 返回张量接口信息的指针

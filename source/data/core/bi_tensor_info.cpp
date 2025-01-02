@@ -386,4 +386,8 @@ namespace BatmanInfer {
         return offset;
     }
 
+    BITensorInfo::BITensorInfo(const BITensorShape &tensor_shape, size_t num_channels, BIDataType data_type) : BITensorInfo() {
+        init(tensor_shape, num_channels, data_type);
+    }
+
 }

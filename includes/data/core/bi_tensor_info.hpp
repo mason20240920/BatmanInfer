@@ -38,6 +38,10 @@ namespace BatmanInfer {
 
         explicit BITensorInfo(const BITensorShape &tensor_shape, Format format);
 
+        explicit BITensorInfo(const BITensorShape &tensor_shape,
+                              size_t num_channels,
+                              BIDataType data_type);
+
         explicit BITensorInfo(size_t num_channels, BIDataType data_type);
         explicit BITensorInfo(const BITensorShape &tensor_shape,
                    size_t             num_channels,

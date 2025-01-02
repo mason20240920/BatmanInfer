@@ -166,7 +166,6 @@ link_directories(${GLOG_LIBRARY_DIRS}
         ${ARM_COMPUTE_LIB_PATH})
 
 add_executable(BatmanInfer main.cpp
-        source/Tensor.cpp
         source/data/core/bi_tensor_info.cpp
         source/data/core/bi_helpers.cpp
         source/runtime/bi_allocator.cpp
@@ -180,7 +179,9 @@ add_executable(BatmanInfer main.cpp
         source/data/core/bi_i_tensor.cpp
         source/runtime/bi_i_tensor_allocator.cpp
         source/runtime/bi_memory.cpp
-        #        test/tensor_get_values.cpp
+        source/data/core/bi_utils.cpp
+        source/runtime/bi_tensor.cpp
+        test/tensor_get_values.cpp
 #        test/test_onnx.cpp
 #        source/others/utils.cpp
 #        source/onnx_conv/OnnxUtils.cpp

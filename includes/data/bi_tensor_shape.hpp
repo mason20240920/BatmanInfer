@@ -40,6 +40,23 @@ namespace BatmanInfer {
 
         ~BITensorShape() = default;
 
+
+        size_t total_size() const override {
+            return std::accumulate(_id.begin(), _id.end(), 1, std::multiplies<size_t>());
+        }
+
+        /**
+         * @brief 折叠指定维度及其以上的维度。
+         * @param dimension 所需维度的大小
+         * @return
+         */
+        size_t total_size_upper(size_t dimension) const {
+            BI_COMPUTE_ERROR_ON(dimension >= BITensorShape::num_max_dimensions);
+            return std::accumulate(_id.begin() + dimension, _id.end(), 1, std::multiplies<size_t>());
+        }
+
+
+
         /**
          * @brief 张量形状广播（Broadcasting）
          * 1， 广播的目的是让两个形状不同的张量能够进行数学运算（如加法、减法、乘法等）

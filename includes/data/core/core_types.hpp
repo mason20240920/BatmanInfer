@@ -7,7 +7,11 @@
 
 #include "data/core/bi_strides.hpp"
 
+#include "support/bi_half.hpp"
+
 namespace BatmanInfer {
+    /** 16-bit floating point type */
+    using half = half_float::half;
 
     using TensorID   = unsigned int;
     /**
