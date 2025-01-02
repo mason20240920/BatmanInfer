@@ -5,6 +5,8 @@
 #ifndef BATMANINFER_QUANTIZATION_INFO_HPP
 #define BATMANINFER_QUANTIZATION_INFO_HPP
 
+#include "data/core/bi_rounding.h"
+
 #include <vector>
 #include <cstdint>
 

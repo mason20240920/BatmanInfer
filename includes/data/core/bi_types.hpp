@@ -290,6 +290,13 @@ namespace BatmanInfer {
         BILINEAR,         /**< Output values are defined by bilinear interpolation between the pixels */
         AREA, /**< Output values are determined by averaging the source pixels whose areas fall under the area of the destination pixel, projected onto the source image */
     };
+
+    enum class BIConvertPolicy
+	{
+	    WRAP,    /**< Wrap around */
+    	SATURATE /**< Saturate */
+	};
+
 }
 
 #endif //BATMANINFER_BI_TYPES_HPP
