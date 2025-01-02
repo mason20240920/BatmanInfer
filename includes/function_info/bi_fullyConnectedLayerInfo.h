@@ -11,7 +11,7 @@
 namespace BatmanInfer {
 
     /** Fully connected layer info */
-    struct FullyConnectedLayerInfo
+    struct BIFullyConnectedLayerInfo
     {
         /* Fused-activation parameters */
         BIActivationLayerInfo activation_info{}; /**<  Fused activation to apply after the matrix multiplication. */
@@ -30,7 +30,7 @@ namespace BatmanInfer {
          *
          * @return Updated object
          */
-        FullyConnectedLayerInfo &set_weights_trained_layout(BIDataLayout layout)
+        BIFullyConnectedLayerInfo &set_weights_trained_layout(BIDataLayout layout)
         {
             weights_trained_layout = layout;
             return *this;
@@ -41,7 +41,7 @@ namespace BatmanInfer {
          *
          * @return Updated object
          */
-        FullyConnectedLayerInfo &set_transpose_weights(bool should_transpose_weights)
+        BIFullyConnectedLayerInfo &set_transpose_weights(bool should_transpose_weights)
         {
             transpose_weights = should_transpose_weights;
             return *this;
