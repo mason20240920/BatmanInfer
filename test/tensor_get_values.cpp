@@ -60,6 +60,7 @@ TEST(test_tensor_values, tensor_values1) {
     const BITensorShape weights_shape_conv0(kernel_x_conv0, kernel_y_conv0, src_shape.z(), ofm_conv0);
 
     weights0.allocator()->init(BITensorInfo(weights_shape_conv0, 1, BIDataType::F32));
+    weights0.print(std::cout);
 
     std::cout << "Hello" << std::endl;
 }
