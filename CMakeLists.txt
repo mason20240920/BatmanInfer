@@ -183,6 +183,13 @@ add_executable(BatmanInfer main.cpp
         source/runtime/bi_tensor.cpp
         test/tensor_get_values.cpp
         source/runtime/bi_i_weights_manager.cpp
+        source/data/core/cpp/cpp_types.cpp
+        source/common/cpu_info.cpp
+        source/common/cpu_model.cpp
+        source/common/cpu_isa_info.cpp
+        source/data/core/bi_i_tensor_pack.cpp
+        source/runtime/neon/bi_i_ne_operator.cpp
+        source/data/core/bi_i_kernel.cpp
         #        test/test_onnx.cpp
 #        source/others/utils.cpp
 #        source/onnx_conv/OnnxUtils.cpp
