@@ -6,6 +6,7 @@
 
 #include <data/core/bi_window.hpp>
 #include <data/core/neon/bi_i_ne_kernel.hpp>
+#include <runtime/neon/bi_ne_scheduler.hpp>
 
 namespace BatmanInfer {
     namespace experimental {
@@ -23,7 +24,15 @@ namespace BatmanInfer {
         }
 
         void BIINEOperator::run(BIITensorPack &tensors, const BIWindow &window) {
-            
+            BINEScheduler::get().schedule_op(_kernel.get(), BIWindow::DimY, window, tensors);
+        }
+
+        void BIINEOperator::prepare(BatmanInfer::BIITensorPack &constants) {
+            BI_COMPUTE_UNUSED(constants);
+        }
+
+        BIMemoryRequirements BIINEOperator::workspace() const {
+            return _workspace;
         }
     }
 }

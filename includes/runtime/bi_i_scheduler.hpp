@@ -71,10 +71,10 @@ namespace BatmanInfer {
              * @param strategy 切分策略
              * @param threshold 动态调度封顶阈值
              */
-            explicit Hints(unsigned int split_dimension,
-                           BIStrategyHint strategy = BIStrategyHint::STATIC,
-                           int threshold = 0) : _split_dimension(split_dimension), _strategy(strategy),
-                                                _threshold(threshold) {
+            Hints(unsigned int split_dimension,
+                  BIStrategyHint strategy = BIStrategyHint::STATIC,
+                  int threshold = 0) : _split_dimension(split_dimension), _strategy(strategy),
+                                       _threshold(threshold) {
 
             }
 

@@ -198,6 +198,9 @@ add_executable(BatmanInfer main.cpp
         source/data/core/utils/logging/bi_i_file_printer.cpp
         source/data/core/utils/logging/bi_logging_logger_registry.cpp
         source/runtime/cpp/bi_cpp_scheduler.cpp
+        source/runtime/omp/bi_imp_scheduler.cpp
+        source/runtime/cpp/bi_single_thread_scheduler.cpp
+        source/runtime/bi_scheduler.cpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
         #        source/onnx_conv/OnnxUtils.cpp
