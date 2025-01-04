@@ -10,5 +10,20 @@
 namespace BatmanInfer {
     namespace experimental {
         BIINEOperator::~BIINEOperator() = default;
+
+        BIINEOperator::BIINEOperator(BIIRuntimeContext *ctx) : _kernel(), _ctx(ctx), _workspace() {
+
+        }
+
+        void BIINEOperator::run(BIITensorPack &tensors) {
+            if (tensors.empty())
+                BI_COMPUTE_ERROR("No inputs provided");
+
+            run(tensors, _kernel->window());
+        }
+
+        void BIINEOperator::run(BIITensorPack &tensors, const BIWindow &window) {
+            
+        }
     }
 }

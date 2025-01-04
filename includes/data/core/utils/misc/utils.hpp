@@ -56,9 +56,8 @@ namespace BatmanInfer {
              * @tparam val  数组中每个元素的值
              * @tparam vals 可变参数模版，用于存储数组中的元素
              */
-            template <typename T, std::size_t N, T val, T... vals>
-            struct generate_array: generate_array<T, N - 1, val, val, vals...>
-            {
+            template<typename T, std::size_t N, T val, T... vals>
+            struct generate_array : generate_array<T, N - 1, val, val, vals...> {
 
             };
 
@@ -68,11 +67,31 @@ namespace BatmanInfer {
              * @tparam val 数组中每个元素的值
              * @tparam vals 可变参数模版，用于存储数组中的元素
              */
-            template <typename T, T val, T... vals>
-            struct generate_array<T, 0, val, vals...>
-            {
+            template<typename T, T val, T... vals>
+            struct generate_array<T, 0, val, vals...> {
                 static constexpr std::array<T, sizeof...(vals)> value{vals...};
             };
+
+            /**
+             * @brief 把字符串转为小写
+             * @param string
+             * @return
+             */
+            inline std::string tolower(std::string string) {
+                std::transform(string.begin(), string.end(), string.begin(),
+                               [](unsigned char c) { return std::tolower(c); });
+                return string;
+            }
+
+            inline std::string getenv(const std::string &env_name) {
+#ifdef BARE_METAL
+                BI_COMPUTE_UNUSED(env_name);
+    return std::string{};
+#else  // BARE_METAL
+                const auto env_chr = std::getenv(env_name.c_str());
+                return env_chr == nullptr ? std::string{} : std::string{env_chr};
+#endif // BARE_METAL
+            }
         }
     }
 }

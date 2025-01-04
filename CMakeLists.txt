@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 # 检查目标平台
-if(ANDROID)
+if (ANDROID)
     # Set the CMake prefix path
     set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/third_party" CACHE STRING "CMake prefix path")
 
@@ -18,14 +18,14 @@ if(ANDROID)
     # Android特定的设置
     add_definitions(-DPLATFORM_ANDROID)
     # Android可能需要特定的库路径和编译选项
-#    set(OpenMP_C_FLAGS "-fopenmp")
-#    set(OpenMP_CXX_FLAGS "-fopenmp")
-#    set(OpenMP_omp_LIBRARY "omp")
+    #    set(OpenMP_C_FLAGS "-fopenmp")
+    #    set(OpenMP_CXX_FLAGS "-fopenmp")
+    #    set(OpenMP_omp_LIBRARY "omp")
     # Enable OpenMP
     find_package(OpenMP REQUIRED)
-    if(OpenMP_CXX_FOUND)
+    if (OpenMP_CXX_FOUND)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    endif()
+    endif ()
     # 设置 Armadillo 的路径
     set(ARMADILLO_LIBRARIES "${CMAKE_SOURCE_DIR}/third_party/arma/lib/libarmadillo.a")
     set(ARMADILLO_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/third_party/arma/include")
@@ -85,7 +85,7 @@ if(ANDROID)
     # 加载glog路径
     set(GLOG_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/third_party/glog/include")
     set(GLOG_LIBRARIES "${CMAKE_SOURCE_DIR}/third_party/glog/lib/libglog.a")
-else()
+else ()
     # 查找OpenMP
     set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
     set(OpenMP_C_LIB_NAMES "omp")
@@ -125,9 +125,9 @@ else()
     set(ARM_COMPUTE_LIB_PATH "/Users/mason/Downloads/QwenModel/arm_compute-v24.12-macos-aarch64-cpu-bin/lib/armv8.2-a-neon") # 替换为实际路径
     set(ARM_COMPUTE_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/includes")
 
-    set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED")
+    set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED")
 
-endif()
+endif ()
 
 # 下载GoogleTest项目
 include(FetchContent)
@@ -190,28 +190,36 @@ add_executable(BatmanInfer main.cpp
         source/data/core/bi_i_tensor_pack.cpp
         source/runtime/neon/bi_i_ne_operator.cpp
         source/data/core/bi_i_kernel.cpp
+        source/runtime/bi_i_scheduler.cpp
+        source/runtime/bi_scheduler_utils.cpp
+        source/data/core/utils/logging/bi_logging_helpers.cpp
+        source/data/core/utils/logging/bi_logging_logger.cpp
+        source/data/core/utils/io/file_handler.cpp
+        source/data/core/utils/logging/bi_i_file_printer.cpp
+        source/data/core/utils/logging/bi_logging_logger_registry.cpp
+        source/runtime/cpp/bi_cpp_scheduler.cpp
         #        test/test_onnx.cpp
-#        source/others/utils.cpp
-#        source/onnx_conv/OnnxUtils.cpp
-#        source/ir.cpp
-#        source/runtime_attr.cpp
-#        source/runtime_op.cpp
-#        source/runtime_ir.cpp
-#        source/tensor_util.cpp
-#        test/test_topo.cpp
-#        source/operators/batman_operator.cpp
-#        source/layer/abstract/layer.cpp
-#        source/layer/abstract/layer_factory.cpp
-#        source/layer/abstract/param_layer.cpp
-#        source/layer/detail/relu.cpp
-#        source/layer/detail/softmax.cpp
-#        source/layer/detail/sigmoid.cpp
-#        source/layer/detail/maxpooling.cpp
-#        test/test_halide_drom.cpp
-#        source/layer/detail/convolution.cpp
-#        test/test_convolution.cpp
-#        test/test_resnt.cpp
-#        source/runtime/bi_memory.cpp
+        #        source/others/utils.cpp
+        #        source/onnx_conv/OnnxUtils.cpp
+        #        source/ir.cpp
+        #        source/runtime_attr.cpp
+        #        source/runtime_op.cpp
+        #        source/runtime_ir.cpp
+        #        source/tensor_util.cpp
+        #        test/test_topo.cpp
+        #        source/operators/batman_operator.cpp
+        #        source/layer/abstract/layer.cpp
+        #        source/layer/abstract/layer_factory.cpp
+        #        source/layer/abstract/param_layer.cpp
+        #        source/layer/detail/relu.cpp
+        #        source/layer/detail/softmax.cpp
+        #        source/layer/detail/sigmoid.cpp
+        #        source/layer/detail/maxpooling.cpp
+        #        test/test_halide_drom.cpp
+        #        source/layer/detail/convolution.cpp
+        #        test/test_convolution.cpp
+        #        test/test_resnt.cpp
+        #        source/runtime/bi_memory.cpp
 )
 #        source/layer/detail/add.cpp
 #        source/layer/detail/global_average_pool.cpp
@@ -255,7 +263,7 @@ target_link_libraries(BatmanInfer
 
 #message("check\t" ${HALIDE_DIR})
 
-if(ANDROID)
+if (ANDROID)
     target_link_libraries(BatmanInfer OpenMP::OpenMP_CXX)
 endif ()
 

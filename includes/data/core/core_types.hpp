@@ -13,7 +13,7 @@ namespace BatmanInfer {
     /** 16-bit floating point type */
     using half = half_float::half;
 
-    using TensorID   = unsigned int;
+    using TensorID = unsigned int;
     /**
  * @brief 可用的数据类型
  */
@@ -41,8 +41,7 @@ namespace BatmanInfer {
     };
 
     /** Supported tensor data layouts */
-    enum class BIDataLayout
-    {
+    enum class BIDataLayout {
         UNKNOWN, /**< Unknown data layout */
         NCHW,    /**< Num samples, channels, height, width */
         NHWC,    /**< Num samples, height, width, channels */
@@ -51,8 +50,7 @@ namespace BatmanInfer {
     };
 
     /** Image colour formats */
-    enum class Format
-    {
+    enum class Format {
         UNKNOWN,  /**< Unknown image format */
         U8,       /**< 1 channel, 1 U8 per channel */
         S16,      /**< 1 channel, 1 S16 per channel */
@@ -76,8 +74,7 @@ namespace BatmanInfer {
     };
 
 /**< Device target types */
-    enum class BITarget
-    {
+    enum class BITarget {
         UNSPECIFIED, /**< Unspecified Target */
         NEON,        /**< Arm® Neon™ capable target device */
         CL,          /**< OpenCL capable target device */
@@ -85,8 +82,7 @@ namespace BatmanInfer {
     };
 
     /** Supported tensor data layout dimensions */
-    enum class BIDataLayoutDimension
-    {
+    enum class BIDataLayoutDimension {
         CHANNEL, /**< channel */
         HEIGHT,  /**< height */
         WIDTH,   /**< width */
@@ -97,14 +93,12 @@ namespace BatmanInfer {
     /** Dimension rounding type when down-scaling on CNNs
      * @note Used in pooling and convolution layer
      */
-    enum class BIDimensionRoundingType
-    {
+    enum class BIDimensionRoundingType {
         FLOOR, /**< Floor rounding */
         CEIL   /**< Ceil rounding */
     };
 
-    class BIPadStrideInfo
-    {
+    class BIPadStrideInfo {
     public:
         /** Constructor
          *
@@ -114,19 +108,19 @@ namespace BatmanInfer {
          * @param[in] pad_y    (Optional) Padding, in elements, across y. Defaults to 0.
          * @param[in] round    (Optional) Dimensions rounding. Defaults to @ref BIDimensionRoundingType::FLOOR.
          */
-        BIPadStrideInfo(unsigned int            stride_x = 1,
-                        unsigned int            stride_y = 1,
-                        unsigned int            pad_x    = 0,
-                        unsigned int            pad_y    = 0,
-                        BIDimensionRoundingType round    = BIDimensionRoundingType::FLOOR)
-            : _stride(std::make_pair(stride_x, stride_y)),
-              _pad_left(pad_x),
-              _pad_top(pad_y),
-              _pad_right(pad_x),
-              _pad_bottom(pad_y),
-              _round_type(round)
-        {
+        BIPadStrideInfo(unsigned int stride_x = 1,
+                        unsigned int stride_y = 1,
+                        unsigned int pad_x = 0,
+                        unsigned int pad_y = 0,
+                        BIDimensionRoundingType round = BIDimensionRoundingType::FLOOR)
+                : _stride(std::make_pair(stride_x, stride_y)),
+                  _pad_left(pad_x),
+                  _pad_top(pad_y),
+                  _pad_right(pad_x),
+                  _pad_bottom(pad_y),
+                  _round_type(round) {
         }
+
         /** Constructor
          *
          * @param[in] stride_x   Stride, in elements, across x.
@@ -137,80 +131,76 @@ namespace BatmanInfer {
          * @param[in] pad_bottom Padding across y on the bottom, in elements.
          * @param[in] round      Dimensions rounding.
          */
-        BIPadStrideInfo(unsigned int            stride_x,
-                        unsigned int            stride_y,
-                        unsigned int            pad_left,
-                        unsigned int            pad_right,
-                        unsigned int            pad_top,
-                        unsigned int            pad_bottom,
+        BIPadStrideInfo(unsigned int stride_x,
+                        unsigned int stride_y,
+                        unsigned int pad_left,
+                        unsigned int pad_right,
+                        unsigned int pad_top,
+                        unsigned int pad_bottom,
                         BIDimensionRoundingType round)
-            : _stride(std::make_pair(stride_x, stride_y)),
-              _pad_left(pad_left),
-              _pad_top(pad_top),
-              _pad_right(pad_right),
-              _pad_bottom(pad_bottom),
-              _round_type(round)
-        {
+                : _stride(std::make_pair(stride_x, stride_y)),
+                  _pad_left(pad_left),
+                  _pad_top(pad_top),
+                  _pad_right(pad_right),
+                  _pad_bottom(pad_bottom),
+                  _round_type(round) {
         }
+
         /** Get the stride.
          *
          * @return a pair: stride x, stride y.
          */
-        std::pair<unsigned int, unsigned int> stride() const
-        {
+        std::pair<unsigned int, unsigned int> stride() const {
             return _stride;
         }
+
         /** Check whether the padding is symmetric.
          *
          * @return True if the padding is symmetric.
          */
-        bool padding_is_symmetric() const
-        {
+        bool padding_is_symmetric() const {
             return (_pad_left == _pad_right) && (_pad_top == _pad_bottom);
         }
+
         /** Get the padding.
          *
          * @note This should only be used when the padding is symmetric.
          *
          * @return a pair: padding left/right, padding top/bottom
          */
-        std::pair<unsigned int, unsigned int> pad() const
-        {
+        std::pair<unsigned int, unsigned int> pad() const {
             //this accessor should be used only when padding is symmetric
             BI_COMPUTE_ERROR_ON(!padding_is_symmetric());
             return std::make_pair(_pad_left, _pad_top);
         }
 
         /** Get the left padding */
-        unsigned int pad_left() const
-        {
+        unsigned int pad_left() const {
             return _pad_left;
         }
+
         /** Get the right padding */
-        unsigned int pad_right() const
-        {
+        unsigned int pad_right() const {
             return _pad_right;
         }
+
         /** Get the top padding */
-        unsigned int pad_top() const
-        {
+        unsigned int pad_top() const {
             return _pad_top;
         }
+
         /** Get the bottom padding */
-        unsigned int pad_bottom() const
-        {
+        unsigned int pad_bottom() const {
             return _pad_bottom;
         }
 
         /** Get the rounding type */
-        BIDimensionRoundingType round() const
-        {
+        BIDimensionRoundingType round() const {
             return _round_type;
         }
 
         /** Check whether this has any padding */
-        bool has_padding() const
-        {
+        bool has_padding() const {
             return (_pad_left != 0 || _pad_top != 0 || _pad_right != 0 || _pad_bottom != 0);
         }
 
@@ -221,7 +211,7 @@ namespace BatmanInfer {
         unsigned int                          _pad_right;
         unsigned int                          _pad_bottom;
 
-        BIDimensionRoundingType               _round_type;
+        BIDimensionRoundingType _round_type;
     };
 
     /** Memory layouts for the weights tensor.
@@ -248,18 +238,18 @@ namespace BatmanInfer {
      * OHWIo{interleave_by}i{block_by} and size O'HWI' is a 6-parameter
      * access function, where the 6 parameters are computed as follows:
      *
-     * x5 = floor(o/{interleave_by}) RANGE [0, O'/{interleave_by} -1] SIZE: O'/{interleave_by}
+     * x5 = floor(io/{interleave_by}) RANGE [0, O'/{interleave_by} -1] SIZE: O'/{interleave_by}
      *
      * x4 = h                        RANGE [0, H-1]                   SIZE: H
      * x3 = w                        RANGE [0, W-1]                   SIZE: W
      * x2 = floor(i/{block_by})      RANGE [0, I'/{block_by} -1]      SIZE: I'/{block_by}
-     * x1 = o%{interleave_by}        RANGE [0, {interleave_by} -1]    SIZE: {interleave_by}
+     * x1 = io%{interleave_by}        RANGE [0, {interleave_by} -1]    SIZE: {interleave_by}
      * x0 = i%{block_by}             RANGE [0, {block_by} -1]         SIZE: {block_by}
      *                                                          TOTAL SIZE: O' * H * W * I'
      *
      *        4D                       6D
      * -----------------   -----------------------------------
-     * value(o, h, w, i) =   x5 * H * W * I' * {interleave_by}
+     * value(io, h, w, i) =   x5 * H * W * I' * {interleave_by}
      *                     + x4 * W * I' * {interleave_by}
      *                     + x3 * I' * {interleave_by}
      *                     + x2 * {interleave_by} * {block_by}
@@ -275,8 +265,7 @@ namespace BatmanInfer {
      * fast-mode kernels, in which the weights are passed in bfloat16
      * format.
      */
-    enum class BIWeightFormat
-    {
+    enum class BIWeightFormat {
         UNSPECIFIED    = 0x1,
         ANY            = 0x2,
         OHWI           = 0x100100,
