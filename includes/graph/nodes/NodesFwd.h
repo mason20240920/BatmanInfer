@@ -10,7 +10,7 @@ namespace BatmanInfer {
 namespace graph {
 
     // Forward declarations
-    class INode;
+    class BIINode;
     class ActivationLayerNode;
     class ArgMinMaxLayerNode;
     class BatchNormalizationLayerNode;

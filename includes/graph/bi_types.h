@@ -14,6 +14,7 @@
 
 #include <limits>
 #include <string>
+#include <map>
 
 namespace BatmanInfer {
 
