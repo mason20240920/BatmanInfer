@@ -15,6 +15,15 @@ namespace BatmanInfer {
         TO_NEAREST_EVEN, /**< Rounds to nearest value; half rounds to nearest even */
     };
 
+    /** Return a rounded value of x. Rounding is done according to the rounding_policy.
+     *
+     * @param[in] x               Float value to be rounded.
+     * @param[in] rounding_policy Policy determining how rounding is done.
+     *
+     * @return Rounded value of the argument x.
+     */
+    int round(float x, BIRoundingPolicy rounding_policy);
+
 } // namespace BatmanInfer
 
 #endif //BATMANINFER_BI_ROUNDING_H

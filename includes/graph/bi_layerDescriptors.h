@@ -15,10 +15,10 @@ namespace graph {
 namespace descriptors {
 
     /** Concatenate layer descriptor */
-    struct BIConcatLayerDescriptor
+    struct ConcatLayerDescriptor
     {
         /** Default constructor */
-        BIConcatLayerDescriptor() : axis(BIDataLayoutDimension::CHANNEL), output_qinfo()
+        ConcatLayerDescriptor() : axis(BIDataLayoutDimension::CHANNEL), output_qinfo()
         {
         }
 
@@ -26,7 +26,7 @@ namespace descriptors {
          *
          * @param[in] axis Axis.
          */
-        BIConcatLayerDescriptor(BIDataLayoutDimension axis) : axis(axis), output_qinfo()
+        ConcatLayerDescriptor(BIDataLayoutDimension axis) : axis(axis), output_qinfo()
         {
         }
 
@@ -35,7 +35,7 @@ namespace descriptors {
          * @param[in] axis         Axis.
          * @param[in] output_qinfo Output quantization info.
          */
-        BIConcatLayerDescriptor(BIDataLayoutDimension axis, BIQuantizationInfo output_qinfo)
+        ConcatLayerDescriptor(BIDataLayoutDimension axis, BIQuantizationInfo output_qinfo)
             : axis(axis), output_qinfo(output_qinfo)
         {
         }

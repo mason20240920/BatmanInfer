@@ -8,6 +8,15 @@
 #include "support/b_float16.hpp"
 #include "support/bi_half.hpp"
 
+#include <cassert>
+#include <cmath>
+#include <cstddef>
+#include <limits>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <type_traits>
+
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)
 #endif // M_PI
