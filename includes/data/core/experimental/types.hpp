@@ -14,8 +14,7 @@ namespace BatmanInfer {
     /**
      * @brief 内存类型
      */
-    enum BITensorType : int32_t
-    {
+    enum BITensorType : int32_t {
         ACL_UNKNOWN = -1,
         ACL_SRC_DST = 0,
 
@@ -60,40 +59,55 @@ namespace BatmanInfer {
     };
 
     namespace experimental {
-        enum class MemoryLifetime
-        {
+        enum class MemoryLifetime {
             Temporary  = 0,
             Persistent = 1,
             Prepare    = 2,
         };
 
+        /**
+         * @brief 内存信息
+         */
         struct BIMemoryInfo {
             BIMemoryInfo() = default;
 
-            explicit BIMemoryInfo(int slot, size_t size, size_t alignment = 0) noexcept : slot(slot), size(size), alignment(alignment)
-            {
+            explicit BIMemoryInfo(int slot, size_t size, size_t alignment = 0) noexcept: slot(slot), size(size),
+                                                                                         alignment(alignment) {
 
             }
 
             BIMemoryInfo(int slot, MemoryLifetime lifetime, size_t size, size_t alignment = 0) noexcept
-                    : slot(slot), lifetime(lifetime), size(size), alignment(alignment)
-            {
+                    : slot(slot), lifetime(lifetime), size(size), alignment(alignment) {
             }
 
+            /**
+             * @brief 合并内存块信息
+             * @param _slot 另一个内存块的槽ID
+             * @param new_size 另一个内存块的大小
+             * @param new_alignment 另一个内存块的对齐要求（默认值为 0）
+             * @return
+             */
             bool merge(int _slot, size_t new_size, size_t new_alignment = 0) noexcept {
+                // 如果 _slot 与当前对象的 slot 不一致，则合并失败，返回 false
                 if (_slot != this->slot)
                     return false;
 
-                size = std::max(size, new_size);
+                // 更新 size 为当前大小和新大小的最大值
+                size      = std::max(size, new_size);
+                // 更新 alignment 为当前对齐和新对齐的最大值
                 alignment = std::max(alignment, new_alignment);
 
                 return true;
             }
 
-            int slot{ACL_UNKNOWN};
+            // 内存槽的标识符
+            int            slot{ACL_UNKNOWN};
+            // 内存块的生命周期
             MemoryLifetime lifetime{MemoryLifetime::Temporary};
-            size_t size{0};
-            size_t alignment{64};
+            // 内存块的大小(以字节为单位)
+            size_t         size{0};
+            // 内存对齐要求
+            size_t         alignment{64};
         };
 
         using BIMemoryRequirements = std::vector<BIMemoryInfo>;

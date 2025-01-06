@@ -39,7 +39,7 @@ namespace BatmanInfer {
             virtual void prepare(BIITensorPack &constants) = 0;
 
             /**
-             * @brief 返回工作区间需要的内存
+             * @brief 返回工作区间需要的内存(一个内存信息的数组)
              * @return
              */
             virtual BIMemoryRequirements workspace() const = 0;

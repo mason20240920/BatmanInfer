@@ -19,11 +19,15 @@ namespace BatmanGemm {
 
     /**
      * @brief 用于 GEMM/GEMV 函数的抽象类
+     *        GEMV: General Matrix-Vector Multiplication (通用矩阵-向量乘法)
      *        GEMM 的实现可能是以下几种方式：
      *        1. "原生" (native)：不需要任何输入数据的重排（permutation）
-     *        2. "预转置" (pretransposed)：需要在计算前对输入数据进行重排。
+     *        2. "预转置" (pre_transposed)：需要在计算前对输入数据进行重排。
+     *        > 解释: 比如矩阵A是列优先, 那么可以修改硬件要求的行优先的排列方式
      *        3. 需要工作空间 (working space)：在计算过程中动态进行数据重排。
      *        该接口应支持所有这些实现方式。
+     *
+     *        | 实现方式 | 数据预处理 | 计算效率
      *
      *        实际的 BIGemmCommon 类是一个基于操作数类型和返回值类型的模板类。
      *        而这个类是一个独立于这些类型的接口类。
@@ -56,7 +60,7 @@ namespace BatmanGemm {
                                         const int A_multi_stride,
                                         const void *B,
                                         const int ldb,
-                /* batches share B */ const int B_multi_stride,
+                /* batches share B */   const int B_multi_stride,
                                         void *C,
                                         const int ldc,
                                         const int C_batch_stride,
@@ -89,11 +93,12 @@ namespace BatmanGemm {
             return false;
         }
 
-/** 主执行函数
- * @param [in] work_range     指定需要计算的工作范围，总范围由 get_window_size() 定义
- * @param [in] thread_locator 指定线程空间中的位置
- * @param [in] threadid       唯一的线程 ID
- */
+
+        /** 主执行函数
+         * @param [in] work_range     指定需要计算的工作范围，总范围由 get_window_size() 定义
+         * @param [in] thread_locator 指定线程空间中的位置
+         * @param [in] threadid       唯一的线程 ID
+         */
         virtual void execute(const ndcoord_t &work_range, const ndcoord_t &thread_locator, int threadid) = 0;
 
         /*** 工作空间接口（可选） ***/
@@ -262,6 +267,16 @@ namespace BatmanGemm {
             pretranspose_B_array(out, in, row_stride, multi_stride, transposed);
         };
 
+        /**
+         * @brief
+         * @param out 输出缓冲区指针
+         * @param in  输入矩阵指针
+         * @param row_stride  行步幅（矩阵行之间的存储间隔）
+         * @param multi_stride 多矩阵步幅（批次矩阵之间的存储间隔）
+         * @param transposed 是否需要转置
+         * @param start 当前线程负责的起始工作范围
+         * @param end 当前线程负责的结束工作范围
+         */
         void pretranspose_B_array_part_generic(void *out,
                                                const void *in,
                                                const int row_stride,

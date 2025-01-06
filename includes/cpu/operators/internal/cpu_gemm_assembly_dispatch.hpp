@@ -5,12 +5,12 @@
 #ifndef BATMANINFER_CPU_GEMM_ASSEMBLY_DISPATCH_HPP
 #define BATMANINFER_CPU_GEMM_ASSEMBLY_DISPATCH_HPP
 
-#include <function_info/bi_activationLayerInfo.h>
-#include <function_info/bi_GEMMInfo.h>
+#include "function_info/bi_activationLayerInfo.h"
+#include "function_info/bi_GEMMInfo.h"
 
-#include <data/core/common/bi_core_common_macros.hpp>
-#include <cpu/bi_i_cpu_operator.hpp>
-#include <cpu/kernels/assembly/bi_arm_gemm.hpp>
+#include "data/core/common/bi_core_common_macros.hpp"
+#include "cpu/bi_i_cpu_operator.hpp"
+#include "cpu/kernels/assembly/bi_arm_gemm.hpp"
 
 namespace BatmanInfer {
     namespace cpu {
@@ -198,6 +198,7 @@ namespace BatmanInfer {
             // 继承方法覆写
             void prepare(BatmanInfer::BIITensorPack &constants) override;
 
+            // 运行工具
             void run(BatmanInfer::BIITensorPack &tensors) override;
 
             experimental::BIMemoryRequirements workspace() const override;

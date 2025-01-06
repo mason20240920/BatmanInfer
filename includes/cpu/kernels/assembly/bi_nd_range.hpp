@@ -10,10 +10,20 @@
 #include <initializer_list>
 
 namespace BatmanGemm {
+    /**
+     * @brief 管理 D 维范围（range）
+     * @tparam D
+     */
     template<unsigned int D>
     class BINDRange {
     private:
+        /**
+         * @brief 存储每一维的大小
+         */
         std::array<unsigned int, D> m_sizes{};
+        /**
+         * @brief 每一维的累积大小（用于快速计算多维坐标）
+         */
         std::array<unsigned int, D> m_total_sizes{};
 
         /**

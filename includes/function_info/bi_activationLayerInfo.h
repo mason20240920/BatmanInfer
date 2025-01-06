@@ -17,8 +17,7 @@
 namespace BatmanInfer {
 
     /** Available activation functions */
-    enum class BIActivationFunction
-    {
+    enum class BIActivationFunction {
         LOGISTIC,        /**< Logistic ( \f$ f(x) = \frac{1}{1 + e^{-x}} \f$ ) */
         TANH,            /**< Hyperbolic tangent ( \f$ f(x) = a \cdot tanh(b \cdot x) \f$ ) */
         RELU,            /**< Rectifier ( \f$ f(x) = max(0,x) \f$ ) */
@@ -38,18 +37,18 @@ namespace BatmanInfer {
     };
 
     /** Activation Layer Information class */
-    class BIActivationLayerInfo
-    {
+    class BIActivationLayerInfo {
     public:
         typedef BatmanInfer::BIActivationFunction ActivationFunction;
 
         /** Lookup table  */
 #ifdef __aarch64__
-        using LookupTable256   = std::array<qasymm8_t, 256>;
+        using LookupTable256 = std::array<qasymm8_t, 256>;
         using LookupTable65536 = std::array<float16_t, 65536>;
 #endif // __aarch64__
 
         BIActivationLayerInfo() = default;
+
         /** Default Constructor
          *
          * @param[in] f The activation function to use.
@@ -60,61 +59,60 @@ namespace BatmanInfer {
          *              (@ref ActivationFunction::LINEAR, @ref ActivationFunction::LU_BOUNDED_RELU,
          *              @ref ActivationFunction::TANH).
          */
-        BIActivationLayerInfo(ActivationFunction f, float a = 0.0f, float b = 0.0f) : _act(f), _a(a), _b(b), _enabled(true)
-        {
+        BIActivationLayerInfo(ActivationFunction f, float a = 0.0f, float b = 0.0f) : _act(f), _a(a), _b(b),
+                                                                                      _enabled(true) {
         }
+
         /** Get the type of activation function */
-        ActivationFunction activation() const
-        {
+        ActivationFunction activation() const {
             return _act;
         }
+
         /** Get the alpha value */
-        float a() const
-        {
+        float a() const {
             return _a;
         }
+
         /** Get the beta value */
-        float b() const
-        {
+        float b() const {
             return _b;
         }
+
         /** Check if initialised */
-        bool enabled() const
-        {
+        bool enabled() const {
             return _enabled;
         }
 
 #ifdef __aarch64__
-        const LookupTable256 &lut() const
-        {
+
+        const LookupTable256 &lut() const {
             return _lut;
         }
-        void setLookupTable256(LookupTable256 &lut)
-        {
+
+        void setLookupTable256(LookupTable256 &lut) {
             _lut = std::move(lut);
         }
 
-        const LookupTable65536 &lut_fp16() const
-        {
-            ARM_COMPUTE_ERROR_ON(_lut_fp16 == nullptr);
+        const LookupTable65536 &lut_fp16() const {
+            BI_COMPUTE_ERROR_ON(_lut_fp16 == nullptr);
             return *_lut_fp16;
         }
-        void setLookupTable65536(std::shared_ptr<LookupTable65536> lut)
-        {
+
+        void setLookupTable65536(std::shared_ptr<LookupTable65536> lut) {
             _lut_fp16 = lut;
         }
+
 #endif // __aarch64__
 
         // The < and == are added to be able to use this data type as an attribute for LUTInfo
-        friend bool operator<(const BIActivationLayerInfo &l, const BIActivationLayerInfo &r)
-        {
+        friend bool operator<(const BIActivationLayerInfo &l, const BIActivationLayerInfo &r) {
             const auto l_tup = std::make_tuple(l._act, l._a, l._b, l._enabled);
             const auto r_tup = std::make_tuple(r._act, r._a, r._b, r._enabled);
 
             return l_tup < r_tup;
         }
-        bool operator==(const BIActivationLayerInfo &l) const
-        {
+
+        bool operator==(const BIActivationLayerInfo &l) const {
             return this->_act == l._act && this->_a == l._a && this->_b == l._b && this->_enabled == l._enabled;
         }
 

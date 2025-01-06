@@ -23,44 +23,43 @@
 
 #include <data/bi_tensor_shape.hpp>
 
+#include <data/core/bi_size_2D.h>
+
+#include <data/core/bi_size_3D.h>
+
+#include <function_info/bi_activationLayerInfo.h>
+
 #include <string>
 #include <utility>
 
 namespace BatmanInfer {
     /** Container for 2D border size */
-    struct BIBorderSize
-    {
+    struct BIBorderSize {
         /** Empty border, i.e. no border */
-        constexpr BIBorderSize() noexcept : top{0}, right{0}, bottom{0}, left{0}
-        {
+        constexpr BIBorderSize() noexcept: top{0}, right{0}, bottom{0}, left{0} {
         }
 
         /** Border with equal size around the 2D plane */
-        explicit constexpr BIBorderSize(unsigned int size) noexcept : top{size}, right{size}, bottom{size}, left{size}
-        {
+        explicit constexpr BIBorderSize(unsigned int size) noexcept: top{size}, right{size}, bottom{size}, left{size} {
         }
 
         /** Border with same size for top/bottom and left/right */
         constexpr BIBorderSize(unsigned int top_bottom, unsigned int left_right)
-                : top{top_bottom}, right{left_right}, bottom{top_bottom}, left{left_right}
-        {
+                : top{top_bottom}, right{left_right}, bottom{top_bottom}, left{left_right} {
         }
 
         /** Border with different sizes */
         constexpr BIBorderSize(unsigned int top, unsigned int right, unsigned int bottom, unsigned int left)
-                : top{top}, right{right}, bottom{bottom}, left{left}
-        {
+                : top{top}, right{right}, bottom{bottom}, left{left} {
         }
 
         /** Check if the entire border is zero */
-        constexpr bool empty() const
-        {
+        constexpr bool empty() const {
             return top == 0 && right == 0 && bottom == 0 && left == 0;
         }
 
         /** Check if the border is the same size on all sides */
-        constexpr bool uniform() const
-        {
+        constexpr bool uniform() const {
             return top == right && top == bottom && top == left;
         }
 
@@ -70,8 +69,7 @@ namespace BatmanInfer {
          *
          * @return *this.
          */
-        BIBorderSize &operator*=(float scale)
-        {
+        BIBorderSize &operator*=(float scale) {
             top *= scale;
             right *= scale;
             bottom *= scale;
@@ -86,8 +84,7 @@ namespace BatmanInfer {
          *
          * @return a scaled copy of this.
          */
-        BIBorderSize operator*(float scale)
-        {
+        BIBorderSize operator*(float scale) {
             BIBorderSize size = *this;
             size *= scale;
 
@@ -100,8 +97,7 @@ namespace BatmanInfer {
          *
          * @return true if they are equal
          */
-        bool operator==(const BIBorderSize &rhs) const
-        {
+        bool operator==(const BIBorderSize &rhs) const {
             return (top == rhs.top) && (right == rhs.right) && (bottom == rhs.bottom) && (left == rhs.left);
         }
 
@@ -111,8 +107,7 @@ namespace BatmanInfer {
          *
          * @return true if they are different
          */
-        bool operator!=(const BIBorderSize &rhs) const
-        {
+        bool operator!=(const BIBorderSize &rhs) const {
             return !(*this == rhs);
         }
 
@@ -120,8 +115,7 @@ namespace BatmanInfer {
          *
          * @param[in] limit Border size to limit this border size to.
          */
-        void limit(const BIBorderSize &limit)
-        {
+        void limit(const BIBorderSize &limit) {
             top    = std::min(top, limit.top);
             right  = std::min(right, limit.right);
             bottom = std::min(bottom, limit.bottom);
@@ -144,24 +138,27 @@ namespace BatmanInfer {
      */
     struct BIValidRegion {
 
-        BIValidRegion() : anchor{}, shape{}
-        {
+        BIValidRegion() : anchor{}, shape{} {
         }
 
         BIValidRegion(const BIValidRegion &) = default;
+
         BIValidRegion(BIValidRegion &&) = default;
-        BIValidRegion &operator=(const BIValidRegion&) = default;
+
+        BIValidRegion &operator=(const BIValidRegion &) = default;
+
         BIValidRegion &operator=(BIValidRegion &&) = default;
+
         ~BIValidRegion() = default;
 
         BIValidRegion(const BICoordinates &an_anchor,
-                    const BITensorShape &a_shape) : anchor{an_anchor}, shape{a_shape} {
+                      const BITensorShape &a_shape) : anchor{an_anchor}, shape{a_shape} {
             anchor.set_num_dimensions(std::max(anchor.num_dimensions(), shape.num_dimensions()));
         }
 
         BIValidRegion(const BICoordinates &an_anchor,
-                    const BITensorShape &a_shape,
-                    size_t num_dimensions) : anchor{an_anchor}, shape{a_shape} {
+                      const BITensorShape &a_shape,
+                      size_t num_dimensions) : anchor{an_anchor}, shape{a_shape} {
             BI_COMPUTE_ERROR_ON(num_dimensions < std::max(anchor.num_dimensions(), shape.num_dimensions()));
             anchor.set_num_dimensions(num_dimensions);
         }
@@ -192,8 +189,8 @@ namespace BatmanInfer {
          * @return
          */
         BIValidRegion &set(size_t dimension,
-                         int start,
-                         size_t size) {
+                           int start,
+                           size_t size) {
             anchor.set(dimension, start);
             shape.set(dimension, size);
             return *this;
@@ -260,31 +257,38 @@ namespace BatmanInfer {
         };
 
         explicit BIIOFormatInfo(PrintRegion print_region = PrintRegion::ValidRegion,
-                       PrecisionType precision_type = PrecisionType::Default,
-                       unsigned int precision = 10,
-                       bool align_columns = true,
-                       std::string element_delim = "",
-                       std::string row_delim = "\n") : print_region(print_region),
-                       precision_type(precision_type),
-                       precision(precision),
-                       element_delim(std::move(element_delim)),
-                       row_delim(std::move(row_delim)),
-                       align_columns(align_columns) {
+                                PrecisionType precision_type = PrecisionType::Default,
+                                unsigned int precision = 10,
+                                bool align_columns = true,
+                                std::string element_delim = "",
+                                std::string row_delim = "\n") : print_region(print_region),
+                                                                precision_type(precision_type),
+                                                                precision(precision),
+                                                                element_delim(std::move(element_delim)),
+                                                                row_delim(std::move(row_delim)),
+                                                                align_columns(align_columns) {
 
         }
 
         /** Area to be printed by Tensor objects */
-        PrintRegion print_region;
+        PrintRegion   print_region;
         /** Floating point precision type */
         PrecisionType precision_type;
         /** Floating point precision */
-        unsigned int precision;
+        unsigned int  precision;
         /** Element delimeter */
-        std::string element_delim;
+        std::string   element_delim;
         /** Row delimeter */
-        std::string row_delim;
+        std::string   row_delim;
         /** Align columns */
-        bool align_columns;
+        bool          align_columns;
+    };
+
+    /** Interpolation method */
+    enum class InterpolationPolicy {
+        NEAREST_NEIGHBOR, /**< Output values are defined to match the source pixel whose center is nearest to the sample position */
+        BILINEAR,         /**< Output values are defined by bilinear interpolation between the pixels */
+        AREA, /**< Output values are determined by averaging the source pixels whose areas fall under the area of the destination pixel, projected onto the source image */
     };
 }
 
