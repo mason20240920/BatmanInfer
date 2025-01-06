@@ -278,6 +278,37 @@ TEST(SchedulingHintHeuristicTest, GEMMInterleaved2DF16) {
     EXPECT_EQ(result.threshold(), 200); // 验证粒度阈值
 }
 
+TEST(BIIteratorTest, TestIteratorInit) {
+    size_t    num_dims = 3;
+    // 每个维度的步幅
+    BIStrides strides  = {20, 5, 1};
+    BIWindow  window;
+
+    // 设置维度 0 的起始位置为 1，结束位置为 10，步长为 2
+    window.set(BIWindow::DimX, BIWindow::BIDimension(1, 10, 2));
+
+    // 设置维度 1 的起始位置为 0，结束位置为 5，步长为 1
+    window.set(1, BIWindow::BIDimension(0, 5, 1));
+
+    // 设置维度 2 的起始位置为 2，结束位置为 8，步长为 1
+    window.set(2, BIWindow::BIDimension(2, 8, 1));
+
+    // 创建一个模拟缓冲区
+    // 假设缓冲区大小为 100 字节
+    std::vector<uint8_t> buffer(100);
+    // 偏移量为0
+    size_t               offset = 0;
+
+    BIIterator iterator{num_dims, strides, buffer.data(), offset, window};
+
+    // 打印结果以验证
+    for (size_t i = 0; i < num_dims; ++i) {
+        std::cout << "Dim " << i << ":\n";
+//        std::cout << "  Stride: " << iterator._dims[i]._stride << "\n";
+//        std::cout << "  Start: " << iterator._dims[i]._dim_start << "\n";
+    }
+}
+
 //float MinusOne(float value) {
 //    return value - 1.f;
 //}

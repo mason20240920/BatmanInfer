@@ -1,50 +1,42 @@
 
 namespace BatmanInfer {
-    inline size_t get_data_layout_dimension_index(const BIDataLayoutDimension &data_layout_dimension)
-    {
+    inline size_t get_data_layout_dimension_index(const BIDataLayoutDimension &data_layout_dimension) {
         const auto &dims = get_layout_map();
         const auto &it   = std::find(dims.cbegin(), dims.cend(), data_layout_dimension);
         BI_COMPUTE_ERROR_ON_MSG(it == dims.cend(), "Invalid dimension for the given layout.");
         return it - dims.cbegin();
     }
 
-    template <size_t dimension>
-    struct IncrementIterators
-    {
-        template <typename T, typename ... Ts>
-        static void unroll(T &&it, Ts && ...iterators) {
-            auto increment = [](T &&it) {it.increment(dimension);};
+    template<size_t dimension>
+    struct IncrementIterators {
+        template<typename T, typename ... Ts>
+        static void unroll(T &&it, Ts &&...iterators) {
+            auto increment = [](T &&it) { it.increment(dimension); };
             misc::utility::for_each(increment, std::forward<T>(it), std::forward<Ts>(iterators)...);
         }
 
-        static void unroll()
-        {
+        static void unroll() {
             // 结束迭代
         }
     };
 
-    template <size_t dim>
-    struct ForEachDimension
-    {
-        template <typename L, typename... Ts>
-        static void unroll(const BIWindow &w, BICoordinates &id, L &&lambda_function, Ts &&...iterators)
-        {
+    template<size_t dim>
+    struct ForEachDimension {
+        template<typename L, typename... Ts>
+        static void unroll(const BIWindow &w, BICoordinates &id, L &&lambda_function, Ts &&...iterators) {
             const auto &d = w[dim - 1];
 
-            for (auto v = d.start(); v < d.end(); v += d.step(), IncrementIterators<dim - 1>::unroll(iterators...))
-            {
+            for (auto v = d.start(); v < d.end(); v += d.step(), IncrementIterators<dim - 1>::unroll(iterators...)) {
                 id.set(dim - 1, v);
                 ForEachDimension<dim - 1>::unroll(w, id, lambda_function, iterators...);
             }
         }
     };
 
-    template <>
-    struct ForEachDimension<0>
-    {
-        template <typename L, typename... Ts>
-        static void unroll(const BIWindow &w, BICoordinates &id, L &&lambda_function, Ts &&...iterators)
-        {
+    template<>
+    struct ForEachDimension<0> {
+        template<typename L, typename... Ts>
+        static void unroll(const BIWindow &w, BICoordinates &id, L &&lambda_function, Ts &&...iterators) {
             BI_COMPUTE_UNUSED(w, iterators...);
             lambda_function(id);
         }
@@ -69,12 +61,14 @@ namespace BatmanInfer {
                                   const BIStrides &strides,
                                   uint8_t *buffer,
                                   size_t offset,
-                                  const BIWindow &window) : BIIterator() {}
+                                  const BIWindow &window) : BIIterator() {
+        initialize(num_dims, strides, buffer, offset, window);
+    }
 
     inline void BIIterator::initialize(size_t num_dims,
                                        const BatmanInfer::BIStrides &strides,
                                        uint8_t *buffer,
-                                       size_t  offset,
+                                       size_t offset,
                                        const BatmanInfer::BIWindow &window) {
         BI_COMPUTE_ERROR_ON(buffer == nullptr);
 
@@ -118,18 +112,16 @@ namespace BatmanInfer {
             _dims[n]._dim_start = _dims[dimension]._dim_start;
     }
 
-    template <typename L, typename... Ts>
-    inline void execute_window_loop(const BIWindow &w, L &&lambda_function, Ts &&...iterators)
-    {
+    template<typename L, typename... Ts>
+    inline void execute_window_loop(const BIWindow &w, L &&lambda_function, Ts &&...iterators) {
         w.validate();
 
-        for (unsigned int i = 0; i < BICoordinates::num_max_dimensions; ++i)
-        {
+        for (unsigned int i = 0; i < BICoordinates::num_max_dimensions; ++i) {
             BI_COMPUTE_ERROR_ON(w[i].step() == 0);
         }
 
         BICoordinates id;
         ForEachDimension<BICoordinates::num_max_dimensions>::unroll(w, id, std::forward<L>(lambda_function),
-                                                                  std::forward<Ts>(iterators)...);
+                                                                    std::forward<Ts>(iterators)...);
     }
 }
