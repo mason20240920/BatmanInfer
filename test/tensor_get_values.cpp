@@ -288,10 +288,10 @@ TEST(BIIteratorTest, TestIteratorInit) {
     window.set(BIWindow::DimX, BIWindow::BIDimension(1, 10, 2));
 
     // 设置维度 1 的起始位置为 0，结束位置为 5，步长为 1
-    window.set(1, BIWindow::BIDimension(0, 5, 1));
+    window.set(BIWindow::DimY, BIWindow::BIDimension(0, 5, 1));
 
     // 设置维度 2 的起始位置为 2，结束位置为 8，步长为 1
-    window.set(2, BIWindow::BIDimension(2, 8, 1));
+    window.set(BIWindow::DimZ, BIWindow::BIDimension(2, 8, 1));
 
     // 创建一个模拟缓冲区
     // 假设缓冲区大小为 100 字节
