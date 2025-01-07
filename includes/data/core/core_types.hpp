@@ -14,6 +14,9 @@ namespace BatmanInfer {
     using half = half_float::half;
 
     using TensorID = unsigned int;
+    /** Permutation vector */
+    using PermutationVector = BIStrides;
+
     /**
  * @brief 可用的数据类型
  */
