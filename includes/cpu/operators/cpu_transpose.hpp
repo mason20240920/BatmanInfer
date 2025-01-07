@@ -14,6 +14,7 @@ namespace BatmanInfer {
          * @brief 基本函数以运行 @ref kernels::BICpuTransposeKernel
          */
         class BICpuTranspose : public BIICpuOperator {
+        public:
             /**
              * @brief 根据给定的参数配置算子
              * @param src 源张量进行置换。支持的数据类型：全部。

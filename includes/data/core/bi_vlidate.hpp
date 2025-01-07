@@ -8,6 +8,7 @@
 #include <data/core/bi_error.h>
 #include <data/core/bi_i_kernel.hpp>
 #include <data/core/utils/data_type_utils.hpp>
+#include <data/core/bi_i_tensor.hpp>
 
 #include <algorithm>
 
@@ -253,6 +254,44 @@ namespace BatmanInfer {
 #define BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(...) \
     BI_COMPUTE_RETURN_ON_ERROR(                                \
         ::BatmanInfer::error_on_mismatching_data_types(__func__, __FILE__, __LINE__, __VA_ARGS__))
+
+
+    /**
+     * 如果内核没有配置就报错
+     * @param function
+     * @param file
+     * @param line
+     * @param kernel
+     * @return
+     */
+    BatmanInfer::BIStatus
+    error_on_unconfigured_kernel(const char *function, const char *file, const int line, const BIIKernel *kernel);
+
+#define BI_COMPUTE_ERROR_ON_UNCONFIGURED_KERNEL(k) \
+    BI_COMPUTE_ERROR_THROW_ON(::BatmanInfer::error_on_unconfigured_kernel(__func__, __FILE__, __LINE__, k))
+#define BI_COMPUTE_RETURN_ERROR_ON_UNCONFIGURED_KERNEL(k) \
+    BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_unconfigured_kernel(__func__, __FILE__, __LINE__, k))
+
+    /** The subwindow is invalid if:
+     *
+     * - It is not a valid window.
+     * - It is not fully contained inside the full window
+     * - The step for each of its dimension is not identical to the corresponding one of the full window.
+     *
+     * @param function
+     * @param file
+     * @param line
+     * @param full
+     * @param sub
+     * @return
+     */
+    BatmanInfer::BIStatus error_on_invalid_subwindow(
+            const char *function, const char *file, const int line, const BIWindow &full, const BIWindow &sub);
+
+#define BI_COMPUTE_ERROR_ON_INVALID_SUBWINDOW(f, s) \
+    BI_COMPUTE_ERROR_THROW_ON(::BatmanInfer::error_on_invalid_subwindow(__func__, __FILE__, __LINE__, f, s))
+#define BI_COMPUTE_RETURN_ERROR_ON_INVALID_SUBWINDOW(f, s) \
+    BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_invalid_subwindow(__func__, __FILE__, __LINE__, f, s))
 
 }
 

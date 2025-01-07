@@ -19,6 +19,7 @@
 // 临时数据
 #include <cpu/operators/internal/cpu_gemm_assembly_dispatch.hpp>
 #include <runtime/neon/bi_ne_scheduler.hpp>
+#include <runtime/neon/functions/bi_ne_transpose.hpp>
 
 
 TEST(test_tensor_values, tensor_values1) {
@@ -51,13 +52,13 @@ TEST(test_tensor_values, tensor_values1) {
     auto pool_mgr1 = std::make_shared<BIPoolManager>();
 
     // 创建内存管理器
-    auto mm_layers      = std::make_shared<BIMemoryManagerOnDemand>(lifetime_mgr0, pool_mgr0);
+    auto mm_layers = std::make_shared<BIMemoryManagerOnDemand>(lifetime_mgr0, pool_mgr0);
     auto mm_transitions = std::make_shared<BIMemoryManagerOnDemand>(lifetime_mgr1, pool_mgr1);
 
     // Initialize src tensor
-    constexpr unsigned int width_src_image  = 32;
+    constexpr unsigned int width_src_image = 32;
     constexpr unsigned int height_src_image = 32;
-    constexpr unsigned int ifm_src_img      = 1;
+    constexpr unsigned int ifm_src_img = 1;
 
     const BITensorShape src_shape(width_src_image, height_src_image, ifm_src_img);
 
@@ -67,7 +68,7 @@ TEST(test_tensor_values, tensor_values1) {
     // 初始化conv0的张量信息
     constexpr unsigned int kernel_x_conv0 = 5;
     constexpr unsigned int kernel_y_conv0 = 5;
-    constexpr unsigned int ofm_conv0      = 8;
+    constexpr unsigned int ofm_conv0 = 8;
 
     const BITensorShape weights_shape_conv0(kernel_x_conv0, kernel_y_conv0, src_shape.z(), ofm_conv0);
 
@@ -108,8 +109,8 @@ void matrix_workload(const BatmanInfer::ThreadInfo &info,
                      int rows, int cols) {
     // 每个线程处理的行数
     int chunk_size = rows / info.num_threads;
-    int start_row  = info.thread_id * chunk_size;
-    int end_row    = (info.thread_id == info.num_threads - 1) ? rows : start_row + chunk_size;
+    int start_row = info.thread_id * chunk_size;
+    int end_row = (info.thread_id == info.num_threads - 1) ? rows : start_row + chunk_size;
 
     for (int i = start_row; i < end_row; ++i)
         for (int j = 0; j < cols; ++j) {
@@ -122,7 +123,7 @@ void matrix_workload(const BatmanInfer::ThreadInfo &info,
  * @brief 测试Workload(工作负载信息)
  */
 TEST(test_tensor_values, work_load_test) {
-    int              rows = 6, cols = 4, num_threads = 3;
+    int rows = 6, cols = 4, num_threads = 3;
     // 假设一个简单的矩阵
     std::vector<int> matrix(rows * cols, 1);
 
@@ -147,7 +148,7 @@ struct Params {
     unsigned int batches;
     unsigned int multis;
     unsigned int sections;
-    bool         indirect;
+    bool indirect;
 };
 
 /**
@@ -176,13 +177,13 @@ Params extract_parameters(const BatmanInfer::BIITensorInfo *a,
         p.indirect = true;
         p.sections = b->tensor_shape()[2] * b->tensor_shape()[3];
     } else {
-        p.multis  = b->tensor_shape().z();
+        p.multis = b->tensor_shape().z();
         p.batches = d->tensor_shape().total_size_upper(2) / p.multis;
     }
 
     // 更新M如果GEMM3D作为输出
     if (info.depth_output_gemm3d != 0) {
-        p.M       = d->tensor_shape().y() * d->tensor_shape().z();
+        p.M = d->tensor_shape().y() * d->tensor_shape().z();
         p.batches = d->tensor_shape().total_size_upper(3) / p.multis;
     }
     return p;
@@ -192,22 +193,22 @@ TEST(test_tensor_values, extract_params) {
     using namespace BatmanInfer;
     // 1. 创建输入张量A的信息
     BITensorShape shape_a(3, 4);
-    BIDataType    data_type_a = BIDataType::QASYMM8;
-    BITensorInfo  tensor_a(shape_a, 1, data_type_a);
+    BIDataType data_type_a = BIDataType::QASYMM8;
+    BITensorInfo tensor_a(shape_a, 1, data_type_a);
 
     // 2. 创建输入张量 B 的信息
     BITensorShape shape_b(4, 2, 2, 2);  // B 的形状为 4 × 2 × 2 × 2
-    BIDataType    data_type_b = BIDataType::QASYMM8;  // 假设 B 的数据类型为 FLOAT32
-    BITensorInfo  tensor_b(shape_b, 1, data_type_b);
+    BIDataType data_type_b = BIDataType::QASYMM8;  // 假设 B 的数据类型为 FLOAT32
+    BITensorInfo tensor_b(shape_b, 1, data_type_b);
 
     // 3. 创建输出张量 D 的信息
     BITensorShape shape_d(3, 2, 2);  // D 的形状为 3 × 2 × 2
-    BIDataType    data_type_d = BIDataType::QASYMM8;  // 假设 D 的数据类型为 FLOAT32
-    BITensorInfo  tensor_d(shape_d, 1, data_type_d);
+    BIDataType data_type_d = BIDataType::QASYMM8;  // 假设 D 的数据类型为 FLOAT32
+    BITensorInfo tensor_d(shape_d, 1, data_type_d);
 
     // 4. 创建配置信息
     cpu::BIAsmGemmInfo info;
-    info.method              = cpu::BIAsmConvMethod::Conv;  // 设置为普通卷积方法
+    info.method = cpu::BIAsmConvMethod::Conv;  // 设置为普通卷积方法
     info.depth_output_gemm3d = false;  // 不使用 3D GEMM 输出
 
     // 5. 调用 extract_parameters 函数
@@ -232,7 +233,7 @@ BIIScheduler::Hints scheduling_hint_heuristic(BatmanGemm::GemmMethod method,
     // 调度粒度的阈值，值为 200
     const int granule_threshold = 200;
     // 默认的调度提示(默认在X轴上并行)
-    auto      scheduling_hint   = BIIScheduler::Hints(BIWindow::DimX);
+    auto scheduling_hint = BIIScheduler::Hints(BIWindow::DimX);
     if (method == BatmanGemm::GemmMethod::GEMM_INTERLEAVED && data_type == BIDataType::F32)
         scheduling_hint = BIIScheduler::Hints(BIWindow::DimX,
                                               BIIScheduler::BIStrategyHint::DYNAMIC,
@@ -255,8 +256,8 @@ BIIScheduler::Hints scheduling_hint_heuristic(BatmanGemm::GemmMethod method,
 }
 
 TEST(SchedulingHintHeuristicTest, GEMMInterleavedF32) {
-    BatmanGemm::GemmMethod method    = BatmanGemm::GemmMethod::GEMM_INTERLEAVED;
-    BIDataType             data_type = BIDataType::F32;
+    BatmanGemm::GemmMethod method = BatmanGemm::GemmMethod::GEMM_INTERLEAVED;
+    BIDataType data_type = BIDataType::F32;
 
     // 调用函数
     auto result = scheduling_hint_heuristic(method, data_type);
@@ -267,8 +268,8 @@ TEST(SchedulingHintHeuristicTest, GEMMInterleavedF32) {
 }
 
 TEST(SchedulingHintHeuristicTest, GEMMInterleaved2DF16) {
-    BatmanGemm::GemmMethod method    = BatmanGemm::GemmMethod::GEMM_INTERLEAVED_2D;
-    BIDataType             data_type = BIDataType::F16;
+    BatmanGemm::GemmMethod method = BatmanGemm::GemmMethod::GEMM_INTERLEAVED_2D;
+    BIDataType data_type = BIDataType::F16;
 
     // 调用函数
     auto result = scheduling_hint_heuristic(method, data_type);
@@ -279,10 +280,10 @@ TEST(SchedulingHintHeuristicTest, GEMMInterleaved2DF16) {
 }
 
 TEST(BIIteratorTest, TestIteratorInit) {
-    size_t    num_dims = 3;
+    size_t num_dims = 3;
     // 每个维度的步幅
-    BIStrides strides  = {20, 5, 1};
-    BIWindow  window;
+    BIStrides strides = {20, 5, 1};
+    BIWindow window;
 
     // 设置维度 0 的起始位置为 1，结束位置为 10，步长为 2
     window.set(BIWindow::DimX, BIWindow::BIDimension(1, 10, 2));
@@ -297,7 +298,7 @@ TEST(BIIteratorTest, TestIteratorInit) {
     // 假设缓冲区大小为 100 字节
     std::vector<uint8_t> buffer(100);
     // 偏移量为0
-    size_t               offset = 0;
+    size_t offset = 0;
 
     BIIterator iterator{num_dims, strides, buffer.data(), offset, window};
 
@@ -307,6 +308,40 @@ TEST(BIIteratorTest, TestIteratorInit) {
 //        std::cout << "  Stride: " << iterator._dims[i]._stride << "\n";
 //        std::cout << "  Start: " << iterator._dims[i]._dim_start << "\n";
     }
+}
+
+TEST(BITensorTest, transpose_test) {
+    // 定义输入和输出张量
+    BITensor input, output;
+
+    const BITensorShape input_shape(3, 2);
+    const BITensorShape output_shape(2, 3);
+
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+    output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F32));
+
+    BINETranspose transpose;
+    transpose.configure(&input, &output);
+
+    input.allocator()->allocate();
+    output.allocator()->allocate();
+
+    // 填充输入张量数据
+    float input_data[] = {1, 2, 3, 4, 5, 6}; // 3x2 矩阵
+    std::memcpy(input.buffer(), input_data, sizeof(input_data));
+
+    // 执行转置
+    transpose.run();
+
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+    // 打印张量
+    std::cout << "Tensor Content:" << std::endl;
+    output.print(std::cout, format);
+
 }
 
 //float MinusOne(float value) {

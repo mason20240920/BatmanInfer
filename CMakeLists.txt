@@ -204,6 +204,10 @@ add_executable(BatmanInfer main.cpp
         source/cpu/operators/internal/cpu_gemm_assembly_dispatch.cpp
         source/cpu/operators/kernels/bi_cpu_transpose_kernel.cpp
         source/data/core/helpers/bi_window_helpers.cpp
+        source/data/core/bi_validate.cpp
+        source/cpu/operators/bi_cpu_transpose.cpp
+        source/runtime/neon/functions/bi_ne_transpose.cpp
+        source/data/core/utils/data_type_utils.cpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
         #        source/onnx_conv/OnnxUtils.cpp

@@ -6,8 +6,12 @@
 #define BATMANINFER_DATA_TYPE_UTILS_HPP
 
 #include <data/core/bi_types.hpp>
+#include <map>
 
 namespace BatmanInfer {
+
+    const std::string &string_from_data_type(BIDataType dt);
+
     inline size_t data_size_from_type(BIDataType data_type) {
         switch (data_type) {
             case BIDataType::U8:

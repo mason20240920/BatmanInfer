@@ -865,6 +865,35 @@ namespace BatmanInfer {
                 return BIStatus{};
             }
 
+            void BICpuTransposeKernel::run_op(BatmanInfer::BIITensorPack &tensors, const BatmanInfer::BIWindow &window,
+                                              const BatmanInfer::ThreadInfo &info) {
+                BI_COMPUTE_UNUSED(info);
+                BI_COMPUTE_ERROR_ON_UNCONFIGURED_KERNEL(this);
+                BI_COMPUTE_ERROR_ON_INVALID_SUBWINDOW(BIICPPKernel::window(), window);
+
+                const auto src = tensors.get_const_tensor(BITensorType::ACL_SRC);
+                auto dst = tensors.get_tensor(BITensorType::ACL_DST);
+
+                switch (src->info()->element_size()) {
+                    case 1:
+                        transpose_8bit_elements(src, dst, window);
+                        break;
+                    case 2:
+                        transpose_16bit_elements(src, dst, window);
+                        break;
+                    case 4:
+                        transpose_32bit_elements(src, dst, window);
+                        break;
+                    default:
+                        BI_COMPUTE_ERROR("Element size not supported");
+                        break;
+                }
+            }
+
+            const char *BICpuTransposeKernel::name() const {
+                return "BICpuTransposeKernel";
+            }
+
         }
     }
 }
