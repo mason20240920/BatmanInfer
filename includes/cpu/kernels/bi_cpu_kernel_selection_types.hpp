@@ -84,9 +84,9 @@ namespace BatmanInfer {
             };
 
             struct ScaleKernelDataTypeISASelectorData {
-                BIDataType           dt;
-                cpu_info::CpuIsaInfo isa;
-                InterpolationPolicy  interpolation_policy;
+                BIDataType            dt;
+                cpu_info::CpuIsaInfo  isa;
+                BIInterpolationPolicy interpolation_policy;
             };
 
             struct SoftmaxKernelDataTypeISASelectorData {

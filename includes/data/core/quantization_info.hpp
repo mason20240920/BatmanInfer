@@ -7,6 +7,7 @@
 
 #include "data/core/bi_rounding.h"
 #include "support/bi_toolchain_support.hpp"
+#include <data/core/utils/misc/utils.hpp>
 
 #include <vector>
 #include <cstdint>
@@ -14,28 +15,26 @@
 namespace BatmanInfer {
 
     using qasymm8_signed_t = int8_t;   /**< 8 bit signed quantized asymmetric scalar value */
-    using qasymm8_t        = uint8_t;  /**< 8 bit quantized asymmetric scalar value */
-    using qsymm16_t        = int16_t;  /**< 16 bit quantized symmetric scalar value */
-    using qasymm16_t       = uint16_t; /**< 16 bit quantized asymmetric scalar value */
+    using qasymm8_t = uint8_t;  /**< 8 bit quantized asymmetric scalar value */
+    using qsymm16_t = int16_t;  /**< 16 bit quantized symmetric scalar value */
+    using qasymm16_t = uint16_t; /**< 16 bit quantized asymmetric scalar value */
 
     /** Quantization info when assuming per layer quantization */
-    struct BIUniformQuantizationInfo
-    {
+    struct BIUniformQuantizationInfo {
         /** Default constructor */
-        BIUniformQuantizationInfo() : scale(0.f), offset(0)
-        {
+        BIUniformQuantizationInfo() : scale(0.f), offset(0) {
         }
+
         /** Constructor
          *
          * @param[in] scale  Quantization scale
          * @param[in] offset Quantization offset
          */
-        BIUniformQuantizationInfo(float scale, int32_t offset) : scale(scale), offset(offset)
-        {
+        BIUniformQuantizationInfo(float scale, int32_t offset) : scale(scale), offset(offset) {
         }
+
         /** Checks if the scale and offset are both zero */
-        bool empty() const
-        {
+        bool empty() const {
             return (scale == 0) && (offset == 0);
         }
 
@@ -44,23 +43,21 @@ namespace BatmanInfer {
     };
 
     /** Quantization info when assuming per layer quantization */
-    struct BIUniformRequantizationInfo
-    {
+    struct BIUniformRequantizationInfo {
         /** Default constructor */
-        BIUniformRequantizationInfo() : scale(0.f), offset(0.f)
-        {
+        BIUniformRequantizationInfo() : scale(0.f), offset(0.f) {
         }
+
         /** Constructor
          *
          * @param[in] scale  Quantization scale
          * @param[in] offset Quantization offset
          */
-        BIUniformRequantizationInfo(float scale, float offset) : scale(scale), offset(offset)
-        {
+        BIUniformRequantizationInfo(float scale, float offset) : scale(scale), offset(offset) {
         }
+
         /** Checks if the scale and offset are both zero */
-        bool empty() const
-        {
+        bool empty() const {
             return (scale == 0) && (offset == 0);
         }
 
@@ -70,28 +67,24 @@ namespace BatmanInfer {
 
     class BIQuantizationInfo {
     public:
-        BIQuantizationInfo() noexcept: _scale(), _offset()
-        {
+        BIQuantizationInfo() noexcept: _scale(), _offset() {
 
         }
 
-        BIQuantizationInfo(float scale) : _scale(1, scale), _offset()
-        {
+        BIQuantizationInfo(float scale) : _scale(1, scale), _offset() {
 
         }
 
         BIQuantizationInfo(float scale,
                            int offset,
-                           bool is_dynamic = false):
+                           bool is_dynamic = false) :
                 _scale(1, scale),
                 _offset(1, offset),
-                _is_dynamic(is_dynamic)
-        {
+                _is_dynamic(is_dynamic) {
 
         }
 
-        BIQuantizationInfo(std::vector<float> scale): _scale(scale), _offset()
-        {
+        BIQuantizationInfo(std::vector<float> scale) : _scale(scale), _offset() {
 
         }
 
@@ -100,28 +93,23 @@ namespace BatmanInfer {
                            bool is_dynamic = false) :
                 _scale(scale),
                 _offset(offset),
-                _is_dynamic(is_dynamic)
-        {
+                _is_dynamic(is_dynamic) {
 
         }
 
-        const std::vector<float> &scale() const
-        {
+        const std::vector<float> &scale() const {
             return _scale;
         }
 
-        const std::vector<int32_t> &offset() const
-        {
+        const std::vector<int32_t> &offset() const {
             return _offset;
         }
 
-        bool is_dynamic() const
-        {
+        bool is_dynamic() const {
             return _is_dynamic;
         }
 
-        bool empty() const
-        {
+        bool empty() const {
             return _scale.empty() && _offset.empty();
         }
 
@@ -158,8 +146,7 @@ namespace BatmanInfer {
      *
      * @return True if the given quantization info is the same.
      */
-    inline bool operator==(const BIQuantizationInfo &lhs, const BIQuantizationInfo &rhs)
-    {
+    inline bool operator==(const BIQuantizationInfo &lhs, const BIQuantizationInfo &rhs) {
         return (lhs.scale() == rhs.scale()) && (lhs.offset() == rhs.offset());
     }
 
@@ -170,14 +157,12 @@ namespace BatmanInfer {
      *
      * @return True if the given quantization info is the same.
      */
-    inline bool operator!=(const BIQuantizationInfo &lhs, const BIQuantizationInfo &rhs)
-    {
+    inline bool operator!=(const BIQuantizationInfo &lhs, const BIQuantizationInfo &rhs) {
         return !(operator==(lhs, rhs));
     }
 
-    template <typename QUANTIZED_TYPE = uint8_t>
-    struct BIQasymm8QuantizationHelper
-    {
+    template<typename QUANTIZED_TYPE = uint8_t>
+    struct BIQasymm8QuantizationHelper {
         static_assert(std::is_same<QUANTIZED_TYPE, uint8_t>::value || std::is_same<QUANTIZED_TYPE, int8_t>::value,
                       "quantized type should be either uint8_t or int8_t.");
 
@@ -188,18 +173,18 @@ namespace BatmanInfer {
          *
          * @return Quantized value
          */
-        static inline QUANTIZED_TYPE quantize(float value, const BIUniformQuantizationInfo &qinfo)
-        {
+        static inline QUANTIZED_TYPE quantize(float value, const BIUniformQuantizationInfo &qinfo) {
             BI_COMPUTE_ERROR_ON(qinfo.scale == 0);
             const int quantized = support::cpp11::lround(value / qinfo.scale) + qinfo.offset;
-            return static_cast<QUANTIZED_TYPE>(BatmanInfer::misc::utility::clamp<decltype(quantized), QUANTIZED_TYPE>(quantized));
+            return static_cast<QUANTIZED_TYPE>(BatmanInfer::misc::utility::clamp<decltype(quantized), QUANTIZED_TYPE>(
+                    quantized));
         }
 
-        static inline QUANTIZED_TYPE quantize(float value, const BIUniformRequantizationInfo &qinfo)
-        {
+        static inline QUANTIZED_TYPE quantize(float value, const BIUniformRequantizationInfo &qinfo) {
             BI_COMPUTE_ERROR_ON(qinfo.scale == 0);
             const int quantized = support::cpp11::lround(value / qinfo.scale + qinfo.offset);
-            return static_cast<QUANTIZED_TYPE>(BatmanInfer::misc::utility::clamp<decltype(quantized), QUANTIZED_TYPE>(quantized));
+            return static_cast<QUANTIZED_TYPE>(BatmanInfer::misc::utility::clamp<decltype(quantized), QUANTIZED_TYPE>(
+                    quantized));
         }
 
         /** Quantize a value given a 8-bit asymmetric quantization scheme using a specific rounding policy
@@ -211,23 +196,20 @@ namespace BatmanInfer {
          * @return Quantized value
          */
         static inline QUANTIZED_TYPE
-        quantize(float value, const BIUniformQuantizationInfo &qinfo, BIRoundingPolicy rounding_policy)
-        {
-            if (rounding_policy == BIRoundingPolicy::TO_NEAREST_UP)
-            {
+        quantize(float value, const BIUniformQuantizationInfo &qinfo, BIRoundingPolicy rounding_policy) {
+            if (rounding_policy == BIRoundingPolicy::TO_NEAREST_UP) {
                 return quantize(value, qinfo);
             }
 
             BI_COMPUTE_ERROR_ON(qinfo.scale == 0);
             const int quantized = BatmanInfer::round(value / qinfo.scale, rounding_policy) + qinfo.offset;
-            return static_cast<QUANTIZED_TYPE>(BatmanInfer::misc::utility::clamp<decltype(quantized), QUANTIZED_TYPE>(quantized));
+            return static_cast<QUANTIZED_TYPE>(BatmanInfer::misc::utility::clamp<decltype(quantized), QUANTIZED_TYPE>(
+                    quantized));
         }
 
         static inline QUANTIZED_TYPE
-        quantize(float value, const BIUniformRequantizationInfo &qinfo, BIRoundingPolicy rounding_policy)
-        {
-            if (rounding_policy == BIRoundingPolicy::TO_NEAREST_UP)
-            {
+        quantize(float value, const BIUniformRequantizationInfo &qinfo, BIRoundingPolicy rounding_policy) {
+            if (rounding_policy == BIRoundingPolicy::TO_NEAREST_UP) {
                 return quantize(value, qinfo);
             }
 
@@ -235,7 +217,8 @@ namespace BatmanInfer {
 
             // We round after adding the offset, because the offset is also float
             const int quantized = BatmanInfer::round(value / qinfo.scale + qinfo.offset, rounding_policy);
-            return static_cast<QUANTIZED_TYPE>(BatmanInfer::misc::utility::clamp<decltype(quantized), QUANTIZED_TYPE>(quantized));
+            return static_cast<QUANTIZED_TYPE>(BatmanInfer::misc::utility::clamp<decltype(quantized), QUANTIZED_TYPE>(
+                    quantized));
         }
 
         /** Quantize a value given a 8-bit asymmetric quantization scheme
@@ -247,12 +230,13 @@ namespace BatmanInfer {
          * @return Quantized value
          */
         static inline QUANTIZED_TYPE
-        quantize(float value, const BIQuantizationInfo &qinfo, BIRoundingPolicy rounding_policy = BIRoundingPolicy::TO_NEAREST_UP)
-        {
+        quantize(float value, const BIQuantizationInfo &qinfo,
+                 BIRoundingPolicy rounding_policy = BIRoundingPolicy::TO_NEAREST_UP) {
             const BIUniformQuantizationInfo uqinfo = qinfo.uniform();
             BI_COMPUTE_ERROR_ON(uqinfo.scale == 0);
             const int quantized = BatmanInfer::round(value / uqinfo.scale, rounding_policy) + uqinfo.offset;
-            return static_cast<QUANTIZED_TYPE>(BatmanInfer::misc::utility::clamp<decltype(quantized), QUANTIZED_TYPE>(quantized));
+            return static_cast<QUANTIZED_TYPE>(BatmanInfer::misc::utility::clamp<decltype(quantized), QUANTIZED_TYPE>(
+                    quantized));
         }
 
         /** Dequantize a value given a 8-bit asymmetric quantization scheme
@@ -262,8 +246,7 @@ namespace BatmanInfer {
          *
          * @return Dequantized value
          */
-        static inline float dequantize(QUANTIZED_TYPE value, const BIUniformQuantizationInfo &qinfo)
-        {
+        static inline float dequantize(QUANTIZED_TYPE value, const BIUniformQuantizationInfo &qinfo) {
             return (static_cast<int>(value) - qinfo.offset) * qinfo.scale;
         }
 
@@ -274,8 +257,7 @@ namespace BatmanInfer {
          *
          * @return Dequantized value
          */
-        static inline float dequantize(QUANTIZED_TYPE value, const BIQuantizationInfo &qinfo)
-        {
+        static inline float dequantize(QUANTIZED_TYPE value, const BIQuantizationInfo &qinfo) {
             const BIUniformQuantizationInfo uqinfo = qinfo.uniform();
             return (static_cast<int>(value) - uqinfo.offset) * uqinfo.scale;
         }
@@ -289,11 +271,10 @@ namespace BatmanInfer {
      *
      * @return Quantized value
      */
-    template <typename INFO_TYPE>
-    inline uint8_t quantize_qasymm8(float            value,
+    template<typename INFO_TYPE>
+    inline uint8_t quantize_qasymm8(float value,
                                     const INFO_TYPE &qinfo,
-                                    BIRoundingPolicy rounding_policy = BIRoundingPolicy::TO_NEAREST_UP)
-    {
+                                    BIRoundingPolicy rounding_policy = BIRoundingPolicy::TO_NEAREST_UP) {
         return BIQasymm8QuantizationHelper<uint8_t>::quantize(value, qinfo, rounding_policy);
     }
 
@@ -306,11 +287,10 @@ namespace BatmanInfer {
      *
      * @return Quantized value
      */
-    template <typename INFO_TYPE>
-    inline int8_t quantize_qasymm8_signed(float            value,
+    template<typename INFO_TYPE>
+    inline int8_t quantize_qasymm8_signed(float value,
                                           const INFO_TYPE &qinfo,
-                                          BIRoundingPolicy rounding_policy = BIRoundingPolicy::TO_NEAREST_UP)
-    {
+                                          BIRoundingPolicy rounding_policy = BIRoundingPolicy::TO_NEAREST_UP) {
         return BIQasymm8QuantizationHelper<int8_t>::quantize(value, qinfo, rounding_policy);
     }
 
@@ -321,10 +301,9 @@ namespace BatmanInfer {
      *
      * @return Quantized value
      */
-    inline int8_t quantize_qsymm8(float value, const BIQuantizationInfo &qinfo)
-    {
+    inline int8_t quantize_qsymm8(float value, const BIQuantizationInfo &qinfo) {
         int quantized = BatmanInfer::round(value / qinfo.uniform().scale, BIRoundingPolicy::TO_NEAREST_UP);
-        quantized     = std::max(-128, std::min(quantized, 127));
+        quantized = std::max(-128, std::min(quantized, 127));
         return quantized;
     }
 
@@ -336,12 +315,11 @@ namespace BatmanInfer {
      *
      * @return Quantized value
      */
-    inline uint16_t quantize_qasymm16(float                            value,
+    inline uint16_t quantize_qasymm16(float value,
                                       const BIUniformQuantizationInfo &qinfo,
-                                      BIRoundingPolicy                 rounding_policy = BIRoundingPolicy::TO_NEAREST_UP)
-    {
+                                      BIRoundingPolicy rounding_policy = BIRoundingPolicy::TO_NEAREST_UP) {
         int quantized = BatmanInfer::round(value / qinfo.scale, rounding_policy) + qinfo.offset;
-        quantized     = BatmanInfer::misc::utility::clamp<int, uint16_t>(quantized);
+        quantized = BatmanInfer::misc::utility::clamp<int, uint16_t>(quantized);
         return quantized;
     }
 
@@ -352,8 +330,7 @@ namespace BatmanInfer {
      *
      * @return Quantized value
      */
-    inline uint16_t quantize_qasymm16(float value, const BIQuantizationInfo &qinfo)
-    {
+    inline uint16_t quantize_qasymm16(float value, const BIQuantizationInfo &qinfo) {
         return quantize_qasymm16(value, qinfo.uniform());
     }
 
@@ -365,12 +342,11 @@ namespace BatmanInfer {
      *
      * @return Quantized value
      */
-    inline int16_t quantize_qsymm16(float                            value,
+    inline int16_t quantize_qsymm16(float value,
                                     const BIUniformQuantizationInfo &qinfo,
-                                    BIRoundingPolicy                 rounding_policy = BIRoundingPolicy::TO_NEAREST_UP)
-    {
+                                    BIRoundingPolicy rounding_policy = BIRoundingPolicy::TO_NEAREST_UP) {
         int quantized = BatmanInfer::round(value / qinfo.scale, rounding_policy);
-        quantized     = BatmanInfer::misc::utility::clamp<int, int16_t>(quantized);
+        quantized = BatmanInfer::misc::utility::clamp<int, int16_t>(quantized);
         return quantized;
     }
 
@@ -381,8 +357,7 @@ namespace BatmanInfer {
      *
      * @return Quantized value
      */
-    inline int16_t quantize_qsymm16(float value, const BIQuantizationInfo &qinfo)
-    {
+    inline int16_t quantize_qsymm16(float value, const BIQuantizationInfo &qinfo) {
         return quantize_qsymm16(value, qinfo.uniform());
     }
 
