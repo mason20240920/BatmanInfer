@@ -8,10 +8,8 @@
 #include <data/core/bi_types.hpp>
 
 namespace BatmanInfer {
-    inline size_t data_size_from_type(BIDataType data_type)
-    {
-        switch (data_type)
-        {
+    inline size_t data_size_from_type(BIDataType data_type) {
+        switch (data_type) {
             case BIDataType::U8:
             case BIDataType::S8:
             case BIDataType::QSYMM8:
@@ -42,10 +40,8 @@ namespace BatmanInfer {
         }
     }
 
-    inline BIDataType data_type_from_format(Format format)
-    {
-        switch (format)
-        {
+    inline BIDataType data_type_from_format(Format format) {
+        switch (format) {
             case Format::U8:
             case Format::UV88:
             case Format::RGB888:
@@ -83,12 +79,40 @@ namespace BatmanInfer {
      * @param dt
      * @return
      */
-    inline bool is_data_type_float(BIDataType dt)
-    {
-        switch (dt)
-        {
+    inline bool is_data_type_float(BIDataType dt) {
+        switch (dt) {
             case BIDataType::F16:
             case BIDataType::F32:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * 检查数据类型是不是非对称量化
+     * @param dt
+     * @return
+     */
+    inline bool is_data_type_quantized_asymmetric(BIDataType dt) {
+        switch (dt) {
+            case BIDataType::QASYMM8:
+            case BIDataType::QASYMM8_SIGNED:
+            case BIDataType::QASYMM16:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    inline bool is_data_type_quantized(BIDataType dt) {
+        switch (dt) {
+            case BIDataType::QSYMM8:
+            case BIDataType::QASYMM8:
+            case BIDataType::QASYMM8_SIGNED:
+            case BIDataType::QSYMM8_PER_CHANNEL:
+            case BIDataType::QSYMM16:
+            case BIDataType::QASYMM16:
                 return true;
             default:
                 return false;

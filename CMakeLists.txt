@@ -203,6 +203,7 @@ add_executable(BatmanInfer main.cpp
         source/runtime/bi_scheduler.cpp
         source/cpu/operators/internal/cpu_gemm_assembly_dispatch.cpp
         source/cpu/operators/kernels/bi_cpu_transpose_kernel.cpp
+        source/data/core/helpers/bi_window_helpers.cpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
         #        source/onnx_conv/OnnxUtils.cpp
