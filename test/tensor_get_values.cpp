@@ -20,6 +20,7 @@
 #include <cpu/operators/internal/cpu_gemm_assembly_dispatch.hpp>
 #include <runtime/neon/bi_ne_scheduler.hpp>
 #include <runtime/neon/functions/bi_ne_transpose.hpp>
+#include <runtime/neon/functions/bi_ne_reshape_layer.hpp>
 
 
 TEST(test_tensor_values, tensor_values1) {
@@ -354,85 +355,44 @@ TEST(BITensorTest, transpose_test) {
 
 }
 
-//float MinusOne(float value) {
-//    return value - 1.f;
-//}
+
+TEST(BITensorTest, reshape_test) {
+    BITensor input_tensor, output_tensor;
+
+    BITensorShape input_shape(4, 4, 1);
+
+    BITensorShape output_shape(2, 8, 1);
+
+    input_tensor.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::U8));
+    output_tensor.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::U8));
+
+    BINEReshapeLayer reshape_layer;
+
+    reshape_layer.configure(&input_tensor, &output_tensor);
+
+    input_tensor.allocator()->allocate();
+    output_tensor.allocator()->allocate();
+
+    // 填充输入张量数据（示例：填充为 1 到 16）
+    uint8_t *input_data = reinterpret_cast<uint8_t *>(input_tensor.buffer());
+    for (int i = 0; i < 16; ++i) {
+        input_data[i] = static_cast<uint8_t>(i + 1);
+    }
+
+    reshape_layer.run();
+
+    uint8_t *output_data = reinterpret_cast<uint8_t *>(output_tensor.buffer());
+//    BIIOFormatInfo format;
+//    format.element_delim = ", ";  // 元素之间用逗号分隔
+//    format.row_delim = "\n";      // 每行换行
+//    format.align_columns = 1;     // 对齐列
 //
-//float DoubleRet(float value) {
-//    return value * 2;
-//}
-//
-//TEST(test_tranform, transform1) {
-//    using namespace BatmanInfer;
-//    Tensor<float> f1(2, 3, 4);
-//    f1.Rand();
-//    f1.Show();
-//    f1.Transform(MinusOne);
-//    f1.Show();
-//}
-//
-//TEST(test_transform, transform2) {
-//    using namespace BatmanInfer;
-//    Tensor<float> f2(2, 3, 4);
-//    f2.Ones();
-//    f2.Show();
-//    f2.Transform(DoubleRet);
-//    f2.Show();
-//}
-//
-//TEST(test_fill_shape, reshape1) {
-//    using namespace BatmanInfer;
-//    // Channel, Rows, Cols
-//    Tensor<float> f1(2, 3, 4);
-//    std::vector<float> values(2 * 3 * 4);
-//    // 将1到12填充到values中
-//    for (int i = 0; i < 24; ++i)
-//        values.at(i) = float(i + 1);
-//    f1.Fill(values);
-//    f1.Show();
-//    f1.Reshape({4, 3, 2});
-//    f1.Show();
-//}
-//
-//TEST(test_homework, homework1_flatten1) {
-//    using namespace BatmanInfer;
-//    Tensor<float> f1(2, 3, 4);
-//    LOG(INFO) << "-------------------before Flatten-------------------";
-//    f1.Show();
-//    f1.Flatten(true);
-//    LOG(INFO) << "-------------------after Flatten-------------------";
-//    f1.Show();
-//    ASSERT_EQ(f1.raw_shapes().size(), 1);
-//    ASSERT_EQ(f1.raw_shapes().at(0), 24);
-//}
-//
-//TEST(test_homework, homework1_flatten2) {
-//    using namespace BatmanInfer;
-//    Tensor<float> f1(12, 24);
-//    LOG(INFO) << "-------------------before Flatten-------------------";
-//    f1.Show();
-//    f1.Flatten(true);
-//    LOG(INFO) << "-------------------after Flatten-------------------";
-//    f1.Show();
-//    ASSERT_EQ(f1.raw_shapes().size(), 1);
-//    ASSERT_EQ(f1.raw_shapes().at(0), 24 * 12);
-//}
-//
-//TEST(test_homework, homework2_padding1) {
-//    using namespace BatmanInfer;
-//    Tensor<float> tensor(3, 4, 5);
-//    // channels, rows, cols
-//    ASSERT_EQ(tensor.channels(), 3);
-//    ASSERT_EQ(tensor.rows(), 4);
-//    ASSERT_EQ(tensor.cols(), 5);
-//
-//    tensor.Fill(1.f);
-//    LOG(INFO) << "-------------------before padding-------------------";
-//    tensor.Show();
-//    tensor.Padding({1, 2, 3, 4}, 0);
-//    LOG(INFO) << "-------------------after padding-------------------";
-//    tensor.Show();
-//    ASSERT_EQ(tensor.rows(), 7);
-//    ASSERT_EQ(tensor.cols(), 12);
-//
-//}
+//    output_tensor.print(std::cout, format);
+    for (int i = 0; i < 16; ++i) {
+        std::cout << static_cast<int>(output_data[i]) << " ";
+    }
+//    output_tensor.print(std::cout);
+    std::cout << std::endl;
+}
+
+

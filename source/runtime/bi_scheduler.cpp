@@ -13,7 +13,9 @@
 #include <runtime/bi_single_thread_scheduler.hpp>
 
 #if BI_COMPUTE_OPENMP_SCHEDULER
+
 #include <runtime/omp/bi_imp_scheduler.hpp>
+
 #endif /* BI_COMPUTE_OPENMP_SCHEDULER */
 
 using namespace BatmanInfer;

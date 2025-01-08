@@ -56,6 +56,18 @@ namespace BatmanInfer {
         return calculate_max_window(info.tensor_shape(), steps, skip_border, border_size);
     }
 
+    /**
+     * 计算给定张量形状的压缩窗口或最大窗口
+     *
+     * 如果张量数据在内存中是连续存储的，则张量可以被解释为一个一维数组，
+     * 并且所有维度可以合并到x维度中。
+     * 否则，将为给定的张量形状生成最大窗口。
+     *
+     * @param src 定义输入张量形状的张量信息对象
+     * @return 内核可以执行的最大窗口以及首选的分割维度
+     */
+    std::pair<BIWindow, size_t> calculate_squashed_or_max_window(const BIITensorInfo &src);
+
 #endif
 }
 

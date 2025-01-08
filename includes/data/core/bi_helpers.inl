@@ -2,7 +2,7 @@
 namespace BatmanInfer {
     inline size_t get_data_layout_dimension_index(const BIDataLayoutDimension &data_layout_dimension) {
         const auto &dims = get_layout_map();
-        const auto &it   = std::find(dims.cbegin(), dims.cend(), data_layout_dimension);
+        const auto &it = std::find(dims.cbegin(), dims.cend(), data_layout_dimension);
         BI_COMPUTE_ERROR_ON_MSG(it == dims.cend(), "Invalid dimension for the given layout.");
         return it - dims.cbegin();
     }
@@ -123,5 +123,38 @@ namespace BatmanInfer {
         BICoordinates id;
         ForEachDimension<BICoordinates::num_max_dimensions>::unroll(w, id, std::forward<L>(lambda_function),
                                                                     std::forward<Ts>(iterators)...);
+    }
+
+    inline BICoordinates index2coords(const BITensorShape &shape, int index) {
+        int num_elements = shape.total_size();
+
+        BI_COMPUTE_ERROR_ON_MSG(index < 0 || index >= num_elements, "Index has to be in [0, num_elements]!");
+        BI_COMPUTE_ERROR_ON_MSG(num_elements == 0, "Cannot create coordinate from empty shape!");
+
+        BICoordinates coord{0};
+
+        for (int d = static_cast<int>(shape.num_dimensions()) - 1; d >= 0; --d) {
+            num_elements /= shape[d];
+            coord.set(d, index / num_elements);
+            index %= num_elements;
+        }
+
+        return coord;
+    }
+
+    inline int coords2index(const BITensorShape &shape, const BICoordinates &coord) {
+        int num_elements = shape.total_size();
+        BI_COMPUTE_UNUSED(num_elements);
+        BI_COMPUTE_ERROR_ON_MSG(num_elements == 0, "Cannot create linear index from empty shape!");
+
+        int index = 0;
+        int stride = 1;
+
+        for (unsigned int d = 0; d < coord.num_dimensions(); ++d) {
+            index += coord[d] * stride;
+            stride *= shape[d];
+        }
+
+        return index;
     }
 }

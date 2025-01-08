@@ -137,10 +137,26 @@ namespace BatmanInfer {
      *                        其中 id 表示要处理的项目的绝对坐标
      * @param iterators   在调用 lambda_function 之前，将由此函数更新的张量迭代器。
      */
-    template <typename L, typename ... Ts>
+    template<typename L, typename ... Ts>
     inline void execute_window_loop(const BIWindow &w,
                                     L &&lambda_function,
                                     Ts &&...iterators);
+
+    /**
+     * 将线性索引转换为n维坐标。
+     * @param shape n维张量的形状。
+     * @param index 线性索引指定第 i 个元素。
+     * @return n-维度坐标
+     */
+    inline BICoordinates index2coords(const BITensorShape &shape, int index);
+
+    /**
+     * 坐标转index
+     * @param shape 数据形状
+     * @param coord
+     * @return
+     */
+    inline int coords2index(const BITensorShape &shape, const BICoordinates &coord);
 }
 
 #include <data/core/bi_helpers.inl>

@@ -11,7 +11,7 @@ namespace BatmanInfer {
     namespace misc {
         namespace shape_calculator {
 
-            /** Calculate the transposed shape of a tensor
+            /** 计算转置后的矩阵
              *
              * @param input input Input tensor info
              * @return

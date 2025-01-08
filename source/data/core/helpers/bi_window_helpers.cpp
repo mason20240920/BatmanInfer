@@ -60,6 +60,14 @@ namespace BatmanInfer {
         return window;
     }
 
+    /**
+     * 计算一个张量的最大滑动窗口（BIWindow），用于遍历张量时定义窗口的范围和步长
+     * @param shape 表示张量的形状（BITensorShape），包含张量每个维度的大小
+     * @param steps 每个维度的步长（BISteps），决定窗口在该维度上移动的间隔
+     * @param skip_border 是否跳过边界（布尔值）。如果为 false，边界处理被忽略，border_size 被设置为 0。
+     * @param border_size 边界大小（BIBorderSize），定义张量的上下左右需要跳过的边界宽度
+     * @return
+     */
     BIWindow
     calculate_max_window(const BITensorShape &shape, const BISteps &steps, bool skip_border, BIBorderSize border_size) {
         if (!skip_border) {
@@ -68,6 +76,7 @@ namespace BatmanInfer {
 
         BIWindow window;
 
+        // 设置第 0 维窗口范围
         window.set(0, BIWindow::BIDimension(
                 // Skip the border left of the image
                 border_size.left,
@@ -110,5 +119,39 @@ namespace BatmanInfer {
         }
 
         return window;
+    }
+
+    std::pair<BIWindow, size_t> calculate_squashed_or_max_window(const BIITensorInfo &src) {
+        const auto &shape = src.tensor_shape();
+        const auto &strides = src.strides_in_bytes();
+        const auto num_dimensions = src.num_dimensions();
+
+        BIWindow win;
+        size_t split_dimension = BIWindow::DimY;
+        size_t dim = 0;
+        size_t squashed_bytes = src.element_size();
+
+        // Try to squash the low dimensions together.
+        for (; dim < num_dimensions; ++dim) {
+            if (strides[dim] != squashed_bytes) {
+                break;
+            }
+            squashed_bytes *= shape[dim];
+        }
+        if (dim == num_dimensions) {
+            const auto squashed_elements = squashed_bytes / src.element_size();
+            split_dimension = BIWindow::DimX;
+            // The input tensor can be interpreted as 1D array.
+            win.set(0, BIWindow::BIDimension(0, squashed_elements, 1));
+            for (dim = 1; dim < BICoordinates::num_max_dimensions; ++dim) {
+                win.set(dim, BIWindow::BIDimension(0, 1, 1));
+            }
+        } else {
+            // Generate the max window.
+            for (dim = 0; dim < BICoordinates::num_max_dimensions; ++dim) {
+                win.set(dim, BIWindow::BIDimension(0, shape[dim], 1));
+            }
+        }
+        return std::make_pair(win, split_dimension);
     }
 }

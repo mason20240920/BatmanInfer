@@ -15,6 +15,11 @@ namespace BatmanInfer {
     namespace cpu {
         namespace kernels {
             namespace {
+                /**
+                 * 用于根据输入的 元素大小（element_size）返回处理的元素数量
+                 * @param element_size 表示元素的大小（单位: 字节）
+                 * @return
+                 */
                 unsigned int num_elems_processed(size_t element_size) {
                     switch (element_size) {
                         case 1:
@@ -22,9 +27,11 @@ namespace BatmanInfer {
                         case 2:
                             return 4;
                         case 4:
+                            // 如果代码运行在 AArch64 架构（64 位 ARM 架构）上，则一次处理 8 个元素
 #ifdef __aarch64__
                             return 8;
 #else  // __aarch64__
+                            // 非 __aarch64__: 如果代码运行在其他架构（如 32 位 ARM 架构）上，则一次处理 4 个元素
                             return 4;
 #endif // __aarch64__
                         default:
