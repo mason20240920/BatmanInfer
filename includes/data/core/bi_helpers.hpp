@@ -8,6 +8,8 @@
 #include <data/core/bi_types.hpp>
 #include <data/core/bi_window.hpp>
 #include <data/core/bi_i_tensor.hpp>
+#include <data/core/bi_vlidate.hpp>
+#include <data/core/bi_error.h>
 
 namespace BatmanInfer {
     /**

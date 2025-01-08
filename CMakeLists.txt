@@ -215,6 +215,10 @@ add_executable(BatmanInfer main.cpp
         source/data/core/helpers/bi_utils.cpp
         source/cpu/operators/bi_cpu_reshape.cpp
         source/runtime/neon/functions/bi_ne_reshape_layer.cpp
+        source/cpu/operators/kernels/bi_cpu_gemm_inter_leave_4x4_kernel.cpp
+        source/cpu/operators/kernels/bi_cpu_gemm_matrix_addition_kernel.cpp
+        source/cpu/operators/kernels/gemm_matrix_add/generic/neon/fp32.cpp
+        source/cpu/operators/kernels/gemm_matrix_add/generic/neon/impl.cpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
         #        source/onnx_conv/OnnxUtils.cpp

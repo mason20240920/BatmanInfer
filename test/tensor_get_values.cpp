@@ -21,6 +21,8 @@
 #include <runtime/neon/bi_ne_scheduler.hpp>
 #include <runtime/neon/functions/bi_ne_transpose.hpp>
 #include <runtime/neon/functions/bi_ne_reshape_layer.hpp>
+#include <data/core/utils/misc/bi_shape_calculator.hpp>
+#include <cpu/kernels/bi_cpu_gemm_inter_leave_4x4_kernel.hpp>
 
 
 TEST(test_tensor_values, tensor_values1) {
@@ -395,4 +397,47 @@ TEST(BITensorTest, reshape_test) {
     std::cout << std::endl;
 }
 
+TEST(BITensorTest, DefaultInterleave) {
+    BITensor input_tensor;
+    BITensorShape input_shape{8, 8};
+
+    input_tensor.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::U8));
+    input_tensor.allocator()->allocate();
+
+    auto result = BatmanInfer::misc::shape_calculator::compute_interleaved_shape(*input_tensor.info());
+    EXPECT_EQ(result.x(), 32);
+    EXPECT_EQ(result.y(), 2);
+}
+
+TEST(BITensorTest, CustomInterleaveHeight) {
+    BITensor input_tensor;
+    BITensorShape input_shape{10, 8};
+
+    input_tensor.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::U8));
+    input_tensor.allocator()->allocate();
+
+    auto result = BatmanInfer::misc::shape_calculator::compute_interleaved_shape(*input_tensor.info(), 2);
+    EXPECT_EQ(result.x(), 80);
+    EXPECT_EQ(result.y(), 1);
+}
+
+TEST(BITensorTest, GEMMIntervalTest) {
+    using namespace BatmanInfer;
+    // 定义输入和输出张量的形状
+    BITensorShape src_shape(16, 16);  // 假设输入是16x16矩阵
+
+    // 创建输入和输出张量
+    BITensor src, dst;
+
+    // 配置输入张量
+    src.allocator()->init(BITensorInfo(src_shape, 1, BIDataType::F32));  // 假设数据类型为F32
+
+    // 分配张量内存
+    src.allocator()->allocate();
+//    dst.allocator()->allocate();
+    ::cpu::kernels::BICpuGemmInterleave4x4Kernel kernel;
+    kernel.configure(src.info(), dst.info());
+
+    
+}
 

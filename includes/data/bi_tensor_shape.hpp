@@ -9,16 +9,15 @@
 #include <data/core/utils/misc/utils.hpp>
 
 namespace BatmanInfer {
-    class BITensorShape: public BIDimensions<size_t> {
+    class BITensorShape : public BIDimensions<size_t> {
     public:
         /**
          * @brief 初始化维度
          * @tparam Ts
          * @param dims
          */
-        template <typename... Ts>
-        BITensorShape(Ts... dims) : BIDimensions{dims...}
-        {
+        template<typename... Ts>
+        BITensorShape(Ts... dims) : BIDimensions{dims...} {
             // 初始化不确定的维度为1
             if (_num_dimensions > 0)
                 std::fill(_id.begin() + _num_dimensions, _id.end(), 1);
@@ -56,7 +55,6 @@ namespace BatmanInfer {
         }
 
 
-
         /**
          * @brief 张量形状广播（Broadcasting）
          * 1， 广播的目的是让两个形状不同的张量能够进行数学运算（如加法、减法、乘法等）
@@ -79,13 +77,12 @@ namespace BatmanInfer {
          * @param shapes
          * @return
          */
-        template <typename... Shapes>
+        template<typename... Shapes>
         static BITensorShape broadcast_shape(const Shapes &...shapes) {
             // 初始化广播形状
             BITensorShape bc_shape;
 
-            auto broadcast = [&bc_shape](const BITensorShape &other)
-            {
+            auto broadcast = [&bc_shape](const BITensorShape &other) {
                 // 当前广播形状为空，直接将 A 的形状赋值给 bc_shape
                 if (bc_shape.num_dimensions() == 0)
                     bc_shape = other;
@@ -110,6 +107,31 @@ namespace BatmanInfer {
             misc::utility::for_each(broadcast, shapes...);
 
             return bc_shape;
+        }
+
+        /**
+         * 删除张量形状的某一个维度
+         *
+         * @note 维度信息将被移除一位
+         *
+         * @param n
+         * @param apply_dim_correction
+         */
+        void remove_dimension(size_t n, bool apply_dim_correction = true) {
+            BI_COMPUTE_ERROR_ON(_num_dimensions < 1);
+            BI_COMPUTE_ERROR_ON(n >= _num_dimensions);
+
+            std::copy(_id.begin() + n + 1, _id.end(), _id.begin() + n);
+
+            // 减少维度
+            _num_dimensions--;
+
+            // 保证其他维度是1
+            std::fill(_id.begin() + _num_dimensions, _id.end(), 1);
+
+            // 纠正维度信息
+            if (apply_dim_correction)
+                apply_dimension_correction();
         }
 
     private:

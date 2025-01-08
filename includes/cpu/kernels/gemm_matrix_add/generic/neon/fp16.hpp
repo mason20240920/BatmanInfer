@@ -1,0 +1,9 @@
+//
+// Created by Mason on 2025/1/8.
+//
+
+#ifndef BATMANINFER_MATRIX_ADD__FP16_HPP
+#define BATMANINFER_MATRIX_ADD__FP16_HPP
+
+
+#endif //BATMANINFER_MATRIX_ADD__FP16_HPP
