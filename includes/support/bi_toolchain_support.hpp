@@ -136,7 +136,7 @@ namespace BatmanInfer {
                                size_t n,
                                const char* fmt,
                                Ts &&...args) {
-                return ::snprint(s, n, fmt, std::forward<Ts>(args)...);
+                return ::snprintf(s, n, fmt, std::forward<Ts>(args)...);
             }
 #else
 
@@ -226,7 +226,7 @@ namespace BatmanInfer {
                 return std::isfinite(float(value));
             }
 
-            template <typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value>::type>
+            template<typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value>::type>
             inline bool signbit(T value) {
                 return std::signbit(static_cast<double>(value));
             }

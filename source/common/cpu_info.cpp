@@ -5,16 +5,22 @@
 #include <common/cpu_info/cpu_info.hpp>
 
 #include <data/core/bi_error.h>
+#include <support/string_support.hpp>
+#include <data/core/bi_log.hpp>
 
 #include <sstream>
 
 #if !defined(BARE_METAL)
+
 #include <algorithm>
 #include <cstring>
 #include <fstream>
+
 #if !defined(_WIN64)
+
 #include <regex.h> /* C++ std::regex takes up a lot of space in the standalone builds */
 #include <sched.h>
+
 #else  /*  !defined(_WIN64) */
 // clang-format off
 #include <windows.h>
@@ -25,6 +31,7 @@
 
 #include <thread>
 #include <unordered_map>
+
 #endif /* !defined(BARE_METAL) */
 
 #if !defined(_WIN64)
@@ -32,13 +39,15 @@
 #include <asm/hwcap.h> /* Get HWCAP bits from asm/hwcap.h */
 #include <sys/auxv.h>
 #elif defined(__APPLE__) && defined(__aarch64__)
+
 #include <sys/sysctl.h>
 #include <sys/types.h>
+
 #endif /* defined(__APPLE__) && defined(__aarch64__)) */
 #endif /* !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && (defined(__arm__) || defined(__aarch64__)) */
 
-#define ARM_COMPUTE_CPU_FEATURE_HWCAP_CPUID    (1 << 11)
-#define ARM_COMPUTE_GET_FEATURE_REG(var, freg) __asm __volatile("MRS %0, " #freg : "=r"(var))
+#define BI_COMPUTE_CPU_FEATURE_HWCAP_CPUID    (1 << 11)
+#define BI_COMPUTE_GET_FEATURE_REG(var, freg) __asm __volatile("MRS %0, " #freg : "=r"(var))
 
 namespace BatmanInfer {
     namespace cpu_info {
@@ -64,7 +73,7 @@ std::vector<uint32_t> midr_from_cpuid(uint32_t max_num_cpus)
             std::string line;
             if (bool(getline(file, line)))
             {
-                cpus.emplace_back(support::cpp11::stoul(line, nullptr, support::cpp11::NumericBase::BASE_16));
+                cpus.emplace_back(support::cpp11::stoul(line, nullptr, support::cpp11::BINumericBase::BASE_16));
             }
         }
     }
@@ -100,8 +109,8 @@ std::vector<uint32_t> midr_from_proc_cpuinfo(int max_num_cpus)
     ret_status |= regcomp(&var_regex, R"(^CPU variant.*0x(.)$)", REG_EXTENDED);
     ret_status |= regcomp(&part_regex, R"(^CPU part.*0x(...)$)", REG_EXTENDED);
     ret_status |= regcomp(&rev_regex, R"(^CPU revision.*([[:digit:]]+)$)", REG_EXTENDED);
-    ARM_COMPUTE_UNUSED(ret_status);
-    ARM_COMPUTE_ERROR_ON_MSG(ret_status != 0, "Regex compilation failed.");
+    BI_COMPUTE_UNUSED(ret_status);
+    BI_COMPUTE_ERROR_ON_MSG(ret_status != 0, "Regex compilation failed.");
 
     std::ifstream file("/proc/cpuinfo", std::ios::in);
     if (file.is_open())
@@ -131,7 +140,7 @@ std::vector<uint32_t> midr_from_proc_cpuinfo(int max_num_cpus)
                 }
                 else
                 {
-                    ARM_COMPUTE_LOG_INFO_MSG_CORE(
+                    BI_COMPUTE_LOG_INFO_MSG_CORE(
                         "Trying to populate a core id with id greater than the expected number of cores!");
                 }
 
@@ -145,7 +154,7 @@ std::vector<uint32_t> midr_from_proc_cpuinfo(int max_num_cpus)
             if (ret_status == 0)
             {
                 std::string subexp = line.substr(match[1].rm_so, (match[1].rm_eo - match[1].rm_so));
-                int         impv   = support::cpp11::stoi(subexp, nullptr, support::cpp11::NumericBase::BASE_16);
+                int         impv   = support::cpp11::stoi(subexp, nullptr, support::cpp11::BINumericBase::BASE_16);
                 midr |= (impv << 24);
 
                 continue;
@@ -155,7 +164,7 @@ std::vector<uint32_t> midr_from_proc_cpuinfo(int max_num_cpus)
             if (ret_status == 0)
             {
                 std::string subexp = line.substr(match[1].rm_so, (match[1].rm_eo - match[1].rm_so));
-                int         varv   = support::cpp11::stoi(subexp, nullptr, support::cpp11::NumericBase::BASE_16);
+                int         varv   = support::cpp11::stoi(subexp, nullptr, support::cpp11::BINumericBase::BASE_16);
                 midr |= (varv << 20);
 
                 continue;
@@ -165,7 +174,7 @@ std::vector<uint32_t> midr_from_proc_cpuinfo(int max_num_cpus)
             if (ret_status == 0)
             {
                 std::string subexp = line.substr(match[1].rm_so, (match[1].rm_eo - match[1].rm_so));
-                int         partv  = support::cpp11::stoi(subexp, nullptr, support::cpp11::NumericBase::BASE_16);
+                int         partv  = support::cpp11::stoi(subexp, nullptr, support::cpp11::BINumericBase::BASE_16);
                 midr |= (partv << 4);
 
                 continue;
@@ -189,7 +198,7 @@ std::vector<uint32_t> midr_from_proc_cpuinfo(int max_num_cpus)
         }
         else
         {
-            ARM_COMPUTE_LOG_INFO_MSG_CORE(
+            BI_COMPUTE_LOG_INFO_MSG_CORE(
                 "Trying to populate a core id with id greater than the expected number of cores!");
         }
     }
@@ -292,17 +301,18 @@ uint32_t not_little_num_cpus_internal()
 #endif /* defined(__ANDROID__) */
 #elif defined(__aarch64__) && \
     defined(__APPLE__) /* !defined(BARE_METAL) && !defined(__APPLE__) && (defined(__arm__) || defined(__aarch64__)) */
+
 /** Query features through sysctlbyname
   *
   * @return int value queried
   */
-            int get_hw_capability(const std::string &cap)
-            {
+            int get_hw_capability(const std::string &cap) {
                 int64_t result(0);
-                size_t  size = sizeof(result);
+                size_t size = sizeof(result);
                 sysctlbyname(cap.c_str(), &result, &size, NULL, 0);
                 return result;
             }
+
 #endif /* !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && (defined(__arm__) || defined(__aarch64__)) */
 
 #if defined(BARE_METAL) && defined(__aarch64__)
@@ -319,12 +329,12 @@ uint32_t not_little_num_cpus_internal()
 #endif /* defined(BARE_METAL) && defined(__aarch64__) */
         }
 
-        CpuInfo::CpuInfo(BatmanInfer::cpu_info::CpuIsaInfo isa, std::vector<CpuModel> cpus): _isa(std::move(isa)), _cpus(std::move(cpus)) {
+        CpuInfo::CpuInfo(BatmanInfer::cpu_info::CpuIsaInfo isa, std::vector<CpuModel> cpus) : _isa(std::move(isa)),
+                                                                                              _cpus(std::move(cpus)) {
 
         }
 
-        CpuInfo CpuInfo::build()
-        {
+        CpuInfo CpuInfo::build() {
 #if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
     (defined(__arm__) || defined(__aarch64__))
             const uint32_t hwcaps   = getauxval(AT_HWCAP);
@@ -333,7 +343,7 @@ uint32_t not_little_num_cpus_internal()
 
     // Populate midr values
     std::vector<uint32_t> cpus_midr;
-    if (hwcaps & ARM_COMPUTE_CPU_FEATURE_HWCAP_CPUID)
+    if (hwcaps & BI_COMPUTE_CPU_FEATURE_HWCAP_CPUID)
     {
         cpus_midr = midr_from_cpuid(max_cpus);
     }
@@ -363,11 +373,11 @@ uint32_t not_little_num_cpus_internal()
 
             // Assume single CPU in bare metal mode.  Just read the ID register and feature bits directly.
     uint64_t isar0 = 0, isar1 = 0, pfr0 = 0, pfr1 = 0, svefr0 = 0, midr = 0;
-    ARM_COMPUTE_GET_FEATURE_REG(isar0, ID_AA64ISAR0_EL1);
-    ARM_COMPUTE_GET_FEATURE_REG(isar1, ID_AA64ISAR1_EL1);
-    ARM_COMPUTE_GET_FEATURE_REG(pfr0, ID_AA64PFR0_EL1);
-    ARM_COMPUTE_GET_FEATURE_REG(pfr1, ID_AA64PFR1_EL1);
-    ARM_COMPUTE_GET_FEATURE_REG(midr, MIDR_EL1);
+    BI_COMPUTE_GET_FEATURE_REG(isar0, ID_AA64ISAR0_EL1);
+    BI_COMPUTE_GET_FEATURE_REG(isar1, ID_AA64ISAR1_EL1);
+    BI_COMPUTE_GET_FEATURE_REG(pfr0, ID_AA64PFR0_EL1);
+    BI_COMPUTE_GET_FEATURE_REG(pfr1, ID_AA64PFR1_EL1);
+    BI_COMPUTE_GET_FEATURE_REG(midr, MIDR_EL1);
     if ((pfr0 >> 32) & 0xf)
     {
         svefr0 = get_sve_feature_reg();
@@ -378,12 +388,12 @@ uint32_t not_little_num_cpus_internal()
     CpuInfo               info(isa, cpus_model);
     return info;
 #elif defined(__aarch64__) && defined(__APPLE__) /* #elif(BARE_METAL) && defined(__aarch64__) */
-            int                   ncpus = get_hw_capability("hw.perflevel0.logicalcpu");
-            CpuIsaInfo            isainfo;
+            int ncpus = get_hw_capability("hw.perflevel0.logicalcpu");
+            CpuIsaInfo isainfo;
             std::vector<CpuModel> cpus_model(ncpus);
             isainfo.neon = get_hw_capability("hw.optional.neon");
             isainfo.fp16 = get_hw_capability("hw.optional.neon_fp16");
-            isainfo.dot  = get_hw_capability("hw.optional.arm.FEAT_DotProd");
+            isainfo.dot = get_hw_capability("hw.optional.arm.FEAT_DotProd");
             isainfo.bf16 = get_hw_capability("hw.optional.arm.FEAT_BF16");
             isainfo.i8mm = get_hw_capability("hw.optional.arm.FEAT_I8MM");
             CpuInfo info(isainfo, cpus_model);
@@ -410,17 +420,14 @@ uint32_t not_little_num_cpus_internal()
 #endif /* !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && (defined(__arm__) || defined(__aarch64__)) */
         }
 
-        CpuModel CpuInfo::cpu_model(uint32_t cpuid) const
-        {
-            if (cpuid < _cpus.size())
-            {
+        CpuModel CpuInfo::cpu_model(uint32_t cpuid) const {
+            if (cpuid < _cpus.size()) {
                 return _cpus[cpuid];
             }
             return CpuModel::GENERIC;
         }
 
-        CpuModel CpuInfo::cpu_model() const
-        {
+        CpuModel CpuInfo::cpu_model() const {
 #if defined(_WIN64) || defined(BARE_METAL) || defined(__APPLE__) || defined(__OpenBSD__) || \
     (!defined(__arm__) && !defined(__aarch64__))
             return cpu_model(0);
@@ -429,13 +436,11 @@ uint32_t not_little_num_cpus_internal()
 #endif /* defined(BARE_METAL) || defined(__APPLE__) || defined(__OpenBSD__) || (!defined(__arm__) && !defined(__aarch64__)) */
         }
 
-        uint32_t CpuInfo::num_cpus() const
-        {
+        uint32_t CpuInfo::num_cpus() const {
             return _cpus.size();
         }
 
-        uint32_t CpuInfo::not_little_num_cpus() const
-        {
+        uint32_t CpuInfo::not_little_num_cpus() const {
 #if defined(__ANDROID__)
             return not_little_num_cpus_internal();
 #else  /* defined(__ANDROID__) */
@@ -443,8 +448,7 @@ uint32_t not_little_num_cpus_internal()
 #endif /* defined(__ANDROID__) */
         }
 
-        uint32_t num_threads_hint()
-        {
+        uint32_t num_threads_hint() {
             unsigned int num_threads_hint = 1;
 
 #if !defined(BARE_METAL) && !defined(_WIN64) && !defined(ARM_COMPUTE_DISABLE_THREADS_HINT)
@@ -460,14 +464,11 @@ uint32_t not_little_num_cpus_internal()
 
             // Read cpuinfo and get occurrence of each core
             std::ifstream cpuinfo_file("/proc/cpuinfo", std::ios::in);
-            if (cpuinfo_file.is_open())
-            {
+            if (cpuinfo_file.is_open()) {
                 std::string line;
-                while (bool(getline(cpuinfo_file, line)))
-                {
+                while (bool(getline(cpuinfo_file, line))) {
                     std::array<regmatch_t, 2> match;
-                    if (regexec(&cpu_part_rgx, line.c_str(), 2, match.data(), 0) == 0)
-                    {
+                    if (regexec(&cpu_part_rgx, line.c_str(), 2, match.data(), 0) == 0) {
                         cpus.emplace_back(line.substr(match[1].rm_so, (match[1].rm_eo - match[1].rm_so)));
                     }
                 }
@@ -476,17 +477,14 @@ uint32_t not_little_num_cpus_internal()
 
             // Get min number of threads
             std::sort(std::begin(cpus), std::end(cpus));
-            auto least_frequent_cpu_occurences = [](const std::vector<std::string> &cpus) -> uint32_t
-            {
+            auto least_frequent_cpu_occurences = [](const std::vector<std::string> &cpus) -> uint32_t {
                 std::unordered_map<std::string, uint32_t> cpus_freq;
-                for (const auto &cpu : cpus)
-                {
+                for (const auto &cpu: cpus) {
                     cpus_freq[cpu]++;
                 }
 
                 uint32_t vmin = cpus.size() + 1;
-                for (const auto &cpu_freq : cpus_freq)
-                {
+                for (const auto &cpu_freq: cpus_freq) {
                     vmin = std::min(vmin, cpu_freq.second);
                 }
                 return vmin;

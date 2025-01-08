@@ -116,18 +116,19 @@ else ()
     pkg_check_modules(GLOG REQUIRED libglog)
 
     # 设置Halide
-    set(HALIDE_DIR "/Users/mason/Desktop/Qualmnn/Halide_18_mac")
+    #    set(HALIDE_DIR "/Users/mason/Desktop/Qualmnn/Halide_18_mac")
 
     # 设置OpenBLAS
-    set(OPEN_BLAS "/Users/mason/Desktop/Qualmnn/OpenBLAS/install")
+    #    set(OPEN_BLAS "/Users/mason/Desktop/Qualmnn/OpenBLAS/install")
 
     # 设置 ARM Compute Library 的路径
-    set(ARM_COMPUTE_LIB_PATH "/Users/mason/Downloads/QwenModel/arm_compute-v24.12-macos-aarch64-cpu-bin/lib/armv8.2-a-neon") # 替换为实际路径
-    set(ARM_COMPUTE_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/includes")
-
-    set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER")
+    #    set(ARM_COMPUTE_LIB_PATH "/Users/mason/Downloads/QwenModel/arm_compute-v24.12-macos-aarch64-cpu-bin/lib/armv8.2-a-neon") # 替换为实际路径
+    #    set(ARM_COMPUTE_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/includes")
 
 endif ()
+
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER")
+
 
 # 下载GoogleTest项目
 include(FetchContent)
@@ -155,15 +156,17 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/includes
         ${GLOG_INCLUDE_DIRS}
         ${OpenMP_INCLUDE}
         ${ARMADILLO_INCLUDE_DIRS}
-        ${HALIDE_DIR}/include
-        ${OPEN_BLAS}/include
-        ${ARM_COMPUTE_INCLUDE_PATH})
+        #        ${HALIDE_DIR}/include
+        #        ${OPEN_BLAS}/include
+        #        ${ARM_COMPUTE_INCLUDE_PATH}
+)
 
 link_directories(${GLOG_LIBRARY_DIRS}
         ${ONNX_LIBRARIES}
-        ${HALIDE_DIR}/lib
-        ${OPEN_BLAS}/lib
-        ${ARM_COMPUTE_LIB_PATH})
+        #        ${HALIDE_DIR}/lib
+        #        ${OPEN_BLAS}/lib
+        #        ${ARM_COMPUTE_LIB_PATH}
+)
 
 add_executable(BatmanInfer main.cpp
         source/data/core/bi_tensor_info.cpp
@@ -265,10 +268,10 @@ target_link_libraries(BatmanInfer
         ${OpenMP_omp_LIBRARY}
         ${ABSEL_LIBARARY}
         ${UTF8RANGE_LIBRARY}
-        Halide
-        ${OPEN_BLAS}/lib/libopenblas.a
-        ${ARM_COMPUTE_LIB_PATH}/libarm_compute-static.a
-        ${ARM_COMPUTE_LIB_PATH}/libarm_compute_graph-static.a
+        #        Halide
+        #        ${OPEN_BLAS}/lib/libopenblas.a
+        #        ${ARM_COMPUTE_LIB_PATH}/libarm_compute-static.a
+        #        ${ARM_COMPUTE_LIB_PATH}/libarm_compute_graph-static.a
 )
 
 #message("check\t" ${HALIDE_DIR})

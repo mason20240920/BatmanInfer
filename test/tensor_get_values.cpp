@@ -73,7 +73,7 @@ TEST(test_tensor_values, tensor_values1) {
     const BITensorShape weights_shape_conv0(kernel_x_conv0, kernel_y_conv0, src_shape.z(), ofm_conv0);
 
     weights0.allocator()->init(BITensorInfo(weights_shape_conv0, 1, BIDataType::F32));
-    weights0.print(std::cout);
+//    weights0.print(std::cout);
 
     std::cout << "Hello" << std::endl;
 }
@@ -317,8 +317,8 @@ TEST(BITensorTest, transpose_test) {
     const BITensorShape input_shape(3, 2);
     const BITensorShape output_shape(2, 3);
 
-    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
-    output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F32));
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::U8));
+    output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::U8));
 
     BINETranspose transpose;
     transpose.configure(&input, &output);
@@ -327,7 +327,7 @@ TEST(BITensorTest, transpose_test) {
     output.allocator()->allocate();
 
     // 填充输入张量数据
-    float input_data[] = {1, 2, 3, 4, 5, 6}; // 3x2 矩阵
+    uint8_t input_data[] = {1, 2, 3, 4, 5, 6}; // 3x2 矩阵
     std::memcpy(input.buffer(), input_data, sizeof(input_data));
 
     // 执行转置
@@ -338,9 +338,19 @@ TEST(BITensorTest, transpose_test) {
     format.row_delim = "\n";      // 每行换行
     format.align_columns = 1;     // 对齐列
 
+    // 读取输出张量数据
+    uint8_t output_data[6];
+    std::memcpy(output_data, output.buffer(), sizeof(output_data));
+
     // 打印张量
-    std::cout << "Tensor Content:" << std::endl;
-    output.print(std::cout, format);
+    std::cout << "Output matrix:" << std::endl;
+    for (size_t i = 0; i < output_shape[1]; ++i) {
+        for (size_t j = 0; j < output_shape[0]; ++j) {
+            std::cout << static_cast<int>(output_data[i * output_shape[0] + j]) << " ";
+        }
+        std::cout << std::endl;
+    }
+//    output.print(std::cout, format);
 
 }
 
