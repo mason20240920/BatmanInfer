@@ -59,6 +59,21 @@ namespace BatmanInfer {
 
                 return shape_interleaved_a;
             }
+
+            inline BITensorShape compute_transpose_1xw_with_element_size_shape(const BIITensorInfo &b,
+                                                                               int multi_transpose_1xw_width = 1) {
+                // 注意：multi_transpose_1xw_width 表示我们希望将大小为 1x(W) 的块存储在同一行中的数量
+                //       transpose1xW 输出矩阵将具有以下形状：
+                //       [b_height * W, ceil(b_width / W)] 其中 W = (16 / 张量元素大小) * multi_transpose_1xw_width
+                BI_COMPUTE_ERROR_ON(multi_transpose_1xw_width < 1);
+                BITensorShape shape_transposed_1xw_b{b.tensor_shape()};
+                const size_t transpose_width = (16 / b.element_size()) * multi_transpose_1xw_width;
+                shape_transposed_1xw_b.set(BIWindow::DimX, b.dimension(1) * transpose_width);
+                shape_transposed_1xw_b.set(BIWindow::DimY, static_cast<size_t>(std::ceil(
+                        b.dimension(0) / static_cast<float>(transpose_width))));
+
+                return shape_transposed_1xw_b;
+            }
         }
     }
 }

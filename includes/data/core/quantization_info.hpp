@@ -38,7 +38,7 @@ namespace BatmanInfer {
             return (scale == 0) && (offset == 0);
         }
 
-        float   scale;
+        float scale;
         int32_t offset;
     };
 
@@ -115,7 +115,7 @@ namespace BatmanInfer {
 
         BIUniformQuantizationInfo uniform() const {
             BIUniformQuantizationInfo uqinfo;
-            uqinfo.scale  = _scale.empty() ? 0 : _scale[0];
+            uqinfo.scale = _scale.empty() ? 0 : _scale[0];
             uqinfo.offset = _offset.empty() ? 0 : _offset[0];
 
             return uqinfo;
@@ -138,28 +138,6 @@ namespace BatmanInfer {
         bool _is_dynamic = false;
 
     };
-
-    /** Check whether two quantization info are equal.
-     *
-     * @param[in] lhs RHS quantization info.
-     * @param[in] rhs LHS quantization info.
-     *
-     * @return True if the given quantization info is the same.
-     */
-    inline bool operator==(const BIQuantizationInfo &lhs, const BIQuantizationInfo &rhs) {
-        return (lhs.scale() == rhs.scale()) && (lhs.offset() == rhs.offset());
-    }
-
-    /** Check whether two quantization info are not equal.
-     *
-     * @param[in] lhs RHS quantization info.
-     * @param[in] rhs LHS quantization info.
-     *
-     * @return True if the given quantization info is the same.
-     */
-    inline bool operator!=(const BIQuantizationInfo &lhs, const BIQuantizationInfo &rhs) {
-        return !(operator==(lhs, rhs));
-    }
 
     template<typename QUANTIZED_TYPE = uint8_t>
     struct BIQasymm8QuantizationHelper {
@@ -359,6 +337,17 @@ namespace BatmanInfer {
      */
     inline int16_t quantize_qsymm16(float value, const BIQuantizationInfo &qinfo) {
         return quantize_qsymm16(value, qinfo.uniform());
+    }
+
+    /** Check whether two quantization info are equal.
+ *
+ * @param[in] lhs RHS quantization info.
+ * @param[in] rhs LHS quantization info.
+ *
+ * @return True if the given quantization info is the same.
+ */
+    inline bool operator==(const BIUniformQuantizationInfo &lhs, const BIUniformQuantizationInfo &rhs) {
+        return (lhs.scale == rhs.scale) && (lhs.offset == rhs.offset);
     }
 
 }

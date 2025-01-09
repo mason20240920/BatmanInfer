@@ -1236,6 +1236,133 @@ namespace BatmanInfer {
         BatmanInfer::BIWeightFormat _weight_format;
     };
 
+    /**
+     * GEMM 重排信息类。该类存储了关于矩阵 A 和矩阵 B 重排所需的必要信息。
+     * 矩阵 A 只能通过以下内核进行重排
+     *   1. opencl::kernels::BIClGemmReshapeLhsMatrixKernel
+     *   2. cpu::kernels::BICpuGemmInterleave4x4Kernel
+     * 注意: 仅对于 opencl::kernels::ClGemmReshapeLhsMatrixKernel，可以选择性地设置 multi_interleave4x4_height，即 4x4 交错块高度的倍乘因子
+     * 矩阵 B 只能通过以下内核进行重排：
+     *   1. opencl::kernels::BIClGemmReshapeRhsMatrixKernel
+     *   2. cpu::kernels::BICpuGemmTranspose1xWKernel
+     * 注意: 仅对于 opencl::kernels::ClGemmReshapeRhsMatrixKernel，可以选择性地设置 mult_transpose1xW_width，即 1xW 转置块宽度的倍乘因子。
+     */
+    class BIGemmReshapeInfo final {
+    public:
+        BIGemmReshapeInfo()
+                : _m(1),
+                  _n(1),
+                  _k(1),
+                  _multi_transpose1xW_width(1),
+                  _multi_interleave4x4_height(1),
+                  _depth_output_gemm3d(0),
+                  _reinterpret_input_as_3d(false),
+                  _broadcast_bias(false) {
+
+        }
+
+        /**
+         *
+         * @param m 矩阵 A 的行数
+         * @param n 矩阵 B 的列数
+         * @param k 矩阵 A 的列数或矩阵 B 的行数
+         * @param multi_transpose1xW_width (Optional) 1xW 转置块宽度的倍乘因子
+         * @param multi_interleave4x4_height (Optional) 4x4 交错块高度的倍乘因子
+         * @param depth_output_gemm3d (Optional) 用于 GEMM3D 内核的输出张量深度（第三维）
+         * @param reinterpret_input_as_3d 将输入重新解释为 3D 张量
+         * @param broadcast_bias 将偏置张量的形状从向量广播为矩阵
+         */
+        BIGemmReshapeInfo(int m,
+                          int n,
+                          int k,
+                          int multi_transpose1xW_width = 1,
+                          int multi_interleave4x4_height = 1,
+                          int depth_output_gemm3d = 0,
+                          bool reinterpret_input_as_3d = false,
+                          bool broadcast_bias = false)
+                : _m(m),
+                  _n(n),
+                  _k(k),
+                  _multi_transpose1xW_width(multi_transpose1xW_width),
+                  _multi_interleave4x4_height(multi_interleave4x4_height),
+                  _depth_output_gemm3d(depth_output_gemm3d),
+                  _reinterpret_input_as_3d(reinterpret_input_as_3d),
+                  _broadcast_bias(broadcast_bias) {
+        }
+
+        /**
+         * 矩阵A的行数
+         * @return
+         */
+        int m() const {
+            return _m;
+        }
+
+        /**
+         * 矩阵B的列数
+         * @return
+         */
+        int n() const {
+            return _n;
+        }
+
+        /**
+         * 矩阵A的列数或矩阵B的行数
+         * @return
+         */
+        int k() const {
+            return _k;
+        }
+
+        int multi_transpose1xW_width() const {
+            return _multi_transpose1xW_width;
+        }
+
+        /** Multiplication factor for the height of the 4x4 interleaved block
+         *
+         * @return the multiplication factor for the height of the 4x4 interleaved block
+         */
+        int multi_interleave4x4_height() const {
+            return _multi_interleave4x4_height;
+        }
+
+        /** Depth (third dimension) of the output tensor to be used with the GEMM3D kernel
+         *
+         * @note GEMM3D kernel is used when the output has to be reinterpret as 3D tensor. In that case:
+         *       m = depth_output_gemm3d * output_height
+         *
+         * @return the depth of the output tensor to be used with the GEMM3D kernel
+         */
+        int depth_output_gemm3d() const {
+            return _depth_output_gemm3d;
+        }
+
+        /** Flag which specifies if the input tensor has to be reinterpreted as 3D
+         *
+         * @return True if the input tensor has to be reinterpreted as 3D tensor
+         */
+        bool reinterpret_input_as_3d() const {
+            return _reinterpret_input_as_3d;
+        };
+
+        /** Flag which specifies whether to broadcast the shape of the bias tensor.
+         *
+         * @return True if the shape of the bias tensor is to be broadcasted.
+         */
+        bool broadcast_bias() const {
+            return _broadcast_bias;
+        };
+
+    private:
+        int _m;
+        int _n;
+        int _k;
+        int _multi_transpose1xW_width;
+        int _multi_interleave4x4_height;
+        int _depth_output_gemm3d;
+        bool _reinterpret_input_as_3d;
+        bool _broadcast_bias;
+    };
 }
 
 #endif //BATMANINFER_BI_TYPES_HPP

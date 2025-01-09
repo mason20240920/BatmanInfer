@@ -220,6 +220,12 @@ add_executable(BatmanInfer main.cpp
         source/cpu/operators/kernels/gemm_matrix_add/generic/neon/fp32.cpp
         source/cpu/operators/kernels/gemm_matrix_add/generic/neon/impl.cpp
         source/cpu/operators/kernels/gemm_matrix_add/generic/neon/fp16.cpp
+        source/cpu/operators/kernels/bi_cpu_gemm_matrix_multiply_kernel.cpp
+        source/cpu/operators/kernels/gemm_matrix_mul/generic/neon/fp32.cpp
+        source/cpu/operators/kernels/gemm_matrix_mul/generic/neon/mul.cpp
+        source/cpu/operators/kernels/gemm_matrix_mul/generic/neon/fp16.cpp
+        source/cpu/operators/kernels/bi_cpu_gemm_transpose_1xw_kernel.cpp
+        source/cpu/operators/kernels/activation/heuristics/bi_cpu_activation_kernel_heuristics.cpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
         #        source/onnx_conv/OnnxUtils.cpp

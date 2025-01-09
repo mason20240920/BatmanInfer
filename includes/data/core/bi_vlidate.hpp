@@ -425,7 +425,7 @@ namespace BatmanInfer {
 
 #define BI_COMPUTE_ERROR_ON_MISMATCHING_SHAPES(...) \
     BI_COMPUTE_ERROR_THROW_ON(::BatmanInfer::error_on_mismatching_shapes(__func__, __FILE__, __LINE__, __VA_ARGS__))
-#define ARM_COMPUTE_RETURN_ERROR_ON_MISMATCHING_SHAPES(...) \
+#define BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_SHAPES(...) \
     BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_mismatching_shapes(__func__, __FILE__, __LINE__, __VA_ARGS__))
 
 }
