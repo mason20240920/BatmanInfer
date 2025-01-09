@@ -222,13 +222,16 @@ namespace BatmanInfer {
          * @return The number of iterations
          */
         constexpr size_t num_iterations(size_t dimension) const;
+
         /** Return the total number of iterations needed to iterate through the entire window
          *
          * @return Number of total iterations
          */
         size_t num_iterations_total() const;
+
         /** Return the shape of the window in number of steps */
         BITensorShape shape() const;
+
         /** Split a window into a set of sub windows along a given dimension
          *
          * For example to split a window into 3 sub-windows along the Y axis, you would have to do:<br/>
@@ -243,38 +246,39 @@ namespace BatmanInfer {
          * @return The subwindow "id" out of "total"
          */
         BIWindow split_window(size_t dimension, size_t id, size_t total) const;
+
         /** First 1D slice of the window
          *
          * @return The first slice of the window.
          */
-        BIWindow first_slice_window_1D() const
-        {
+        BIWindow first_slice_window_1D() const {
             return first_slice_window<1>();
         };
+
         /** First 2D slice of the window
          *
          * @return The first slice of the window.
          */
-        BIWindow first_slice_window_2D() const
-        {
+        BIWindow first_slice_window_2D() const {
             return first_slice_window<2>();
         };
+
         /** First 3D slice of the window
          *
          * @return The first slice of the window.
          */
-        BIWindow first_slice_window_3D() const
-        {
+        BIWindow first_slice_window_3D() const {
             return first_slice_window<3>();
         };
+
         /** First 4D slice of the window
          *
          * @return The first slice of the window.
          */
-        BIWindow first_slice_window_4D() const
-        {
+        BIWindow first_slice_window_4D() const {
             return first_slice_window<4>();
         };
+
         /** Slide the passed 1D window slice.
          *
          * If slice contains the last slice then it will remain unchanged and false will be returned.
@@ -283,10 +287,10 @@ namespace BatmanInfer {
          *
          * @return true if slice contains a new slice, false if slice already contained the last slice
          */
-        bool slide_window_slice_1D(BIWindow &slice) const
-        {
+        bool slide_window_slice_1D(BIWindow &slice) const {
             return slide_window_slice<1>(slice);
         }
+
         /** Slide the passed 2D window slice.
          *
          * If slice contains the last slice then it will remain unchanged and false will be returned.
@@ -295,10 +299,10 @@ namespace BatmanInfer {
          *
          * @return true if slice contains a new slice, false if slice already contained the last slice
          */
-        bool slide_window_slice_2D(BIWindow &slice) const
-        {
+        bool slide_window_slice_2D(BIWindow &slice) const {
             return slide_window_slice<2>(slice);
         }
+
         /** Slide the passed 3D window slice.
          *
          * If slice contains the last slice then it will remain unchanged and false will be returned.
@@ -307,10 +311,10 @@ namespace BatmanInfer {
          *
          * @return true if slice contains a new slice, false if slice already contained the last slice
          */
-        bool slide_window_slice_3D(BIWindow &slice) const
-        {
+        bool slide_window_slice_3D(BIWindow &slice) const {
             return slide_window_slice<3>(slice);
         }
+
         /** Slide the passed 4D window slice.
          *
          * If slice contains the last slice then it will remain unchanged and false will be returned.
@@ -319,10 +323,10 @@ namespace BatmanInfer {
          *
          * @return true if slice contains a new slice, false if slice already contained the last slice
          */
-        bool slide_window_slice_4D(BIWindow &slice) const
-        {
+        bool slide_window_slice_4D(BIWindow &slice) const {
             return slide_window_slice<4>(slice);
         }
+
         /** Collapse the dimensions between @p first and @p last if possible.
          *
          * A dimension is collapsable if it starts from 0 and matches the corresponding dimension in the full_window
@@ -335,20 +339,20 @@ namespace BatmanInfer {
          * @return Collapsed window.
          */
         BIWindow
-        collapse_if_possible(const BIWindow &full_window, size_t first, size_t last, bool *has_collapsed = nullptr) const;
+        collapse_if_possible(const BIWindow &full_window, size_t first, size_t last,
+                             bool *has_collapsed = nullptr) const;
 
-        /** Collapse the dimensions higher than @p first if possible.
+        /** 如果可能，将高于 @p first 的维度折叠（Collapse）
          *
-         * A dimension is collapsable if it starts from 0 and matches the corresponding dimension in the full_window
+         * 当一个维度从 0 开始并且与 full_window 中的对应维度匹配时，该维度是可折叠的
          *
-         * @param[in]  full_window   Full window @p window has been created from.
-         * @param[in]  first         Start dimension into which the following are collapsed.
-         * @param[out] has_collapsed (Optional) Whether the window was collapsed.
+         * @param[in]  full_window   用于创建 @p window 的完整窗口.
+         * @param[in]  first         从该维度开始，将后续维度折叠到该维度中.
+         * @param[out] has_collapsed (Optional) 指示窗口是否已被折叠.
          *
          * @return Collapsed window.
          */
-        BIWindow collapse_if_possible(const BIWindow &full_window, size_t first, bool *has_collapsed = nullptr) const
-        {
+        BIWindow collapse_if_possible(const BIWindow &full_window, size_t first, bool *has_collapsed = nullptr) const {
             return collapse_if_possible(full_window, first, BICoordinates::num_max_dimensions, has_collapsed);
         }
 
@@ -362,7 +366,8 @@ namespace BatmanInfer {
          *
          * @return Collapsed window if successful.
          */
-        BIWindow collapse(const BIWindow &full_window, size_t first, size_t last = BICoordinates::num_max_dimensions) const;
+        BIWindow
+        collapse(const BIWindow &full_window, size_t first, size_t last = BICoordinates::num_max_dimensions) const;
 
         /** Don't advance in the dimension where @p shape is less equal to 1.
          *
@@ -378,16 +383,17 @@ namespace BatmanInfer {
          *
          * @return Broadcast window.
          */
-        BIWindow broadcast_if_dimension_le_one(const BIITensorInfo &info) const
-        {
+        BIWindow broadcast_if_dimension_le_one(const BIITensorInfo &info) const {
             return broadcast_if_dimension_le_one(info.tensor_shape());
         }
+
         /** Friend function that swaps the contents of two windows
          *
          * @param[in] lhs First window to swap.
          * @param[in] rhs Second window to swap.
          */
         friend void swap(BIWindow &lhs, BIWindow &rhs);
+
         /** Check whether two Windows are equal.
          *
          * @param[in] lhs LHS window
@@ -402,7 +408,7 @@ namespace BatmanInfer {
          *
          * @return The first slice of the window.
          */
-        template <unsigned int window_dimension>
+        template<unsigned int window_dimension>
         BIWindow first_slice_window() const;
 
         /** Slide the passed window slice.
@@ -413,7 +419,7 @@ namespace BatmanInfer {
          *
          * @return true if slice contains a new slice, false if slice already contained the last slice
          */
-        template <unsigned int window_dimension>
+        template<unsigned int window_dimension>
         bool slide_window_slice(BIWindow &slice) const;
 
     private:
@@ -424,8 +430,10 @@ namespace BatmanInfer {
         /**
          * @brief 每个维度是否广播信息，总共有六个维度
          */
-        std::array<bool, BICoordinates::num_max_dimensions>        _is_broadcasted;
+        std::array<bool, BICoordinates::num_max_dimensions> _is_broadcasted;
     };
 }
+
 #include "bi_window.inl"
+
 #endif //BATMANINFER_BI_WINDOW_HPP

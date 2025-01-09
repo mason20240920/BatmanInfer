@@ -8,6 +8,7 @@
 #include <data/core/bi_i_tensor.hpp>
 #include <data/core/bi_window.hpp>
 #include <cpu/kernels/gemm_matrix_add/generic/neon/fp32.hpp>
+#include <cpu/kernels/gemm_matrix_add/generic/neon/fp16.hpp>
 
 namespace BatmanInfer {
     namespace cpu {

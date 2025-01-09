@@ -438,6 +438,6 @@ TEST(BITensorTest, GEMMIntervalTest) {
     ::cpu::kernels::BICpuGemmInterleave4x4Kernel kernel;
     kernel.configure(src.info(), dst.info());
 
-    
+
 }
 

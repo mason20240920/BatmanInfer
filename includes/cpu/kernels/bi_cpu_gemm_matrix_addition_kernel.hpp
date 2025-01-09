@@ -30,8 +30,8 @@ namespace BatmanInfer {
             public:
                 struct BIGemmMatrixAddKernel {
                     const char *name;
-                    const DataTypeDataLayoutSelectorPtr is_selected;
-                    BIGemmMatrixAddKernelPtr u_kernel;
+                    const DataTypeISASelectorPtr is_selected;
+                    BIGemmMatrixAddKernelPtr ukernel;
                 };
 
                 BICpuGemmMatrixAdditionKernel() = default;

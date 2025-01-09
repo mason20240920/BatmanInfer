@@ -293,6 +293,141 @@ namespace BatmanInfer {
 #define BI_COMPUTE_RETURN_ERROR_ON_INVALID_SUBWINDOW(f, s) \
     BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_invalid_subwindow(__func__, __FILE__, __LINE__, f, s))
 
+    template<typename T, typename... Ts>
+    inline BatmanInfer::BIStatus error_on_data_type_not_in(
+            const char *function, const char *file, const int line, const BIITensorInfo *tensor_info, T &&dt,
+            Ts &&...dts) {
+        BI_COMPUTE_RETURN_ERROR_ON_LOC(tensor_info == nullptr, function, file, line);
+
+        const BIDataType &tensor_dt = tensor_info->data_type(); //NOLINT
+        BI_COMPUTE_RETURN_ERROR_ON_LOC(tensor_dt == BIDataType::UNKNOWN, function, file, line);
+
+        const std::array<T, sizeof...(Ts)> dts_array{{std::forward<Ts>(dts)...}};
+        BI_COMPUTE_RETURN_ERROR_ON_LOC_MSG_VAR(
+                tensor_dt != dt &&
+                std::none_of(dts_array.begin(), dts_array.end(), [&](const T &d) { return d == tensor_dt; }),
+                function, file, line, "ITensor data type %s not supported by this kernel",
+                string_from_data_type(tensor_dt).c_str());
+        return BatmanInfer::BIStatus{};
+    }
+
+
+    template<typename T, typename... Ts>
+    inline BatmanInfer::BIStatus error_on_data_type_not_in(
+            const char *function, const char *file, const int line, const BIITensor *tensor, T &&dt, Ts &&...dts) {
+        BI_COMPUTE_RETURN_ERROR_ON_LOC(tensor == nullptr, function, file, line);
+        BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_data_type_not_in(
+                function, file, line, tensor->info(), std::forward<T>(dt), std::forward<Ts>(dts)...));
+        return BatmanInfer::BIStatus{};
+    }
+
+    template<typename T, typename... Ts>
+    inline BatmanInfer::BIStatus error_on_data_type_channel_not_in(const char *function,
+                                                                   const char *file,
+                                                                   const int line,
+                                                                   const BIITensorInfo *tensor_info,
+                                                                   size_t num_channels,
+                                                                   T &&dt,
+                                                                   Ts &&...dts) {
+        BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_data_type_not_in(
+                function, file, line, tensor_info, std::forward<T>(dt), std::forward<Ts>(dts)...));
+        const size_t tensor_nc = tensor_info->num_channels();
+        BI_COMPUTE_RETURN_ERROR_ON_LOC_MSG_VAR(tensor_nc != num_channels, function, file, line,
+                                               "Number of channels %zu. Required number of channels %zu", tensor_nc,
+                                               num_channels);
+        return BatmanInfer::BIStatus{};
+    }
+
+    template<typename T, typename ...Ts>
+    inline BatmanInfer::BIStatus error_on_data_type_channel_not_in(const char *function,
+                                                                   const char *file,
+                                                                   const int line,
+                                                                   const BIITensor *tensor,
+                                                                   size_t num_channels,
+                                                                   T &&dt,
+                                                                   Ts &&...dts) {
+        BI_COMPUTE_RETURN_ERROR_ON_LOC(tensor == nullptr, function, file, line);
+        BI_COMPUTE_RETURN_ON_ERROR(error_on_data_type_channel_not_in(function, file, line, tensor->info(), num_channels,
+                                                                     std::forward<T>(dt), std::forward<Ts>(dts)...));
+        return BatmanInfer::BIStatus{};
+    }
+
+#define BI_COMPUTE_ERROR_ON_DATA_TYPE_CHANNEL_NOT_IN(t, c, ...) \
+    BI_COMPUTE_ERROR_THROW_ON(                                  \
+        ::BatmanInfer::error_on_data_type_channel_not_in(__func__, __FILE__, __LINE__, t, c, __VA_ARGS__))
+#define BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_CHANNEL_NOT_IN(t, c, ...) \
+    BI_COMPUTE_RETURN_ON_ERROR(                                        \
+        ::BatmanInfer::error_on_data_type_channel_not_in(__func__, __FILE__, __LINE__, t, c, __VA_ARGS__))
+
+    template<typename... Ts>
+    inline BatmanInfer::BIStatus error_on_mismatching_shapes(const char *function,
+                                                             const char *file,
+                                                             const int line,
+                                                             unsigned int upper_dim,
+                                                             const BIITensorInfo *tensor_info_1,
+                                                             const BIITensorInfo *tensor_info_2,
+                                                             Ts... tensor_infos) {
+        BI_COMPUTE_RETURN_ERROR_ON_LOC(tensor_info_1 == nullptr, function, file, line);
+        BI_COMPUTE_RETURN_ERROR_ON_LOC(tensor_info_2 == nullptr, function, file, line);
+        BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_nullptr(function, file, line, tensor_infos...));
+
+        const std::array<const BIITensorInfo *, 2 + sizeof...(Ts)> tensors_info_array{
+                {tensor_info_1, tensor_info_2, tensor_infos...}};
+        BI_COMPUTE_RETURN_ERROR_ON_LOC_MSG(
+                std::any_of(std::next(tensors_info_array.cbegin()), tensors_info_array.cend(),
+                            [&](const BIITensorInfo *tensor_info) {
+                                return detail::have_different_dimensions(
+                                        (*tensors_info_array.cbegin())->tensor_shape(),
+                                        tensor_info->tensor_shape(), upper_dim);
+                            }),
+                function, file, line, "Tensors have different shapes");
+        return BatmanInfer::BIStatus{};
+    }
+
+    template<typename... Ts>
+    inline BatmanInfer::BIStatus error_on_mismatching_shapes(const char *function,
+                                                             const char *file,
+                                                             const int line,
+                                                             unsigned int upper_dim,
+                                                             const BIITensor *tensor_1,
+                                                             const BIITensor *tensor_2,
+                                                             Ts... tensors) {
+        BI_COMPUTE_RETURN_ERROR_ON_LOC(tensor_1 == nullptr, function, file, line);
+        BI_COMPUTE_RETURN_ERROR_ON_LOC(tensor_2 == nullptr, function, file, line);
+        BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_nullptr(function, file, line, tensors...));
+        BI_COMPUTE_RETURN_ON_ERROR(
+                ::BatmanInfer::error_on_mismatching_shapes(function, file, line, upper_dim, tensor_1->info(),
+                                                           tensor_2->info(),
+                                                           detail::get_tensor_info_t<BIITensorInfo *>()(tensors)...));
+        return BatmanInfer::BIStatus{};
+    }
+
+    template<typename... Ts>
+    inline BatmanInfer::BIStatus error_on_mismatching_shapes(const char *function,
+                                                             const char *file,
+                                                             const int line,
+                                                             const BIITensorInfo *tensor_info_1,
+                                                             const BIITensorInfo *tensor_info_2,
+                                                             Ts... tensor_infos) {
+        return error_on_mismatching_shapes(function, file, line, 0U, tensor_info_1, tensor_info_2,
+                                           std::forward<Ts>(tensor_infos)...);
+    }
+
+    template<typename... Ts>
+    inline BatmanInfer::BIStatus error_on_mismatching_shapes(const char *function,
+                                                             const char *file,
+                                                             const int line,
+                                                             const BIITensor *tensor_1,
+                                                             const BIITensor *tensor_2,
+                                                             Ts... tensors) {
+        return error_on_mismatching_shapes(function, file, line, 0U, tensor_1, tensor_2, std::forward<Ts>(tensors)...);
+    }
+
+#define BI_COMPUTE_ERROR_ON_MISMATCHING_SHAPES(...) \
+    BI_COMPUTE_ERROR_THROW_ON(::BatmanInfer::error_on_mismatching_shapes(__func__, __FILE__, __LINE__, __VA_ARGS__))
+#define ARM_COMPUTE_RETURN_ERROR_ON_MISMATCHING_SHAPES(...) \
+    BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_mismatching_shapes(__func__, __FILE__, __LINE__, __VA_ARGS__))
+
 }
 
 #endif //BATMANINFER_BI_VALIDATE_HPP

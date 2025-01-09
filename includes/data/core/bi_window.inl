@@ -43,34 +43,51 @@ namespace BatmanInfer {
                                                    const size_t first,
                                                    const size_t last,
                                                    bool *has_collapsed) const {
+        // 创建一个新的窗口对象 collapsed，初始化为当前窗口的副本
         BIWindow collapsed(*this);
 
+        // 初始化变量 is_collapsable，用于判断维度是否可以折叠
         bool is_collapsable = true;
-        int  collapsed_end  = _dims[first].end();
 
+        // 初始化 collapsed_end 为第一个维度的结束位置（end 值）
+        int collapsed_end = _dims[first].end();
+
+        // 遍历从 first+1 到 last 的所有维度，检查是否满足折叠条件。
         for (size_t d = first + 1; d < last; ++d) {
+            /**
+             * 检查当前维度是否满足以下折叠条件：
+             * 1. 当前维度的起始位置为 0
+             * 2. full_window 对应维度的起始位置也为 0
+             * 3. 当前维度的步长 (step) 小于等于 1
+             * 4. full_window 对应维度的结束位置与当前维度的结束位置相同
+             */
             is_collapsable = (_dims[d].start() == 0) && (full_window[d].start() == 0) && (_dims[d].step() <= 1) &&
                              (full_window[d].end() == _dims[d].end());
+
+            // 如果维度满足折叠条件，则将当前维度的结束位置乘入 collapsed_end
             collapsed_end *= _dims[d].end();
         }
 
+        // 如果所有维度都满足折叠条件，则进行折叠操作。
         if (is_collapsable) {
+            // 更新第一个维度的结束位置为 collapsed_end
             collapsed._dims.at(first).set_end(collapsed_end);
-            for (size_t d = first + 1; d < last; ++d) {
+            // 将从 first+1 到 last 的所有维度设置为空维度（BIDimension()）。
+            for (size_t d = first + 1; d < last; ++d)
                 collapsed.set(d, BIDimension());
-            }
         }
 
-        if (has_collapsed != nullptr) {
+        // 如果 has_collapsed 指针不为空，则将折叠结果（是否成功折叠）写入该指针
+        if (has_collapsed != nullptr)
             *has_collapsed = is_collapsable;
-        }
+
 
         return collapsed;
     }
 
     inline BIWindow BIWindow::shift_dimensions(unsigned int shift_value, unsigned int start_dim) const {
         BIWindow shifted_window;
-        size_t   n = 0;
+        size_t n = 0;
 
         for (; n < start_dim; ++n) {
             shifted_window.set(n, _dims[n]);
@@ -84,15 +101,15 @@ namespace BatmanInfer {
     }
 
     inline BIWindow BIWindow::collapse(const BIWindow &full_window, const size_t first, const size_t last) const {
-        bool     has_collapsed = false;
-        BIWindow collapsed     = collapse_if_possible(full_window, first, last, &has_collapsed);
+        bool has_collapsed = false;
+        BIWindow collapsed = collapse_if_possible(full_window, first, last, &has_collapsed);
         // Make sure that the window has collapsed
         BI_COMPUTE_ERROR_ON(!has_collapsed);
         return collapsed;
     }
 
     inline BIWindow BIWindow::broadcast_if_dimension_le_one(const BITensorShape &shape) const {
-        BIWindow    broadcastWin(*this);
+        BIWindow broadcastWin(*this);
         for (size_t d = 0; d < BITensorShape::num_max_dimensions; ++d) {
             if (shape[d] <= 1) {
                 broadcastWin.set_broadcasted(d);
@@ -120,11 +137,11 @@ namespace BatmanInfer {
 
     inline void BIWindow::scale(size_t dimension, float scale_value) {
         BI_COMPUTE_ERROR_ON(dimension >= BICoordinates::num_max_dimensions);
-        BIWindow::BIDimension &d           = _dims[dimension];
-        const int             scaled_step  = d.step() * scale_value;
-        const int             scaled_start = d.start() * scale_value;
-        const int             scaled_diff  = (d.end() - d.start()) * scale_value;
-        const int             scaled_end   = scaled_start + ceil_to_multiples(scaled_diff, scaled_step);
+        BIWindow::BIDimension &d = _dims[dimension];
+        const int scaled_step = d.step() * scale_value;
+        const int scaled_start = d.start() * scale_value;
+        const int scaled_diff = (d.end() - d.start()) * scale_value;
+        const int scaled_end = scaled_start + ceil_to_multiples(scaled_diff, scaled_step);
 
         d = BIWindow::BIDimension(scaled_start, scaled_end, scaled_step);
     }
@@ -156,13 +173,13 @@ namespace BatmanInfer {
 
         for (size_t d = 0; d < BICoordinates::num_max_dimensions; ++d) {
             if (d == dimension) {
-                int       start = _dims[d].start();
-                int       end   = _dims[d].end();
-                const int step  = _dims[d].step();
+                int start = _dims[d].start();
+                int end = _dims[d].end();
+                const int step = _dims[d].step();
 
                 const int num_it = num_iterations(d);
-                const int rem    = num_it % total;
-                int       work   = num_it / total;
+                const int rem = num_it % total;
+                int work = num_it / total;
 
                 int it_start = work * id;
 
@@ -174,7 +191,7 @@ namespace BatmanInfer {
                 }
 
                 start += it_start * step;
-                end          = std::min(end, start + work * step);
+                end = std::min(end, start + work * step);
 
                 out.set(d, BIDimension(start, end, step));
             } else {
@@ -229,15 +246,15 @@ namespace BatmanInfer {
 
     inline BITensorShape BIWindow::shape() const {
         BITensorShape shape;
-        for (size_t   d = 0; d < BITensorShape::num_max_dimensions; ++d) {
+        for (size_t d = 0; d < BITensorShape::num_max_dimensions; ++d) {
             shape.set(d, (_dims[d].end() - _dims[d].start()) / _dims[d].step());
         }
         return shape;
     }
 
     inline size_t BIWindow::num_iterations_total() const {
-        size_t      total = 1;
-        for (size_t d     = 0; d < BICoordinates::num_max_dimensions; ++d) {
+        size_t total = 1;
+        for (size_t d = 0; d < BICoordinates::num_max_dimensions; ++d) {
             total *= num_iterations(d);
         }
         return total;

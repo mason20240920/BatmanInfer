@@ -127,7 +127,7 @@ else ()
 
 endif ()
 
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS")
 
 
 # 下载GoogleTest项目
@@ -219,6 +219,7 @@ add_executable(BatmanInfer main.cpp
         source/cpu/operators/kernels/bi_cpu_gemm_matrix_addition_kernel.cpp
         source/cpu/operators/kernels/gemm_matrix_add/generic/neon/fp32.cpp
         source/cpu/operators/kernels/gemm_matrix_add/generic/neon/impl.cpp
+        source/cpu/operators/kernels/gemm_matrix_add/generic/neon/fp16.cpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
         #        source/onnx_conv/OnnxUtils.cpp
