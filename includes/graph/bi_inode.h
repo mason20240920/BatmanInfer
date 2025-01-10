@@ -223,7 +223,7 @@ namespace graph {
         BITarget assigned_target() const;
 
     protected:
-        friend class Graph;
+        friend class BIGraph;
 
     protected:
         BIGraph              *_graph;           /**< Backward reference to graph owning the node */
