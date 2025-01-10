@@ -233,6 +233,11 @@ add_executable(BatmanInfer main.cpp
         source/data/core/utils/quantization/asymm_helpers.cpp
         source/data/core/bi_rounding.cpp
         source/data/core/utils/bi_math.cpp
+        source/bcl_version.cpp
+        source/common/bi_i_operator.cpp
+        source/common/bi_i_tensor_v2.cpp
+        source/c/bcl_tensor.cpp
+        source/common/bi_allocator_wrapper.cpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
         #        source/onnx_conv/OnnxUtils.cpp
