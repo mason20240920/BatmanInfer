@@ -9,53 +9,53 @@
 
 namespace BatmanInfer {
     namespace wrapper {
-#define VCEQ_IMPL(votype, vtype, prefix, postfix)      \
-    inline votype vceq(const vtype &a, const vtype &b) \
-    {                                                  \
-        return prefix##_##postfix(a, b);               \
+#define VCGE_IMPL(stype, vtype, rtype, prefix, postfix) \
+    inline rtype vcge(const vtype &a, const vtype &b)   \
+    {                                                   \
+        return prefix##_##postfix(a, b);                \
     }
 
-        VCEQ_IMPL(uint8x8_t, uint8x8_t, vceq, u8)
+        VCGE_IMPL(uint8_t, uint8x8_t, uint8x8_t, vcge, u8)
 
-        VCEQ_IMPL(uint8x8_t, int8x8_t, vceq, s8)
+        VCGE_IMPL(int8_t, int8x8_t, uint8x8_t, vcge, s8)
 
-        VCEQ_IMPL(uint16x4_t, uint16x4_t, vceq, u16)
+        VCGE_IMPL(uint16_t, uint16x4_t, uint16x4_t, vcge, u16)
 
-        VCEQ_IMPL(uint16x4_t, int16x4_t, vceq, s16)
+        VCGE_IMPL(int16_t, int16x4_t, uint16x4_t, vcge, s16)
 
-        VCEQ_IMPL(uint32x2_t, uint32x2_t, vceq, u32)
+        VCGE_IMPL(uint32_t, uint32x2_t, uint32x2_t, vcge, u32)
 
-        VCEQ_IMPL(uint32x2_t, int32x2_t, vceq, s32)
+        VCGE_IMPL(int32_t, int32x2_t, uint32x2_t, vcge, s32)
 
-        VCEQ_IMPL(uint32x2_t, float32x2_t, vceq, f32)
-
-#ifdef __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-
-        VCEQ_IMPL(uint16x4_t, float16x4_t, vceq, f16)
-
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-
-        VCEQ_IMPL(uint8x16_t, uint8x16_t, vceqq, u8)
-
-        VCEQ_IMPL(uint8x16_t, int8x16_t, vceqq, s8)
-
-        VCEQ_IMPL(uint16x8_t, uint16x8_t, vceqq, u16)
-
-        VCEQ_IMPL(uint16x8_t, int16x8_t, vceqq, s16)
-
-        VCEQ_IMPL(uint32x4_t, uint32x4_t, vceqq, u32)
-
-        VCEQ_IMPL(uint32x4_t, int32x4_t, vceqq, s32)
-
-        VCEQ_IMPL(uint32x4_t, float32x4_t, vceqq, f32)
+        VCGE_IMPL(float32x2_t, float32x2_t, uint32x2_t, vcge, f32)
 
 #ifdef __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
-        VCEQ_IMPL(uint16x8_t, float16x8_t, vceqq, f16)
+        VCGE_IMPL(float16x4_t, float16x4_t, uint16x4_t, vcge, f16)
 
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
-#undef VCEQ_IMPL
+        VCGE_IMPL(uint8_t, uint8x16_t, uint8x16_t, vcgeq, u8)
+
+        VCGE_IMPL(int8_t, int8x16_t, uint8x16_t, vcgeq, s8)
+
+        VCGE_IMPL(uint16_t, uint16x8_t, uint16x8_t, vcgeq, u16)
+
+        VCGE_IMPL(int16_t, int16x8_t, uint16x8_t, vcgeq, s16)
+
+        VCGE_IMPL(uint32_t, uint32x4_t, uint32x4_t, vcgeq, u32)
+
+        VCGE_IMPL(int32_t, int32x4_t, uint32x4_t, vcgeq, s32)
+
+        VCGE_IMPL(float32x4_t, float32x4_t, uint32x4_t, vcgeq, f32)
+
+#ifdef __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
+        VCGE_IMPL(float16x8_t, float16x8_t, uint16x8_t, vcgeq, f16)
+
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
+#undef VCGE_IMPL
     }
 }
 

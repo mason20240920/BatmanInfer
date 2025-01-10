@@ -127,7 +127,7 @@ else ()
 
 endif ()
 
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS ")
 
 
 # 下载GoogleTest项目
@@ -226,6 +226,13 @@ add_executable(BatmanInfer main.cpp
         source/cpu/operators/kernels/gemm_matrix_mul/generic/neon/fp16.cpp
         source/cpu/operators/kernels/bi_cpu_gemm_transpose_1xw_kernel.cpp
         source/cpu/operators/kernels/activation/heuristics/bi_cpu_activation_kernel_heuristics.cpp
+        source/cpu/operators/kernels/lut/generic/neon/u8.cpp
+        source/cpu/operators/kernels/activation/generic/neon/lut.cpp
+        source/cpu/operators/kernels/activation/generic/neon/qasymm8.cpp
+        source/cpu/operators/kernels/activation/generic/neon/qsymm16.cpp
+        source/data/core/utils/quantization/asymm_helpers.cpp
+        source/data/core/bi_rounding.cpp
+        source/data/core/utils/bi_math.cpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
         #        source/onnx_conv/OnnxUtils.cpp

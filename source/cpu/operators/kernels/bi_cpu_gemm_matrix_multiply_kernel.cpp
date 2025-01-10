@@ -37,7 +37,7 @@ namespace BatmanInfer {
                     BI_COMPUTE_UNUSED(alpha);
 
                     BI_COMPUTE_RETURN_ERROR_ON_CPU_F16_UNSUPPORTED(lhs);
-                    BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_CHANNEL_NOT_IN(lhs, 1, DataType::F16, DataType::F32);
+                    BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_CHANNEL_NOT_IN(lhs, 1, BIDataType::F16, BIDataType::F32);
                     BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(lhs, rhs, dst);
 
                     if (!is_interleaved) {
@@ -75,7 +75,7 @@ namespace BatmanInfer {
                             const BITensorInfo tensor_info1 = rhs->clone()->set_tensor_shape(tensor_shape1);
                             const BITensorInfo tensor_info_reshaped1 =
                                     rhs->clone()->set_tensor_shape(
-                                            misc::shape_calculator::compute_transpose1xW_with_element_size_shape(
+                                            misc::shape_calculator::compute_transpose_1xw_with_element_size_shape(
                                                     tensor_info1, multi_transpose1xW_width));
                             BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_SHAPES(rhs, &tensor_info_reshaped1);
                         }
@@ -118,17 +118,17 @@ namespace BatmanInfer {
                 // Check if the dst tensor is a vector. If so,the kernel runs the vector-matrix multiplication
                 const bool is_dst_vector = (dst->dimension(1) == 1);
                 if (is_dst_vector) {
-                    const unsigned int num_elems_processed_per_iteration_x = (lhs->data_type() == DataType::F32) ? 16
-                                                                                                                 : 32;
+                    const unsigned int num_elems_processed_per_iteration_x = (lhs->data_type() == BIDataType::F32) ? 16
+                                                                                                                   : 32;
 
-                    win = calculate_max_window(*dst, Steps(num_elems_processed_per_iteration_x));
+                    win = calculate_max_window(*dst, BISteps(num_elems_processed_per_iteration_x));
                 } else {
                     constexpr unsigned int num_elems_processed_per_iteration_x = 8;
                     constexpr unsigned int num_elems_processed_per_iteration_y = 4;
 
                     win =
-                            calculate_max_window(*dst, Steps(num_elems_processed_per_iteration_x,
-                                                             num_elems_processed_per_iteration_y));
+                            calculate_max_window(*dst, BISteps(num_elems_processed_per_iteration_x,
+                                                               num_elems_processed_per_iteration_y));
                 }
 
                 const auto uk = BICpuGemmMatrixMultiplyKernel::get_implementation(

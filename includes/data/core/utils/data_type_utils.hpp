@@ -7,6 +7,7 @@
 
 #include <data/core/bi_types.hpp>
 #include <map>
+#include <data/core/bi_pixel_value.h>
 
 namespace BatmanInfer {
 
@@ -131,6 +132,67 @@ namespace BatmanInfer {
             default:
                 return false;
         }
+    }
+
+    inline std::tuple<BIPixelValue, BIPixelValue> get_min_max(BIDataType dt) {
+        BIPixelValue min{};
+        BIPixelValue max{};
+        switch (dt) {
+            case BIDataType::U8:
+            case BIDataType::QASYMM8: {
+                min = BIPixelValue(static_cast<int32_t>(std::numeric_limits<uint8_t>::lowest()));
+                max = BIPixelValue(static_cast<int32_t>(std::numeric_limits<uint8_t>::max()));
+                break;
+            }
+            case BIDataType::S8:
+            case BIDataType::QSYMM8:
+            case BIDataType::QASYMM8_SIGNED:
+            case BIDataType::QSYMM8_PER_CHANNEL: {
+                min = BIPixelValue(static_cast<int32_t>(std::numeric_limits<int8_t>::lowest()));
+                max = BIPixelValue(static_cast<int32_t>(std::numeric_limits<int8_t>::max()));
+                break;
+            }
+            case BIDataType::U16:
+            case BIDataType::QASYMM16: {
+                min = BIPixelValue(static_cast<int32_t>(std::numeric_limits<uint16_t>::lowest()));
+                max = BIPixelValue(static_cast<int32_t>(std::numeric_limits<uint16_t>::max()));
+                break;
+            }
+            case BIDataType::S16:
+            case BIDataType::QSYMM16: {
+                min = BIPixelValue(static_cast<int32_t>(std::numeric_limits<int16_t>::lowest()));
+                max = BIPixelValue(static_cast<int32_t>(std::numeric_limits<int16_t>::max()));
+                break;
+            }
+            case BIDataType::U32: {
+                min = BIPixelValue(std::numeric_limits<uint32_t>::lowest());
+                max = BIPixelValue(std::numeric_limits<uint32_t>::max());
+                break;
+            }
+            case BIDataType::S32: {
+                min = BIPixelValue(std::numeric_limits<int32_t>::lowest());
+                max = BIPixelValue(std::numeric_limits<int32_t>::max());
+                break;
+            }
+            case BIDataType::BFLOAT16: {
+                min = BIPixelValue(bfloat16::lowest());
+                max = BIPixelValue(bfloat16::max());
+                break;
+            }
+            case BIDataType::F16: {
+                min = BIPixelValue(std::numeric_limits<half>::lowest());
+                max = BIPixelValue(std::numeric_limits<half>::max());
+                break;
+            }
+            case BIDataType::F32: {
+                min = BIPixelValue(std::numeric_limits<float>::lowest());
+                max = BIPixelValue(std::numeric_limits<float>::max());
+                break;
+            }
+            default:
+                BI_COMPUTE_ERROR("Undefined data type!");
+        }
+        return std::make_tuple(min, max);
     }
 }
 

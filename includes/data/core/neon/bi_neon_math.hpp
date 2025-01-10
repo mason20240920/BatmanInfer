@@ -197,7 +197,7 @@ namespace BatmanInfer {
  * @param[in]  in  Vector of float to be converted
  * @param[out] out Converted vector of uint8 to store the result
  */
-    template<RoundingPolicy policy = RoundingPolicy::TO_ZERO>
+    template<BIRoundingPolicy policy = BIRoundingPolicy::TO_ZERO>
     void convert_float32x4x4_to_uint8x16(const float32x4x4_t &in, uint8x16_t &out);
 
 /** Converts from float32x4x4_t to just one int8x16_t
@@ -205,7 +205,7 @@ namespace BatmanInfer {
  * @param[in]  in  Vector of float to be converted
  * @param[out] out Converted vector of uint8 to store the result
  */
-    template<RoundingPolicy policy = RoundingPolicy::TO_ZERO>
+    template<BIRoundingPolicy policy = BIRoundingPolicy::TO_ZERO>
     void convert_float32x4x4_to_int8x16(const float32x4x4_t &in, int8x16_t &out);
 
 /** Converts from float vector to integer vector

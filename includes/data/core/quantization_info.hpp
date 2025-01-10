@@ -350,6 +350,73 @@ namespace BatmanInfer {
         return (lhs.scale == rhs.scale) && (lhs.offset == rhs.offset);
     }
 
+    /** Quantize a value given a 8-bit symmetric per channel quantization scheme
+ *
+ * @param[in] value      Value to quantize
+ * @param[in] qinfo      Quantization information to use for quantizing
+ * @param[in] channel_id channel index into the scale vector of quantization info
+ *
+ * @return Quantized value
+ */
+    inline int8_t quantize_qsymm8_per_channel(float value, const BIQuantizationInfo &qinfo, size_t channel_id = 0) {
+        int quantized = BatmanInfer::round(value / qinfo.scale()[channel_id], BIRoundingPolicy::TO_NEAREST_UP);
+        quantized = std::max(-128, std::min(quantized, 127));
+        return quantized;
+    }
+
+/** Dequantize a value given an unsigned 8-bit asymmetric quantization scheme
+ *
+ * @param[in] value Value to dequantize
+ * @param[in] qinfo Quantization information to use for dequantizing
+ *
+ * @return Dequantized value
+ */
+    template<typename INFO_TYPE>
+    inline float dequantize_qasymm8(uint8_t value, const INFO_TYPE &qinfo) {
+        return BIQasymm8QuantizationHelper<uint8_t>::dequantize(value, qinfo);
+    }
+
+/** Dequantize a value given a signed 8-bit asymmetric quantization scheme
+ *
+ * @param[in] value Value to dequantize
+ * @param[in] qinfo Quantization information to use for dequantizing
+ *
+ * @return Dequantized value
+ */
+    template<typename INFO_TYPE>
+    inline float dequantize_qasymm8_signed(int8_t value, const INFO_TYPE &qinfo) {
+        return BIQasymm8QuantizationHelper<int8_t>::dequantize(value, qinfo);
+    }
+
+    inline float dequantize_qsymm16(int16_t value, const BIUniformQuantizationInfo &qinfo) {
+        return value * qinfo.scale;
+    }
+
+/** Dequantize a value given a 16-bit symmetric quantization scheme
+ *
+ * @param[in] value Value to dequantize
+ * @param[in] qinfo Quantization information to use for dequantizing
+ *
+ * @return Dequantized value
+ */
+    inline float dequantize_qsymm16(int16_t value, const BIQuantizationInfo &qinfo) {
+        return dequantize_qsymm16(value, qinfo.uniform());
+    }
+
+    inline bool operator==(const BIQuantizationInfo &lhs, const BIQuantizationInfo &rhs) {
+        return (lhs.scale() == rhs.scale()) && (lhs.offset() == rhs.offset());
+    }
+
+/** Check whether two quantization info are not equal.
+ *
+ * @param[in] lhs RHS quantization info.
+ * @param[in] rhs LHS quantization info.
+ *
+ * @return True if the given quantization info is the same.
+ */
+    inline bool operator!=(const BIQuantizationInfo &lhs, const BIQuantizationInfo &rhs) {
+        return !(operator==(lhs, rhs));
+    }
 }
 
 #endif //BATMANINFER_QUANTIZATION_INFO_HPP
