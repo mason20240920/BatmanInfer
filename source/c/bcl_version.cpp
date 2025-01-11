@@ -2,7 +2,7 @@
 // Created by Mason on 2025/1/10.
 //
 
-#include <bcl_version.hpp>
+#include "bcl_version.hpp"
 
 namespace {
     constexpr BclVersion version_info{

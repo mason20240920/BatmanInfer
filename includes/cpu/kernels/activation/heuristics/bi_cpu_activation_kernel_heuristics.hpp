@@ -11,7 +11,7 @@
 #include <function_info/bi_activationLayerInfo.h>
 #include <runtime/bi_i_scheduler.hpp>
 
-#include <data/core/common/bi_core_common_macros.hpp>
+#include "data/core/common/bi_core_common_macros.hpp"
 #include <cpu/kernels/bi_cpu_kernel_selection_types.hpp>
 
 namespace BatmanInfer {

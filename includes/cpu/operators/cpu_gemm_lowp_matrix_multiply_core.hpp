@@ -8,7 +8,7 @@
 #include <data/core/bi_i_tensor_info.hpp>
 #include <function_info/bi_GEMMInfo.h>
 
-#include <data/core/common/bi_core_common_macros.hpp>
+#include "data/core/common/bi_core_common_macros.hpp"
 #include <cpu/bi_i_cpu_operator.hpp>
 
 #include <memory>
