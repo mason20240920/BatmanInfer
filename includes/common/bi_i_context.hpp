@@ -31,7 +31,7 @@ namespace BatmanInfer {
 
     class BIIContext : public BclContext_ {
     public:
-        BIIContext(BITarget target) : BclContext_(), _target(target), _refcount(0) {
+        BIIContext(Target target) : BclContext_(), _target(target), _refcount(0) {
 
         }
 
@@ -46,7 +46,7 @@ namespace BatmanInfer {
          * 目标类型访问器
          * @return
          */
-        BITarget type() const {
+        Target type() const {
             return _target;
         }
 
@@ -102,7 +102,7 @@ namespace BatmanInfer {
         /**
          * 不同的运行平台
          */
-        BITarget _target;
+        Target _target;
         /**
          * 引用计数
          */

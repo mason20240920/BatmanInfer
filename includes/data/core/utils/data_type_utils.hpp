@@ -120,6 +120,34 @@ namespace BatmanInfer {
         }
     }
 
+    inline bool is_data_type_quantized_asymmetric_char(BIDataType dt) {
+        switch (dt) {
+            case BIDataType::QASYMM8_SIGNED:
+            case BIDataType::QASYMM8:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+
+    /**
+     * 检查是否对称量化
+     * @param dt
+     * @return
+     */
+    inline bool is_data_type_quantized_symmetric(BIDataType dt) {
+        switch (dt) {
+            case BIDataType::QSYMM8:
+            case BIDataType::QSYMM8_PER_CHANNEL:
+            case BIDataType::QSYMM16:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+
     inline bool is_data_type_quantized(BIDataType dt) {
         switch (dt) {
             case BIDataType::QSYMM8:

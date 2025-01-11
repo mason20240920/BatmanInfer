@@ -24,28 +24,28 @@ namespace BatmanInfer {
         };
 
         struct BIAsmGemmInfo {
-            BIAsmConvMethod             method{BIAsmConvMethod::Im2Col};
-            BIPadStrideInfo             ps_info{};
-            BIActivationLayerInfo       activation_info{};
-            BIGEMMLowpOutputStageInfo   output_stage{};
-            bool                        negated_offsets{true};
-            bool                        reinterpret_input_as_3d{false};
-            bool                        depth_output_gemm3d{false};
-            int64_t                     padding_top{0};
-            int64_t                     padding_left{0};
-            float                       padding_value{0.f};
-            bool                        fast_mode{false};
-            bool                        fixed_format{false};
+            BIAsmConvMethod method{BIAsmConvMethod::Im2Col};
+            BIPadStrideInfo ps_info{};
+            BIActivationLayerInfo activation_info{};
+            BIGEMMLowpOutputStageInfo output_stage{};
+            bool negated_offsets{true};
+            bool reinterpret_input_as_3d{false};
+            bool depth_output_gemm3d{false};
+            int64_t padding_top{0};
+            int64_t padding_left{0};
+            float padding_value{0.f};
+            bool fast_mode{false};
+            bool fixed_format{false};
             BatmanInfer::BIWeightFormat weight_format{BatmanInfer::BIWeightFormat::UNSPECIFIED};
-            bool                        reshape_b_only_on_first_run{true};
-            bool                        accumulate{false};
+            bool reshape_b_only_on_first_run{true};
+            bool accumulate{false};
             /** Whether we want to perform an additional transpose of b before passing it to gemm or pretranspose_B_array
              * @note This transpose b operation is also considered a form of "reshape" or "transform", so should be counted for
              *       by the reshape_b_only_on_first_run flag
              * @note This flag will be silently ignored (assumed to be false) when the weight_format is a fixed format. Because
              *       fixed format kernels do not accept weights (B) with any prior transformations
              */
-            bool                        transpose_b{false};
+            bool transpose_b{false};
         };
 
         /**

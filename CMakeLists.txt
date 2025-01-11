@@ -127,7 +127,7 @@ else ()
 
 endif ()
 
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS ")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED")
 
 
 # 下载GoogleTest项目
@@ -233,11 +233,27 @@ add_executable(BatmanInfer main.cpp
         source/data/core/utils/quantization/asymm_helpers.cpp
         source/data/core/bi_rounding.cpp
         source/data/core/utils/bi_math.cpp
-        source/bcl_version.cpp
+        source/c/bcl_version.cpp
         source/common/bi_i_operator.cpp
         source/common/bi_i_tensor_v2.cpp
         source/c/bcl_tensor.cpp
         source/common/bi_allocator_wrapper.cpp
+        source/cpu/bi_cpu_context.cpp
+        source/cpu/bi_cpu_queue.cpp
+        source/c/operators/bcl_activation.cpp
+        source/common/utils/bi_legacy_support.cpp
+        source/common/bi_tensor_pack.cpp
+        source/c/bcl_version.cpp
+        source/c/bcl_context.cpp
+        source/c/bcl_operators.cpp
+        source/c/bcl_queue.cpp
+        source/c/bcl_tensor_pack.cpp
+        source/cpu/operators/bi_cpu_activation.cpp
+        source/cpu/operators/kernels/bi_cpu_activation_kernel.cpp
+        source/data/core/helpers/bi_lut_manager.cpp
+        source/cpu/bi_cpu_tensor.cpp
+        source/cpu/operators/kernels/activation/generic/neon/fp16.cpp
+        source/cpu/operators/kernels/activation/generic/neon/fp32.cpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
         #        source/onnx_conv/OnnxUtils.cpp
