@@ -7,6 +7,7 @@
 #include <runtime/neon/bi_ne_scheduler.hpp>
 #include <data/core/bi_i_tensor.hpp>
 #include <data/core/bi_vlidate.hpp>
+#include <cpu/operators/cpu_transpose.hpp>
 
 
 namespace BatmanInfer {
@@ -41,12 +42,12 @@ namespace BatmanInfer {
 
                 // 创建一个大小为 num_threads 的工作负载数组，每个线程将处理一部分工作
                 std::vector<BIIScheduler::BIWorkload> workloads(num_threads);
-                for (unsigned int                     t = 0; t < num_threads; ++t) {
+                for (unsigned int t = 0; t < num_threads; ++t) {
                     workloads[t] = [=](const ThreadInfo &info) {
                         // 计算当前线程的起始工作范围
                         const unsigned int start = (info.thread_id * w_size) / num_threads;
                         // 计算当前线程的结束工作范围
-                        const unsigned int end   = ((info.thread_id + 1) * w_size) / num_threads;
+                        const unsigned int end = ((info.thread_id + 1) * w_size) / num_threads;
 
                         // 如果起始范围小于结束范围，说明有工作需要处理
                         if (start < end)
@@ -75,7 +76,7 @@ namespace BatmanInfer {
                 unsigned int batches;
                 unsigned int multis;
                 unsigned int sections;
-                bool         indirect;
+                bool indirect;
             };
 
             /**
@@ -103,13 +104,13 @@ namespace BatmanInfer {
                     p.indirect = true;
                     p.sections = b->tensor_shape()[2] * b->tensor_shape()[3];
                 } else {
-                    p.multis  = b->tensor_shape().z();
+                    p.multis = b->tensor_shape().z();
                     p.batches = d->tensor_shape().total_size_upper(2) / p.multis;
                 }
 
                 // 更新M如果GEMM3D作为输出
                 if (info.depth_output_gemm3d != 0) {
-                    p.M       = d->tensor_shape().y() * d->tensor_shape().z();
+                    p.M = d->tensor_shape().y() * d->tensor_shape().z();
                     p.batches = d->tensor_shape().total_size_upper(3) / p.multis;
                 }
                 return p;
@@ -128,7 +129,7 @@ namespace BatmanInfer {
                 // 调度粒度的阈值，值为 200
                 const int granule_threshold = 200;
                 // 默认的调度提示(默认在X轴上并行)
-                auto      scheduling_hint   = BIIScheduler::Hints(BIWindow::DimX);
+                auto scheduling_hint = BIIScheduler::Hints(BIWindow::DimX);
                 if (method == BatmanGemm::GemmMethod::GEMM_INTERLEAVED && data_type == BIDataType::F32)
                     scheduling_hint = BIIScheduler::Hints(BIWindow::DimX,
                                                           BIIScheduler::BIStrategyHint::DYNAMIC,

@@ -27,6 +27,8 @@
 
 #include <data/core/bi_size_3D.h>
 
+#include <function_info/bi_GEMMInfo.h>
+
 #include <function_info/bi_activationLayerInfo.h>
 
 #include <string>
@@ -1236,6 +1238,23 @@ namespace BatmanInfer {
         BatmanInfer::BIWeightFormat _weight_format;
     };
 
+    // OHWIo<interleave_by>i<block_by>
+    inline int interleave_by(const BIWeightFormat wf) {
+        return (static_cast<int>(wf) >> 8) & 0xFFF;
+    }
+
+    inline int block_by(const BIWeightFormat wf) {
+        return (static_cast<int>(wf) >> 20) & 0xF;
+    }
+
+    inline bool is_fixed_format(const BIWeightFormat &wf) {
+        return wf != BIWeightFormat::UNSPECIFIED && wf != BIWeightFormat::ANY;
+    }
+
+    inline bool is_fixed_format_fast_math(const BIWeightFormat &wf) {
+        return (static_cast<int>(wf) >> 4) & 0x1;
+    }
+
     /**
      * GEMM 重排信息类。该类存储了关于矩阵 A 和矩阵 B 重排所需的必要信息。
      * 矩阵 A 只能通过以下内核进行重排
@@ -1363,6 +1382,52 @@ namespace BatmanInfer {
         bool _reinterpret_input_as_3d;
         bool _broadcast_bias;
     };
+
+    /** GEMM LHS (Left Hand Side) matrix information */
+    struct GEMMLHSMatrixInfo {
+        GEMMLHSMatrixInfo() = default;
+
+        GEMMLHSMatrixInfo(unsigned int m, unsigned int k, unsigned int v, bool trans, bool inter)
+                : m0(m), k0(k), v0(v), transpose(trans), interleave(inter) {
+        }
+
+        unsigned int m0{1};            /**< Number of rows processed by the matrix multiplication */
+        unsigned int k0{1};            /**< Number of partial accumulations performed by the matrix multiplication */
+        unsigned int v0{1};            /**< Number of vertical blocks of size (m0xk0) stored on the same output row */
+        bool transpose{true};  /**< True if the (m0xk0) block has to be transposed before been stored */
+        bool interleave{true}; /**< True if the v0 (m0xk0) blocks have to be interleaved in the output row */
+    };
+
+    /** GEMM RHS (Right Hand Side) matrix information */
+    struct GEMMRHSMatrixInfo {
+        GEMMRHSMatrixInfo() = default;
+
+        GEMMRHSMatrixInfo(unsigned int n, unsigned int k, unsigned int h, bool trans, bool inter, bool export_to_cl_img)
+                : n0(n), k0(k), h0(h), transpose(trans), interleave(inter), export_to_cl_image(export_to_cl_img) {
+        }
+
+        unsigned int n0{1};            /**< Number of columns processed by the matrix multiplication */
+        unsigned int k0{1};            /**< Number of partial accumulations performed by the matrix multiplication */
+        unsigned int h0{1};            /**< Number of horizontal blocks of size (k0xn0) stored on the same output row */
+        bool transpose{true};  /**< True if the (k0xn0) block has to be transposed before been stored */
+        bool interleave{true}; /**< True if the h0 (k0xn0) blocks have to be interleaved in the output row */
+        bool export_to_cl_image{
+                false}; /**< True if the reshaped rhs has to be exported to cl_image. n0 must be equal to 4 */
+    };
+
+    /** Methods available to handle borders */
+    enum class BorderMode {
+        UNDEFINED, /**< Borders are left undefined */
+        CONSTANT,  /**< Pixels outside the image are assumed to have a constant value */
+        REPLICATE  /**< Pixels outside the image are assumed to have the same value as the closest image pixel */
+    };
+
+    /** Available Sampling Policies */
+    enum class SamplingPolicy {
+        CENTER,  /**< Samples are taken at pixel center */
+        TOP_LEFT /**< Samples are taken at pixel top left corner */
+    };
+
 }
 
 #endif //BATMANINFER_BI_TYPES_HPP
