@@ -6,6 +6,7 @@
 #define BATMANINFER_BI_SHAPE_CALCULATOR_HPP
 
 #include <data/core/bi_tensor_info.hpp>
+#include <data/core/kernel_descriptors.hpp>
 
 namespace BatmanInfer {
     namespace misc {
@@ -74,6 +75,121 @@ namespace BatmanInfer {
 
                 return shape_transposed_1xw_b;
             }
+
+            inline BITensorShape compute_mm_shape(const BIITensorInfo &input0,
+                                                  const BIITensorInfo &input1,
+                                                  bool is_interleaved_transposed,
+                                                  const BIGemmReshapeInfo &reshape_info) {
+                BI_COMPUTE_ERROR_ON_MSG(input0.num_dimensions() > 4,
+                                        "The number of dimensions for the matrix A must be <= 4");
+                BI_COMPUTE_ERROR_ON_MSG(
+                        is_interleaved_transposed && reshape_info.reinterpret_input_as_3d(),
+                        "The first input tensor cannot be reinterpreted as 3D if is_interleaved_transposed is true");
+
+                const bool reinterpret_input_as_3d = reshape_info.reinterpret_input_as_3d();
+                const bool reinterpret_output_as_3d = reshape_info.depth_output_gemm3d() != 0;
+                const int depth_output_gemm3d = reinterpret_output_as_3d ? reshape_info.depth_output_gemm3d() : 1;
+                const int m =
+                        reshape_info.reinterpret_input_as_3d() ? input0.dimension(1) * input0.dimension(2)
+                                                               : input0.dimension(1);
+
+                // If the output of GEMM has to be reinterpreted as 3D, the number of input0 rows (M) is obtained collapsing the second and third
+                // dimension of the output tensor
+                const int dim0 = is_interleaved_transposed ? reshape_info.n() : input1.dimension(0);
+                const int dim1 = is_interleaved_transposed ? reshape_info.m() / depth_output_gemm3d : m /
+                                                                                                      depth_output_gemm3d;
+                const int dim2 = reinterpret_input_as_3d ? input0.tensor_shape()[3] : input0.tensor_shape()[2];
+                const int dim3 = reinterpret_input_as_3d ? 1 : input0.tensor_shape()[3];
+
+                BITensorShape output_shape{input0.tensor_shape()};
+
+                output_shape.set(0, dim0);
+                output_shape.set(1, dim1);
+                output_shape.set(2, reinterpret_output_as_3d ? depth_output_gemm3d : dim2);
+                output_shape.set(3, reinterpret_output_as_3d ? dim2 : dim3);
+                output_shape.set(4, reinterpret_output_as_3d ? dim3 : 1);
+
+                return output_shape;
+            }
+
+/** Calculate the matrix multiplication output shape of two tensors
+ *
+ * @param[in] input0    First input tensor info
+ * @param[in] input1    Second input tensor info
+ * @param[in] gemm_info GEMM reshape info
+ *
+ * @return the calculated shape
+ */
+            inline BITensorShape
+            compute_mm_shape(const BIITensorInfo &input0,
+                             const BIITensorInfo &input1,
+                             const BIGemmReshapeInfo &gemm_info) {
+                BI_COMPUTE_UNUSED(input1);
+                BI_COMPUTE_ERROR_ON_MSG(input0.num_dimensions() > 4,
+                                        "The number of dimensions for the matrix A must be <= 4");
+
+                const bool reinterpret_input_as_3d = gemm_info.reinterpret_input_as_3d();
+                const bool reinterpret_output_as_3d = gemm_info.depth_output_gemm3d() != 0;
+                const int depth_output_gemm3d = reinterpret_output_as_3d ? gemm_info.depth_output_gemm3d() : 1;
+
+                BITensorShape output_shape{input0.tensor_shape()};
+
+                if (!reinterpret_input_as_3d && !reinterpret_output_as_3d) {
+                    output_shape.set(0, gemm_info.n());
+                    output_shape.set(1, gemm_info.m());
+                } else {
+                    // If the output of GEMM has to be reinterpreted as 3D, the number of input0 rows (M) is obtained collapsing the second and third
+                    // dimension of the output tensor
+                    const int batch_size = reinterpret_input_as_3d ? input0.tensor_shape()[3]
+                                                                   : input0.tensor_shape()[2];
+                    output_shape.set(0, gemm_info.n());
+                    output_shape.set(1, gemm_info.m() / depth_output_gemm3d);
+                    output_shape.set(2, reinterpret_output_as_3d ? depth_output_gemm3d : batch_size);
+                    output_shape.set(3, reinterpret_output_as_3d ? batch_size : 1);
+                }
+
+                return output_shape;
+            }
+
+
+            /**
+             * 计算两个张量矩阵乘法的输出形状
+             * @param input0
+             * @param input1
+             * @param gemm_info
+             * @return
+             */
+            inline BITensorShape
+            compute_mm_shape(const BIITensorInfo &input0,
+                             const BIITensorInfo &input1,
+                             const GEMMKernelInfo &gemm_info) {
+                BI_COMPUTE_UNUSED(input1);
+                BI_COMPUTE_ERROR_ON_MSG(input0.num_dimensions() > 4,
+                                        "The number of dimensions for the matrix A must be <= 4");
+
+                const bool reinterpret_input_as_3d = gemm_info.reinterpret_input_as_3d;
+                const bool reinterpret_output_as_3d = gemm_info.depth_output_gemm3d != 0;
+                const unsigned int depth_output_gemm3d = reinterpret_output_as_3d ? gemm_info.depth_output_gemm3d : 1;
+
+                BITensorShape output_shape{input0.tensor_shape()};
+
+                if (!reinterpret_input_as_3d && !reinterpret_output_as_3d) {
+                    output_shape.set(0, gemm_info.n);
+                    output_shape.set(1, gemm_info.m);
+                } else {
+                    // If the output of GEMM has to be reinterpreted as 3D, the number of input0 rows (M) is obtained collapsing the second and third
+                    // dimension of the output tensor
+                    const unsigned int batch_size = reinterpret_input_as_3d ? input0.tensor_shape()[3]
+                                                                            : input0.tensor_shape()[2];
+                    output_shape.set(0, gemm_info.n);
+                    output_shape.set(1, gemm_info.m / depth_output_gemm3d);
+                    output_shape.set(2, reinterpret_output_as_3d ? depth_output_gemm3d : batch_size);
+                    output_shape.set(3, reinterpret_output_as_3d ? batch_size : 1);
+                }
+
+                return output_shape;
+            }
+
         }
     }
 }

@@ -441,3 +441,53 @@ TEST(BITensorTest, GEMMIntervalTest) {
 
 }
 
+void interleave_B_inplace(const float *B, float *B_interleave) {
+    // Load four rows of B
+    float32x4_t b_row0 = vld1q_f32(B);      // Load [b11, b12, b13, b14]
+    float32x4_t b_row1 = vld1q_f32(B + 4);  // Load [b21, b22, b23, b24]
+    float32x4_t b_row2 = vld1q_f32(B + 8);  // Load [b31, b32, b33, b34]
+    float32x4_t b_row3 = vld1q_f32(B + 12); // Load [b41, b42, b43, b44]
+
+    // Transpose using NEON intrinsics
+    float32x4x4_t b_transposed = vld4q_f32(B);
+
+    // Store transposed result back to original memory
+    vst1q_f32(B_interleave, b_transposed.val[0]); // Store [b11, b21, b31, b41]
+    vst1q_f32(B_interleave + 4, b_transposed.val[1]); // Store [b12, b22, b32, b42]
+    vst1q_f32(B_interleave + 8, b_transposed.val[2]); // Store [b13, b23, b33, b43]
+    vst1q_f32(B_interleave + 12, b_transposed.val[3]); // Store [b14, b24, b34, b44]
+}
+
+// Helper function to print matrix
+void print_matrix(const char *name, const float *mat, int rows, int cols) {
+    std::cout << name << ":\n";
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            std::cout << std::setw(8) << mat[i * cols + j] << " ";
+        }
+        std::cout << "\n";
+    }
+    std::cout << "\nMemory layout: ";
+    for (int i = 0; i < rows * cols; ++i) {
+        std::cout << mat[i] << " ";
+    }
+    std::cout << "\n\n";
+}
+
+TEST(BITensor, GEMMInterval) {
+    const int rows = 4, cols = 4;
+    float B[rows * cols] = {
+            1, 2, 3, 4,    // B = [1  2  3  4]
+            5, 6, 7, 8,    //     [5  6  7  8]
+            9, 10, 11, 12,   //     [9  10 11 12]
+            13, 14, 15, 16    //     [13 14 15 16]
+    };
+    float B_interleaved[rows * cols] = {0};
+
+    print_matrix("Matrix B (before interleave)", B, rows, cols);
+
+    interleave_B_inplace(B, B_interleaved);
+
+    print_matrix("Matrix B (after interleave)", B_interleaved, rows, cols);
+}
+

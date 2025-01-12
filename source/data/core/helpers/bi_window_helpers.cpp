@@ -154,4 +154,47 @@ namespace BatmanInfer {
         }
         return std::make_pair(win, split_dimension);
     }
+
+    std::pair<BIWindow, size_t> calculate_squashed_or_max_window(const BIITensorInfo &src0, const BIITensorInfo &src1) {
+        const auto &shape0 = src0.tensor_shape();
+        const auto &shape1 = src1.tensor_shape();
+        const auto &strides0 = src0.strides_in_bytes();
+        const auto &strides1 = src1.strides_in_bytes();
+        const auto num_dimensions = std::max(src0.num_dimensions(), src1.num_dimensions());
+
+        BIWindow win;
+        size_t split_dimension = BIWindow::DimY;
+        size_t dim = 0;
+
+        size_t squashed_bytes = src0.element_size();
+
+        // Try to squash the low dimensions together.
+        for (; dim < num_dimensions; ++dim) {
+            if (shape0[dim] != shape1[dim] || strides0[dim] != squashed_bytes || strides1[dim] != squashed_bytes) {
+                break;
+            }
+
+            squashed_bytes *= shape0[dim];
+        }
+
+        if (dim == num_dimensions) {
+            auto squashed_elements = squashed_bytes / src0.element_size();
+
+            split_dimension = BIWindow::DimX;
+
+            // The input tensors can be interpreted as 1D array.
+            win.set(0, BIWindow::BIDimension(0, squashed_elements, 1));
+
+            for (dim = 1; dim < BICoordinates::num_max_dimensions; ++dim) {
+                win.set(dim, BIWindow::BIDimension(0, 1, 1));
+            }
+        } else {
+            // Generates the max window.
+            for (dim = 0; dim < BICoordinates::num_max_dimensions; ++dim) {
+                win.set(dim, BIWindow::BIDimension(0, std::max(shape0[dim], shape1[dim]), 1));
+            }
+        }
+
+        return std::make_pair(win, split_dimension);
+    }
 }

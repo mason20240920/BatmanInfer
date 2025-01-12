@@ -254,6 +254,16 @@ add_executable(BatmanInfer main.cpp
         source/cpu/bi_cpu_tensor.cpp
         source/cpu/operators/kernels/activation/generic/neon/fp16.cpp
         source/cpu/operators/kernels/activation/generic/neon/fp32.cpp
+        source/cpu/operators/kernels/add/impl.cpp
+        source/cpu/operators/kernels/add/fp16.cpp
+        source/cpu/operators/kernels/add/fp32.cpp
+        source/cpu/operators/kernels/add/integer.cpp
+        source/cpu/operators/kernels/add/qasymm8.cpp
+        source/cpu/operators/kernels/add/qasymm8_signed.cpp
+        source/cpu/operators/kernels/add/qsymm16.cpp
+        source/cpu/operators/kernels/bi_cpu_add_kernel.cpp
+        source/cpu/operators/bi_cpu_add.cpp
+        source/cpu/operators/bi_cpu_gemm.cpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
         #        source/onnx_conv/OnnxUtils.cpp

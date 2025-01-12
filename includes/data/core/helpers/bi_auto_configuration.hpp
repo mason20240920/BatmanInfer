@@ -28,6 +28,38 @@ namespace BatmanInfer {
         }
         return false;
     }
+
+    /**
+     * Set the shape to the specified value if the current assignment is empty.
+     * @param info
+     * @param shape
+     * @return
+     */
+    inline bool set_shape_if_empty(BIITensorInfo &info,
+                                   const BITensorShape &shape) {
+        if (info.tensor_shape().total_size() == 0) {
+            info.set_tensor_shape(shape);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Set the data type and number of channels to the specified value if
+     * the current data type is unknown.
+     * @param info
+     * @param data_type
+     * @return
+     */
+    inline bool set_data_type_if_unknown(BIITensorInfo &info, BIDataType data_type) {
+        if (info.data_type() == BIDataType::UNKNOWN) {
+            info.set_data_type(data_type);
+            return true;
+        }
+
+        return false;
+    }
 }
 
 #endif //BATMANINFER_BI_AUTO_CONFIGURATION_HPP

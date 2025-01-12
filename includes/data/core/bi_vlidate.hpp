@@ -11,6 +11,7 @@
 #include <data/core/bi_i_tensor.hpp>
 
 #include <algorithm>
+#include "data/core/cpp/cpp_types.hpp"
 
 namespace BatmanInfer {
 
@@ -319,6 +320,12 @@ namespace BatmanInfer {
         BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_data_type_not_in(
                 function, file, line, tensor->info(), std::forward<T>(dt), std::forward<Ts>(dts)...));
         return BatmanInfer::BIStatus{};
+
+#define BI_COMPUTE_ERROR_ON_DATA_TYPE_NOT_IN(t, ...) \
+    BI_COMPUTE_ERROR_THROW_ON(::BatmanInfer::error_on_data_type_not_in(__func__, __FILE__, __LINE__, t, __VA_ARGS__))
+#define BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_NOT_IN(t, ...) \
+    BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_data_type_not_in(__func__, __FILE__, __LINE__, t, __VA_ARGS__))
+
     }
 
     template<typename T, typename... Ts>
@@ -427,6 +434,26 @@ namespace BatmanInfer {
     BI_COMPUTE_ERROR_THROW_ON(::BatmanInfer::error_on_mismatching_shapes(__func__, __FILE__, __LINE__, __VA_ARGS__))
 #define BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_SHAPES(...) \
     BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_mismatching_shapes(__func__, __FILE__, __LINE__, __VA_ARGS__))
+
+    inline BIStatus
+    error_on_unsupported_cpu_bf16(const char *function, const char *file, const int line,
+                                  const BIITensorInfo *tensor_info) {
+        bool bf16_kernels_enabled = false;
+#if defined(BI_COMPUTE_ENABLE_BF16)
+        bf16_kernels_enabled = true;
+#endif /* defined(BI_COMPUTE_ENABLE_BF16) */
+
+        BI_COMPUTE_RETURN_ERROR_ON_LOC(tensor_info == nullptr, function, file, line);
+        BI_COMPUTE_RETURN_ERROR_ON_LOC_MSG(
+                (tensor_info->data_type() == BIDataType::BFLOAT16) &&
+                (!CPUInfo::get().has_bf16() || !bf16_kernels_enabled),
+                function, file, line,
+                "This CPU architecture does not support BFloat16 data type, you need v8.6 or above");
+        return BIStatus{};
+    }
+
+#define BI_COMPUTE_RETURN_ERROR_ON_CPU_BF16_UNSUPPORTED(tensor) \
+    BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_unsupported_cpu_bf16(__func__, __FILE__, __LINE__, tensor))
 
 }
 
