@@ -266,6 +266,7 @@ add_executable(BatmanInfer main.cpp
         source/cpu/operators/bi_cpu_gemm.cpp
         source/data/core/utils/bi_assembly_utils.cpp
         source/data/core/neon/kernels/misc.cpp
+        #        includes/data/core/neon/kernels/arm_gemm/gemm_implementation.hpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
         #        source/onnx_conv/OnnxUtils.cpp
