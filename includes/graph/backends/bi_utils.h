@@ -2,8 +2,8 @@
 // Created by holynova on 2025/1/10.
 //
 
-#ifndef BATMANINFER_GRAPH_BI_UTILS_H
-#define BATMANINFER_GRAPH_BI_UTILS_H
+#ifndef BATMANINFER_GRAPH_BACKEND_BI_UTILS_H
+#define BATMANINFER_GRAPH_BACKEND_BI_UTILS_H
 
 #include "graph/bi_graphContext.h"
 #include "runtime/bi_i_memory_manager.hpp"
@@ -93,4 +93,4 @@ namespace backends {
 
 } // namespace BatmanInfer
 
-#endif //BATMANINFER_GRAPH_BI_UTILS_H
+#endif //BATMANINFER_GRAPH_BACKEND_BI_UTILS_H

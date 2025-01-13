@@ -190,6 +190,105 @@ namespace BatmanInfer {
                 return output_shape;
             }
 
+            /** Get the tensor shape
+             *
+             * @param[in] data Input data
+             *
+             * @return the extracted tensor shape
+             */
+            template <typename T>
+            inline BITensorShape extract_shape(T *data)
+            {
+                return data->info()->tensor_shape();
+            }
+
+            inline BITensorShape extract_shape(BIITensorInfo *data)
+            {
+                return data->tensor_shape();
+            }
+
+            inline BITensorShape extract_shape(const BIITensorInfo *data)
+            {
+                return data->tensor_shape();
+            }
+
+            inline BITensorShape extract_shape(const BITensorShape *data)
+            {
+                return *data;
+            }
+
+            inline BITensorShape extract_shape(BITensorShape *data)
+            {
+                return *data;
+            }
+
+            /** Calculate the reduced shape of a tensor given an axis
+             *
+             * @param[in] input     Input tensor info
+             * @param[in] axis      Axis on which to perform reduction
+             * @param[in] keep_dims (Optional) Whether to keep the dimension after reduction operation. Defaults to true.
+             *
+             * @return the calculated shape
+             */
+            inline BITensorShape compute_reduced_shape(const BITensorShape &input, unsigned int axis, bool keep_dims = true)
+            {
+                BITensorShape output_shape{input};
+
+                if (!keep_dims)
+                {
+                    output_shape.remove_dimension(axis);
+                }
+                else
+                {
+                    output_shape.set(axis, 1);
+                }
+
+                return output_shape;
+            }
+
+            /** Calculate the concatenate output shape of the concatenate operation along a single axis
+             *
+             * @param[in] input Vector containing the shapes of the inputs
+             * @param[in] axis  Axis along which to concatenate the input tensors
+             *
+             * @return the calculated shape
+             */
+            template <typename T>
+            inline BITensorShape calculate_concatenate_shape(const std::vector<T *> &input, size_t axis)
+            {
+                BITensorShape out_shape = extract_shape(input[0]);
+
+#if defined(BI_COMPUTE_ASSERTS_ENABLED)
+                // All dimensions must match except the axis one
+                for (unsigned int i = 0; i < MAX_DIMS; ++i)
+                {
+                    if (i == axis)
+                    {
+                        continue;
+                    }
+
+                    for (const auto &tensor : input)
+                    {
+                        BI_COMPUTE_ERROR_ON(tensor == nullptr);
+                        const BITensorShape shape = extract_shape(tensor);
+                        BI_COMPUTE_ERROR_ON(out_shape[i] != shape[i]);
+                    }
+                }
+#endif // defined(BI_COMPUTE_ASSERTS_ENABLED)
+
+                // Calculate output shape
+                size_t new_size = 0;
+                for (const auto &tensor : input)
+                {
+                    const BITensorShape shape = extract_shape(tensor);
+                    new_size += shape[axis];
+                }
+
+                out_shape.set(axis, new_size);
+
+                return out_shape;
+            }
+
         }
     }
 }
