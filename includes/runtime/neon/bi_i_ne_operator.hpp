@@ -13,7 +13,7 @@ namespace BatmanInfer {
 
     class BIWindow;
 
-    using BINEKernel = BIICPPKernel;
+    using BIINEKernel = BIICPPKernel;
 
     namespace experimental {
         /**
@@ -47,9 +47,9 @@ namespace BatmanInfer {
         protected:
             void run(BIITensorPack &tensors, const BIWindow &window);
 
-            std::unique_ptr<BINEKernel> _kernel;
-            BIIRuntimeContext           *_ctx;
-            BIMemoryRequirements        _workspace;
+            std::unique_ptr<BIINEKernel> _kernel;
+            BIIRuntimeContext *_ctx;
+            BIMemoryRequirements _workspace;
 
         };
     }

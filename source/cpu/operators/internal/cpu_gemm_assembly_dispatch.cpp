@@ -4,10 +4,17 @@
 
 #include <cpu/operators/internal/cpu_gemm_assembly_dispatch.hpp>
 
-#include <runtime/neon/bi_ne_scheduler.hpp>
-#include <data/core/bi_i_tensor.hpp>
+#include <data/core/bi_error.h>
 #include <data/core/bi_vlidate.hpp>
+#include <runtime/neon/bi_ne_scheduler.hpp>
+
+#include <data/core/cpp/bi_cpp_validate.hpp>
+#include <data/core/helpers/bi_memory_helpers.hpp>
+#include <data/core/utils/bi_assembly_utils.hpp>
+#include <cpu/kernels/assembly/bi_arm_gemm.hpp>
+#include <cpu/kernels/assembly/bi_cpu_gemm_assmbly_wrapper.hpp>
 #include <cpu/operators/cpu_transpose.hpp>
+#include <cpu/utils/bi_cpu_aux_tensor_handler.hpp>
 
 
 namespace BatmanInfer {
@@ -160,6 +167,93 @@ namespace BatmanInfer {
              */
             template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage = BatmanGemm::Nothing>
             class Fallback : public BICpuGemmAssemblyDispatch::IFallback {
+            public:
+                /**
+                 * 初始化函数的输入和输出
+                 *
+                 * @param a
+                 * @param b
+                 * @param c
+                 * @param d
+                 * @param args
+                 * @param gemm_info
+                 * @param os
+                 */
+                void configure(const BIITensorInfo *a,
+                               const BIITensorInfo *b,
+                               const BIITensorInfo *c,
+                               BIITensorInfo *d,
+                               BatmanGemm::GemmArgs args,
+                               const BIAsmGemmInfo &gemm_info,
+                               const OutputStage &os = {});
+
+                /**
+                 * 设置要使用的重新量化数据
+                 * @param shifts 重新量化的移位值
+                 * @param multipliers 重新量化的乘数值
+                 * @return 一个元组，分别包含指向移位值和乘数值数据的指针
+                 */
+                std::tuple<bool, const int32_t *, const int32_t *, const int32_t *>
+                set_requantize_data(const std::vector<int32_t> &shifts, const std::vector<int32_t> &multipliers);
+
+                void run(BatmanInfer::BIITensorPack &tensors) override;
+
+                void prepare(BatmanInfer::BIITensorPack &tensors) override;
+
+                bool is_configured() const override;
+
+                experimental::BIMemoryRequirements workspace() const override;
+
+                bool isVarWeightsKernel() const override {
+                    if (!_gemm_kernel_asm) {
+                        return false;
+                    }
+                    const BatmanInfer::BIWeightFormat wf =
+                            assembly_utils::map_to_batman_compute_weight_format(
+                                    _gemm_kernel_asm->get_config().weight_format);
+                    return wf != BatmanInfer::BIWeightFormat::UNSPECIFIED && wf != BatmanInfer::BIWeightFormat::ANY;
+                }
+
+                void update_quantization_parameters(const BIGEMMLowpOutputStageInfo &output_info,
+                                                    const BIQuantizationInfo &a,
+                                                    const BIQuantizationInfo &b,
+                                                    const bool is_prepared,
+                                                    const bool negated_offsets) override {
+                    const int32_t negation = negated_offsets ? 1 : -1;
+                    const int32_t a_offset = -a.uniform().offset * negation;
+                    const int32_t b_offset = -b.uniform().offset * negation;
+
+                    BatmanGemm::Requantize32 gemm_re_quant_info{};
+                    if (output_info.gemmlowp_shifts.size() > 1) {
+                        const auto re_quantize_data =
+                                this->set_requantize_data(output_info.gemmlowp_multipliers,
+                                                          output_info.gemmlowp_shifts);
+                        gemm_re_quant_info = BatmanGemm::Requantize32(
+                                nullptr, 0, a_offset, b_offset, output_info.gemmlowp_offset,
+                                (std::get<0>(re_quantize_data)) ? std::get<1>(re_quantize_data) : nullptr,
+                                std::get<2>(re_quantize_data),
+                                std::get<3>(re_quantize_data), output_info.gemmlowp_min_bound,
+                                output_info.gemmlowp_max_bound);
+                    } else {
+                        gemm_re_quant_info = BatmanGemm::Requantize32(nullptr, 0, a_offset, b_offset,
+                                                                      output_info.gemmlowp_offset,
+                                                                      -output_info.gemmlowp_shift,
+                                                                      output_info.gemmlowp_multiplier,
+                                                                      output_info.gemmlowp_min_bound,
+                                                                      output_info.gemmlowp_max_bound);
+                    }
+
+                    _gemm_kernel_asm->update_quantization_parameters(gemm_re_quant_info);
+
+                    // After update_quantization_parameters(), window may change, reconfigure it.
+                    auto *opt = reinterpret_cast<kernel::BICpuGemmAssemblyWrapperKernel<TypeInput, TypeWeight, TypeOutput> *>(
+                            _optimised_kernel.get());
+                    const BIWindow win = to_window(_gemm_kernel_asm->get_window_size());
+                    opt->configure_window(win);
+
+                    _is_prepared = is_prepared;
+                }
+
             private:
                 enum AuxTensorIdx {
                     AsmGemmWorkspace = 0,
@@ -188,6 +282,42 @@ namespace BatmanInfer {
                  * @param tensors
                  */
                 void prepare_indirect_buffer(BIITensorPack &tensors);
+
+                /** Operator to transpose B before gemm or pretranspose_B_array*/
+                std::unique_ptr<BICpuTranspose> _pre_pretranspose_b{nullptr};
+                /** 汇编GEMM内核 */
+                std::shared_ptr<BatmanGemm::BIGemmCommon<TypeInput, TypeWeight, TypeOutput>> _gemm_kernel_asm{nullptr};
+                /** Optimised Arm® Neon™ kernel */
+                std::unique_ptr<BIINEKernel> _optimised_kernel{nullptr};
+                /** Assembly GEMM workspace tensor info */
+                BITensorInfo _workspace_info{};
+                /** Pre-pre-transposed B tensor info */
+                BITensorInfo _pre_pretransposed_b_info{};
+                /** Pre-transpose tensor info */
+                BITensorInfo _pretranspose_info{};
+                /** Prepared flag */
+                bool _is_prepared{false};
+                /** GEMM meta-data */
+                BIAsmGemmInfo _gemm_info{};
+                /** GEMM kernel description */
+                BatmanGemm::KernelDescription _kernel_info{};
+                /** Per channel quantization shifts */
+                std::vector<int32_t> _shifts{};
+                std::vector<int32_t> right_shifts{};
+                std::vector<int32_t> left_shifts{};
+                /** Per channel quantization multipliers */
+                std::vector<int32_t> _multipliers{};
+                /** Indirect buffer */
+                std::vector<const TypeInput *const *> _indirect_arg{};
+                std::vector<const TypeInput *> _indirect_buf{};
+                std::vector<TypeInput> _indirect_pad{};
+                BatmanGemm::BIConvolutionParameters _cp{};
+                experimental::BIMemoryRequirements _aux_mem{Count};
+                bool _B_pretranspose_required{false};
+                bool _is_b_constant{true};
+                bool _is_c_constant{true};
+                bool _run_pre_pretranspose_b{false};
+                bool _B_pre_pretranspose_required{false};
             };
         } // namespace
     }
