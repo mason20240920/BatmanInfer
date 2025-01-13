@@ -222,6 +222,15 @@ namespace BatmanInfer {
         }
         return std::make_tuple(min, max);
     }
+
+    inline bool is_data_type_quantized_per_channel(BIDataType dt) {
+        switch (dt) {
+            case BIDataType::QSYMM8_PER_CHANNEL:
+                return true;
+            default:
+                return false;
+        }
+    }
 }
 
 #endif //BATMANINFER_DATA_TYPE_UTILS_HPP

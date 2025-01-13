@@ -87,7 +87,7 @@ namespace BatmanInfer {
                     const auto *bias = reinterpret_cast<const TypeOutput *>(tensors.get_tensor(ACL_SRC_2)->buffer());
                     auto *Cptr = reinterpret_cast<TypeOutput *>(tensors.get_tensor(ACL_DST)->buffer());
 
-                    ARM_COMPUTE_ERROR_ON_NULLPTR(Aptr, Cptr);
+                    BI_COMPUTE_ERROR_ON_NULLPTR(Aptr, Cptr);
 
                     // We make a copy of the original gemm arrays and then update the
                     // source, bias, and destination pointers with the packed values.
