@@ -54,7 +54,7 @@ namespace BatmanInfer {
                     WorkspaceDataElement<TensorType>{req.slot, req.lifetime, std::make_unique<TensorType>()});
 
             auto aux_tensor = workspace_memory.back().tensor.get();
-            ARM_COMPUTE_ERROR_ON_NULLPTR(aux_tensor);
+            BI_COMPUTE_ERROR_ON_NULLPTR(aux_tensor);
             aux_tensor->allocator()->init(aux_info, req.alignment);
 
             if (req.lifetime == experimental::MemoryLifetime::Temporary) {

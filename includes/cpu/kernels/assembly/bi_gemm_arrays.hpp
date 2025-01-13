@@ -48,19 +48,19 @@ namespace BatmanGemm {
 
     template<typename To, typename Tw, typename Tr>
     struct BIGemmArrays : public BIIGemmArrays {
-        const To *_Aptr             = nullptr;
-        int      _lda               = 0;
-        int      _A_batch_stride    = 0;
-        int      _A_multi_stride    = 0;
-        const Tw *_Bptr             = nullptr;
-        int      _ldb               = 0;
-        int      _B_multi_stride    = 0;
-        Tr       *_Cptr             = nullptr;
-        int      _ldc               = 0;
-        int      _C_batch_stride    = 0;
-        int      _C_multi_stride    = 0;
-        const Tr *_bias             = nullptr;
-        int      _bias_multi_stride = 0;
+        const To *_Aptr = nullptr;
+        int _lda = 0;
+        int _A_batch_stride = 0;
+        int _A_multi_stride = 0;
+        const Tw *_Bptr = nullptr;
+        int _ldb = 0;
+        int _B_multi_stride = 0;
+        Tr *_Cptr = nullptr;
+        int _ldc = 0;
+        int _C_batch_stride = 0;
+        int _C_multi_stride = 0;
+        const Tr *_bias = nullptr;
+        int _bias_multi_stride = 0;
 
         BIGemmArrays() = default;
 
@@ -100,7 +100,7 @@ namespace BatmanGemm {
 
         BIGemmArrays &operator=(BIGemmArrays<To, Tw, Tr> &&) = delete;
 
-        ~BIGemmArrays() override;
+        ~BIGemmArrays() override = default;
 
         /**
          * @brief 传入要操作的数组指针及其步长（具有适当类型的模板版本）。
@@ -119,18 +119,18 @@ namespace BatmanGemm {
                         const Tr *bias,
                         const int bias_multi_stride) /* no row or batch stride needed */
         {
-            _Aptr              = A;
-            _lda               = lda;
-            _A_batch_stride    = A_batch_stride;
-            _A_multi_stride    = A_multi_stride;
-            _Bptr              = B;
-            _ldb               = ldb;
-            _B_multi_stride    = B_multi_stride;
-            _Cptr              = C;
-            _ldc               = ldc;
-            _C_batch_stride    = C_batch_stride;
-            _C_multi_stride    = C_multi_stride;
-            _bias              = bias;
+            _Aptr = A;
+            _lda = lda;
+            _A_batch_stride = A_batch_stride;
+            _A_multi_stride = A_multi_stride;
+            _Bptr = B;
+            _ldb = ldb;
+            _B_multi_stride = B_multi_stride;
+            _Cptr = C;
+            _ldc = ldc;
+            _C_batch_stride = C_batch_stride;
+            _C_multi_stride = C_multi_stride;
+            _bias = bias;
             _bias_multi_stride = bias_multi_stride;
         }
 

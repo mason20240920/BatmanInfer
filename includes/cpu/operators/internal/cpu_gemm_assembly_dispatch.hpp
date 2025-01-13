@@ -195,6 +195,12 @@ namespace BatmanInfer {
                 return _batman_gemm && _batman_gemm->isVarWeightsKernel();
             }
 
+            void update_quantization_parameters(const BIGEMMLowpOutputStageInfo &output_info,
+                                                const BIQuantizationInfo &a,
+                                                const BIQuantizationInfo &b,
+                                                const bool is_prepared,
+                                                const bool negated_offsets);
+
             // 继承方法覆写
             void prepare(BatmanInfer::BIITensorPack &constants) override;
 
