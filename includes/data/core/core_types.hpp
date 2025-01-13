@@ -209,102 +209,93 @@ namespace BatmanInfer {
 
     private:
         std::pair<unsigned int, unsigned int> _stride;
-        unsigned int                          _pad_left;
-        unsigned int                          _pad_top;
-        unsigned int                          _pad_right;
-        unsigned int                          _pad_bottom;
+        unsigned int _pad_left;
+        unsigned int _pad_top;
+        unsigned int _pad_right;
+        unsigned int _pad_bottom;
 
         BIDimensionRoundingType _round_type;
     };
 
-    /** Memory layouts for the weights tensor.
-     *
-     * * UNSPECIFIED is used to select kernels that do not run in
-     *    variable weights mode.
-     *
-     * * ANY is used to query the kernel database to retrieve any of the
-     *   kernels that runs in variable weights mode. Once a kernel is
-     *   found, the specific format expected by the kernel can be
-     *   retrieved by the user for reordering the weights tensor
-     *   accordingly.
-     *
-     * The other values OHWIo{interleave_by}i{block_by} describe the
-     * memory layout of a 4D tensor with layout OHWI that has been
-     * transformed into a 4D tensor with dimensions O'HWI' where:
-     *
-     * O' = first multiple of {interleave_by} s.t. O<=O'
-     * I' = first multiple of {block_by} s.t. I<=I'
-     *
-     * The total size of the dst tensor is O' x H x W x I'
-     *
-     * The access function of the tensor with layout
-     * OHWIo{interleave_by}i{block_by} and size O'HWI' is a 6-parameter
-     * access function, where the 6 parameters are computed as follows:
-     *
-     * x5 = floor(io/{interleave_by}) RANGE [0, O'/{interleave_by} -1] SIZE: O'/{interleave_by}
-     *
-     * x4 = h                        RANGE [0, H-1]                   SIZE: H
-     * x3 = w                        RANGE [0, W-1]                   SIZE: W
-     * x2 = floor(i/{block_by})      RANGE [0, I'/{block_by} -1]      SIZE: I'/{block_by}
-     * x1 = io%{interleave_by}        RANGE [0, {interleave_by} -1]    SIZE: {interleave_by}
-     * x0 = i%{block_by}             RANGE [0, {block_by} -1]         SIZE: {block_by}
-     *                                                          TOTAL SIZE: O' * H * W * I'
-     *
-     *        4D                       6D
-     * -----------------   -----------------------------------
-     * value(io, h, w, i) =   x5 * H * W * I' * {interleave_by}
-     *                     + x4 * W * I' * {interleave_by}
-     *                     + x3 * I' * {interleave_by}
-     *                     + x2 * {interleave_by} * {block_by}
-     *                     + x1 * {block_by}
-     *                     + x0
-     *
-     * Notice that in arm_gemm the 4D tensor of dimension O'HWI' created
-     * for the OHWIo{interleave_by}i{block_by} format is in reality seen
-     * as a 2D tensor, where the number of rows is O'/{interleave_by}
-     * and the number of columns is {interleave_by} * H * W * I'.
-     *
-     * The postfix *_bf16 is for the memory layout needed for the
-     * fast-mode kernels, in which the weights are passed in bfloat16
-     * format.
-     */
+    /** 权重张量的内存布局
+    *
+    * * UNSPECIFIED（未指定）：用于选择不支持“可变权重模式”（variable weights mode）的内核。
+    *
+    * * ANY：用于查询内核数据库，获取任何支持“可变权重模式”的内核。
+    *   一旦找到合适的内核，用户可以获取该内核所需的特定权重张量格式，并相应地重新排列权重张量。
+    *
+    * 其他值（如 OHWIo{interleave_by}i{block_by}）描述了一个 4D 张量（布局为 OHWI）的内存布局，
+    * 它被转换为另一个 4D 张量（尺寸为 O'HWI'），其中：
+    *
+    * O' = 满足 O <= O' 的第一个 {interleave_by} 的倍数
+    * I' = 满足 I <= I' 的第一个 {block_by} 的倍数
+    *
+    * 转换后的目标张量（dst tensor）的总大小为 O' x H x W x I'。
+    *
+    * 对于布局为 OHWIo{interleave_by}i{block_by} 且尺寸为 O'HWI' 的张量，其访问函数为一个 6 参数的访问函数，
+    * 6 个参数的计算方式如下：
+    *
+    * x5 = floor(io/{interleave_by})  范围：[0, O'/{interleave_by} - 1]  大小：O'/{interleave_by}
+    *
+    * x4 = h                         范围：[0, H - 1]                   大小：H
+    * x3 = w                         范围：[0, W - 1]                   大小：W
+    * x2 = floor(i/{block_by})       范围：[0, I'/{block_by} - 1]       大小：I'/{block_by}
+    * x1 = io%{interleave_by}        范围：[0, {interleave_by} - 1]     大小：{interleave_by}
+    * x0 = i%{block_by}              范围：[0, {block_by} - 1]          大小：{block_by}
+    *                                                              总大小：O' * H * W * I'
+    *
+    *        4D 张量                  6D 张量
+    * -----------------   -----------------------------------
+    * value(io, h, w, i) =   x5 * H * W * I' * {interleave_by}
+    *                     + x4 * W * I' * {interleave_by}
+    *                     + x3 * I' * {interleave_by}
+    *                     + x2 * {interleave_by} * {block_by}
+    *                     + x1 * {block_by}
+    *                     + x0
+    *
+    * 注意，在 BatmanGemm 中，尺寸为 O'HWI' 的 4D 张量（布局为 OHWIo{interleave_by}i{block_by}）实际上被视为一个 2D 张量，
+    * 其中行数为 O'/{interleave_by}，列数为 {interleave_by} * H * W * I'。
+    *
+    * 后缀 *_bf16 表示该内存布局是为快速模式（fast-mode）内核所需的，
+    * 在这种模式下，权重以 bfloat16 格式传递。
+    */
     enum class BIWeightFormat {
-        UNSPECIFIED    = 0x1,
-        ANY            = 0x2,
-        OHWI           = 0x100100,
-        OHWIo2         = 0x100200,
-        OHWIo4         = 0x100400,
-        OHWIo8         = 0x100800,
-        OHWIo16        = 0x101000,
-        OHWIo32        = 0x102000,
-        OHWIo64        = 0x104000,
-        OHWIo128       = 0x108000,
-        OHWIo4i2       = 0x200400,
-        OHWIo4i2_bf16  = 0x200410,
-        OHWIo8i2       = 0x200800,
-        OHWIo8i2_bf16  = 0x200810,
-        OHWIo16i2      = 0x201000,
+        UNSPECIFIED = 0x1,
+        ANY = 0x2,
+        OHWI = 0x100100,
+        OHWIo2 = 0x100200,
+        OHWIo4 = 0x100400,
+        OHWIo8 = 0x100800,
+        OHWIo16 = 0x101000,
+        OHWIo32 = 0x102000,
+        OHWIo64 = 0x104000,
+        OHWIo128 = 0x108000,
+        OHWIo4i2 = 0x200400,
+        OHWIo4i2_bf16 = 0x200410,
+        OHWIo8i2 = 0x200800,
+        OHWIo8i2_bf16 = 0x200810,
+        OHWIo16i2 = 0x201000,
         OHWIo16i2_bf16 = 0x201010,
-        OHWIo32i2      = 0x202000,
+        OHWIo32i2 = 0x202000,
         OHWIo32i2_bf16 = 0x202010,
-        OHWIo64i2      = 0x204000,
+        OHWIo64i2 = 0x204000,
         OHWIo64i2_bf16 = 0x204010,
-        OHWIo4i4       = 0x400400,
-        OHWIo4i4_bf16  = 0x400410,
-        OHWIo8i4       = 0x400800,
-        OHWIo8i4_bf16  = 0x400810,
-        OHWIo16i4      = 0x401000,
+        OHWIo4i4 = 0x400400,
+        OHWIo4i4_bf16 = 0x400410,
+        OHWIo8i4 = 0x400800,
+        OHWIo8i4_bf16 = 0x400810,
+        OHWIo16i4 = 0x401000,
         OHWIo16i4_bf16 = 0x401010,
-        OHWIo32i4      = 0x402000,
+        OHWIo32i4 = 0x402000,
         OHWIo32i4_bf16 = 0x402010,
-        OHWIo64i4      = 0x404000,
+        OHWIo64i4 = 0x404000,
         OHWIo64i4_bf16 = 0x404010,
-        OHWIo2i8       = 0x800200,
-        OHWIo4i8       = 0x800400,
-        OHWIo8i8       = 0x800800,
-        OHWIo16i8      = 0x801000,
-        OHWIo32i8      = 0x802000,
-        OHWIo64i8      = 0x804000
+        OHWIo2i8 = 0x800200,
+        OHWIo4i8 = 0x800400,
+        OHWIo8i8 = 0x800800,
+        OHWIo16i8 = 0x801000,
+        OHWIo32i8 = 0x802000,
+        OHWIo64i8 = 0x804000
     };
 
 } // namespace BatmanInfer
