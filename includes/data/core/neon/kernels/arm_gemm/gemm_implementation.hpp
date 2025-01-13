@@ -336,20 +336,21 @@ namespace BatmanGemm {
 
     template<typename Tlop, typename Trop, typename Tret, class OutputStage>
     bool has_opt_gemm(WeightFormat &wf, const GemmArgs &args, const OutputStage &os) {
-        const GemmImplementation<Tlop, Trop, Tret, OutputStage> *impl;
-        const bool success = find_implementation<Tlop, Trop, Tret, OutputStage>(args, os, impl);
-        if (success)
-            wf = UniqueGemmCommon<Tlop, Trop, Tret>(impl->do_instantiate(args, os))->get_config().weight_format;
-        return success;
+//        const GemmImplementation<Tlop, Trop, Tret, OutputStage> *impl;
+//        const bool success = find_implementation<Tlop, Trop, Tret, OutputStage>(args, os, impl);
+//        if (success)
+//            wf = UniqueGemmCommon<Tlop, Trop, Tret>(impl->do_instantiate(args, os))->get_config().weight_format;
+//        return success;
+        return false;
     }
 
     template<typename Tlop, typename Trop, typename Tret, class OutputStage>
     UniqueGemmCommon<Tlop, Trop, Tret> gemm(const GemmArgs &args, const OutputStage &os) {
-        const GemmImplementation<Tlop, Trop, Tret, OutputStage> *impl;
-
-        if (find_implementation<Tlop, Trop, Tret, OutputStage>(args, os, impl)) {
-            return UniqueGemmCommon<Tlop, Trop, Tret>(impl->do_instantiate(args, os));
-        }
+//        const GemmImplementation<Tlop, Trop, Tret, OutputStage> *impl;
+//
+//        if (find_implementation<Tlop, Trop, Tret, OutputStage>(args, os, impl)) {
+//            return UniqueGemmCommon<Tlop, Trop, Tret>(impl->do_instantiate(args, os));
+//        }
 
         return UniqueGemmCommon<Tlop, Trop, Tret>(nullptr);
     }

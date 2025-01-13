@@ -16,6 +16,9 @@
 #include <cpu/operators/cpu_transpose.hpp>
 #include <cpu/utils/bi_cpu_aux_tensor_handler.hpp>
 
+#include <data/core/neon/kernels/arm_gemm/gemm_implementation.hpp>
+
+
 namespace BatmanInfer {
     namespace cpu {
         namespace {
