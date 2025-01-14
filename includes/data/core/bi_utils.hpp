@@ -7,6 +7,7 @@
 
 #include <data/core/bi_types.hpp>
 #include <support/bi_toolchain_support.hpp>
+#include "data/core/bi_error.h"
 
 #include <cmath>
 #include <numeric>
@@ -128,7 +129,55 @@ void print_consecutive_elements(std::ostream      &s,
  */
     int max_consecutive_elements_display_width(std::ostream &s, BIDataType dt, const uint8_t *ptr, unsigned int n);
 
-#endif
+#endif // BI_COMPUTE_ASSERTS_ENABLED
+
+/** Returns expected width and height of output scaled tensor depending on dimensions rounding mode.
+ *
+ * @param[in] width           Width of input tensor (Number of columns)
+ * @param[in] height          Height of input tensor (Number of rows)
+ * @param[in] kernel_width    Kernel width.
+ * @param[in] kernel_height   Kernel height.
+ * @param[in] pad_stride_info Pad and stride information.
+ * @param[in] dilation        (Optional) Dilation, in elements, across x and y. Defaults to (1, 1).
+ *
+ * @return A pair with the new width in the first position and the new height in the second.
+ */
+std::pair<unsigned int, unsigned int> scaled_dimensions(int                    width,
+                                                        int                    height,
+                                                        int                    kernel_width,
+                                                        int                    kernel_height,
+                                                        const BIPadStrideInfo &pad_stride_info,
+                                                        const Size2D          &dilation = Size2D(1U, 1U));
+
+    /** Returns calculated width and height of output scaled tensor depending on dimensions rounding mode.
+ *
+ * @param[in] width           Width of input tensor (Number of columns)
+ * @param[in] height          Height of input tensor (Number of rows)
+ * @param[in] kernel_width    Kernel width.
+ * @param[in] kernel_height   Kernel height.
+ * @param[in] pad_stride_info Pad and stride information.
+ *
+ * @return A pair with the new width in the first position and the new height in the second, returned values can be < 1
+ */
+std::pair<int, int> scaled_dimensions_signed(
+    int width, int height, int kernel_width, int kernel_height, const BIPadStrideInfo &pad_stride_info);
+
+/** Returns expected width and height of the deconvolution's output tensor.
+ *
+ * @param[in] in_width        Width of input tensor (Number of columns)
+ * @param[in] in_height       Height of input tensor (Number of rows)
+ * @param[in] kernel_width    Kernel width.
+ * @param[in] kernel_height   Kernel height.
+ * @param[in] pad_stride_info Pad and stride information.
+ *
+ * @return A pair with the new width in the first position and the new height in the second.
+ */
+std::pair<unsigned int, unsigned int> deconvolution_output_dimensions(unsigned int           in_width,
+                                                                      unsigned int           in_height,
+                                                                      unsigned int           kernel_width,
+                                                                      unsigned int           kernel_height,
+                                                                      const BIPadStrideInfo &pad_stride_info);
+
 }
 
 #endif //BATMANINFER_BI_UTILS_HPP

@@ -289,6 +289,33 @@ namespace BatmanInfer {
                 return out_shape;
             }
 
+            /** Calculate the depth to space output shape of a tensor
+             *
+             * @param[in] input_shape Input tensor shape
+             * @param[in] data_layout Operation data layout
+             * @param[in] block       Block shape value
+             *
+             * @return the calculated shape
+             */
+            inline BITensorShape compute_depth_to_space_shape(const BITensorShape &input_shape, BIDataLayout data_layout, int block)
+            {
+                BI_COMPUTE_ERROR_ON(block < 2);
+
+                // const int idx_width   = get_data_layout_dimension_index(data_layout, BIDataLayoutDimension::WIDTH);
+                // const int idx_height  = get_data_layout_dimension_index(data_layout, BIDataLayoutDimension::HEIGHT);
+                // const int idx_channel = get_data_layout_dimension_index(data_layout, BIDataLayoutDimension::CHANNEL);
+                const int idx_width   = static_cast<int>(get_data_layout_dimension_index(BIDataLayoutDimension::WIDTH));
+                const int idx_height  = static_cast<int>(get_data_layout_dimension_index(BIDataLayoutDimension::HEIGHT));
+                const int idx_channel = static_cast<int>(get_data_layout_dimension_index(BIDataLayoutDimension::CHANNEL));
+
+                BITensorShape output_shape{input_shape};
+                output_shape.set(idx_width, input_shape[idx_width] * block);
+                output_shape.set(idx_height, input_shape[idx_height] * block);
+                output_shape.set(idx_channel, input_shape[idx_channel] / (block * block));
+
+                return output_shape;
+            }
+
         }
     }
 }

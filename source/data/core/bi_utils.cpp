@@ -106,5 +106,106 @@ namespace BatmanInfer {
             }
             return 0;
         }
-#endif
-}
+#endif // BI_COMPUTE_ASSERTS_ENABLED
+
+    std::pair<unsigned int, unsigned int> scaled_dimensions(int                    width,
+                                                            int                    height,
+                                                            int                    kernel_width,
+                                                            int                    kernel_height,
+                                                            const BIPadStrideInfo &pad_stride_info,
+                                                            const Size2D          &dilation)
+    {
+        const int dilation_x = dilation.x();
+        const int dilation_y = dilation.y();
+        const int pad_left   = pad_stride_info.pad_left();
+        const int pad_top    = pad_stride_info.pad_top();
+        const int pad_right  = pad_stride_info.pad_right();
+        const int pad_bottom = pad_stride_info.pad_bottom();
+        const int stride_x   = pad_stride_info.stride().first;
+        const int stride_y   = pad_stride_info.stride().second;
+        int       w          = 0;
+        int       h          = 0;
+        switch (pad_stride_info.round())
+        {
+            case BIDimensionRoundingType::FLOOR:
+                w = static_cast<int>(std::floor(
+                    (static_cast<float>(width + pad_left + pad_right - (dilation_x * (kernel_width - 1) + 1)) / stride_x) +
+                    1));
+                h = static_cast<int>(
+                    std::floor((static_cast<float>(height + pad_top + pad_bottom - (dilation_y * (kernel_height - 1) + 1)) /
+                                stride_y) +
+                               1));
+                break;
+            case BIDimensionRoundingType::CEIL:
+                w = static_cast<int>(std::ceil(
+                    (static_cast<float>(width + pad_left + pad_right - (dilation_x * (kernel_width - 1) + 1)) / stride_x) +
+                    1));
+                h = static_cast<int>(
+                    std::ceil((static_cast<float>(height + pad_top + pad_bottom - (dilation_y * (kernel_height - 1) + 1)) /
+                               stride_y) +
+                              1));
+                break;
+            default:
+                BI_COMPUTE_ERROR("Unsupported rounding type");
+        }
+
+        w = std::max(1, w);
+        h = std::max(1, h);
+        return std::make_pair(static_cast<unsigned int>(w), static_cast<unsigned int>(h));
+    }
+
+    std::pair<int, int> scaled_dimensions_signed(
+    int width, int height, int kernel_width, int kernel_height, const BIPadStrideInfo &pad_stride_info)
+    {
+        const int pad_left   = pad_stride_info.pad_left();
+        const int pad_top    = pad_stride_info.pad_top();
+        const int pad_right  = pad_stride_info.pad_right();
+        const int pad_bottom = pad_stride_info.pad_bottom();
+        const int stride_x   = pad_stride_info.stride().first;
+        const int stride_y   = pad_stride_info.stride().second;
+        int       w          = 0;
+        int       h          = 0;
+        switch (pad_stride_info.round())
+        {
+            case BIDimensionRoundingType::FLOOR:
+                w = static_cast<int>(
+                    std::floor((static_cast<float>(width + pad_left + pad_right - kernel_width) / stride_x) + 1));
+                h = static_cast<int>(
+                    std::floor((static_cast<float>(height + pad_top + pad_bottom - kernel_height) / stride_y) + 1));
+                break;
+            case BIDimensionRoundingType::CEIL:
+                w = static_cast<int>(
+                    std::ceil((static_cast<float>(width + pad_left + pad_right - kernel_width) / stride_x) + 1));
+                h = static_cast<int>(
+                    std::ceil((static_cast<float>(height + pad_top + pad_bottom - kernel_height) / stride_y) + 1));
+                break;
+            default:
+                BI_COMPUTE_ERROR("Unsupported rounding type");
+        }
+
+        return std::make_pair(static_cast<int>(w), static_cast<int>(h));
+    }
+
+    std::pair<unsigned int, unsigned int> deconvolution_output_dimensions(unsigned int           in_width,
+                                                                          unsigned int           in_height,
+                                                                          unsigned int           kernel_width,
+                                                                          unsigned int           kernel_height,
+                                                                          const BIPadStrideInfo &pad_stride_info)
+    {
+        const unsigned int pad_left   = pad_stride_info.pad_left();
+        const unsigned int pad_top    = pad_stride_info.pad_top();
+        const unsigned int pad_right  = pad_stride_info.pad_right();
+        const unsigned int pad_bottom = pad_stride_info.pad_bottom();
+        const unsigned int stride_x   = pad_stride_info.stride().first;
+        const unsigned int stride_y   = pad_stride_info.stride().second;
+
+        BI_COMPUTE_ERROR_ON(in_width < 1 || in_height < 1);
+        BI_COMPUTE_ERROR_ON(((in_width - 1) * stride_x + kernel_width) < (pad_left + pad_right));
+        BI_COMPUTE_ERROR_ON(((in_height - 1) * stride_y + kernel_height) < (pad_top + pad_bottom));
+        const int w = stride_x * (in_width - 1) + kernel_width - (pad_left + pad_right);
+        const int h = stride_y * (in_height - 1) + kernel_height - (pad_top + pad_bottom);
+
+        return std::make_pair<unsigned int, unsigned int>(w, h);
+    }
+
+} // namespace BatmanInfer
