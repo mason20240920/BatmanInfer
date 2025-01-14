@@ -231,6 +231,24 @@ namespace BatmanInfer {
                 return false;
         }
     }
+
+    /** Check if a given data type is of asymmetric quantized signed type
+     *
+     * @param[in] dt Input data type.
+     *
+     * @return True if data type is of asymmetric quantized signed type, else false.
+     */
+    inline bool is_data_type_quantized_asymmetric_signed(BIDataType dt)
+    {
+        switch (dt)
+        {
+        case BIDataType::QASYMM8_SIGNED:
+            return true;
+        default:
+            return false;
+        }
+    }
+
 }
 
 #endif //BATMANINFER_DATA_TYPE_UTILS_HPP

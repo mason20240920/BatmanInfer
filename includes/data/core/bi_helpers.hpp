@@ -159,6 +159,37 @@ namespace BatmanInfer {
      * @return
      */
     inline int coords2index(const BITensorShape &shape, const BICoordinates &coord);
+
+    /** Permutes given TensorShape according to a permutation vector
+     *
+     * @warning Validity of permutation is not checked
+     *
+     * @param[in, out] shape Shape to permute
+     * @param[in]      perm  Permutation vector
+     */
+    inline void permute(BITensorShape &shape, const PermutationVector &perm)
+    {
+        BITensorShape shape_copy = shape;
+        for (unsigned int i = 0; i < perm.num_dimensions(); ++i)
+        {
+            size_t dimension_val = (perm[i] < shape.num_dimensions()) ? shape_copy[perm[i]] : 1;
+            shape.set(i, dimension_val, false, false); // Avoid changes in _num_dimension
+        }
+    }
+
+    /** Wrap-around a number within the range 0 <= x < m
+     *
+     * @param[in] x Input value
+     * @param[in] m Range
+     *
+     * @return the wrapped-around number
+     */
+    template <typename T>
+    inline T wrap_around(T x, T m)
+    {
+        return x >= 0 ? x % m : (x % m + m) % m;
+    }
+
 }
 
 #include <data/core/bi_helpers.inl>

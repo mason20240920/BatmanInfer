@@ -134,6 +134,45 @@ namespace BatmanInfer {
                 apply_dimension_correction();
         }
 
+        /** Collapse the first n dimensions.
+         *
+         * @param[in] n     Number of dimensions to collapse into @p first
+         * @param[in] first Dimensions into which the following @p n are collapsed.
+         */
+        void collapse(size_t n, size_t first = 0)
+        {
+            BIDimensions::collapse(n, first);
+
+            // Make sure all empty dimensions are filled with 1
+            std::fill(_id.begin() + _num_dimensions, _id.end(), 1);
+        }
+
+        /** Accessor to set the value of one of the dimensions.
+         *
+         * @param[in] dimension            Dimension for which the value is set.
+         * @param[in] value                Value to be set for the dimension.
+         * @param[in] apply_dim_correction (Optional) Flag to state whether apply dimension correction after setting one dimension. E.g. when permuting NCHW -> NHWC, 1x1x2 would become 2x1x1, but _num_dimensions should be 3 rather than 1.
+         * @param[in] increase_dim_unit    (Optional) Set to true if new unit dimensions increase the number of dimensions of the shape.
+         *
+         * @return *this.
+         */
+        BITensorShape &set(size_t dimension, size_t value, bool apply_dim_correction = true, bool increase_dim_unit = true)
+        {
+            // Make sure all empty dimensions are filled with 1
+            std::fill(_id.begin() + _num_dimensions, _id.end(), 1);
+
+            // Set the specified dimension and increase the number of dimensions if
+            // necessary
+            BIDimensions::set(dimension, value, increase_dim_unit);
+
+            // Correct number dimensions to ignore trailing dimensions of size 1
+            if (apply_dim_correction)
+            {
+                apply_dimension_correction();
+            }
+            return *this;
+        }
+
     private:
         /**
          * @brief 从维度数量中移除大小为1的尾随维度

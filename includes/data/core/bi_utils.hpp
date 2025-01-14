@@ -8,6 +8,7 @@
 #include <data/core/bi_types.hpp>
 #include <support/bi_toolchain_support.hpp>
 #include "data/core/bi_error.h"
+#include "data/core/utils/data_type_utils.hpp"
 
 #include <cmath>
 #include <numeric>
@@ -177,6 +178,15 @@ std::pair<unsigned int, unsigned int> deconvolution_output_dimensions(unsigned i
                                                                       unsigned int           kernel_width,
                                                                       unsigned int           kernel_height,
                                                                       const BIPadStrideInfo &pad_stride_info);
+
+/** Returns output quantization information for softmax layer
+ *
+ * @param[in] input_type The data type of the input tensor
+ * @param[in] is_log     True for log softmax
+ *
+ * @return Quantization information for the output tensor
+ */
+BIQuantizationInfo get_softmax_output_quantization_info(BIDataType input_type, bool is_log);
 
 }
 

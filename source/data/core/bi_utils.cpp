@@ -208,4 +208,25 @@ namespace BatmanInfer {
         return std::make_pair<unsigned int, unsigned int>(w, h);
     }
 
+    BIQuantizationInfo get_softmax_output_quantization_info(BIDataType input_type, bool is_log)
+    {
+        // Note: Output quantization info for softmax should always have
+        // * Softmax with QASYMM8: scale = 1/256, offset = 0
+        // * Softmax with QASYMM8_SIGNED: scale = 1/256, offset = -128
+        // * LogSoftmax with QASYMM8: scale = 16/256, offset = 255
+        // * LogSoftmax with QASYMM8_SIGNED: scale = 16/256, offset = 127
+        if (is_data_type_quantized_asymmetric_signed(input_type))
+        {
+            if (is_log)
+            {
+                return BIQuantizationInfo(16.f / 256, 127);
+            }
+            else
+            {
+                return BIQuantizationInfo(1.f / 256, -128);
+            }
+        }
+        return is_log ? BIQuantizationInfo(16.f / 256, 255) : BIQuantizationInfo(1.f / 256, 0);
+    }
+
 } // namespace BatmanInfer

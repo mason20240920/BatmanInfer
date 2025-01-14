@@ -7,6 +7,7 @@
 
 #include <data/core/bi_tensor_info.hpp>
 #include <data/core/kernel_descriptors.hpp>
+#include "data/core/utils/helpers/bi_tensor_transform.h"
 
 namespace BatmanInfer {
     namespace misc {
@@ -314,6 +315,53 @@ namespace BatmanInfer {
                 output_shape.set(idx_channel, input_shape[idx_channel] / (block * block));
 
                 return output_shape;
+            }
+
+            /** Calculate the slice output shape of a tensor
+             *
+             * @param[in] input_shape Input tensor info
+             * @param[in] starts      The starts of the dimensions of the input tensor to be sliced
+             * @param[in] ends        The ends of the dimensions of the input tensor to be sliced
+             *
+             * @return the calculated shape
+             */
+            inline BITensorShape
+            compute_slice_shape(const BITensorShape &input_shape, const BICoordinates &starts, const BICoordinates &ends)
+            {
+                using namespace BatmanInfer::helpers::tensor_transform;
+
+                return compute_strided_slice_output_shape(input_shape, starts, ends, BiStrides(), 0,
+                                                          construct_slice_end_mask(ends), 0);
+            }
+
+            /** Calculate the stack output shape of a tensor
+             *
+             * @param[in] a           Input tensor info
+             * @param[in] axis        Axis on which to perform the stack operation
+             * @param[in] num_tensors Number of tensors to stack
+             *
+             * @return the calculated shape
+             */
+            inline BITensorShape compute_stack_shape(const BIITensorInfo &a, unsigned int axis, unsigned int num_tensors)
+            {
+                BI_COMPUTE_ERROR_ON(axis > a.num_dimensions());
+                BI_COMPUTE_ERROR_ON(a.num_dimensions() > 4);
+
+                BITensorShape shape_out{a.tensor_shape()};
+                shape_out.set(axis, num_tensors);
+
+                unsigned int i_shift = 0;
+
+                for (unsigned int i = 0; i < a.num_dimensions(); ++i)
+                {
+                    if (i == axis)
+                    {
+                        i_shift++;
+                    }
+
+                    shape_out.set(i + i_shift, a.tensor_shape()[i]);
+                }
+                return shape_out;
             }
 
         }
