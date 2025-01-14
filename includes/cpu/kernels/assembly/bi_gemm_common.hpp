@@ -83,7 +83,7 @@ namespace BatmanGemm {
          *
          *        这个方法有一个空的默认实现，因为不关心线程数的 GEMM 可以安全地忽略它。
          */
-        virtual void set_n_threads(int) {};
+        virtual void set_nthreads(int) {};
 
         /**
          * @brief 判断当前 GEMM 是否支持动态调度
@@ -127,7 +127,7 @@ namespace BatmanGemm {
         }
 
         /* 获取预转置数组所需的总字节数 */
-        virtual size_t get_B_pre_transposed_array_size() const {
+        virtual size_t get_B_pretransposed_array_size() const {
             return 0;
         }
 
@@ -144,7 +144,7 @@ namespace BatmanGemm {
                                                        const size_t) = 0;
 
         /* 设置预转置数据——传入的 void * 必须是之前通过 pretranspose_B_array() 为相同或类似的 GEMM 设置的。*/
-        virtual void set_pre_transposed_B_data(void *) {
+        virtual void set_pretransposed_B_data(void *) {
         }
 
         /*** "量化偏置" 接口（可选） ***/

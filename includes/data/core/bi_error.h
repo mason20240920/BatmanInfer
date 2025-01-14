@@ -16,73 +16,72 @@ namespace BatmanInfer {
      *
      * @param[in] ... Ignored arguments
      */
-    template <typename... T>
-    inline void ignore_unused(T &&...)
-    {
+    template<typename... T>
+    inline void ignore_unused(T &&...) {
     }
 
     /** Available error codes */
-    enum class BIErrorCode
-    {
+    enum class BIErrorCode {
         OK,                       /**< No error */
         RUNTIME_ERROR,            /**< Generic runtime error */
         UNSUPPORTED_EXTENSION_USE /**< Unsupported extension used*/
     };
 
     /** Status class */
-    class BIStatus
-    {
+    class BIStatus {
     public:
         /** Default Constructor **/
-        BIStatus() : _code(BIErrorCode::OK), _error_description(" ")
-        {
+        BIStatus() : _code(BIErrorCode::OK), _error_description(" ") {
         }
+
         /** Default Constructor
          *
          * @param error_status      Error status.
          * @param error_description (Optional) Error description if error_status is not valid.
          */
         explicit BIStatus(BIErrorCode error_status, std::string error_description = " ")
-            : _code(error_status), _error_description(error_description)
-        {
+                : _code(error_status), _error_description(error_description) {
         }
+
         /** Allow instances of this class to be copy constructed */
         BIStatus(const BIStatus &) = default;
+
         /** Allow instances of this class to be move constructed */
         BIStatus(BIStatus &&) = default;
+
         /** Allow instances of this class to be copy assigned */
         BIStatus &operator=(const BIStatus &) = default;
+
         /** Allow instances of this class to be move assigned */
         BIStatus &operator=(BIStatus &&) = default;
+
         /** Explicit bool conversion operator
          *
          * @return True if there is no error else false
          */
-        explicit operator bool() const noexcept
-        {
+        explicit operator bool() const noexcept {
             return _code == BIErrorCode::OK;
         }
+
         /** Gets error code
          *
          * @return Error code.
          */
-        BIErrorCode error_code() const
-        {
+        BIErrorCode error_code() const {
             return _code;
         }
+
         /** Gets error description if any
          *
          * @return Error description.
          */
-        std::string error_description() const
-        {
+        std::string error_description() const {
             return _error_description;
         }
+
         /** Throws a runtime exception in case it contains a valid error status */
-        void throw_if_error() const
-        {
-            if (!bool(*this))
-            {
+        void throw_if_error() const {
+            if (!bool(*this)) {
                 internal_throw_on_error();
             }
         }
@@ -179,7 +178,7 @@ namespace BatmanInfer {
 #define BI_COMPUTE_RETURN_ERROR_MSG(...)                                                     \
     do                                                                                       \
     {                                                                                        \
-        return BI_COMPUTE_CREATE_ERROR(arm_compute::ErrorCode::RUNTIME_ERROR, __VA_ARGS__);  \
+        return BI_COMPUTE_CREATE_ERROR(BatmanInfer::BIErrorCode::RUNTIME_ERROR, __VA_ARGS__);  \
     } while (false)
 
 /** Checks if a status contains an error and returns it
