@@ -522,12 +522,12 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     BINEGEMM gemm;
 
     // 配置 NEGEMM 函数
-    float alpha = 1.0f;  // 矩阵乘积的权重
-    float beta = 0.0f;   // 矩阵 C 的权重（如果不需要 C，可以设置为 0）
+    float alpha = 0.5f;  // 矩阵乘积的权重
+    float beta = 0.1f;   // 矩阵 C 的权重（如果不需要 C，可以设置为 0）
 
-    GEMMInfo gemm_info(false, false, true /* enable reshaping */, 0, 0, true /* reshape only on first run */);
+//    GEMMInfo gemm_info(false, false, true /* enable reshaping */, 0, 0, true /* reshape only on first run */);
 
-    gemm.configure(&a, &b, &c, &d, alpha, beta, gemm_info);
+    gemm.configure(&a, &b, &c, &d, alpha, beta);
 
     // 分配内存(为张量分配内存)
     a.allocator()->allocate();
@@ -543,6 +543,10 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     auto b_data = reinterpret_cast<float *>(b.buffer());
     for (unsigned int i = 0; i < K * N; ++i) {
         b_data[i] = static_cast<float>(1);  // 填充一些测试数据
+    }
+    auto c_data = reinterpret_cast<float *>(c.buffer());
+    for (unsigned int i = 0; i < M * N; ++i) {
+        c_data[i] = static_cast<float>(1);  // 填充一些测试数据
     }
 
     BIIOFormatInfo format;
