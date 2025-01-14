@@ -17,7 +17,7 @@
     {                                                                              \
         if (BatmanInfer::logging::BILoggerRegistry::get().logger("CORE") == nullptr) \
         {                                                                          \
-            arm_compute::logging::BILoggerRegistry::get().create_reserved_loggers(); \
+            BatmanInfer::logging::BILoggerRegistry::get().create_reserved_loggers(); \
         }                                                                          \
     } while (false)
 #else /* ARM_COMPUTE_LOGGING_ENABLED */

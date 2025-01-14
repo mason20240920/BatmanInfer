@@ -47,7 +47,7 @@ namespace BatmanInfer {
                 BI_COMPUTE_ERROR_ON(gemm_asm == nullptr);
                 BI_COMPUTE_ERROR_ON(num_threads == 0);
                 // 获取预转置矩阵 B 所需的总工作量（即矩阵 B 的大小或列数）
-                const unsigned int w_size = gemm_asm->get_B_pre_transposed_array_size();
+                const unsigned int w_size = gemm_asm->get_B_pretransposed_array_size();
 
                 // 创建一个大小为 num_threads 的工作负载数组，每个线程将处理一部分工作
                 std::vector<BIIScheduler::BIWorkload> workloads(num_threads);
@@ -501,7 +501,7 @@ namespace BatmanInfer {
                 {
                     const unsigned int window_size = _gemm_kernel_asm->get_window_size().total_size();
                     if (window_size < static_cast<unsigned int>(args._maxthreads)) {
-                        _gemm_kernel_asm->set_n_threads(window_size);
+                        _gemm_kernel_asm->set_nthreads(window_size);
                     }
                 }
 
@@ -550,7 +550,7 @@ namespace BatmanInfer {
                                     _gemm_kernel_asm->get_config().weight_format)));
                     // Forcing 128-byte alignment (required by 32-bit kernels)
                     const unsigned int alignment = 128;
-                    const size_t B_pretranspose_size = _gemm_kernel_asm->get_B_pre_transposed_array_size();
+                    const size_t B_pretranspose_size = _gemm_kernel_asm->get_B_pretransposed_array_size();
                     _pretranspose_info = BITensorInfo(BITensorShape(B_pretranspose_size), 1, BIDataType::U8);
                     MemoryLifetime lifetime = _is_b_constant ? MemoryLifetime::Persistent : MemoryLifetime::Temporary;
                     _aux_mem[Pretranspose] = BIMemoryInfo(offset_int_vec(Pretranspose), lifetime, B_pretranspose_size,
@@ -763,7 +763,7 @@ namespace BatmanInfer {
                         const unsigned int num_iterations = _optimised_kernel->window().num_iterations(split_dim);
                         num_threads = std::min(num_iterations, num_threads);
                     }
-                    _gemm_kernel_asm->set_n_threads(num_threads);
+                    _gemm_kernel_asm->set_nthreads(num_threads);
                 }
 
                 // Prepare assembly kernel
@@ -1004,33 +1004,32 @@ namespace BatmanInfer {
 #endif /* __aarch64__ */
 
 #if defined(BI_COMPUTE_ENABLE_BF16)
-                    case DataType::BFLOAT16:
-        {
-            if (d->data_type() == DataType::BFLOAT16)
-            {
-                BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                    !(BatmanGemm::has_opt_gemm<bfloat16, bfloat16, bfloat16, BatmanGemm::Nothing>(arm_gemm_expected_wf,
-                                                                                              args, {})),
-                    "We could not find an optimized kernel for BFLOAT16 input and BFLOAT16 output");
-            }
-            else
-            {
-                BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                    !(BatmanGemm::has_opt_gemm<bfloat16, bfloat16, float, BatmanGemm::Nothing>(arm_gemm_expected_wf, args,
-                                                                                           {})),
-                    "We could not find an optimized kernel for BFLOAT16 input and F32 output");
-            }
-            break;
-        }
+                case BIDataType::BFLOAT16: {
+                    if (d->data_type() == BIDataType::BFLOAT16) {
+                        BI_COMPUTE_RETURN_ERROR_ON_MSG(
+                                !(BatmanGemm::has_opt_gemm<bfloat16, bfloat16, bfloat16, BatmanGemm::Nothing>(
+                                        arm_gemm_expected_wf,
+                                        args, {})),
+                                "We could not find an optimized kernel for BFLOAT16 input and BFLOAT16 output");
+                    } else {
+                        BI_COMPUTE_RETURN_ERROR_ON_MSG(
+                                !(BatmanGemm::has_opt_gemm<bfloat16, bfloat16, float, BatmanGemm::Nothing>(
+                                        arm_gemm_expected_wf, args,
+                                        {})),
+                                "We could not find an optimized kernel for BFLOAT16 input and F32 output");
+                    }
+                    break;
+                }
 #endif /* defined(BI_COMPUTE_ENABLE_BF16) */
 
 #if defined(ENABLE_FP16_KERNELS)
-                    case DataType::F16:
-            BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                !BatmanGemm::has_opt_gemm<float16_t, float16_t, float16_t, BatmanGemm::Nothing>(arm_gemm_expected_wf, args,
-                                                                                             {})),
-                "We could not find an optimized kernel for F16 input and F16 output");
-            break;
+                case BIDataType::F16:
+                    BI_COMPUTE_RETURN_ERROR_ON_MSG(
+                            !(BatmanGemm::has_opt_gemm<float16_t, float16_t, float16_t, BatmanGemm::Nothing>(
+                                    arm_gemm_expected_wf,
+                                    args, {})),
+                            "We could not find an optimized kernel for F16 input and F16 output");
+                    break;
 #endif /* ENABLE_FP16_KERNELS */
                 default:
                     BI_COMPUTE_RETURN_ERROR_ON_MSG(true, "Unsupported type. Could not find a kernel");
@@ -1158,21 +1157,18 @@ namespace BatmanInfer {
                     break;
 #endif /* __aarch64__ */
 #if defined(BI_COMPUTE_ENABLE_BF16)
-                    case BIDataType::BFLOAT16:
-            if (d->data_type() == BIDataType::BFLOAT16)
-            {
-                create_arm_gemm<bfloat16, bfloat16, bfloat16>(_arm_gemm, a, b, c, d, act, info);
-            }
-            else
-            {
-                create_arm_gemm<bfloat16, bfloat16, float>(_arm_gemm, a, b, c, d, act, info);
-            }
-            break;
+                case BIDataType::BFLOAT16:
+                    if (d->data_type() == BIDataType::BFLOAT16) {
+                        create_arm_gemm<bfloat16, bfloat16, bfloat16>(_batman_gemm, a, b, c, d, act, info);
+                    } else {
+                        create_arm_gemm<bfloat16, bfloat16, float>(_batman_gemm, a, b, c, d, act, info);
+                    }
+                    break;
 #endif /* defined(ARM_COMPUTE_ENABLE_BF16) */
 #ifdef ENABLE_FP16_KERNELS
-                    case BIDataType::F16:
-            create_arm_gemm<float16_t, float16_t, float16_t>(_arm_gemm, a, b, c, d, act, info);
-            break;
+                case BIDataType::F16:
+                    create_arm_gemm<float16_t, float16_t, float16_t>(_batman_gemm, a, b, c, d, act, info);
+                    break;
 #endif /* ENABLE_FP16_KERNELS */
                 default:
                     break;

@@ -127,7 +127,7 @@ else ()
 
 endif ()
 
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DBI_COMPUTE_ENABLE_FP16  -DBI_COMPUTE_ENABLE_BF16 -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DENABLE_FP16_KERNELS")
 
 
 # 下载GoogleTest项目
@@ -268,7 +268,6 @@ add_executable(BatmanInfer main.cpp
         source/cpu/operators/bi_cpu_add.cpp
         source/cpu/operators/bi_cpu_gemm.cpp
         source/data/core/utils/bi_assembly_utils.cpp
-        source/data/core/neon/kernels/misc.cpp
         ${SOURCES}
         #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/a53.cpp
         #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/a55r1.cpp

@@ -1,5 +1,5 @@
 //
-// Created by Mason on 2025/1/13.
+// Created by Mason on 2025/1/14.
 //
 
 #ifndef NO_MULTI_THREADING
@@ -11,8 +11,8 @@
 #include <cstdint>
 
 #include <cpu/kernels/assembly/bi_arm_gemm.hpp>
-#include <data/core/neon/kernels/arm_gemm/utils.hpp>
-#include <data/core/neon/kernels/arm_gemm/kernel_weight_format.hpp>
+#include "data/core/neon/kernels/arm_gemm/kernel_weight_format.hpp"
+#include "data/core/neon/kernels/arm_gemm/utils.hpp"
 
 namespace BatmanGemm {
 
@@ -59,4 +59,4 @@ namespace BatmanGemm {
         return static_cast<WeightFormat>(wf_i);
     }
 
-} // namespace BatmanGemm
+} // namespace arm_gemm
