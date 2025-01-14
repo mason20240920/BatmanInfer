@@ -168,6 +168,9 @@ link_directories(${GLOG_LIBRARY_DIRS}
         #        ${ARM_COMPUTE_LIB_PATH}
 )
 
+# 匹配指定目录下的所有 .cpp 文件（包括子目录）
+file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/data/core/neon/kernels/arm_gemm/*.cpp)
+
 add_executable(BatmanInfer main.cpp
         source/data/core/bi_tensor_info.cpp
         source/data/core/bi_helpers.cpp
@@ -266,6 +269,10 @@ add_executable(BatmanInfer main.cpp
         source/cpu/operators/bi_cpu_gemm.cpp
         source/data/core/utils/bi_assembly_utils.cpp
         source/data/core/neon/kernels/misc.cpp
+        ${SOURCES}
+        #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/a53.cpp
+        #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/a55r1.cpp
+        #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/generic.cpp
         #        includes/data/core/neon/kernels/arm_gemm/gemm_implementation.hpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
