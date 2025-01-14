@@ -4,6 +4,9 @@ project(BatmanInfer)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
+# 指定标准库为 libc++
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+
 # 检查目标平台
 if (ANDROID)
     # Set the CMake prefix path
@@ -269,6 +272,7 @@ add_executable(BatmanInfer main.cpp
         source/cpu/operators/bi_cpu_gemm.cpp
         source/data/core/utils/bi_assembly_utils.cpp
         ${SOURCES}
+        source/runtime/neon/functions/bi_ne_gemm.cpp
         #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/a53.cpp
         #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/a55r1.cpp
         #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/generic.cpp

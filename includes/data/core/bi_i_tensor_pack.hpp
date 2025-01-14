@@ -16,8 +16,7 @@ namespace BatmanInfer {
      */
     class BIITensorPack {
     public:
-        struct PackElement
-        {
+        struct PackElement {
             PackElement() = default;
 
             PackElement(int id, BIITensor *tensor) : id(id), tensor(tensor), ctensor(nullptr) {
@@ -43,7 +42,7 @@ namespace BatmanInfer {
          * @brief 初始化函数
          * @param l
          */
-        explicit BIITensorPack(std::initializer_list<PackElement> l);
+        BIITensorPack(std::initializer_list<PackElement> l);
 
         /**
          * @brief 增加张量到package

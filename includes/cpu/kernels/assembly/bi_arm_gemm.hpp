@@ -12,6 +12,7 @@
 #include <cstring>
 #include <memory>
 #include <vector>
+#include <string>
 
 namespace BatmanGemm {
     enum class GemmMethod {

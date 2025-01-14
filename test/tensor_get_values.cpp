@@ -23,6 +23,7 @@
 #include <runtime/neon/functions/bi_ne_reshape_layer.hpp>
 #include <data/core/utils/misc/bi_shape_calculator.hpp>
 #include <cpu/kernels/bi_cpu_gemm_inter_leave_4x4_kernel.hpp>
+#include <runtime/neon/functions/bi_ne_gemm.hpp>
 
 
 TEST(test_tensor_values, tensor_values1) {
@@ -384,11 +385,11 @@ TEST(BITensorTest, reshape_test) {
     reshape_layer.run();
 
     uint8_t *output_data = reinterpret_cast<uint8_t *>(output_tensor.buffer());
-//    BIIOFormatInfo format;
-//    format.element_delim = ", ";  // 元素之间用逗号分隔
-//    format.row_delim = "\n";      // 每行换行
-//    format.align_columns = 1;     // 对齐列
-//
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
 //    output_tensor.print(std::cout, format);
     for (int i = 0; i < 16; ++i) {
         std::cout << static_cast<int>(output_data[i]) << " ";
@@ -489,5 +490,85 @@ TEST(BITensor, GEMMInterval) {
     interleave_B_inplace(B, B_interleaved);
 
     print_matrix("Matrix B (after interleave)", B_interleaved, rows, cols);
+}
+
+TEST(BITensor, NEGEMM_exmaple_01) {
+    // Basic using
+    using namespace BatmanInfer;
+
+    BatmanInfer::BIScheduler::get().set_num_threads(2);
+
+    // 输入张量 A, B, C 和输出张量D
+    BITensor a, b, c, d;
+
+    // 配置张量的形状 (假设矩阵 A 是 MxK，矩阵 B 是 KxN）
+    const unsigned int M = 4; // 矩阵A的行数
+    const unsigned int K = 3; // 矩阵A的列数，矩阵B的行数
+    const unsigned int N = 2; // 矩阵B的列数
+
+    // 配置张量的形状和数据类型
+    BITensorInfo a_info(BITensorShape(K, M), 1, BIDataType::F32);  // 矩阵 A
+    BITensorInfo b_info(BITensorShape(N, K), 1, BIDataType::F32);  // 矩阵 B
+    BITensorInfo c_info(BITensorShape(N, M), 1, BIDataType::F32);  // 矩阵 C（可选）
+    BITensorInfo d_info(BITensorShape(N, M), 1, BIDataType::F32);  // 输出矩阵 D
+
+    // 初始化张量
+    a.allocator()->init(a_info);
+    b.allocator()->init(b_info);
+    c.allocator()->init(c_info);
+    d.allocator()->init(d_info);
+
+    // 3. 配置BINEGEMM函数
+    BINEGEMM gemm;
+
+    // 配置 NEGEMM 函数
+    float alpha = 1.0f;  // 矩阵乘积的权重
+    float beta = 0.0f;   // 矩阵 C 的权重（如果不需要 C，可以设置为 0）
+
+    GEMMInfo gemm_info(false, false, true /* enable reshaping */, 0, 0, true /* reshape only on first run */);
+
+    gemm.configure(&a, &b, &c, &d, alpha, beta, gemm_info);
+
+    // 分配内存(为张量分配内存)
+    a.allocator()->allocate();
+    b.allocator()->allocate();
+    c.allocator()->allocate();
+    d.allocator()->allocate();
+
+    // 示例：填充张量 A 的数据
+    auto a_data = reinterpret_cast<float *>(a.buffer());
+    for (unsigned int i = 0; i < M * K; ++i) {
+        a_data[i] = static_cast<float>(i);  // 填充一些测试数据
+    }
+    auto b_data = reinterpret_cast<float *>(b.buffer());
+    for (unsigned int i = 0; i < K * N; ++i) {
+        b_data[i] = static_cast<float>(1);  // 填充一些测试数据
+    }
+
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+    // 打印数据
+//    a.print(std::cout, format);
+//    b.print(std::cout, format);
+
+    gemm.run();
+    const BITensorShape output_shape(N, M);
+
+    // 访问输出数据
+//    d.print(std::cout, format);
+    float output_data[M * N];
+    std::memcpy(output_data, d.buffer(), sizeof(output_data));
+
+    // 打印张量
+    std::cout << "Output matrix:" << std::endl;
+    for (size_t i = 0; i < output_shape[1]; ++i) {
+        for (size_t j = 0; j < output_shape[0]; ++j) {
+            std::cout << static_cast<float >(output_data[i * output_shape[0] + j]) << " ";
+        }
+        std::cout << std::endl;
+    }
 }
 

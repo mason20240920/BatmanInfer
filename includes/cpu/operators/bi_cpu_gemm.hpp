@@ -48,7 +48,7 @@ namespace BatmanInfer {
         public:
             BICpuGemm() = default;
 
-            ~BICpuGemm() = default;
+            ~BICpuGemm() override = default;
 
             /**
              * 配置操作符以处理给定的参数列表。
