@@ -8,6 +8,9 @@
 #include <runtime/bi_i_simple_lifetime_manager.hpp>
 #include <runtime/bi_types.hpp>
 
+#include <memory>
+#include <vector>
+
 namespace BatmanInfer {
     /**
      * @brief 具体类，用于跟踪已注册张量的生命周期，
@@ -38,6 +41,7 @@ namespace BatmanInfer {
         const info_type &info() const;
 
         std::unique_ptr<BIIMemoryPool> create_pool(BIIAllocator *allocator) override;
+
         BIMappingType mapping_type() const override;
 
 
@@ -46,6 +50,7 @@ namespace BatmanInfer {
          * @brief 重写继承方法
          */
         void update_blobs_and_mappings() override;
+
     private:
         /**
          * @brief 内存块

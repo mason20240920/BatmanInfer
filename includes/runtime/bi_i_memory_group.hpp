@@ -75,8 +75,7 @@ namespace BatmanInfer {
      */
     class BIMemoryGroupResourceScope {
     public:
-        explicit BIMemoryGroupResourceScope(BIIMemoryGroup &memory_group) : _memory_group(memory_group)
-        {
+        explicit BIMemoryGroupResourceScope(BIIMemoryGroup &memory_group) : _memory_group(memory_group) {
             _memory_group.acquire();
         }
 

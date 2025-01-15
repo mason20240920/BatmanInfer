@@ -80,7 +80,7 @@ namespace BatmanInfer::cpu {
             }
             _tensor.allocator()->soft_init(info);
 
-            auto *packed_tensor = utils::cast::polymorphic_downcast<BIITensor *>(pack.get_tensor(slot_id));
+            auto packed_tensor = utils::cast::polymorphic_downcast<BIITensor *>(pack.get_tensor(slot_id));
             if ((packed_tensor == nullptr) || (info.total_size() > packed_tensor->info()->total_size())) {
                 if (!bypass_alloc) {
                     _tensor.allocator()->allocate();

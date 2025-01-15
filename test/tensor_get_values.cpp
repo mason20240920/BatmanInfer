@@ -496,7 +496,7 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     // Basic using
     using namespace BatmanInfer;
 
-    BatmanInfer::BIScheduler::get().set_num_threads(2);
+    BatmanInfer::BIScheduler::get().set_num_threads(4);
 
     // 输入张量 A, B, C 和输出张量D
     BITensor a, b, c, d;
@@ -522,12 +522,12 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     BINEGEMM gemm;
 
     // 配置 NEGEMM 函数
-    float alpha = 0.5f;  // 矩阵乘积的权重
+    float alpha = 1.0f;  // 矩阵乘积的权重
     float beta = 0.1f;   // 矩阵 C 的权重（如果不需要 C，可以设置为 0）
 
-//    GEMMInfo gemm_info(false, false, true /* enable reshaping */, 0, 0, true /* reshape only on first run */);
+    GEMMInfo gemm_info(false, false, true /* enable reshaping */, 0, 0, true /* reshape only on first run */);
 
-    gemm.configure(&a, &b, &c, &d, alpha, beta);
+    gemm.configure(&a, &b, &c, &d, alpha, beta, gemm_info);
 
     // 分配内存(为张量分配内存)
     a.allocator()->allocate();

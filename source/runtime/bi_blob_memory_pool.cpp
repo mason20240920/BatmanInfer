@@ -14,7 +14,8 @@ BIBlobMemoryPool::BIBlobMemoryPool(BatmanInfer::BIIAllocator *allocator, std::ve
         _allocator(allocator),
         _blobs(),
         _blob_info(std::move(blob_info)) {
-
+    BI_COMPUTE_ERROR_ON(!allocator);
+    allocate_blobs(_blob_info);
 }
 
 BIBlobMemoryPool::~BIBlobMemoryPool() {

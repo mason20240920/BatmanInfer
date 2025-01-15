@@ -5,7 +5,7 @@
 #include <runtime/bi_tensor.hpp>
 
 namespace BatmanInfer {
-    BITensor::BITensor(BatmanInfer::BIIRuntimeContext *ctx) : _allocator(nullptr) {
+    BITensor::BITensor(BatmanInfer::BIIRuntimeContext *ctx) : _allocator(this) {
 
     }
 
