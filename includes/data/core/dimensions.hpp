@@ -20,7 +20,7 @@ namespace BatmanInfer {
      */
     constexpr size_t MAX_DIMS = 6;
 
-    template <typename T>
+    template<typename T>
     class BIDimensions {
     public:
         /**
@@ -33,7 +33,7 @@ namespace BatmanInfer {
          * @tparam Ts
          * @param dims 初始化维度的值
          */
-        template <typename... Ts>
+        template<typename... Ts>
         explicit BIDimensions(Ts... dims) : _id{{static_cast<T>(dims)...}}, _num_dimensions{sizeof...(dims)} {
 
         }
@@ -41,13 +41,13 @@ namespace BatmanInfer {
         /**
          * @brief 允许实例能被拷贝
          */
-        BIDimensions(const BIDimensions&) = default;
+        BIDimensions(const BIDimensions &) = default;
 
         /**
          * @brief 允许实例被拷贝
          * @return
          */
-        BIDimensions &operator=(const BIDimensions&) = default;
+        BIDimensions &operator=(const BIDimensions &) = default;
 
         /**
          * @brief 默认实例能被移动
@@ -130,7 +130,7 @@ namespace BatmanInfer {
          */
         void collapse(const size_t n,
                       const size_t first = 0) {
-            ARM_COMPUTE_ERROR_ON(first + n > _id.size());
+            BI_COMPUTE_ERROR_ON(first + n > _id.size());
 
             const size_t last = std::min(_num_dimensions, first + n);
 
@@ -155,7 +155,7 @@ namespace BatmanInfer {
          * @param start
          */
         void collapse_from(size_t start) {
-            ARM_COMPUTE_ERROR_ON(start > num_dimensions());
+            BI__COMPUTE_ERROR_ON(start > num_dimensions());
             collapse(num_dimensions() - start, start);
         }
 
@@ -171,33 +171,27 @@ namespace BatmanInfer {
             std::fill(_id.begin() + _num_dimensions, _id.end(), 0);
         }
 
-        typename std::array<T, num_max_dimensions>::iterator begin()
-        {
+        typename std::array<T, num_max_dimensions>::iterator begin() {
             return _id.begin();
         }
 
-        typename std::array<T, num_max_dimensions>::const_iterator begin() const
-        {
+        typename std::array<T, num_max_dimensions>::const_iterator begin() const {
             return _id.begin();
         }
 
-        typename std::array<T, num_max_dimensions>::const_iterator cbegin() const
-        {
+        typename std::array<T, num_max_dimensions>::const_iterator cbegin() const {
             return begin();
         }
 
-        typename std::array<T, num_max_dimensions>::iterator end()
-        {
+        typename std::array<T, num_max_dimensions>::iterator end() {
             return _id.end();
         }
 
-        typename std::array<T, num_max_dimensions>::const_iterator end() const
-        {
+        typename std::array<T, num_max_dimensions>::const_iterator end() const {
             return _id.end();
         }
 
-        typename std::array<T, num_max_dimensions>::const_iterator cend() const
-        {
+        typename std::array<T, num_max_dimensions>::const_iterator cend() const {
             return end();
         }
 
@@ -205,12 +199,9 @@ namespace BatmanInfer {
         *
         * @return The total tensor size in terms of elements.
        */
-        size_t total_size() const
-        {
+        size_t total_size() const {
             return std::accumulate(_id.begin(), _id.end(), 1, std::multiplies<size_t>());
         }
-
-
 
 
     protected:
@@ -232,14 +223,13 @@ namespace BatmanInfer {
         size_t _num_dimensions{0};
     };
 
-    template <typename T>
+    template<typename T>
     inline bool operator==(const BIDimensions<T> &lhs, const BIDimensions<T> &rhs) {
         return ((lhs.num_dimensions() == rhs.num_dimensions()) && std::equal(lhs.cbegin(), lhs.cend(), rhs.cbegin()));
     }
 
-    template <typename T>
-    inline bool operator!=(const BIDimensions<T> &lhs, const BIDimensions<T> &rhs)
-    {
+    template<typename T>
+    inline bool operator!=(const BIDimensions<T> &lhs, const BIDimensions<T> &rhs) {
         return !(lhs == rhs);
     }
 
