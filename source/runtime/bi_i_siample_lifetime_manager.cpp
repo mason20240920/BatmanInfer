@@ -8,7 +8,7 @@
 
 namespace BatmanInfer {
     BIISimpleLifetimeManager::BIISimpleLifetimeManager() :
-    _active_group(nullptr),_active_elements(),_free_blobs(),_occupied_blobs(),_finalized_groups(){
+            _active_group(nullptr), _active_elements(), _free_blobs(), _occupied_blobs(), _finalized_groups() {
 
     }
 
@@ -33,7 +33,7 @@ namespace BatmanInfer {
     void BIISimpleLifetimeManager::start_lifetime(void *obj) {
         BI_COMPUTE_ERROR_ON(obj == nullptr);
         BI_COMPUTE_ERROR_ON_MSG(_active_elements.find(obj) != std::end(_active_elements),
-                                 "Memory object is already registered!");
+                                "Memory object is already registered!");
 
         // Check if there is a free blob
         if (_free_blobs.empty())
@@ -58,11 +58,11 @@ namespace BatmanInfer {
         BI_COMPUTE_ERROR_ON(active_object_it == std::end(_active_elements));
 
         // Update object fields and mark object as complete
-        Element &el  = active_object_it->second;
-        el.handle    = &obj_memory;
-        el.size      = size;
+        Element &el = active_object_it->second;
+        el.handle = &obj_memory;
+        el.size = size;
         el.alignment = alignment;
-        el.status    = true;
+        el.status = true;
 
         // 在被占用的列表中查找对象
         auto occupied_blob_it = std::find_if(std::begin(_occupied_blobs), std::end(_occupied_blobs),
@@ -72,9 +72,9 @@ namespace BatmanInfer {
 
         // 更新占用返回free
         occupied_blob_it->bound_elements.insert(obj);
-        occupied_blob_it->max_size      = std::max(occupied_blob_it->max_size, size);
+        occupied_blob_it->max_size = std::max(occupied_blob_it->max_size, size);
         occupied_blob_it->max_alignment = std::max(occupied_blob_it->max_alignment, alignment);
-        occupied_blob_it->id            = nullptr;
+        occupied_blob_it->id = nullptr;
         _free_blobs.splice(std::begin(_free_blobs), _occupied_blobs, occupied_blob_it);
 
         // 检查是否所有对象都已完成并重置活动组

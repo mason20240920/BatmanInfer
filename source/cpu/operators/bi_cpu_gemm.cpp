@@ -49,7 +49,7 @@ namespace BatmanInfer {
             const bool is_c_bias = beta == 1 && c != nullptr;
             const bool run_optimised =
                     bool(cpu::BICpuGemmAssemblyDispatch::validate(a, b, (is_c_bias) ? c : nullptr, d, asm_info)) &&
-                    (c == nullptr || beta == 0.f || beta == 1.f) && // Optimized GeMM doesn't support beta coefficient.
+                    (c == nullptr || beta == 0.f || beta == 1.f) && // 优化的 GeMM 不支持 beta 系数。
                     !(!b->are_values_constant() &&
                       b->tensor_shape().z() >
                       1); // Disable batch matmul as optimized GeMM handles batching differently.
@@ -126,7 +126,7 @@ namespace BatmanInfer {
                     _mm_kernel->configure(a, b_to_use, gemm_output_to_use, alpha, false);
                 } else {
                     BI_COMPUTE_ERROR_ON(!_run_interleave_transpose);
-                    // Configure interleave kernel
+                    // 配置内存交错的内核
                     _interleave_kernel = std::make_unique<cpu::kernels::BICpuGemmInterleave4x4Kernel>();
                     _interleave_kernel->configure(a, &_tmp_a);
                     _aux_mem[InterleavedLHS] =

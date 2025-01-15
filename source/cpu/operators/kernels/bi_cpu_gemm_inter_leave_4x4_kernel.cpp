@@ -87,10 +87,10 @@ namespace BatmanInfer {
                 BIWindow win_out(window);
                 win_out.set(BIWindow::DimX, BIWindow::BIDimension(0, 1, 1));
                 // 在 x 维度上设置步长为 1，在 y 维度上设置步长为 0.25 (因为交错存储会将 4 行压缩为 1 行)
-                win_out.set(BIWindow::DimY, 0.25f);
+                win_out.scale(BIWindow::DimY, 0.25f);
 
                 BIIterator in(src, win);
-                BIIterator out(src, win_out);
+                BIIterator out(dst, win_out);
 
                 execute_window_loop(
                         win,

@@ -33,10 +33,15 @@ namespace BatmanInfer {
         BIMemoryGroup &operator=(BIMemoryGroup &&) = default;
 
         void manage(BatmanInfer::BIIMemoryManageable *obj) override;
-        void finalize_memory(BatmanInfer::BIIMemoryManageable *obj, BatmanInfer::BIIMemory &obj_memory, size_t size, size_t alignment) override;
+
+        void finalize_memory(BatmanInfer::BIIMemoryManageable *obj, BatmanInfer::BIIMemory &obj_memory, size_t size,
+                             size_t alignment) override;
+
         void acquire() override;
+
         void release() override;
-        BIMemoryMappings & mappings() override;
+
+        BIMemoryMappings &mappings() override;
 
 
     private:
@@ -53,7 +58,7 @@ namespace BatmanInfer {
         /**
          * @brief 内存组的内存映射
          */
-        BIMemoryMappings  _mappings;
+        BIMemoryMappings _mappings;
 
         /**
          * @brief 是否内存管理器会在释放时候自动清理
@@ -61,8 +66,8 @@ namespace BatmanInfer {
         bool _auto_clear;
     };
 
-    inline BIMemoryGroup::BIMemoryGroup(std::shared_ptr<BIIMemoryManager> memory_manager) noexcept :
-    _memory_manager(memory_manager), _pool(nullptr), _mappings(), _auto_clear(false){
+    inline BIMemoryGroup::BIMemoryGroup(std::shared_ptr<BIIMemoryManager> memory_manager) noexcept:
+            _memory_manager(memory_manager), _pool(nullptr), _mappings(), _auto_clear(false) {
 
     }
 
@@ -85,6 +90,7 @@ namespace BatmanInfer {
                                                BatmanInfer::BIIMemory &obj_memory, size_t size, size_t alignment) {
         if (_memory_manager) {
             BI_COMPUTE_ERROR_ON(!_memory_manager->lifetime_manager());
+            // 释放内存模块
             _memory_manager->lifetime_manager()->end_life_time(obj, obj_memory, size, alignment);
         }
     }
