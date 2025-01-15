@@ -172,55 +172,36 @@ link_directories(${GLOG_LIBRARY_DIRS}
 )
 
 # 匹配指定目录下的所有 .cpp 文件（包括子目录）
-file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/data/core/neon/kernels/arm_gemm/*.cpp)
+file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/data/core/*.cpp)
+file(GLOB_RECURSE RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/neon/*.cpp)
 
 add_executable(BatmanInfer main.cpp
-        source/data/core/bi_tensor_info.cpp
-        source/data/core/bi_helpers.cpp
         source/runtime/bi_allocator.cpp
         source/runtime/bi_tensor_allocator.cpp
         source/runtime/bi_memory_manager_on_demand.cpp
         source/runtime/bi_i_siample_lifetime_manager.cpp
         source/runtime/bi_blob_lifetime_manager.cpp
         source/runtime/bi_blob_memory_pool.cpp
-        source/data/core/bi_error.cpp
         source/runtime/bi_pool_manager.cpp
-        source/data/core/bi_i_tensor.cpp
         source/runtime/bi_i_tensor_allocator.cpp
         source/runtime/bi_memory.cpp
-        source/data/core/bi_utils.cpp
         source/runtime/bi_tensor.cpp
         test/tensor_get_values.cpp
         source/runtime/bi_i_weights_manager.cpp
-        source/data/core/cpp/cpp_types.cpp
         source/common/cpu_info.cpp
         source/common/cpu_model.cpp
         source/common/cpu_isa_info.cpp
-        source/data/core/bi_i_tensor_pack.cpp
-        source/runtime/neon/bi_i_ne_operator.cpp
-        source/data/core/bi_i_kernel.cpp
         source/runtime/bi_i_scheduler.cpp
         source/runtime/bi_scheduler_utils.cpp
-        source/data/core/utils/logging/bi_logging_helpers.cpp
-        source/data/core/utils/logging/bi_logging_logger.cpp
-        source/data/core/utils/io/file_handler.cpp
-        source/data/core/utils/logging/bi_i_file_printer.cpp
-        source/data/core/utils/logging/bi_logging_logger_registry.cpp
         source/runtime/cpp/bi_cpp_scheduler.cpp
         source/runtime/omp/bi_imp_scheduler.cpp
         source/runtime/cpp/bi_single_thread_scheduler.cpp
         source/runtime/bi_scheduler.cpp
         source/cpu/operators/internal/cpu_gemm_assembly_dispatch.cpp
         source/cpu/operators/kernels/bi_cpu_transpose_kernel.cpp
-        source/data/core/helpers/bi_window_helpers.cpp
-        source/data/core/bi_validate.cpp
         source/cpu/operators/bi_cpu_transpose.cpp
-        source/runtime/neon/functions/bi_ne_transpose.cpp
-        source/data/core/utils/data_type_utils.cpp
         source/cpu/operators/kernels/bi_cpu_reshape_kernel.cpp
-        source/data/core/helpers/bi_utils.cpp
         source/cpu/operators/bi_cpu_reshape.cpp
-        source/runtime/neon/functions/bi_ne_reshape_layer.cpp
         source/cpu/operators/kernels/bi_cpu_gemm_inter_leave_4x4_kernel.cpp
         source/cpu/operators/kernels/bi_cpu_gemm_matrix_addition_kernel.cpp
         source/cpu/operators/kernels/gemm_matrix_add/generic/neon/fp32.cpp
@@ -236,9 +217,6 @@ add_executable(BatmanInfer main.cpp
         source/cpu/operators/kernels/activation/generic/neon/lut.cpp
         source/cpu/operators/kernels/activation/generic/neon/qasymm8.cpp
         source/cpu/operators/kernels/activation/generic/neon/qsymm16.cpp
-        source/data/core/utils/quantization/asymm_helpers.cpp
-        source/data/core/bi_rounding.cpp
-        source/data/core/utils/bi_math.cpp
         source/c/bcl_version.cpp
         source/common/bi_i_operator.cpp
         source/common/bi_i_tensor_v2.cpp
@@ -256,7 +234,6 @@ add_executable(BatmanInfer main.cpp
         source/c/bcl_tensor_pack.cpp
         source/cpu/operators/bi_cpu_activation.cpp
         source/cpu/operators/kernels/bi_cpu_activation_kernel.cpp
-        source/data/core/helpers/bi_lut_manager.cpp
         source/cpu/bi_cpu_tensor.cpp
         source/cpu/operators/kernels/activation/generic/neon/fp16.cpp
         source/cpu/operators/kernels/activation/generic/neon/fp32.cpp
@@ -270,9 +247,8 @@ add_executable(BatmanInfer main.cpp
         source/cpu/operators/kernels/bi_cpu_add_kernel.cpp
         source/cpu/operators/bi_cpu_add.cpp
         source/cpu/operators/bi_cpu_gemm.cpp
-        source/data/core/utils/bi_assembly_utils.cpp
         ${SOURCES}
-        source/runtime/neon/functions/bi_ne_gemm.cpp
+        ${RUNTIME_SOURCES}
         #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/a53.cpp
         #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/a55r1.cpp
         #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/generic.cpp

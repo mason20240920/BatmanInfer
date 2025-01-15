@@ -24,6 +24,7 @@
 #include <data/core/utils/misc/bi_shape_calculator.hpp>
 #include <cpu/kernels/bi_cpu_gemm_inter_leave_4x4_kernel.hpp>
 #include <runtime/neon/functions/bi_ne_gemm.hpp>
+#include <runtime/neon/functions/bi_ne_split.hpp>
 
 
 TEST(test_tensor_values, tensor_values1) {
@@ -573,6 +574,52 @@ TEST(BITensor, NEGEMM_exmaple_01) {
             std::cout << static_cast<float >(output_data[i * output_shape[0] + j]) << " ";
         }
         std::cout << std::endl;
+    }
+}
+
+TEST(BITensor, NESplit_example_02) {
+    // 创建输入张量
+    BITensor input_tensor;
+    const BITensorShape input_shape(2, 4);
+    input_tensor.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+
+    // Step 2: 创建输出张量列表（注意：需要声明为 const）
+    const unsigned int num_splits = 4; // 分割成 4 个张量
+    std::vector<BITensor> output_tensors(num_splits);
+    for (auto &tensor: output_tensors) {
+        BITensorShape output_shape = input_shape;
+        output_shape.set(1, input_shape[1] / num_splits); // 修改分割维度的大小
+        tensor.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F32));
+    }
+
+    // 将 output_tensors 转换为 Tensor* 数组
+    std::vector<BIITensor *> output_tensor_ptrs(num_splits);
+    for (unsigned int i = 0; i < num_splits; ++i) {
+        output_tensor_ptrs[i] = &output_tensors[i];
+    }
+
+    // Step 3: 配置 NESplit
+    BINESplit split_layer;
+    split_layer.configure(&input_tensor, output_tensor_ptrs, 1); // 按第二个维度分割
+
+    // Step 4: 分配内存
+    input_tensor.allocator()->allocate();
+    for (auto &tensor: output_tensors) {
+        tensor.allocator()->allocate();
+    }
+
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+    // Step 5: 运行 NESplit
+    split_layer.run();
+
+    std::cout << "NESplit executed successfully!" << std::endl;
+
+    for (auto &tensor: output_tensors) {
+        tensor.print(std::cout, format);
     }
 }
 

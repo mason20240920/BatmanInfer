@@ -197,29 +197,24 @@ namespace BatmanInfer {
              *
              * @return the extracted tensor shape
              */
-            template <typename T>
-            inline BITensorShape extract_shape(T *data)
-            {
+            template<typename T>
+            inline BITensorShape extract_shape(T *data) {
                 return data->info()->tensor_shape();
             }
 
-            inline BITensorShape extract_shape(BIITensorInfo *data)
-            {
+            inline BITensorShape extract_shape(BIITensorInfo *data) {
                 return data->tensor_shape();
             }
 
-            inline BITensorShape extract_shape(const BIITensorInfo *data)
-            {
+            inline BITensorShape extract_shape(const BIITensorInfo *data) {
                 return data->tensor_shape();
             }
 
-            inline BITensorShape extract_shape(const BITensorShape *data)
-            {
+            inline BITensorShape extract_shape(const BITensorShape *data) {
                 return *data;
             }
 
-            inline BITensorShape extract_shape(BITensorShape *data)
-            {
+            inline BITensorShape extract_shape(BITensorShape *data) {
                 return *data;
             }
 
@@ -231,16 +226,13 @@ namespace BatmanInfer {
              *
              * @return the calculated shape
              */
-            inline BITensorShape compute_reduced_shape(const BITensorShape &input, unsigned int axis, bool keep_dims = true)
-            {
+            inline BITensorShape
+            compute_reduced_shape(const BITensorShape &input, unsigned int axis, bool keep_dims = true) {
                 BITensorShape output_shape{input};
 
-                if (!keep_dims)
-                {
+                if (!keep_dims) {
                     output_shape.remove_dimension(axis);
-                }
-                else
-                {
+                } else {
                     output_shape.set(axis, 1);
                 }
 
@@ -254,22 +246,18 @@ namespace BatmanInfer {
              *
              * @return the calculated shape
              */
-            template <typename T>
-            inline BITensorShape calculate_concatenate_shape(const std::vector<T *> &input, size_t axis)
-            {
+            template<typename T>
+            inline BITensorShape calculate_concatenate_shape(const std::vector<T *> &input, size_t axis) {
                 BITensorShape out_shape = extract_shape(input[0]);
 
 #if defined(BI_COMPUTE_ASSERTS_ENABLED)
                 // All dimensions must match except the axis one
-                for (unsigned int i = 0; i < MAX_DIMS; ++i)
-                {
-                    if (i == axis)
-                    {
+                for (unsigned int i = 0; i < MAX_DIMS; ++i) {
+                    if (i == axis) {
                         continue;
                     }
 
-                    for (const auto &tensor : input)
-                    {
+                    for (const auto &tensor: input) {
                         BI_COMPUTE_ERROR_ON(tensor == nullptr);
                         const BITensorShape shape = extract_shape(tensor);
                         BI_COMPUTE_ERROR_ON(out_shape[i] != shape[i]);
@@ -279,8 +267,7 @@ namespace BatmanInfer {
 
                 // Calculate output shape
                 size_t new_size = 0;
-                for (const auto &tensor : input)
-                {
+                for (const auto &tensor: input) {
                     const BITensorShape shape = extract_shape(tensor);
                     new_size += shape[axis];
                 }
@@ -298,16 +285,17 @@ namespace BatmanInfer {
              *
              * @return the calculated shape
              */
-            inline BITensorShape compute_depth_to_space_shape(const BITensorShape &input_shape, BIDataLayout data_layout, int block)
-            {
+            inline BITensorShape
+            compute_depth_to_space_shape(const BITensorShape &input_shape, BIDataLayout data_layout, int block) {
                 BI_COMPUTE_ERROR_ON(block < 2);
 
                 // const int idx_width   = get_data_layout_dimension_index(data_layout, BIDataLayoutDimension::WIDTH);
                 // const int idx_height  = get_data_layout_dimension_index(data_layout, BIDataLayoutDimension::HEIGHT);
                 // const int idx_channel = get_data_layout_dimension_index(data_layout, BIDataLayoutDimension::CHANNEL);
-                const int idx_width   = static_cast<int>(get_data_layout_dimension_index(BIDataLayoutDimension::WIDTH));
-                const int idx_height  = static_cast<int>(get_data_layout_dimension_index(BIDataLayoutDimension::HEIGHT));
-                const int idx_channel = static_cast<int>(get_data_layout_dimension_index(BIDataLayoutDimension::CHANNEL));
+                const int idx_width = static_cast<int>(get_data_layout_dimension_index(BIDataLayoutDimension::WIDTH));
+                const int idx_height = static_cast<int>(get_data_layout_dimension_index(BIDataLayoutDimension::HEIGHT));
+                const int idx_channel = static_cast<int>(get_data_layout_dimension_index(
+                        BIDataLayoutDimension::CHANNEL));
 
                 BITensorShape output_shape{input_shape};
                 output_shape.set(idx_width, input_shape[idx_width] * block);
@@ -326,8 +314,8 @@ namespace BatmanInfer {
              * @return the calculated shape
              */
             inline BITensorShape
-            compute_slice_shape(const BITensorShape &input_shape, const BICoordinates &starts, const BICoordinates &ends)
-            {
+            compute_slice_shape(const BITensorShape &input_shape, const BICoordinates &starts,
+                                const BICoordinates &ends) {
                 using namespace BatmanInfer::helpers::tensor_transform;
 
                 return compute_strided_slice_output_shape(input_shape, starts, ends, BiStrides(), 0,
@@ -342,8 +330,8 @@ namespace BatmanInfer {
              *
              * @return the calculated shape
              */
-            inline BITensorShape compute_stack_shape(const BIITensorInfo &a, unsigned int axis, unsigned int num_tensors)
-            {
+            inline BITensorShape
+            compute_stack_shape(const BIITensorInfo &a, unsigned int axis, unsigned int num_tensors) {
                 BI_COMPUTE_ERROR_ON(axis > a.num_dimensions());
                 BI_COMPUTE_ERROR_ON(a.num_dimensions() > 4);
 
@@ -352,16 +340,57 @@ namespace BatmanInfer {
 
                 unsigned int i_shift = 0;
 
-                for (unsigned int i = 0; i < a.num_dimensions(); ++i)
-                {
-                    if (i == axis)
-                    {
+                for (unsigned int i = 0; i < a.num_dimensions(); ++i) {
+                    if (i == axis) {
                         i_shift++;
                     }
 
                     shape_out.set(i + i_shift, a.tensor_shape()[i]);
                 }
                 return shape_out;
+            }
+
+            /**
+             * 计算一个张量的输出形状
+             *
+             * @param input 输入张量信息
+             * @param axis  需要进行切分的轴
+             * @param num_splits  切分的数量
+             * @return
+             */
+            inline BITensorShape compute_split_shape(const BIITensorInfo *input,
+                                                     unsigned int axis,
+                                                     unsigned int num_splits) {
+                BITensorShape empty_shape;
+                empty_shape.set(0, 0);
+
+                BITensorShape out_shape(input->tensor_shape());
+
+                // 如果轴维度不合理，返回空shape
+                if (axis > input->tensor_shape().num_dimensions())
+                    return empty_shape;
+
+                size_t axis_size = out_shape[axis];
+
+                // 如果数字的切分不合理返回空形状
+                if (axis_size % num_splits)
+                    return empty_shape;
+
+                out_shape[axis] = axis_size / num_splits;
+                return out_shape;
+            }
+
+            inline BITensorShape compute_strided_slice_shape(const BIITensorInfo &input,
+                                                             const BICoordinates &starts,
+                                                             const BICoordinates &ends,
+                                                             const BICoordinates &strides,
+                                                             int32_t begin_mask,
+                                                             int32_t end_mask,
+                                                             int32_t shrink_axis_mask) {
+                using namespace BatmanInfer::helpers::tensor_transform;
+                return compute_strided_slice_output_shape(input.tensor_shape(), starts, ends, strides, begin_mask,
+                                                          end_mask,
+                                                          shrink_axis_mask);
             }
 
         }
