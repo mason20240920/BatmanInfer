@@ -331,6 +331,13 @@ namespace BatmanInfer {
         AREA, /**< Output values are determined by averaging the source pixels whose areas fall under the area of the destination pixel, projected onto the source image */
     };
 
+    /** Available FuseBatchNormalizationType*/
+    enum class BIFuseBatchNormalizationType
+    {
+        CONVOLUTION,         /**< For Convolution weights */
+        DEPTHWISECONVOLUTION /**< For Depthwise Convolution weights*/
+    };
+
     /** Detection Output layer info */
     class BIDetectionOutputLayerInfo final {
     public:
