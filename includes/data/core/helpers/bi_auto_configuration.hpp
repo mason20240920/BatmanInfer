@@ -29,6 +29,22 @@ namespace BatmanInfer {
         return false;
     }
 
+    inline bool auto_init_if_empty(BIITensorInfo &info,
+                                   const BITensorShape &shape,
+                                   int num_channels,
+                                   BIDataType data_type,
+                                   const BIQuantizationInfo &quantization_info = BIQuantizationInfo()) {
+        if (info.tensor_shape().total_size() == 0) {
+            info.set_data_type(data_type);
+            info.set_num_channels(num_channels);
+            info.set_tensor_shape(shape);
+            info.set_quantization_info(quantization_info);
+            return true;
+        }
+
+        return false;
+    }
+
     /**
      * Set the shape to the specified value if the current assignment is empty.
      * @param info
