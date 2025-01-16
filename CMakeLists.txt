@@ -174,6 +174,7 @@ link_directories(${GLOG_LIBRARY_DIRS}
 # 匹配指定目录下的所有 .cpp 文件（包括子目录）
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/data/core/*.cpp)
 file(GLOB_RECURSE RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/neon/*.cpp)
+file(GLOB_RECURSE CPU_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/cpu/*.cpp)
 
 add_executable(BatmanInfer main.cpp
         source/runtime/bi_allocator.cpp
@@ -197,33 +198,11 @@ add_executable(BatmanInfer main.cpp
         source/runtime/omp/bi_imp_scheduler.cpp
         source/runtime/cpp/bi_single_thread_scheduler.cpp
         source/runtime/bi_scheduler.cpp
-        source/cpu/operators/internal/cpu_gemm_assembly_dispatch.cpp
-        source/cpu/operators/kernels/bi_cpu_transpose_kernel.cpp
-        source/cpu/operators/bi_cpu_transpose.cpp
-        source/cpu/operators/kernels/bi_cpu_reshape_kernel.cpp
-        source/cpu/operators/bi_cpu_reshape.cpp
-        source/cpu/operators/kernels/bi_cpu_gemm_inter_leave_4x4_kernel.cpp
-        source/cpu/operators/kernels/bi_cpu_gemm_matrix_addition_kernel.cpp
-        source/cpu/operators/kernels/gemm_matrix_add/generic/neon/fp32.cpp
-        source/cpu/operators/kernels/gemm_matrix_add/generic/neon/impl.cpp
-        source/cpu/operators/kernels/gemm_matrix_add/generic/neon/fp16.cpp
-        source/cpu/operators/kernels/bi_cpu_gemm_matrix_multiply_kernel.cpp
-        source/cpu/operators/kernels/gemm_matrix_mul/generic/neon/fp32.cpp
-        source/cpu/operators/kernels/gemm_matrix_mul/generic/neon/mul.cpp
-        source/cpu/operators/kernels/gemm_matrix_mul/generic/neon/fp16.cpp
-        source/cpu/operators/kernels/bi_cpu_gemm_transpose_1xw_kernel.cpp
-        source/cpu/operators/kernels/activation/heuristics/bi_cpu_activation_kernel_heuristics.cpp
-        source/cpu/operators/kernels/lut/generic/neon/u8.cpp
-        source/cpu/operators/kernels/activation/generic/neon/lut.cpp
-        source/cpu/operators/kernels/activation/generic/neon/qasymm8.cpp
-        source/cpu/operators/kernels/activation/generic/neon/qsymm16.cpp
         source/c/bcl_version.cpp
         source/common/bi_i_operator.cpp
         source/common/bi_i_tensor_v2.cpp
         source/c/bcl_tensor.cpp
         source/common/bi_allocator_wrapper.cpp
-        source/cpu/bi_cpu_context.cpp
-        source/cpu/bi_cpu_queue.cpp
         source/c/operators/bcl_activation.cpp
         source/common/utils/bi_legacy_support.cpp
         source/common/bi_tensor_pack.cpp
@@ -232,27 +211,9 @@ add_executable(BatmanInfer main.cpp
         source/c/bcl_operators.cpp
         source/c/bcl_queue.cpp
         source/c/bcl_tensor_pack.cpp
-        source/cpu/operators/bi_cpu_activation.cpp
-        source/cpu/operators/kernels/bi_cpu_activation_kernel.cpp
-        source/cpu/bi_cpu_tensor.cpp
-        source/cpu/operators/kernels/activation/generic/neon/fp16.cpp
-        source/cpu/operators/kernels/activation/generic/neon/fp32.cpp
-        source/cpu/operators/kernels/add/impl.cpp
-        source/cpu/operators/kernels/add/fp16.cpp
-        source/cpu/operators/kernels/add/fp32.cpp
-        source/cpu/operators/kernels/add/integer.cpp
-        source/cpu/operators/kernels/add/qasymm8.cpp
-        source/cpu/operators/kernels/add/qasymm8_signed.cpp
-        source/cpu/operators/kernels/add/qsymm16.cpp
-        source/cpu/operators/kernels/bi_cpu_add_kernel.cpp
-        source/cpu/operators/bi_cpu_add.cpp
-        source/cpu/operators/bi_cpu_gemm.cpp
         ${SOURCES}
         ${RUNTIME_SOURCES}
-        #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/a53.cpp
-        #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/a55r1.cpp
-        #        source/data/core/neon/kernels/arm_gemm/kernels/a32_sgemm_8x6/generic.cpp
-        #        includes/data/core/neon/kernels/arm_gemm/gemm_implementation.hpp
+        ${CPU_SOURCES}
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
         #        source/onnx_conv/OnnxUtils.cpp

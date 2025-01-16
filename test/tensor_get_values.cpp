@@ -25,6 +25,8 @@
 #include <cpu/kernels/bi_cpu_gemm_inter_leave_4x4_kernel.hpp>
 #include <runtime/neon/functions/bi_ne_gemm.hpp>
 #include <runtime/neon/functions/bi_ne_split.hpp>
+#include "runtime/neon/functions/bi_ne_mat_mul.hpp"
+#include <function_info/bi_MatMulInfo.h>
 
 
 TEST(test_tensor_values, tensor_values1) {
@@ -621,5 +623,80 @@ TEST(BITensor, NESplit_example_02) {
     for (auto &tensor: output_tensors) {
         tensor.print(std::cout, format);
     }
+}
+
+void print_tensor_qasymm8(const BITensor &tensor) {
+    // 获取张量的量化信息
+    auto quant_info = tensor.info()->quantization_info();
+    float scale = quant_info.uniform().scale;  // 量化比例因子
+    int32_t offset = quant_info.uniform().offset; // 量化零点
+
+    // 获取张量形状
+    const BITensorShape &shape = tensor.info()->tensor_shape();
+    size_t width = shape[0];
+    size_t height = shape[1];
+
+    // 获取张量数据指针
+    const uint8_t *data = reinterpret_cast<const uint8_t *>(tensor.buffer());
+
+    // 打印张量数据（反量化为浮点值）
+    std::cout << "BITensor (QASYMM8, dequantized):" << std::endl;
+    for (size_t y = 0; y < height; ++y) {
+        for (size_t x = 0; x < width; ++x) {
+            // 反量化公式：real_value = scale * (quantized_value - offset)
+            float real_value = scale * (static_cast<int32_t>(data[y * width + x]) - offset);
+            std::cout << std::fixed << std::setprecision(4) << real_value << " ";
+        }
+        std::cout << std::endl;
+    }
+}
+
+TEST(BITensor, NEMatMul_example_01) {
+    // 定义输入和输出张量的形状
+    BITensorShape shape_a(3, 2); // 左矩阵 (3x2)
+    BITensorShape shape_b(4, 2); // 右矩阵 (4x2)，需要转置为 (2x4)
+    BITensorShape shape_c(4, 3); // 输出矩阵 (4x3)
+
+    // 创建输入和输出张量
+    BITensor tensor_a, tensor_b, tensor_c;
+
+    // 配置张量
+    tensor_a.allocator()->init(BITensorInfo(shape_a, 1, BIDataType::QASYMM8, BIQuantizationInfo(0.5f, 128)));
+    tensor_b.allocator()->init(BITensorInfo(shape_b, 1, BIDataType::QASYMM8, BIQuantizationInfo(0.25f, 128)));
+    tensor_c.allocator()->init(BITensorInfo(shape_c, 1, BIDataType::QASYMM8, BIQuantizationInfo(0.125f, 128)));
+
+    tensor_a.info()->set_are_values_constant(false);
+    tensor_b.info()->set_are_values_constant(false);
+    // 定义 MatMul 配置信息
+    BIMatMulInfo matmul_info; // 不转置左矩阵，转置右矩阵
+    matmul_info.adj_lhs(true).adj_rhs(false);
+    BICpuMatMulSettings settings;
+    settings.fast_math(true); // 启用快速数学模式
+
+    // 定义激活函数信息（可选）
+//    BIActivationLayerInfo act_info(BIActivationLayerInfo::ActivationFunction::RELU);
+
+    // 创建 MatMul 操作对象
+    BINEMatMul matmul;
+
+    // 配置 MatMul 操作
+    matmul.configure(&tensor_a, &tensor_b, &tensor_c, matmul_info, settings);
+
+    // 分配内存
+    tensor_a.allocator()->allocate();
+    tensor_b.allocator()->allocate();
+    tensor_c.allocator()->allocate();
+
+    // 填充输入张量数据
+    auto a_ptr = tensor_a.buffer();
+    auto b_ptr = tensor_b.buffer();
+    for (int i = 0; i < shape_a.total_size(); ++i) {
+        a_ptr[i] = 128 + i; // 示例数据
+    }
+    for (int i = 0; i < shape_b.total_size(); ++i) {
+        b_ptr[i] = 128 + 2 * i; // 示例数据
+    }
+
+    print_tensor_qasymm8(tensor_a);
 }
 
