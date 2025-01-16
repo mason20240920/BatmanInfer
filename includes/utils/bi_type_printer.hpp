@@ -298,6 +298,35 @@ namespace BatmanInfer {
         str << "ITensor.info(): " << tensor.info();
         return str.str();
     }
+
+    /** Formatted output of the QuantizationInfo type.
+     *
+     * @param[out] os    Output stream.
+     * @param[in]  qinfo Type to output.
+     *
+     * @return Modified output stream.
+     */
+    inline ::std::ostream &operator<<(::std::ostream &os, const BIQuantizationInfo &qinfo)
+    {
+        const BIUniformQuantizationInfo uqinfo = qinfo.uniform();
+        os << "Scale:" << uqinfo.scale << "~";
+        os << "Offset:" << uqinfo.offset;
+        return os;
+    }
+
+    /** Formatted output of the QuantizationInfo type.
+     *
+     * @param[in] quantization_info Type to output.
+     *
+     * @return Formatted string.
+     */
+    inline std::string to_string(const BIQuantizationInfo &quantization_info)
+    {
+        std::stringstream str;
+        str << quantization_info;
+        return str.str();
+    }
+
 }
 
 #endif //BATMANINFER_BI_TYPE_PRINTER_HPP

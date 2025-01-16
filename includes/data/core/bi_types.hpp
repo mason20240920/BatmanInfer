@@ -1435,6 +1435,17 @@ namespace BatmanInfer {
         TOP_LEFT /**< Samples are taken at pixel top left corner */
     };
 
+    /** Available ConvolutionMethod*/
+    enum class BIConvolutionMethod
+    {
+        GEMM,        /**< Convolution using GEMM */
+        GEMM_CONV2D, /**< Direct 2D GEMM convolution */
+        DIRECT,      /**< Direct convolution */
+        INDIRECT,    /**< Indirect convolution */
+        WINOGRAD,    /**< Convolution using Winograd */
+        FFT          /**< Convolution using FFT */
+    };
+
 }
 
 #endif //BATMANINFER_BI_TYPES_HPP
