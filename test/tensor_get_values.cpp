@@ -27,6 +27,7 @@
 #include <runtime/neon/functions/bi_ne_split.hpp>
 #include "runtime/neon/functions/bi_ne_mat_mul.hpp"
 #include <function_info/bi_MatMulInfo.h>
+#include <runtime/neon/functions/bi_ne_elementwise_operations.hpp>
 
 
 TEST(test_tensor_values, tensor_values1) {
@@ -698,5 +699,30 @@ TEST(BITensor, NEMatMul_example_01) {
     }
 
     print_tensor_qasymm8(tensor_a);
+}
+
+TEST(BITensor, NEMat_example_01) {
+    // 定义张量形状
+    BITensorShape shape(4, 4); // 4x4 张量
+
+    // 创建输入和输出张量
+    BITensor input1, input2, output;
+
+    // 初始化张量
+    input1.allocator()->init(BITensorInfo(shape, 1, BIDataType::F32));
+    input2.allocator()->init(BITensorInfo(shape, 1, BIDataType::F32));
+    output.allocator()->init(BITensorInfo(shape, 1, BIDataType::F32));
+
+    // 创建逐元素乘法算子
+    BINEElementwiseMul mul_op;
+
+    // 配置算子
+    mul_op.configure(&input1, &input2, &output, BIConvertPolicy::SATURATE);
+
+    // 分配内存
+    input1.allocator()->allocate();
+    input2.allocator()->allocate();
+    output.allocator()->allocate();
+
 }
 
