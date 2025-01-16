@@ -332,8 +332,7 @@ namespace BatmanInfer {
     };
 
     /** Available FuseBatchNormalizationType*/
-    enum class BIFuseBatchNormalizationType
-    {
+    enum class BIFuseBatchNormalizationType {
         CONVOLUTION,         /**< For Convolution weights */
         DEPTHWISECONVOLUTION /**< For Depthwise Convolution weights*/
     };
@@ -1435,6 +1434,27 @@ namespace BatmanInfer {
         TOP_LEFT /**< Samples are taken at pixel top left corner */
     };
 
+    /** Available element-wise operations */
+    enum class ArithmeticOperation {
+        ADD,          /**< (x + y) */
+        SUB,          /**< (x  - y) */
+        DIV,          /**< (x / y) */
+        MIN,          /**< Min(x, y) */
+        MAX,          /**< Max(x, y) */
+        SQUARED_DIFF, /**< (x - y)^2 */
+        POWER,        /**< x ^ y */
+        PRELU,        /**< y*x if x < 0, x otherwise */
+    };
+
+    /** Supported comparison operations */
+    enum class ComparisonOperation {
+        Equal,        /**< Equal comparison ( \f$ x == y \f$ ) */
+        NotEqual,     /**< NotEqual comparison ( \f$ x != y \f$ ) */
+        Greater,      /**< Greater comparison ( \f$ x > y \f$ ) */
+        GreaterEqual, /**< Greater equal comparison ( \f$ x >= y \f$ ) */
+        Less,         /**< Less comparison ( \f$ x < y \f$ ) */
+        LessEqual     /**< Less equal comparison ( \f$ x <= y \f$ ) */
+    };
 }
 
 #endif //BATMANINFER_BI_TYPES_HPP

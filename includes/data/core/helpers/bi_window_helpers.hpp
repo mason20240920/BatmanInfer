@@ -80,6 +80,18 @@ namespace BatmanInfer {
      */
     std::pair<BIWindow, size_t> calculate_squashed_or_max_window(const BIITensorInfo &src0, const BIITensorInfo &src1);
 
+    /** Function to compute the shape of output and window for the given inputs
+      *
+      * @param[in] infos Input tensor information
+      *
+      * @return A pair of the shape and window
+      */
+    template<typename... Shapes>
+    std::pair<BITensorShape, BIWindow> compute_output_shape_and_window(const Shapes &...shapes) {
+        const BITensorShape out_shape = BITensorShape::broadcast_shape(shapes...);
+        return std::make_pair(out_shape, calculate_max_window(out_shape));
+    }
+
 #endif
 }
 
