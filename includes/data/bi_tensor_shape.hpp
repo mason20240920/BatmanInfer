@@ -139,12 +139,23 @@ namespace BatmanInfer {
          * @param[in] n     Number of dimensions to collapse into @p first
          * @param[in] first Dimensions into which the following @p n are collapsed.
          */
-        void collapse(size_t n, size_t first = 0)
-        {
+        void collapse(size_t n, size_t first = 0) {
             BIDimensions::collapse(n, first);
 
             // Make sure all empty dimensions are filled with 1
             std::fill(_id.begin() + _num_dimensions, _id.end(), 1);
+        }
+
+        /** Return a copy with collapsed dimensions starting from a given point.
+          *
+          * @param[in] start Starting point of collapsing dimensions.
+          *
+          * @return A copy with collapse dimensions starting from start.
+          */
+        BITensorShape collapsed_from(size_t start) const {
+            BITensorShape copy(*this);
+            copy.collapse(num_dimensions() - start, start);
+            return copy;
         }
 
         /** Accessor to set the value of one of the dimensions.
@@ -156,8 +167,8 @@ namespace BatmanInfer {
          *
          * @return *this.
          */
-        BITensorShape &set(size_t dimension, size_t value, bool apply_dim_correction = true, bool increase_dim_unit = true)
-        {
+        BITensorShape &
+        set(size_t dimension, size_t value, bool apply_dim_correction = true, bool increase_dim_unit = true) {
             // Make sure all empty dimensions are filled with 1
             std::fill(_id.begin() + _num_dimensions, _id.end(), 1);
 
@@ -166,8 +177,7 @@ namespace BatmanInfer {
             BIDimensions::set(dimension, value, increase_dim_unit);
 
             // Correct number dimensions to ignore trailing dimensions of size 1
-            if (apply_dim_correction)
-            {
+            if (apply_dim_correction) {
                 apply_dimension_correction();
             }
             return *this;
