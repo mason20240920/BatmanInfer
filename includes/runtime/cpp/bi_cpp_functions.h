@@ -6,3 +6,4 @@
 
 /* Header regrouping all the CPP functions */
 #include "runtime/cpp/functions/bi_cpp_split.hpp"
+#include "runtime/cpp/functions/bi_cpp_upsample.h"
