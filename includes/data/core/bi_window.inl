@@ -108,7 +108,9 @@ namespace BatmanInfer {
         return collapsed;
     }
 
+    // 小于1的维度都进行广播设置
     inline BIWindow BIWindow::broadcast_if_dimension_le_one(const BITensorShape &shape) const {
+        // 进行广播维度设置
         BIWindow broadcastWin(*this);
         for (size_t d = 0; d < BITensorShape::num_max_dimensions; ++d) {
             if (shape[d] <= 1) {

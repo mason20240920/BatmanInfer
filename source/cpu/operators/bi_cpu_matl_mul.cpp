@@ -174,7 +174,7 @@ namespace BatmanInfer {
                                     const BICpuMatMulSettings &settings,
                                     const BIActivationLayerInfo &act_info) {
             BI_COMPUTE_ERROR_ON_NULLPTR(lhs, rhs, dst);
-//            BI_COMPUTE_LOG_PARAMS(lhs, rhs, dst, info, settings);
+            BI_COMPUTE_LOG_PARAMS(lhs, rhs, dst, info, settings);
             BI_COMPUTE_ERROR_THROW_ON(BICpuMatMul::validate(lhs, rhs, dst, info, settings));
 
             _adj_lhs = info.adj_lhs();

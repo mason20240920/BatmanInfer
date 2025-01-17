@@ -11,6 +11,8 @@
 #include <data/core/bi_types.hpp>
 #include <data/core/bi_tensor_info.hpp>
 #include <data/core/utils/data_type_utils.hpp>
+#include "function_info/bi_MatMulInfo.h"
+#include "runtime/neon/functions/bi_ne_mat_mul.hpp"
 
 namespace BatmanInfer {
     /** Formatted output if arg is not null
@@ -130,6 +132,12 @@ namespace BatmanInfer {
         }
 
         return os;
+    }
+
+    inline std::string to_string(const BIRoundingPolicy &rounding_policy) {
+        std::stringstream str;
+        str << rounding_policy;
+        return str.str();
     }
 
 /** Formatted output of the WeightsInfo type.
@@ -306,8 +314,7 @@ namespace BatmanInfer {
      *
      * @return Modified output stream.
      */
-    inline ::std::ostream &operator<<(::std::ostream &os, const BIQuantizationInfo &qinfo)
-    {
+    inline ::std::ostream &operator<<(::std::ostream &os, const BIQuantizationInfo &qinfo) {
         const BIUniformQuantizationInfo uqinfo = qinfo.uniform();
         os << "Scale:" << uqinfo.scale << "~";
         os << "Offset:" << uqinfo.offset;
@@ -320,13 +327,193 @@ namespace BatmanInfer {
      *
      * @return Formatted string.
      */
-    inline std::string to_string(const BIQuantizationInfo &quantization_info)
-    {
+    inline std::string to_string(const BIQuantizationInfo &quantization_info) {
         std::stringstream str;
         str << quantization_info;
         return str.str();
     }
 
+    inline ::std::ostream &operator<<(::std::ostream &os, const BIConvertPolicy &policy) {
+        switch (policy) {
+            case BIConvertPolicy::WRAP:
+                os << "WRAP";
+                break;
+            case BIConvertPolicy::SATURATE:
+                os << "SATURATE";
+                break;
+            default:
+                BI_COMPUTE_ERROR("NOT_SUPPORTED!");
+        }
+
+        return os;
+    }
+
+
+    inline std::string to_string(const BIConvertPolicy &policy) {
+        std::stringstream str;
+        str << policy;
+        return str.str();
+    }
+
+    inline ::std::ostream &
+    operator<<(::std::ostream &os, const BIActivationLayerInfo::ActivationFunction &act_function) {
+        switch (act_function) {
+            case BIActivationLayerInfo::ActivationFunction::ABS:
+                os << "ABS";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::LINEAR:
+                os << "LINEAR";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::LOGISTIC:
+                os << "LOGISTIC";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::RELU:
+                os << "RELU";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::BOUNDED_RELU:
+                os << "BOUNDED_RELU";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::LEAKY_RELU:
+                os << "LEAKY_RELU";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::SOFT_RELU:
+                os << "SOFT_RELU";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::SQRT:
+                os << "SQRT";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::LU_BOUNDED_RELU:
+                os << "LU_BOUNDED_RELU";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::ELU:
+                os << "ELU";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::SQUARE:
+                os << "SQUARE";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::TANH:
+                os << "TANH";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::IDENTITY:
+                os << "IDENTITY";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::HARD_SWISH:
+                os << "HARD_SWISH";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::SWISH:
+                os << "SWISH";
+                break;
+            case BIActivationLayerInfo::ActivationFunction::GELU:
+                os << "GELU";
+                break;
+
+            default:
+                BI_COMPUTE_ERROR("NOT_SUPPORTED!");
+        }
+
+        return os;
+    }
+
+/** Formatted output of the activation function info type.
+ *
+ * @param[in] info ActivationLayerInfo to output.
+ *
+ * @return Formatted string.
+ */
+    inline std::string to_string(const BatmanInfer::BIActivationLayerInfo &info) {
+        std::stringstream str;
+        if (info.enabled()) {
+            str << info.activation();
+        }
+        return str.str();
+    }
+
+    inline ::std::ostream &operator<<(::std::ostream &os, const GEMMInfo &info) {
+        os << "{is_a_reshaped=" << info.is_a_reshaped() << ",";
+        os << "is_b_reshaped=" << info.is_b_reshaped() << ",";
+        os << "reshape_b_only_on_first_run=" << info.reshape_b_only_on_first_run() << ",";
+        os << "depth_output_gemm3d=" << info.depth_output_gemm3d() << ",";
+        os << "reinterpret_input_as_3d=" << info.reinterpret_input_as_3d() << ",";
+        os << "retain_internal_weights=" << info.retain_internal_weights() << ",";
+        os << "fp_mixed_precision=" << info.fp_mixed_precision() << ",";
+        os << "broadcast_bias=" << info.broadcast_bias() << ",";
+        os << "pretranspose_B=" << info.pretranspose_B() << ",";
+        os << "}";
+
+        return os;
+    }
+
+    inline std::string to_string(const GEMMInfo &info) {
+        std::stringstream str;
+        str << info;
+        return str.str();
+    }
+
+    /** Formatted output of the Coordinates type.
+     *
+     * @param[in] coord Type to output.
+     *
+     * @return Formatted string.
+    */
+    inline std::string to_string(const BICoordinates &coord) {
+        std::stringstream str;
+        str << coord;
+        return str.str();
+    }
+
+    /** Formatted output of the arm_compute::MatMulInfo type.
+     *
+     * @param[out] os          Output stream.
+     * @param[in]  matmul_info arm_compute::MatMulInfo  type to output.
+     *
+     * @return Modified output stream.
+     */
+    inline ::std::ostream &operator<<(::std::ostream &os, const BatmanInfer::BIMatMulInfo &matmul_info) {
+        os << "MatMulKernelInfo="
+           << "["
+           << "adj_lhs=" << matmul_info.adj_lhs() << ", "
+           << "adj_rhs=" << matmul_info.adj_rhs() << "] ";
+        return os;
+    }
+
+    /** Formatted output of the arm_compute::MatMulInfo type.
+     *
+     * @param[in] matmul_info arm_compute::MatMulInfo type to output.
+     *
+     * @return Formatted string.
+    */
+    inline std::string to_string(const BatmanInfer::BIMatMulInfo &matmul_info) {
+        std::stringstream str;
+        str << matmul_info;
+        return str.str();
+    }
+
+    /** Formatted output of the arm_compute::CpuMatMulSettings type.
+     *
+     * @param[out] os       Output stream.
+     * @param[in]  settings arm_compute::CpuMatMulSettings type to output.
+     *
+     * @return Modified output stream.
+     */
+    inline ::std::ostream &operator<<(::std::ostream &os, const BatmanInfer::BICpuMatMulSettings &settings) {
+        os << "CpuMatMulSettings="
+           << "["
+           << "fast_math=" << settings.fast_math() << ",fixed_format=" << settings.fixed_format() << "]";
+
+        return os;
+    }
+
+    /** Formatted output of the arm_compute::CpuMatMulSettings type.
+     *
+     * @param[in] settings arm_compute::CpuMatMulSettings type to output.
+     *
+     * @return Formatted string.
+     */
+    inline std::string to_string(const BatmanInfer::BICpuMatMulSettings &settings) {
+        std::stringstream str;
+        str << settings;
+        return str.str();
+    }
 }
 
 #endif //BATMANINFER_BI_TYPE_PRINTER_HPP

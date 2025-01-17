@@ -19,7 +19,7 @@ namespace BatmanInfer {
                                   const BICoordinates &starts,
                                   const BICoordinates &ends) {
             BI_COMPUTE_ERROR_ON_NULLPTR(input);
-//            BI_COMPUTE_LOG_PARAMS(input, output, starts, ends);
+            BI_COMPUTE_LOG_PARAMS(input, output, starts, ends);
 
             // Get absolute end coordinates
             const int32_t slice_end_mask = BatmanInfer::helpers::tensor_transform::construct_slice_end_mask(ends);

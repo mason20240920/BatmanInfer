@@ -27,7 +27,7 @@
 #include <runtime/neon/functions/bi_ne_split.hpp>
 #include "runtime/neon/functions/bi_ne_mat_mul.hpp"
 #include <function_info/bi_MatMulInfo.h>
-#include <runtime/neon/functions/bi_ne_elementwise_operations.hpp>
+#include <runtime/neon/functions/ne_pixel_wise_multiplication.hpp>
 
 
 TEST(test_tensor_values, tensor_values1) {
@@ -701,28 +701,49 @@ TEST(BITensor, NEMatMul_example_01) {
     print_tensor_qasymm8(tensor_a);
 }
 
-TEST(BITensor, NEMat_example_01) {
-    // 定义张量形状
-    BITensorShape shape(4, 4); // 4x4 张量
+TEST(BITensor, NEMul_example_01) {
+    using namespace BatmanInfer;
+    // 1. 创建张量形状和量化参数
+    BITensorShape shape(32, 32);  // 示例大小为32x32
+
+    // 初始化张量信息
+    BITensorInfo tensor_info(shape, 1, BIDataType::F32);
 
     // 创建输入和输出张量
-    BITensor input1, input2, output;
-
-    // 初始化张量
-    input1.allocator()->init(BITensorInfo(shape, 1, BIDataType::F32));
-    input2.allocator()->init(BITensorInfo(shape, 1, BIDataType::F32));
-    output.allocator()->init(BITensorInfo(shape, 1, BIDataType::F32));
-
-    // 创建逐元素乘法算子
-    BINEElementwiseMul mul_op;
-
-    // 配置算子
-    mul_op.configure(&input1, &input2, &output, BIConvertPolicy::SATURATE);
+    BITensor src1, src2, dst;
+    src1.allocator()->init(tensor_info);
+    src2.allocator()->init(tensor_info);
+    dst.allocator()->init(tensor_info);
 
     // 分配内存
-    input1.allocator()->allocate();
-    input2.allocator()->allocate();
-    output.allocator()->allocate();
+    src1.allocator()->allocate();
+    src2.allocator()->allocate();
+    dst.allocator()->allocate();
 
+    // 填充输入张量的数据
+    float *src1_ptr = reinterpret_cast<float *>(src1.buffer());
+    float *src2_ptr = reinterpret_cast<float *>(src2.buffer());
+    for (size_t i = 0; i < shape.total_size(); ++i) {
+        src1_ptr[i] = static_cast<float>(i + 1); // src1: 1, 2, 3, ...
+        src2_ptr[i] = static_cast<float>(2);     // src2: 全部填充为 2
+    }
+
+    BINEPixelWiseMultiplication multiply;
+    multiply.configure(&src1, &src2, &dst, 1.0f, BIConvertPolicy::SATURATE, BIRoundingPolicy::TO_ZERO);
+
+    // 运行算子
+    multiply.run();
+
+    // 验证输出张量的数据
+    float *dst_ptr = reinterpret_cast<float *>(dst.buffer());
+    for (size_t i = 0; i < shape.total_size(); ++i)
+        EXPECT_FLOAT_EQ(dst_ptr[i], src1_ptr[i] * src2_ptr[i]); // 验证结果
+
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+    dst.print(std::cout, format);
 }
 

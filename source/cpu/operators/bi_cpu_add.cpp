@@ -17,7 +17,7 @@ namespace BatmanInfer {
                                  BIConvertPolicy policy,
                                  const BIActivationLayerInfo &act_info) {
             BI_COMPUTE_UNUSED(act_info);
-//            BI_COMPUTE_LOG_PARAMS(src0, src1, dst, policy, act_info);
+            BI_COMPUTE_LOG_PARAMS(src0, src1, dst, policy, act_info);
             auto k = std::make_unique<kernels::BICpuAddKernel>();
             k->configure(src0, src1, dst, policy);
             _kernel = std::move(k);

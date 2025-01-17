@@ -9,9 +9,12 @@ namespace BatmanInfer {
 
     template<size_t dimension>
     struct IncrementIterators {
+        // 有参数版本: 处理一个或多个迭代器
         template<typename T, typename ... Ts>
         static void unroll(T &&it, Ts &&...iterators) {
+            // 定义递增操作
             auto increment = [](T &&it) { it.increment(dimension); };
+            // 对所有迭代器执行递增操作
             misc::utility::for_each(increment, std::forward<T>(it), std::forward<Ts>(iterators)...);
         }
 
@@ -20,6 +23,7 @@ namespace BatmanInfer {
         }
     };
 
+    // 主模板
     template<size_t dim>
     struct ForEachDimension {
         template<typename L, typename... Ts>
@@ -33,6 +37,7 @@ namespace BatmanInfer {
         }
     };
 
+    // 特化版本(递归终止条件)
     template<>
     struct ForEachDimension<0> {
         template<typename L, typename... Ts>
@@ -112,10 +117,12 @@ namespace BatmanInfer {
             _dims[n]._dim_start = _dims[dimension]._dim_start;
     }
 
+    // 执行窗口, 进行迭代
     template<typename L, typename... Ts>
     inline void execute_window_loop(const BIWindow &w, L &&lambda_function, Ts &&...iterators) {
         w.validate();
 
+        // 验证步数是否为0
         for (unsigned int i = 0; i < BICoordinates::num_max_dimensions; ++i) {
             BI_COMPUTE_ERROR_ON(w[i].step() == 0);
         }

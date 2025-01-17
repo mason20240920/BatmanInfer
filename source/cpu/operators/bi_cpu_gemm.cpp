@@ -44,7 +44,7 @@ namespace BatmanInfer {
                                   float beta, const BatmanInfer::GEMMInfo &gemm_info) {
             BI_COMPUTE_ERROR_ON_NULLPTR(a, b, d);
             BI_COMPUTE_ERROR_THROW_ON(BICpuGemm::validate(a, b, c, d, alpha, beta, gemm_info));
-//            BI_COMPUTE_LOG_PARAMS(a, b, c, d, alpha, beta, gemm_info);
+            BI_COMPUTE_LOG_PARAMS(a, b, c, d, alpha, beta, gemm_info);
             const cpu::BIAsmGemmInfo asm_info = init_assembly_metadata(gemm_info);
             const bool is_c_bias = beta == 1 && c != nullptr;
             const bool run_optimised =
