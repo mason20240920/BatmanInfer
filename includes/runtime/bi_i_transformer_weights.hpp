@@ -92,7 +92,7 @@ namespace BatmanInfer {
             return _reshape_run;
         }
 
-    private:
+    protected:
         std::atomic<int32_t> _num_refcount{0};
         bool _reshape_run{false};
     };

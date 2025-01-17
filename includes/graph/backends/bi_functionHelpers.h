@@ -1453,8 +1453,8 @@ namespace detail {
         // Extract IO and info
         typename TargetInfo::TensorType *input  = get_backing_tensor<TargetInfo>(node.input(0));
         typename TargetInfo::TensorType *output = get_backing_tensor<TargetInfo>(node.output(0));
-        ARM_COMPUTE_ERROR_ON(input == nullptr);
-        ARM_COMPUTE_ERROR_ON(output == nullptr);
+        BI_COMPUTE_ERROR_ON(input == nullptr);
+        BI_COMPUTE_ERROR_ON(output == nullptr);
         const BIInterpolationPolicy policy = node.policy();
 
         // Create and configure function
