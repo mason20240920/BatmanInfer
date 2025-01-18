@@ -26,6 +26,7 @@
 #include <runtime/neon/functions/bi_ne_gemm.hpp>
 #include <runtime/neon/functions/bi_ne_split.hpp>
 #include "runtime/neon/functions/bi_ne_mat_mul.hpp"
+#include "runtime/neon/functions/bi_NESoftmaxLayer.h"
 #include <function_info/bi_MatMulInfo.h>
 #include <runtime/neon/functions/ne_pixel_wise_multiplication.hpp>
 
@@ -747,3 +748,51 @@ TEST(BITensor, NEMul_example_01) {
     dst.print(std::cout, format);
 }
 
+TEST(NESoftmaxLayerTest, BasicSoftmaxTest) {
+    using namespace BatmanInfer;
+    // 输入和输出张量
+    BITensor input, output;
+
+    // 定义张量形状 (假设批量大小为 1，特征数为 4)
+    const BITensorShape shape(4); // 形状为 [4]
+
+    // 配置输入张量
+    input.allocator()->init(BITensorInfo(shape, 1, BIDataType::F32)); // 单精度浮点数
+    output.allocator()->init(BITensorInfo(shape, 1, BIDataType::F32));
+
+    // 创建 Softmax 层
+    BINESoftmaxLayer softmax_layer;
+    softmax_layer.configure(&input, &output);
+
+    // 分配内存
+    input.allocator()->allocate();
+    output.allocator()->allocate();
+
+    // 填充输入数据
+    float input_data[] = {1.0f, 2.0f, 3.0f, 4.0f};
+    std::memcpy(input.buffer(), input_data, sizeof(input_data));
+
+    // 运行 Softmax 层
+    softmax_layer.run();
+
+    // 检查输出
+    float *output_data = reinterpret_cast<float *>(output.buffer());
+    float expected_output[] = {
+            std::exp(1.0f) / (std::exp(1.0f) + std::exp(2.0f) + std::exp(3.0f) + std::exp(4.0f)),
+            std::exp(2.0f) / (std::exp(1.0f) + std::exp(2.0f) + std::exp(3.0f) + std::exp(4.0f)),
+            std::exp(3.0f) / (std::exp(1.0f) + std::exp(2.0f) + std::exp(3.0f) + std::exp(4.0f)),
+            std::exp(4.0f) / (std::exp(1.0f) + std::exp(2.0f) + std::exp(3.0f) + std::exp(4.0f)),
+    };
+
+    // 验证输出是否与预期一致
+    for (size_t i = 0; i < 4; ++i) {
+        EXPECT_NEAR(output_data[i], expected_output[i], 1e-5);
+    }
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+    std::cout << "Output matrix:" << std::endl;
+    output.print(std::cout, format);
+}

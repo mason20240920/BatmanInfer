@@ -20,6 +20,7 @@
 
 namespace BatmanInfer {
 #ifdef BI_COMPUTE_ASSERTS_ENABLED
+
     /** Identify the maximum width of n consecutive elements.
  *
  * @param[in] s   The output stream which will be used to print the elements. Used to extract the stream format.
@@ -28,29 +29,22 @@ namespace BatmanInfer {
  *
  * @return The maximum width of the elements.
  */
-    template <typename T>
-    int max_consecutive_elements_display_width_impl(std::ostream &s, const T *ptr, unsigned int n)
-    {
+    template<typename T>
+    int max_consecutive_elements_display_width_impl(std::ostream &s, const T *ptr, unsigned int n) {
         using print_type = typename std::conditional<std::is_floating_point<T>::value, T, int>::type;
 
         int max_width = -1;
-        for (unsigned int i = 0; i < n; ++i)
-        {
+        for (unsigned int i = 0; i < n; ++i) {
             std::stringstream ss;
             ss.copyfmt(s);
 
-            if (std::is_same<typename std::decay<T>::type, half>::value)
-            {
+            if (std::is_same<typename std::decay<T>::type, half>::value) {
                 // We use T instead of print_type here is because the std::is_floating_point<half> returns false and then the print_type becomes int.
                 ss << static_cast<T>(ptr[i]);
-            }
-            else if (std::is_same<typename std::decay<T>::type, bfloat16>::value)
-            {
+            } else if (std::is_same<typename std::decay<T>::type, bfloat16>::value) {
                 // We use T instead of print_type here is because the std::is_floating_point<bfloat> returns false and then the print_type becomes int.
                 ss << float(ptr[i]);
-            }
-            else
-            {
+            } else {
                 ss << static_cast<print_type>(ptr[i]);
             }
 
@@ -67,34 +61,27 @@ namespace BatmanInfer {
  * @param[in]  stream_width  (Optional) Width of the stream. If set to 0 the element's width is used. Defaults to 0.
  * @param[in]  element_delim (Optional) Delimeter among the consecutive elements. Defaults to space delimeter
  */
-    template <typename T>
+    template<typename T>
     void print_consecutive_elements_impl(
-            std::ostream &s, const T *ptr, unsigned int n, int stream_width = 0, const std::string &element_delim = " ")
-    {
+            std::ostream &s, const T *ptr, unsigned int n, int stream_width = 0,
+            const std::string &element_delim = " ") {
         using print_type = typename std::conditional<std::is_floating_point<T>::value, T, int>::type;
         std::ios stream_status(nullptr);
         stream_status.copyfmt(s);
 
-        for (unsigned int i = 0; i < n; ++i)
-        {
+        for (unsigned int i = 0; i < n; ++i) {
             // Set stream width as it is not a "sticky" stream manipulator
-            if (stream_width != 0)
-            {
+            if (stream_width != 0) {
                 s.width(stream_width);
             }
 
-            if (std::is_same<typename std::decay<T>::type, half>::value)
-            {
+            if (std::is_same<typename std::decay<T>::type, half>::value) {
                 // We use T instead of print_type here is because the std::is_floating_point<half> returns false and then the print_type becomes int.
                 s << std::right << static_cast<T>(ptr[i]) << element_delim;
-            }
-            else if (std::is_same<typename std::decay<T>::type, bfloat16>::value)
-            {
+            } else if (std::is_same<typename std::decay<T>::type, bfloat16>::value) {
                 // We use T instead of print_type here is because the std::is_floating_point<bfloat16> returns false and then the print_type becomes int.
                 s << std::right << float(ptr[i]) << element_delim;
-            }
-            else
-            {
+            } else {
                 s << std::right << static_cast<print_type>(ptr[i]) << element_delim;
             }
         }
@@ -112,12 +99,12 @@ namespace BatmanInfer {
  * @param[in]  stream_width  (Optional) Width of the stream. If set to 0 the element's width is used. Defaults to 0.
  * @param[in]  element_delim (Optional) Delimeter among the consecutive elements. Defaults to space delimeter
  */
-void print_consecutive_elements(std::ostream      &s,
-                                BIDataType           dt,
-                                const uint8_t     *ptr,
-                                unsigned int       n,
-                                int                stream_width,
-                                const std::string &element_delim = " ");
+    void print_consecutive_elements(std::ostream &s,
+                                    BIDataType dt,
+                                    const uint8_t *ptr,
+                                    unsigned int n,
+                                    int stream_width,
+                                    const std::string &element_delim = " ");
 
     /** Identify the maximum width of n consecutive elements.
  *
@@ -143,12 +130,12 @@ void print_consecutive_elements(std::ostream      &s,
  *
  * @return A pair with the new width in the first position and the new height in the second.
  */
-std::pair<unsigned int, unsigned int> scaled_dimensions(int                    width,
-                                                        int                    height,
-                                                        int                    kernel_width,
-                                                        int                    kernel_height,
-                                                        const BIPadStrideInfo &pad_stride_info,
-                                                        const Size2D          &dilation = Size2D(1U, 1U));
+    std::pair<unsigned int, unsigned int> scaled_dimensions(int width,
+                                                            int height,
+                                                            int kernel_width,
+                                                            int kernel_height,
+                                                            const BIPadStrideInfo &pad_stride_info,
+                                                            const Size2D &dilation = Size2D(1U, 1U));
 
     /** Returns calculated width and height of output scaled tensor depending on dimensions rounding mode.
  *
@@ -160,8 +147,8 @@ std::pair<unsigned int, unsigned int> scaled_dimensions(int                    w
  *
  * @return A pair with the new width in the first position and the new height in the second, returned values can be < 1
  */
-std::pair<int, int> scaled_dimensions_signed(
-    int width, int height, int kernel_width, int kernel_height, const BIPadStrideInfo &pad_stride_info);
+    std::pair<int, int> scaled_dimensions_signed(
+            int width, int height, int kernel_width, int kernel_height, const BIPadStrideInfo &pad_stride_info);
 
 /** Returns expected width and height of the deconvolution's output tensor.
  *
@@ -173,11 +160,11 @@ std::pair<int, int> scaled_dimensions_signed(
  *
  * @return A pair with the new width in the first position and the new height in the second.
  */
-std::pair<unsigned int, unsigned int> deconvolution_output_dimensions(unsigned int           in_width,
-                                                                      unsigned int           in_height,
-                                                                      unsigned int           kernel_width,
-                                                                      unsigned int           kernel_height,
-                                                                      const BIPadStrideInfo &pad_stride_info);
+    std::pair<unsigned int, unsigned int> deconvolution_output_dimensions(unsigned int in_width,
+                                                                          unsigned int in_height,
+                                                                          unsigned int kernel_width,
+                                                                          unsigned int kernel_height,
+                                                                          const BIPadStrideInfo &pad_stride_info);
 
 /** Returns output quantization information for softmax layer
  *
@@ -186,7 +173,17 @@ std::pair<unsigned int, unsigned int> deconvolution_output_dimensions(unsigned i
  *
  * @return Quantization information for the output tensor
  */
-BIQuantizationInfo get_softmax_output_quantization_info(BIDataType input_type, bool is_log);
+    BIQuantizationInfo get_softmax_output_quantization_info(BIDataType input_type, bool is_log);
+
+    template<typename T>
+    inline void permute_strides(BIDimensions<T> &dimensions, const PermutationVector &perm) {
+        const auto old_dim = misc::utility::make_array<BIDimensions<T>::num_max_dimensions>(dimensions.begin(),
+                                                                                            dimensions.end());
+        for (unsigned int i = 0; i < perm.num_dimensions(); ++i) {
+            T dimension_val = old_dim[i];
+            dimensions.set(perm[i], dimension_val);
+        }
+    }
 
 }
 

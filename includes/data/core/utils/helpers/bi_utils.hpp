@@ -2,8 +2,7 @@
 // Created by Mason on 2024/12/26.
 //
 
-#ifndef BATMANINFER_BI_UTILS_HPP
-#define BATMANINFER_BI_UTILS_HPP
+#pragma once
 
 #include <data/core/bi_tensor_info.hpp>
 
@@ -66,4 +65,3 @@ namespace BatmanInfer {
     bool has_holes(const BIITensorInfo &info, size_t dimension);
 }
 
-#endif //BATMANINFER_BI_UTILS_HPP

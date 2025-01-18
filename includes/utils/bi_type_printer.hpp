@@ -514,6 +514,19 @@ namespace BatmanInfer {
         str << settings;
         return str.str();
     }
+
+    /** Formatted output of the Strides type.
+     *
+     * @param[in] stride Type to output.
+     *
+     * @return Formatted string.
+     */
+    inline std::string to_string(const BIStrides &stride) {
+        std::stringstream str;
+        str << stride;
+        return str.str();
+    }
+
 }
 
 #endif //BATMANINFER_BI_TYPE_PRINTER_HPP

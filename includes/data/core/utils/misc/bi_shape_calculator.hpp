@@ -8,6 +8,7 @@
 #include <data/core/bi_tensor_info.hpp>
 #include <data/core/kernel_descriptors.hpp>
 #include "data/core/utils/helpers/bi_tensor_transform.h"
+#include <data/core/bi_helpers.hpp>
 
 namespace BatmanInfer {
     namespace misc {
@@ -391,6 +392,30 @@ namespace BatmanInfer {
                 return compute_strided_slice_output_shape(input.tensor_shape(), starts, ends, strides, begin_mask,
                                                           end_mask,
                                                           shrink_axis_mask);
+            }
+
+            /** Calculate the permuted shape of an input given a permutation vector
+             *
+             * @param[in] input Input tensor info
+             * @param[in] perm  Permutation vector
+            *
+             * @return the calculated shape
+             */
+            inline BITensorShape
+            compute_permutation_output_shape(const BIITensorInfo &input, const PermutationVector &perm) {
+                BITensorShape output_shape = input.tensor_shape();
+                permute(output_shape, perm);
+                return output_shape;
+            }
+
+            inline BITensorShape compute_padded_shape(const BITensorShape &input_shape, const PaddingList &padding) {
+                BITensorShape padded_shape = input_shape;
+                for (size_t dim = 0; dim < padding.size(); ++dim) {
+                    const auto &padding_pair = padding[dim];
+                    const uint32_t shape_on_index = (padded_shape.num_dimensions() <= dim) ? 1 : input_shape[dim];
+                    padded_shape.set(dim, padding_pair.first + shape_on_index + padding_pair.second);
+                }
+                return padded_shape;
             }
 
         }
