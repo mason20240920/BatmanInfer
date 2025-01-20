@@ -418,6 +418,37 @@ namespace BatmanInfer {
                 return padded_shape;
             }
 
+            /** Calculate the reductionA shape used in GEMMLowp
+             *
+             * @param[in] b Input tensor info
+             *
+             * @return the calculated shape
+             */
+            inline BITensorShape compute_reductionA_shape(const BIITensorInfo &b) {
+                BITensorShape shape_vector_sum_col{b.tensor_shape()};
+                if (shape_vector_sum_col.num_dimensions() > 1) {
+                    shape_vector_sum_col.remove_dimension(1);
+                }
+
+                return shape_vector_sum_col;
+            }
+
+            /** Calculate the reductionB shape used in GEMMLowp
+             *
+             * @param[in] a Input tensor info
+             *
+             * @return the calculated shape
+             */
+            inline BITensorShape compute_reductionB_shape(const BIITensorInfo &a) {
+                BITensorShape shape_vector_sum_row{a.tensor_shape()};
+                shape_vector_sum_row.set(BIWindow::DimX, a.dimension(1));
+                if (shape_vector_sum_row.num_dimensions() > 1) {
+                    shape_vector_sum_row.remove_dimension(1);
+                }
+
+                return shape_vector_sum_row;
+            }
+
         }
     }
 }

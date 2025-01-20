@@ -211,6 +211,7 @@ add_executable(BatmanInfer main.cpp
         source/c/bcl_operators.cpp
         source/c/bcl_queue.cpp
         source/c/bcl_tensor_pack.cpp
+        source/runtime/experimental/operators/bi_cpu_gemm_lowp.cpp
         ${SOURCES}
         ${RUNTIME_SOURCES}
         ${CPU_SOURCES}

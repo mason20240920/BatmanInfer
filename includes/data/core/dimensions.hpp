@@ -155,7 +155,7 @@ namespace BatmanInfer {
          * @param start
          */
         void collapse_from(size_t start) {
-            BI__COMPUTE_ERROR_ON(start > num_dimensions());
+            BI_COMPUTE_ERROR_ON(start > num_dimensions());
             collapse(num_dimensions() - start, start);
         }
 
