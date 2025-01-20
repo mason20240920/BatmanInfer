@@ -92,6 +92,37 @@ namespace BatmanInfer {
         return std::make_pair(out_shape, calculate_max_window(out_shape));
     }
 
+    /** Calculate the maximum window used by a horizontal kernel for a given tensor shape and border setting
+     *
+     * @param[in] valid_region Valid region object defining the shape of the tensor space for which the window is created.
+     * @param[in] steps        (Optional) Number of elements processed for each step.
+     * @param[in] skip_border  (Optional) If true exclude the border region from the window.
+     * @param[in] border_size  (Optional) Border size. The border region will be excluded from the window.
+     *
+     * @return The maximum window the kernel can be executed on.
+     */
+    BIWindow calculate_max_window_horizontal(const BIValidRegion &valid_region,
+                                             const BISteps &steps = BISteps(),
+                                             bool skip_border = false,
+                                             BIBorderSize border_size = BIBorderSize());
+
+    /** Calculate the maximum window used by a horizontal kernel for a given tensor shape and border setting
+     *
+     * @param[in] info        Tensor info object defining the shape of the object for which the window is created.
+     * @param[in] steps       (Optional) Number of elements processed for each step.
+     * @param[in] skip_border (Optional) If true exclude the border region from the window.
+     * @param[in] border_size (Optional) Border size.
+     *
+     * @return The maximum window the kernel can be executed on.
+     */
+    inline BIWindow calculate_max_window_horizontal(const BIITensorInfo &info,
+                                                    const BISteps &steps = BISteps(),
+                                                    bool skip_border = false,
+                                                    BIBorderSize border_size = BIBorderSize()) {
+        return calculate_max_window_horizontal(info.valid_region(), steps, skip_border, border_size);
+    }
+
+
 #endif
 }
 

@@ -197,4 +197,55 @@ namespace BatmanInfer {
 
         return std::make_pair(win, split_dimension);
     }
+
+    BIWindow calculate_max_window_horizontal(const BIValidRegion &valid_region,
+                                             const BISteps &steps,
+                                             bool skip_border,
+                                             BIBorderSize border_size) {
+        if (skip_border) {
+            border_size.top = 0;
+            border_size.bottom = 0;
+        } else {
+            border_size.left = 0;
+            border_size.right = 0;
+        }
+
+        const BICoordinates &anchor = valid_region.anchor;
+        const BITensorShape &shape = valid_region.shape;
+
+        BIWindow window;
+
+        window.set(0, BIWindow::BIDimension(
+                // Skip the border left of the image
+                anchor[0] + border_size.left,
+                // Skip the border right of the image
+                // Make sure the window width is a multiple of the step size
+                anchor[0] + border_size.left +
+                ceil_to_multiples(std::max(0, static_cast<int>(shape[0]) - static_cast<int>(border_size.left) -
+                                              static_cast<int>(border_size.right)),
+                                  steps[0]),
+                steps[0]));
+
+        size_t n = 1;
+
+        if (anchor.num_dimensions() > 1) {
+            window.set(1, BIWindow::BIDimension(
+                    // Skip the border above the image
+                    anchor[1] - border_size.top,
+                    // Skip the border below the image
+                    anchor[1] + shape[1] + border_size.bottom, 1));
+
+            ++n;
+        }
+
+        for (; n < anchor.num_dimensions(); ++n) {
+            window.set(n, BIWindow::BIDimension(anchor[n], std::max<size_t>(1, shape[n])));
+        }
+
+        for (; n < BICoordinates::num_max_dimensions; ++n) {
+            window.set(n, BIWindow::BIDimension(0, 1));
+        }
+
+        return window;
+    }
 }

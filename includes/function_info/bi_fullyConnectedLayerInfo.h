@@ -10,19 +10,22 @@
 
 namespace BatmanInfer {
 
-    /** Fully connected layer info */
-    struct BIFullyConnectedLayerInfo
-    {
-        /* Fused-activation parameters */
+    /**
+     * 全连接层结构化信息
+     */
+    struct BIFullyConnectedLayerInfo {
+        /* 融合激活层的参数 */
         BIActivationLayerInfo activation_info{}; /**<  Fused activation to apply after the matrix multiplication. */
-        /* Information about weights */
-        BIDataLayout weights_trained_layout{BIDataLayout::NCHW}; /**<  Layout that the weights have been trained with. */
-        bool         transpose_weights{true};                    /**<  Transpose weights if true. */
-        bool         are_weights_reshaped{false};                /**<  @deprecated Reshape the weights tensor if false. */
-        bool         retain_internal_weights{false};             /**<  Retain internal reshaped weights. */
-        bool         enable_fast_math{false};                    /**<  Enable fast math computation. */
+        /* 权重信息 */
+        BIDataLayout weights_trained_layout{
+                BIDataLayout::NCHW}; /**<  Layout that the weights have been trained with. */
+        bool transpose_weights{true};                    /**<  Transpose weights if true. */
+        bool are_weights_reshaped{false};                /**<  @deprecated Reshape the weights tensor if false. */
+        bool retain_internal_weights{false};             /**<  Retain internal reshaped weights. */
+        bool enable_fast_math{false};                    /**<  Enable fast math computation. */
         /* Other parameters */
-        bool fp_mixed_precision{false}; /**<  Use wider accumulators (32 bit instead of 16 for FP16) to improve accuracy. */
+        bool fp_mixed_precision{
+                false}; /**<  使用更宽的累加器（32 位，而不是 FP16 的 16 位）以提高精度。 */
 
         /** Sets the weights trained data layout
          *
@@ -30,19 +33,18 @@ namespace BatmanInfer {
          *
          * @return Updated object
          */
-        BIFullyConnectedLayerInfo &set_weights_trained_layout(BIDataLayout layout)
-        {
+        BIFullyConnectedLayerInfo &set_weights_trained_layout(BIDataLayout layout) {
             weights_trained_layout = layout;
             return *this;
         }
+
         /** Sets the transpose weights flag
          *
          * @param[in] should_transpose_weights Boolean flag indicating if weights should be transposed
          *
          * @return Updated object
          */
-        BIFullyConnectedLayerInfo &set_transpose_weights(bool should_transpose_weights)
-        {
+        BIFullyConnectedLayerInfo &set_transpose_weights(bool should_transpose_weights) {
             transpose_weights = should_transpose_weights;
             return *this;
         }
