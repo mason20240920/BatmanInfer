@@ -624,7 +624,7 @@ TEST(BITensor, NESplit_example_02) {
     std::cout << "NESplit executed successfully!" << std::endl;
 
     for (auto &tensor: output_tensors) {
-        tensor.print(std::cout, format);
+//        tensor.print(std::cout, format);
     }
 }
 
@@ -798,18 +798,30 @@ TEST(NESoftmaxLayerTest, BasicSoftmaxTest) {
     output.print(std::cout, format);
 }
 
-void fill_tensor_with_data(BatmanInfer::BITensor &tensor, const std::vector<uint8_t> &data) {
-    // 锁定张量以访问其内部数据
-//    tensor.map(true); // true 表示读写模式
+// 辅助函数：填充 Tensor 数据
+// 简单的填充函数
+// 使用 buffer() 填充 Tensor 数据
+void fill_tensor_buffer(BITensor &tensor, BIDataType data_type, uint8_t fill_value = 1) {
+    // 获取底层内存指针
+    auto buffer_ptr = tensor.buffer();
 
-    // 获取张量缓冲区的指针
-    uint8_t *tensor_data = reinterpret_cast<uint8_t *>(tensor.buffer());
+    // 获取 Tensor 的总大小
+    const size_t total_size = tensor.info()->total_size();
 
-    // 将数据复制到张量缓冲区
-    std::memcpy(tensor_data, data.data(), data.size());
-
-    // 解锁张量
-//    tensor.unmap();
+    // 填充数据
+    if (data_type == BIDataType::QASYMM8) {
+        // 填充 QASYMM8 类型的张量
+        for (size_t i = 0; i < total_size; ++i) {
+            reinterpret_cast<uint8_t *>(buffer_ptr)[i] = fill_value;
+        }
+    } else if (data_type == BIDataType::S32) {
+        // 填充 S32 类型的张量
+        for (size_t i = 0; i < total_size / sizeof(int32_t); ++i) {
+            reinterpret_cast<int32_t *>(buffer_ptr)[i] = static_cast<int32_t>(fill_value);
+        }
+    } else {
+        throw std::runtime_error("Unsupported data type for tensor filling!");
+    }
 }
 
 TEST(BICpuLowpGemm, BasicGemmTest) {
@@ -819,9 +831,9 @@ TEST(BICpuLowpGemm, BasicGemmTest) {
     BITensor a, b, c;
 
     // 定义矩阵的维度
-    const int M = 128; // 矩阵 A 的行数
-    const int N = 128; // 矩阵 B 的列数
-    const int K = 128; // 矩阵 A 的列数和矩阵 B 的行数
+    const int M = 2; // 矩阵 A 的行数
+    const int N = 2; // 矩阵 B 的列数
+    const int K = 2; // 矩阵 A 的列数和矩阵 B 的行数
 
     // 配置张量形状
     BITensorShape shape_a(K, M); // A : (K x M)
@@ -830,7 +842,7 @@ TEST(BICpuLowpGemm, BasicGemmTest) {
 
     // 配置量化信息
     // scale 和 zero-point
-    BIQuantizationInfo quant_info(0.5f, 128);
+    BIQuantizationInfo quant_info(0.5f, 0);
 
     // 初始化张量
     a.allocator()->init(BITensorInfo(shape_a, 1, BIDataType::QASYMM8, quant_info));
@@ -848,5 +860,15 @@ TEST(BICpuLowpGemm, BasicGemmTest) {
     b.allocator()->allocate();
     c.allocator()->allocate();
 
+    fill_tensor_buffer(a, BIDataType::QASYMM8, 2); // 填充值为 2
+    fill_tensor_buffer(b, BIDataType::QASYMM8, 3); // 填充值为 3
+
     gemm.run();
+
+    BIIOFormatInfo format(BatmanInfer::BIIOFormatInfo::PrintRegion::Full,
+                          BatmanInfer::BIIOFormatInfo::PrecisionType::Default, 0, true, ", ", "\n");
+    a.print(std::cout, format);
+    b.print(std::cout, format);
+
+    c.print(std::cout, format);
 }
