@@ -16,15 +16,15 @@
 
 namespace BatmanInfer {
     class BIITensor;
+
     class BIITensorInfo;
 
-    class BINEGEMMLowpMatrixMultipleCore: public BIIFunction {
+    class BINEGEMMLowpMatrixMultipleCore : public BIIFunction {
     public:
         BINEGEMMLowpMatrixMultipleCore(std::shared_ptr<BIIMemoryManager> memory_manager,
                                        BIIWeightsManager *weights_manager = nullptr);
 
-        BINEGEMMLowpMatrixMultipleCore() : BINEGEMMLowpMatrixMultipleCore(BIMemoryManagerOnDemand::make_default())
-        {
+        BINEGEMMLowpMatrixMultipleCore() : BINEGEMMLowpMatrixMultipleCore(BIMemoryManagerOnDemand::make_default()) {
 
         }
 
@@ -76,7 +76,7 @@ namespace BatmanInfer {
         void configure(const BIITensor *a,
                        const BIITensor *b,
                        const BIITensor *c,
-                       const BIITensor *output,
+                       BIITensor *output,
                        const GEMMInfo &gemm_info = GEMMInfo());
 
         /**
@@ -101,6 +101,7 @@ namespace BatmanInfer {
         void update_quantization_parameters();
 
         void run() override;
+
         void prepare() override;
 
     private:

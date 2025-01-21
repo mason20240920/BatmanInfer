@@ -185,6 +185,17 @@ namespace BatmanInfer {
         }
     }
 
+    /**
+     * Returns a pair of minimum and maximum values for a quantized activation
+     * @param act_info The information for activation
+     * @param data_type The used data type
+     * @param oq_info The output quantization information
+     * @return
+     */
+    std::pair<int32_t, int32_t> get_quantized_activation_min_max(const BIActivationLayerInfo &act_info,
+                                                                 BIDataType data_type,
+                                                                 BIUniformQuantizationInfo oq_info);
+
 }
 
 #endif //BATMANINFER_BI_UTILS_HPP

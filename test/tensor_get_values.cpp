@@ -29,7 +29,7 @@
 #include "runtime/neon/functions/bi_NESoftmaxLayer.h"
 #include <function_info/bi_MatMulInfo.h>
 #include <runtime/neon/functions/ne_pixel_wise_multiplication.hpp>
-#include <runtime/experimental/operators/bi_cpu_gemm_lowp.hpp>
+#include <runtime/neon/functions/bi_ne_gemm_lowp_matrix_mul_core.hpp>
 
 
 TEST(test_tensor_values, tensor_values1) {
@@ -814,68 +814,39 @@ void fill_tensor_with_data(BatmanInfer::BITensor &tensor, const std::vector<uint
 
 TEST(BICpuLowpGemm, BasicGemmTest) {
     using namespace BatmanInfer;
-    const BITensorShape shape_a(16, 32); // A: 16x32
-    const BITensorShape shape_b(32, 64); // B: 32x64
-    const BITensorShape shape_c(16, 64); // C: 16x64
 
-    // 定义张量
-    BITensor a, b, c, dst;
+    // 创建输入和输出张量
+    BITensor a, b, c;
 
-    // 初始化张量信息（数据类型为 QASYMM8）
-    a.allocator()->init(BITensorInfo(shape_a, 1, BIDataType::QASYMM8));
-    b.allocator()->init(BITensorInfo(shape_b, 1, BIDataType::QASYMM8));
-    c.allocator()->init(BITensorInfo(shape_c, 1, BIDataType::S32));  // 可选偏置张量
-    dst.allocator()->init(BITensorInfo(shape_c, 1, BIDataType::QASYMM8));
+    // 定义矩阵的维度
+    const int M = 128; // 矩阵 A 的行数
+    const int N = 128; // 矩阵 B 的列数
+    const int K = 128; // 矩阵 A 的列数和矩阵 B 的行数
 
-    // 分配内存
+    // 配置张量形状
+    BITensorShape shape_a(K, M); // A : (K x M)
+    BITensorShape shape_b(N, K); // B : (N x K)
+    BITensorShape shape_c(N, M); // C : (N x M)
+
+    // 配置量化信息
+    // scale 和 zero-point
+    BIQuantizationInfo quant_info(0.5f, 128);
+
+    // 初始化张量
+    a.allocator()->init(BITensorInfo(shape_a, 1, BIDataType::QASYMM8, quant_info));
+    b.allocator()->init(BITensorInfo(shape_b, 1, BIDataType::QASYMM8, quant_info));
+    c.allocator()->init(BITensorInfo(shape_c, 1, BIDataType::S32)); // 输出通常为S32
+
+    // 创建 BINEGEMMLowpMatrixMultiplyCore 实例
+    BINEGEMMLowpMatrixMultipleCore gemm;
+
+    // 配置 GEMM 操作
+    gemm.configure(&a, &b, nullptr, &c);
+
+    // 分配张量内存
     a.allocator()->allocate();
     b.allocator()->allocate();
     c.allocator()->allocate();
-    dst.allocator()->allocate();
 
-    // 填充矩阵 A 的数据（16x32 的张量）
-    std::vector<uint8_t> data_a(16 * 32, 1); // 用值 1 填充
-    fill_tensor_with_data(a, data_a);
-
-    // 填充矩阵 B 的数据（32x64 的张量）
-    std::vector<uint8_t> data_b(32 * 64, 2); // 用值 2 填充
-    fill_tensor_with_data(b, data_b);
-
-    // 填充矩阵 C 的数据（偏置，16x64 的张量）
-    std::vector<int32_t> data_c(16 * 64, 0); // 用值 0 填充
-//    c.map(true);
-    std::memcpy(c.buffer(), data_c.data(), data_c.size() * sizeof(int32_t));
-//    c.unmap();
-
-    // 创建 GEMMLowp 对象
-    experimental::op::BICpuGEMMLowp gemmlowp;
-
-    // 配置 GEMMLowp
-    GEMMInfo gemm_info(false, // A 未重排
-                       false, // B 未重排
-                       true,  // 仅第一次运行时重排 B
-                       0,     // 输出深度（不解释为 3D）
-                       false, // 不将输入解释为 3D
-                       false, // 不保留权重
-                       {},    // 默认输出阶段信息
-                       false, // 不使用混合精度
-                       true,  // 使用快速数学
-                       false, // 不广播偏置
-                       {},    // 默认激活信息
-                       false, // 不使用固定格式
-                       BatmanInfer::BIWeightFormat::UNSPECIFIED, // 权重格式未指定
-                       false, // 不预转置矩阵 B
-                       false  // 不累加到目标张量
-    );
-
-    gemmlowp.configure(a.info(), b.info(), c.info(), dst.info(), gemm_info);
-
-    // 运行 GEMMLowp
-//    gemmlowp.run();
-
-    // 解锁并释放资源
-    a.allocator()->free();
-    b.allocator()->free();
-    c.allocator()->free();
-    dst.allocator()->free();
+    gemm.run();
 }
