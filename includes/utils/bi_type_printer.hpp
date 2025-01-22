@@ -13,6 +13,7 @@
 #include <data/core/utils/data_type_utils.hpp>
 #include "function_info/bi_MatMulInfo.h"
 #include "runtime/neon/functions/bi_ne_mat_mul.hpp"
+#include "function_info/bi_fullyConnectedLayerInfo.h"
 
 namespace BatmanInfer {
     /** Formatted output if arg is not null
@@ -524,6 +525,83 @@ namespace BatmanInfer {
     inline std::string to_string(const BIStrides &stride) {
         std::stringstream str;
         str << stride;
+        return str.str();
+    }
+
+    /** [Print DataLayout type] **/
+    /** Formatted output of the DataLayout type.
+     *
+     * @param[out] os          Output stream.
+     * @param[in]  data_layout Type to output.
+     *
+     * @return Modified output stream.
+     */
+    inline ::std::ostream &operator<<(::std::ostream &os, const BIDataLayout &data_layout) {
+        switch (data_layout) {
+            case BIDataLayout::UNKNOWN:
+                os << "UNKNOWN";
+                break;
+            case BIDataLayout::NHWC:
+                os << "NHWC";
+                break;
+            case BIDataLayout::NCHW:
+                os << "NCHW";
+                break;
+            case BIDataLayout::NDHWC:
+                os << "NDHWC";
+                break;
+            case BIDataLayout::NCDHW:
+                os << "NCDHW";
+                break;
+            default:
+                BI_COMPUTE_ERROR("NOT_SUPPORTED!");
+        }
+
+        return os;
+    }
+
+/** Formatted output of the DataLayout type.
+ *
+ * @param[in] data_layout Type to output.
+ *
+ * @return Formatted string.
+ */
+    inline std::string to_string(const BatmanInfer::BIDataLayout &data_layout) {
+        std::stringstream str;
+        str << data_layout;
+        return str.str();
+    }
+
+    /** Formatted output of the TensorShape type.
+     *
+     * @param shape
+     * @return
+     */
+    inline std::string to_string(const BITensorShape &shape) {
+        std::stringstream str;
+        str << shape;
+        return str.str();
+    }
+
+    inline ::std::ostream &operator<<(::std::ostream &os, const BIFullyConnectedLayerInfo &layer_info) {
+        os << "{activation_info=" << to_string(layer_info.activation_info) << ", "
+           << "weights_trained_layout=" << layer_info.weights_trained_layout << ", "
+           << "transpose_weights=" << layer_info.transpose_weights << ", "
+           << "are_weights_reshaped=" << layer_info.are_weights_reshaped << ", "
+           << "retain_internal_weights=" << layer_info.retain_internal_weights << ", "
+           << "fp_mixed_precision=" << layer_info.fp_mixed_precision << "}";
+        return os;
+    }
+
+    /** Converts a @ref FullyConnectedLayerInfo to string
+     *
+     * @param[in] info FullyConnectedLayerInfo value to be converted
+     *
+     * @return String  representing the corresponding FullyConnectedLayerInfo
+     */
+    inline std::string to_string(const BIFullyConnectedLayerInfo &info) {
+        std::stringstream str;
+        str << info;
         return str.str();
     }
 

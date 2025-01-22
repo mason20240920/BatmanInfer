@@ -15,8 +15,7 @@
 namespace BatmanInfer {
     class BIQuantizationInfo;
 
-    class BIITensorInfo: public misc::ICloneable<BIITensorInfo>
-    {
+    class BIITensorInfo : public misc::ICloneable<BIITensorInfo> {
     public:
         using TensorDimsState = std::vector<int>;
 
@@ -38,8 +37,7 @@ namespace BatmanInfer {
             return _dynamic_dimension;
         }
 
-        static constexpr int32_t get_static_state_value()
-        {
+        static constexpr int32_t get_static_state_value() {
             return _static_dimension;
         }
 
@@ -54,6 +52,8 @@ namespace BatmanInfer {
          * @return
          */
         virtual BIITensorInfo &set_data_type(BIDataType data_type) = 0;
+
+        virtual BIDataLayout data_layout() const = 0;
 
         /**
          * @brief 设置通道的数量
@@ -263,8 +263,7 @@ namespace BatmanInfer {
 
         virtual BIITensorInfo &set_id(BIITensorInfo::Id id) = 0;
 
-        bool has_valid_id() const
-        {
+        bool has_valid_id() const {
             return id() != invalid_tensor_id;
         }
 
@@ -277,23 +276,20 @@ namespace BatmanInfer {
         * @param infos
         * @return
         */
-        template <typename... Infos>
+        template<typename... Infos>
         static std::pair<BITensorShape, BIValidRegion> broadcast_shape_and_valid_region(const Infos &...infos) {
             BITensorShape bc_shape = BITensorShape::broadcast_shape(infos.tensor_shape()...);
             BIValidRegion bc_valid_region{BICoordinates(), bc_shape};
 
             auto broadcast_valid_region = [&bc_valid_region](const BIITensorInfo &info) {
-                if (info.num_dimensions() != 0)
-                {
-                    for (size_t d = 0; d < bc_valid_region.shape.num_dimensions(); ++d)
-                    {
+                if (info.num_dimensions() != 0) {
+                    for (size_t d = 0; d < bc_valid_region.shape.num_dimensions(); ++d) {
                         const bool is_broadcast = (info.tensor_shape()[d] == 1);
 
-                        const int    anchor_max = std::max(bc_valid_region.anchor[d], info.valid_region().anchor[d]);
-                        const size_t valid_min  = std::min(bc_valid_region.shape[d], info.valid_region().shape[d]);
+                        const int anchor_max = std::max(bc_valid_region.anchor[d], info.valid_region().anchor[d]);
+                        const size_t valid_min = std::min(bc_valid_region.shape[d], info.valid_region().shape[d]);
 
-                        if (!is_broadcast || (valid_min == 0))
-                        {
+                        if (!is_broadcast || (valid_min == 0)) {
                             bc_valid_region.anchor.set(d, anchor_max);
                             bc_valid_region.shape.set(d, valid_min);
                         }
@@ -305,6 +301,7 @@ namespace BatmanInfer {
 
             return std::pair<BITensorShape, BIValidRegion>(bc_shape, bc_valid_region);
         }
+
     private:
         /**
          * @brief 动态维度

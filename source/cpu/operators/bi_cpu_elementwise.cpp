@@ -7,6 +7,7 @@
 #include <common/utils/bi_log.hpp>
 #include <data/core/helpers/bi_window_helpers.hpp>
 #include <cpu/kernels/bi_cpu_element_wise_kernel.hpp>
+#include <data/core/bi_i_tensor.hpp>
 
 namespace BatmanInfer {
     namespace cpu {

@@ -7,6 +7,16 @@ namespace BatmanInfer {
         return it - dims.cbegin();
     }
 
+    inline size_t get_data_layout_dimension_index(const BIDataLayout &data_layout,
+                                                  const BIDataLayoutDimension &data_layout_dimension) {
+        BI_COMPUTE_ERROR_ON_MSG(data_layout == BIDataLayout::UNKNOWN,
+                                "Cannot retrieve the dimension index for an unknown layout!");
+        const auto &dims = get_layout_map();
+        const auto &it = std::find(dims.cbegin(), dims.cend(), data_layout_dimension);
+        BI_COMPUTE_ERROR_ON_MSG(it == dims.cend(), "Invalid dimension for the given layout.");
+        return it - dims.cbegin();
+    }
+
     template<size_t dimension>
     struct IncrementIterators {
         // 有参数版本: 处理一个或多个迭代器

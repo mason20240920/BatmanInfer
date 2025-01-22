@@ -54,6 +54,15 @@ namespace BatmanInfer {
             return std::accumulate(_id.begin() + dimension, _id.end(), 1, std::multiplies<size_t>());
         }
 
+        /**
+         * 折叠制定维度及以下的维度
+         * @param dimension
+         * @return
+         */
+        size_t total_size_lower(size_t dimension) const {
+            BI_COMPUTE_ERROR_ON(dimension > BITensorShape::num_max_dimensions);
+            return std::accumulate(_id.begin(), _id.begin() + dimension, 1, std::multiplies<size_t>());
+        }
 
         /**
          * @brief 张量形状广播（Broadcasting）

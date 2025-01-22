@@ -28,6 +28,16 @@ namespace BatmanInfer {
                 return shape_transposed;
             }
 
+            inline BITensorShape compute_flatten_shape(const BIITensorInfo *input) {
+                // The output shape will be the flatten version of the input (i.e. [ width * height * channels, num_batches, ... ] ). Used for FlattenLayer and FullyConnectedLayer.
+
+                BITensorShape output_shape{input->tensor_shape()};
+
+                output_shape.collapse(3);
+
+                return output_shape;
+            }
+
             /**
              * 计算一个输入张量的交叉形状
              * @param a

@@ -57,7 +57,7 @@ namespace BatmanInfer {
          */
         void copy_from(const BIITensor &src);
 
-#ifdef BI_COMPUTE_ASSERTS_ENABLED
+//#ifdef BI_COMPUTE_ASSERTS_ENABLED
 
         /**
          * @brief 使用用户定义的格式化信息将张量打印到指定的流中。
@@ -67,7 +67,7 @@ namespace BatmanInfer {
         void print(std::ostream &s,
                    BIIOFormatInfo io_fmt = BIIOFormatInfo()) const;
 
-#endif
+//#endif
 
         /**
          * @brief 指示位: 表示张量是否使用

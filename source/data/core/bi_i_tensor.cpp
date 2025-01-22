@@ -19,7 +19,7 @@ namespace BatmanInfer {
             return;
 
         const BIITensorInfo *src_info = src.info();
-        BIITensorInfo       *dst_info = this->info();
+        BIITensorInfo *dst_info = this->info();
 
         // 目标张量维度小于源维度
         BI_COMPUTE_ERROR_ON(src_info->num_dimensions() > dst_info->num_dimensions());
@@ -46,18 +46,18 @@ namespace BatmanInfer {
                             src_it, dst_it);
     }
 
-#ifdef BI_COMPUTE_ASSERTS_ENABLED
 
     void BIITensor::print(std::ostream &s, BIIOFormatInfo io_fmt) const {
+#ifdef BI_COMPUTE_ASSERTS_ENABLED
         BI_COMPUTE_ERROR_ON(this->buffer() == nullptr);
 
-        const BIDataType    dt           = this->info()->data_type();
-        const size_t        slices2D     = this->info()->tensor_shape().total_size_upper(2);
-        const BIStrides     strides      = this->info()->strides_in_bytes();
-        const BIPaddingSize padding      = this->info()->padding();
-        const size_t        num_channels = this->info()->num_channels();
+        const BIDataType dt = this->info()->data_type();
+        const size_t slices2D = this->info()->tensor_shape().total_size_upper(2);
+        const BIStrides strides = this->info()->strides_in_bytes();
+        const BIPaddingSize padding = this->info()->padding();
+        const size_t num_channels = this->info()->num_channels();
         // 使用 std::ostringstream 保存流状态
-        std::ostringstream  stream_status;
+        std::ostringstream stream_status;
         stream_status.copyfmt(s);
 
         // Set precision
@@ -70,23 +70,24 @@ namespace BatmanInfer {
         }
 
         // Define region to print
-        size_t print_width  = 0;
+        size_t print_width = 0;
         size_t print_height = 0;
-        int    start_offset = 0;
+        int start_offset = 0;
         switch (io_fmt.print_region) {
             case BIIOFormatInfo::PrintRegion::NoPadding:
-                print_width  = this->info()->dimension(0);
+                print_width = this->info()->dimension(0);
                 print_height = this->info()->dimension(1);
                 start_offset = this->info()->offset_first_element_in_bytes();
                 break;
             case BIIOFormatInfo::PrintRegion::ValidRegion:
-                print_width  = this->info()->valid_region().shape.x();
+                print_width = this->info()->valid_region().shape.x();
                 print_height = this->info()->valid_region().shape.y();
                 start_offset = this->info()->offset_element_in_bytes(
-                        BICoordinates(this->info()->valid_region().anchor.x(), this->info()->valid_region().anchor.y()));
+                        BICoordinates(this->info()->valid_region().anchor.x(),
+                                      this->info()->valid_region().anchor.y()));
                 break;
             case BIIOFormatInfo::PrintRegion::Full:
-                print_width  = padding.left + this->info()->dimension(0) + padding.right;
+                print_width = padding.left + this->info()->dimension(0) + padding.right;
                 print_height = padding.top + this->info()->dimension(1) + padding.bottom;
                 start_offset =
                         static_cast<int>(this->info()->offset_first_element_in_bytes()) - padding.top * strides[1] -
@@ -106,8 +107,8 @@ namespace BatmanInfer {
             // Find max_width of elements in slice to align columns
             int max_element_width = 0;
             if (io_fmt.align_columns) {
-                size_t      offset = i * strides[2];
-                for (size_t h      = 0; h < print_height; ++h) {
+                size_t offset = i * strides[2];
+                for (size_t h = 0; h < print_height; ++h) {
                     max_element_width = std::max<int>(
                             max_element_width,
                             max_consecutive_elements_display_width(s, dt, ptr + offset, print_width));
@@ -117,8 +118,8 @@ namespace BatmanInfer {
 
             // Print slice
             {
-                size_t      offset = i * strides[2];
-                for (size_t h      = 0; h < print_height; ++h) {
+                size_t offset = i * strides[2];
+                for (size_t h = 0; h < print_height; ++h) {
                     print_consecutive_elements(s, dt, ptr + offset, print_width, max_element_width,
                                                io_fmt.element_delim);
                     offset += strides[1];
@@ -130,22 +131,21 @@ namespace BatmanInfer {
 
         // Restore output stream flags
         s.copyfmt(stream_status);
+#else
+        std::cout << "Temp" << std::endl;
+#endif
     }
 
-#endif
 
-    bool BIITensor::is_used() const
-    {
+    bool BIITensor::is_used() const {
         return _is_used;
     }
 
-    void BIITensor::mark_as_unused() const
-    {
+    void BIITensor::mark_as_unused() const {
         _is_used = false;
     }
 
-    void BIITensor::mark_as_used() const
-    {
+    void BIITensor::mark_as_used() const {
         _is_used = true;
     }
 }

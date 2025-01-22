@@ -19,6 +19,15 @@ namespace BatmanInfer {
      */
     inline size_t get_data_layout_dimension_index(const BIDataLayoutDimension &data_layout_dimension);
 
+    /**
+     * 获取给定维度的索引
+     * @param data_layout
+     * @param data_layout_dimension
+     * @return
+     */
+    inline size_t get_data_layout_dimension_index(const BIDataLayout &data_layout,
+                                                  const BIDataLayoutDimension &data_layout_dimension);
+
     /** Returns a static map used to find an index or dimension based on a data layout
   *
   * *** Layouts ***
@@ -167,11 +176,9 @@ namespace BatmanInfer {
      * @param[in, out] shape Shape to permute
      * @param[in]      perm  Permutation vector
      */
-    inline void permute(BITensorShape &shape, const PermutationVector &perm)
-    {
+    inline void permute(BITensorShape &shape, const PermutationVector &perm) {
         BITensorShape shape_copy = shape;
-        for (unsigned int i = 0; i < perm.num_dimensions(); ++i)
-        {
+        for (unsigned int i = 0; i < perm.num_dimensions(); ++i) {
             size_t dimension_val = (perm[i] < shape.num_dimensions()) ? shape_copy[perm[i]] : 1;
             shape.set(i, dimension_val, false, false); // Avoid changes in _num_dimension
         }
@@ -184,9 +191,8 @@ namespace BatmanInfer {
      *
      * @return the wrapped-around number
      */
-    template <typename T>
-    inline T wrap_around(T x, T m)
-    {
+    template<typename T>
+    inline T wrap_around(T x, T m) {
         return x >= 0 ? x % m : (x % m + m) % m;
     }
 

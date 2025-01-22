@@ -27,9 +27,11 @@
 #include <runtime/neon/functions/bi_ne_split.hpp>
 #include "runtime/neon/functions/bi_ne_mat_mul.hpp"
 #include "runtime/neon/functions/bi_NESoftmaxLayer.h"
+#include "data/core/utils/quantization/asymm_helpers.hpp"
 #include <function_info/bi_MatMulInfo.h>
 #include <runtime/neon/functions/ne_pixel_wise_multiplication.hpp>
 #include <runtime/neon/functions/bi_ne_gemm_lowp_matrix_mul_core.hpp>
+#include <runtime/neon/functions/bi_NEFullyConnectedLayer.h>
 
 
 TEST(test_tensor_values, tensor_values1) {
@@ -819,6 +821,11 @@ void fill_tensor_buffer(BITensor &tensor, BIDataType data_type, uint8_t fill_val
         for (size_t i = 0; i < total_size / sizeof(int32_t); ++i) {
             reinterpret_cast<int32_t *>(buffer_ptr)[i] = static_cast<int32_t>(fill_value);
         }
+    } else if (data_type == BIDataType::F32) {
+        // 填充 S32 类型的张量
+        for (size_t i = 0; i < total_size / sizeof(float); ++i) {
+            reinterpret_cast<float *>(buffer_ptr)[i] = static_cast<float >(fill_value);
+        }
     } else {
         throw std::runtime_error("Unsupported data type for tensor filling!");
     }
@@ -827,48 +834,249 @@ void fill_tensor_buffer(BITensor &tensor, BIDataType data_type, uint8_t fill_val
 TEST(BICpuLowpGemm, BasicGemmTest) {
     using namespace BatmanInfer;
 
-    // 创建输入和输出张量
-    BITensor a, b, c;
+    const BITensorShape input_shape(1024, 1024);    // 2x2
+    const BITensorShape weights_shape(1024, 1024);  // 2x2
+    const BITensorShape output_shape(1024, 1024);   // 2x2
+    const BITensorShape bias_shape(1024);        // bias向量
 
-    // 定义矩阵的维度
-    const int M = 2; // 矩阵 A 的行数
-    const int N = 2; // 矩阵 B 的列数
-    const int K = 2; // 矩阵 A 的列数和矩阵 B 的行数
+    // 2. 创建张量
+    BITensor input, weights, bias, output;
 
-    // 配置张量形状
-    BITensorShape shape_a(K, M); // A : (K x M)
-    BITensorShape shape_b(N, K); // B : (N x K)
-    BITensorShape shape_c(N, M); // C : (N x M)
+    // 3. 量化参数
+    const BIQuantizationInfo quant_info(1.0f / 255.0f, 128);
 
-    // 配置量化信息
-    // scale 和 zero-point
-    BIQuantizationInfo quant_info(0.5f, 0);
+    // 4. 配置张量信息
+    BITensorInfo input_info(input_shape, 1, BIDataType::QASYMM8, quant_info);
+    BITensorInfo weights_info(weights_shape, 1, BIDataType::QASYMM8, quant_info);
+    BITensorInfo bias_info(bias_shape, 1, BIDataType::S32);
+    BITensorInfo output_info(output_shape, 1, BIDataType::QASYMM8, quant_info);
 
-    // 初始化张量
-    a.allocator()->init(BITensorInfo(shape_a, 1, BIDataType::QASYMM8, quant_info));
-    b.allocator()->init(BITensorInfo(shape_b, 1, BIDataType::QASYMM8, quant_info));
-    c.allocator()->init(BITensorInfo(shape_c, 1, BIDataType::S32)); // 输出通常为S32
+    // 5. 初始化并分配内存
+    input.allocator()->init(input_info);
+    weights.allocator()->init(weights_info);
+    bias.allocator()->init(bias_info);
+    output.allocator()->init(output_info);
 
-    // 创建 BINEGEMMLowpMatrixMultiplyCore 实例
+    input.allocator()->allocate();
+    weights.allocator()->allocate();
+    bias.allocator()->allocate();
+    output.allocator()->allocate();
+
+    // 6. 填充示例数据
+    uint8_t *input_ptr = input.buffer();
+    uint8_t *weights_ptr = weights.buffer();
+    int32_t *bias_ptr = reinterpret_cast<int32_t *>(bias.buffer());
+
+    uint8_t input_data[] = {10, 10, 10, 10};
+    uint8_t weights_data[] = {1, 1, 1, 1};
+    int32_t bias_data[] = {100, 100};
+
+    memcpy(input_ptr, input_data, sizeof(input_data));
+    memcpy(weights_ptr, weights_data, sizeof(weights_data));
+    memcpy(bias_ptr, bias_data, sizeof(bias_data));
+
+    // 7. 设置GEMMInfo，包括输出阶段
+    GEMMInfo gemm_info;
+    // 计算量化参数
+    const int32_t input_offset = -quant_info.offset()[0];
+    const int32_t weights_offset = -quant_info.offset()[0];
+    const int32_t output_offset = quant_info.offset()[0];
+    const float scale = quant_info.scale()[0];
+
+    // 设置输出阶段
+    BIGEMMLowpOutputStageInfo output_stage;
+    output_stage.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
+    output_stage.output_data_type = BIDataType::QASYMM8;
+    output_stage.gemmlowp_offset = output_offset;
+    // 计算multiplier和shift
+    int32_t output_multiplier;
+    int32_t output_shift;
+    quantization::calculate_quantized_multiplier_less_than_one(
+            scale, &output_multiplier, &output_shift);
+    output_stage.gemmlowp_multiplier = output_multiplier;
+    output_stage.gemmlowp_shift = output_shift;
+    // 设置到gemm_info
+    gemm_info.set_gemmlowp_output_stage(output_stage);
+
+    // 8. 配置并运行GEMM
     BINEGEMMLowpMatrixMultipleCore gemm;
+    gemm.configure(&input, &weights, nullptr, &output, gemm_info);
 
-    // 配置 GEMM 操作
-    gemm.configure(&a, &b, nullptr, &c);
+    // 记录开始时间点
+    auto start = std::chrono::high_resolution_clock::now();
 
-    // 分配张量内存
-    a.allocator()->allocate();
-    b.allocator()->allocate();
-    c.allocator()->allocate();
-
-    fill_tensor_buffer(a, BIDataType::QASYMM8, 2); // 填充值为 2
-    fill_tensor_buffer(b, BIDataType::QASYMM8, 3); // 填充值为 3
-
+    // 调用需要测试的函数
     gemm.run();
 
-    BIIOFormatInfo format(BatmanInfer::BIIOFormatInfo::PrintRegion::Full,
-                          BatmanInfer::BIIOFormatInfo::PrecisionType::Default, 0, true, ", ", "\n");
-    a.print(std::cout, format);
-    b.print(std::cout, format);
+    // 记录结束时间点
+    auto end = std::chrono::high_resolution_clock::now();
 
-    c.print(std::cout, format);
+    // 计算时间差
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    // 打印结果
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
+//    // 9. 打印结果
+//    BIWindow window;
+//    window.use_tensor_dimensions(output.info()->tensor_shape());
+//
+//    execute_window_loop(window, [&](const BICoordinates &id) {
+//        uint8_t *output_ptr = output.buffer();
+//        std::cout << static_cast<int>(output_ptr[id.y() * output_shape[0] + id.x()]) << " ";
+//        if (id.x() == output_shape[0] - 1) std::cout << std::endl;
+//    });
+}
+
+TEST(BICpuGemm, BasicGemmTest01) {
+    using namespace BatmanInfer;
+    // 1. 定义小矩阵: 2x2 * 2x2 = 2x2
+    const BITensorShape input_shape(1024, 1024);    // 2x2
+    const BITensorShape weights_shape(1024, 1024);  // 2x2
+    const BITensorShape output_shape(1024, 1024);   // 2x2
+    const BITensorShape bias_shape(1024);        // bias向量
+
+// 2. 创建张量
+    BITensor input, weights, bias, output;
+
+// 3. 配置张量信息（使用F32而不是QASYMM8）
+    BITensorInfo input_info(input_shape, 1, BIDataType::F32);
+    BITensorInfo weights_info(weights_shape, 1, BIDataType::F32);
+    BITensorInfo bias_info(bias_shape, 1, BIDataType::F32);
+    BITensorInfo output_info(output_shape, 1, BIDataType::F32);
+
+// 4. 初始化并分配内存
+    input.allocator()->init(input_info);
+    weights.allocator()->init(weights_info);
+    bias.allocator()->init(bias_info);
+    output.allocator()->init(output_info);
+
+    input.allocator()->allocate();
+    weights.allocator()->allocate();
+    bias.allocator()->allocate();
+    output.allocator()->allocate();
+
+// 5. 填充示例数据（使用之前反量化得到的实际值）
+    float *input_ptr = reinterpret_cast<float *>(input.buffer());
+    float *weights_ptr = reinterpret_cast<float *>(weights.buffer());
+    float *bias_ptr = reinterpret_cast<float *>(bias.buffer());
+
+    float input_data[] = {-0.463f, -0.463f, -0.463f, -0.463f};
+    float weights_data[] = {-0.498f, -0.498f, -0.498f, -0.498f};
+    float bias_data[] = {100.0f, 100.0f};
+
+    memcpy(input_ptr, input_data, sizeof(input_data));
+    memcpy(weights_ptr, weights_data, sizeof(weights_data));
+    memcpy(bias_ptr, bias_data, sizeof(bias_data));
+
+// 6. 配置并运行GEMM
+    BINEGEMM gemm;
+    gemm.configure(&input, &weights, &bias, &output, 1.0f, 1.0f);
+
+    // 记录开始时间点
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // 调用需要测试的函数
+    gemm.run();
+
+    // 记录结束时间点
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // 计算时间差
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    // 打印结果
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
+
+
+//// 7. 打印结果
+//    BIWindow window;
+//    window.use_tensor_dimensions(output.info()->tensor_shape());
+//
+//    execute_window_loop(window, [&](const BICoordinates &id) {
+//        float *output_ptr = reinterpret_cast<float *>(output.buffer());
+//        std::cout << output_ptr[id.y() * output_shape[0] + id.x()] << " ";
+//        if (id.x() == output_shape[0] - 1) std::cout << std::endl;
+//    });
+}
+
+TEST(BIFullyConnected, BasicFullyTest) {
+    // 输入张量维度 (batch_size, input_size)
+    const BITensorShape input_shape(4096, 512); // 假设 batch_size=1, input_size=128
+
+    // 输出张量维度 (batch_size, output_size)
+    const BITensorShape output_shape(64, 512); // 假设 output_size=64
+
+    // 权重张量维度 (output_size, input_size)
+    const BITensorShape weights_shape(64, 4096);
+
+    // 偏置张量维度 (output_size)
+    const BITensorShape biases_shape(512);
+
+    // 创建输入、权重、偏置和输出张量
+    BITensor input, weights, biases, output;
+
+    // 配置量化信息 (scale 和 zero_point)
+    BIQuantizationInfo input_quant_info(0.1f, 128);   // 假设输入张量的 scale=0.1, zero_point=128
+    BIQuantizationInfo weights_quant_info(0.05f, 128); // 假设权重张量的 scale=0.05, zero_point=128
+    BIQuantizationInfo output_quant_info(0.2f, 128);  // 假设输出张量的 scale=0.2, zero_point=128
+
+    // 初始化张量的数据类型和量化信息
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::QASYMM8, input_quant_info));
+    weights.allocator()->init(BITensorInfo(weights_shape, 1, BIDataType::QASYMM8, weights_quant_info));
+    biases.allocator()->init(BITensorInfo(biases_shape, 1, BIDataType::S32)); // 偏置通常是 S32 类型
+    output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::QASYMM8, output_quant_info));
+
+    // 创建 NEFullyConnectedLayer 实例
+    BINEFullyConnectedLayer fc_layer;
+
+    // 配置 FullyConnectedLayerInfo
+    BIFullyConnectedLayerInfo fc_info;
+    fc_info.transpose_weights = false; // 如果权重需要转置
+
+    // 配置全连接层
+    fc_layer.configure(&input, &weights, &biases, &output, fc_info);
+
+    // 分配张量内存
+    input.allocator()->allocate();
+    weights.allocator()->allocate();
+    biases.allocator()->allocate();
+    output.allocator()->allocate();
+
+    // 模拟数据填充 (实际中应加载量化后的数据)
+    // 注意：这里的填充需要符合量化格式
+    auto input_ptr = reinterpret_cast<uint8_t *>(input.buffer());
+    for (size_t i = 0; i < input.info()->total_size(); ++i) {
+        input_ptr[i] = 128; // 假设输入数据全为 zero_point
+    }
+
+    auto weights_ptr = reinterpret_cast<uint8_t *>(weights.buffer());
+    for (size_t i = 0; i < weights.info()->total_size(); ++i) {
+        weights_ptr[i] = 128; // 假设权重数据全为 zero_point
+    }
+
+    auto biases_ptr = reinterpret_cast<int32_t *>(biases.buffer());
+    for (size_t i = 0; i < biases.info()->total_size() / sizeof(int32_t); ++i) {
+        biases_ptr[i] = 0; // 偏置为零
+    }
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // 运行全连接层
+    fc_layer.run();
+
+    // 记录结束时间点
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // 计算时间差
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    // 打印结果
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
+
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+//    output.print(std::cout, format);
 }

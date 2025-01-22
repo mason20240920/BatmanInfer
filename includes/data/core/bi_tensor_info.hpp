@@ -267,6 +267,10 @@ namespace BatmanInfer {
             return *this;
         }
 
+        BIDataLayout data_layout() const override {
+            return BIDataLayout::NHWC;
+        }
+
         inline friend bool operator==(const BITensorInfo &lhs, const BITensorInfo &rhs);
 
     private:
