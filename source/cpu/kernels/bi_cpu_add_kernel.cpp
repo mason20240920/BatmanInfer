@@ -66,7 +66,11 @@ namespace BatmanInfer {
                         {"neon_qs16_add", [](const CpuAddKernelDataTypeISASelectorData &data) {
                             return (data.dt == BIDataType::QSYMM16);
                         },
-                                REGISTER_QSYMM16_NEON(BatmanInfer::cpu::add_qsymm16_neon)}
+                                REGISTER_QSYMM16_NEON(BatmanInfer::cpu::add_qsymm16_neon)},
+                        {"neon_fp32_add", [](const CpuAddKernelDataTypeISASelectorData &data) {
+                            return (data.dt == BIDataType::F32);
+                        },
+                                REGISTER_FP32_NEON(BatmanInfer::cpu::add_fp32_neon)}
                 };
 
                 BIStatus
@@ -107,7 +111,7 @@ namespace BatmanInfer {
                     }
 
                     const auto can_use_fixedpoint = add_q8_neon_fixedpoint_possible(&src0, &src1, &dst);
-#ifdef ARM_COMPUTE_ENABLE_SME2
+#ifdef BI_COMPUTE_ENABLE_SME2
                     const auto can_use_sme2_impl = add_q8_sme2_fixedpoint_possible(&src0, &src1, &dst);
 #else  /* ARM_COMPUTE_ENABLE_SME2 */
                     const auto can_use_sme2_impl = false;

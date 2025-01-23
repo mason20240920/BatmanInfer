@@ -1,0 +1,72 @@
+//
+// Created by Mason on 2025/1/23.
+//
+
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+#include <runtime/bi_tensor.hpp>
+#include <runtime/neon/functions/bi_ne_rnn_layer.hpp>
+
+using namespace BatmanInfer;
+
+
+TEST(BatmanInferLayer, RNNLayerTest) {
+    // 输入张量
+    const BITensorShape input_shape(64,     // input_size (width)
+                                    32);     // batch_size (height)
+    const BITensorInfo input_info(input_shape, 1, BIDataType::F32);
+    BITensor input;
+    input.allocator()->init(input_info);
+
+    // 权重张量
+    const BITensorShape weights_shape(64,     // input_size (width, 匹配input宽度)
+                                      128);    // hidden_units (height)
+    const BITensorInfo weights_info(weights_shape, 1, BIDataType::F32);
+    BITensor weights;
+    weights.allocator()->init(weights_info);
+
+    // 循环权重张量
+    const BITensorShape recurrent_weights_shape(128,    // hidden_units (width)
+                                                128);    // hidden_units (height)
+    const BITensorInfo recurrent_weights_info(recurrent_weights_shape, 1, BIDataType::F32);
+    BITensor recurrent_weights;
+    recurrent_weights.allocator()->init(recurrent_weights_info);
+
+    // 偏置矩阵
+    const BITensorShape bias_shape(128);    // hidden_units
+    const BITensorInfo bias_info(bias_shape, 1, BIDataType::F32);
+    BITensor bias;
+    bias.allocator()->init(bias_info);
+
+    // 隐藏层张量
+    const BITensorShape hidden_state_shape(128,    // hidden_units (width)
+                                           32);     // batch_size (height, 匹配input高度)
+    const BITensorInfo hidden_state_info(hidden_state_shape, 1, BIDataType::F32);
+    BITensor hidden_state;
+    hidden_state.allocator()->init(hidden_state_info);
+
+    // 输出张量
+    const BITensorShape output_shape(128,    // hidden_units (width)
+                                     32);     // batch_size (height)
+    const BITensorInfo output_info(output_shape, 1, BIDataType::F32);
+    BITensor output;
+    output.allocator()->init(output_info);
+
+    // 5. 分配内存
+    input.allocator()->allocate();
+    weights.allocator()->allocate();
+    recurrent_weights.allocator()->allocate();
+    bias.allocator()->allocate();
+    hidden_state.allocator()->allocate();
+    output.allocator()->allocate();
+
+    // 7. 创建RNN层配置
+    BINERNNLayer rnn_layer;
+    BIActivationLayerInfo activation_info(BIActivationLayerInfo::ActivationFunction::TANH); // 激活函数使用tanh
+
+    // 8. 配置RNN层
+    rnn_layer.configure(&input, &weights, &recurrent_weights, &bias, &hidden_state, &output, activation_info);
+
+    // 10. 运行RNN层
+    rnn_layer.run();
+}

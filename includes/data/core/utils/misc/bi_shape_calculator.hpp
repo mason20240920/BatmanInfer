@@ -459,6 +459,20 @@ namespace BatmanInfer {
                 return shape_vector_sum_row;
             }
 
+            /**
+             * 计算一个张量的RNN形状
+             * @param input
+             * @param batch_size
+             * @return
+             */
+            inline BITensorShape compute_rnn_shape(const BIITensorInfo *input,
+                                                   const unsigned int batch_size) {
+                BITensorShape output_shape{input->tensor_shape()};
+                output_shape.set(1, batch_size);
+
+                return output_shape;
+            }
+
         }
     }
 }
