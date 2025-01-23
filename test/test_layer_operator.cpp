@@ -67,6 +67,17 @@ TEST(BatmanInferLayer, RNNLayerTest) {
     // 8. 配置RNN层
     rnn_layer.configure(&input, &weights, &recurrent_weights, &bias, &hidden_state, &output, activation_info);
 
+    auto start = std::chrono::high_resolution_clock::now();
+
     // 10. 运行RNN层
     rnn_layer.run();
+
+    // 记录结束时间点
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // 计算时间差
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    // 打印结果
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 }

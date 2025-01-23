@@ -13,7 +13,7 @@ namespace BatmanInfer {
         constexpr BIDataLayoutDimension N = BIDataLayoutDimension::BATCHES;
 
         static const std::vector<BIDataLayoutDimension> layout_vec = {
-                W, H, C, N
+                C, W, H, N
         };
 
 //        static const std::map<DataLayout, std::vector<DataLayoutDimension>> layout_map = {
