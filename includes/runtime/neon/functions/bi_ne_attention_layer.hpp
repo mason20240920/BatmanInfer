@@ -10,6 +10,7 @@
 #include <data/core/bi_types.hpp>
 #include <runtime/bi_memory_group.hpp>
 #include <runtime/bi_tensor.hpp>
+#include "bi_ne_copy.hpp"
 
 namespace BatmanInfer {
     // 前向声明
@@ -17,7 +18,7 @@ namespace BatmanInfer {
 
     class BINEAttentionLayer : public BIIFunction {
     public:
-        BINEAttentionLayer(std::shared_ptr<BIIMemoryManager> memory_manager);
+        explicit BINEAttentionLayer(std::shared_ptr<BIIMemoryManager> memory_manager);
 
         BINEAttentionLayer() : BINEAttentionLayer(BIMemoryManagerOnDemand::make_default()) {
 
@@ -31,7 +32,7 @@ namespace BatmanInfer {
 
         BINEAttentionLayer &operator=(BINEAttentionLayer &&) = delete;
 
-        ~BINEAttentionLayer();
+        ~BINEAttentionLayer() override;
 
         /**
         * 初始化函数
@@ -88,6 +89,8 @@ namespace BatmanInfer {
         BITensor _gemm_output;
         // 转换变量
         BITensor _reshape_output;
+        // 复制的对象
+        BINECopy _copy_f;
         // 是否已经完全初始化
         bool _is_prepared;
     };

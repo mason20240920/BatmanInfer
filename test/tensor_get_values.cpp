@@ -930,10 +930,10 @@ TEST(BICpuLowpGemm, BasicGemmTest) {
 TEST(BICpuGemm, BasicGemmTest01) {
     using namespace BatmanInfer;
     // 1. 定义小矩阵: 2x2 * 2x2 = 2x2
-    const BITensorShape input_shape(1024, 1024);    // 2x2
-    const BITensorShape weights_shape(1024, 1024);  // 2x2
-    const BITensorShape output_shape(1024, 1024);   // 2x2
-    const BITensorShape bias_shape(1024);        // bias向量
+    const BITensorShape input_shape(16, 768);    // 2x2
+    const BITensorShape weights_shape(768, 2304);  // 2x2
+    const BITensorShape output_shape(16, 2304);   // 2x2
+    const BITensorShape bias_shape(2304);        // bias向量
 
 // 2. 创建张量
     BITensor input, weights, bias, output;
@@ -955,7 +955,7 @@ TEST(BICpuGemm, BasicGemmTest01) {
     bias.allocator()->allocate();
     output.allocator()->allocate();
 
-// 5. 填充示例数据（使用之前反量化得到的实际值）
+    // 5. 填充示例数据（使用之前反量化得到的实际值）
     float *input_ptr = reinterpret_cast<float *>(input.buffer());
     float *weights_ptr = reinterpret_cast<float *>(weights.buffer());
     float *bias_ptr = reinterpret_cast<float *>(bias.buffer());
@@ -970,7 +970,8 @@ TEST(BICpuGemm, BasicGemmTest01) {
 
 // 6. 配置并运行GEMM
     BINEGEMM gemm;
-    gemm.configure(&input, &weights, &bias, &output, 1.0f, 1.0f);
+    gemm.configure(&weights, &input, &bias, &output, 1.0f, 1.0f);
+    gemm.prepare();
 
     // 记录开始时间点
     auto start = std::chrono::high_resolution_clock::now();

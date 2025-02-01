@@ -49,10 +49,10 @@ namespace BatmanInfer {
         BI_COMPUTE_LOG_PARAMS(input, weights, bias, output);
 
         // 转置的输出shape
-        BITensorShape reshape_shape = BITensorShape(2, 768);
+        BITensorShape reshape_shape = BITensorShape(16, 768);
 
         // Gmm的输出reshape
-        BITensorShape gemm_shape = BITensorShape(2, 2304);
+        BITensorShape gemm_shape = BITensorShape(16, 2304);
 
         // 初始化标志，标识尚未准备好
         _is_prepared = false;
@@ -63,14 +63,40 @@ namespace BatmanInfer {
         _gemm_output.allocator()->init(BITensorInfo(gemm_shape, 1, input->info()->data_type()));
 
         // 将_reshape_output和_gemm_output交给内存管理器管理
-        _memory_group.manage(&_reshape_output);
+//        _memory_group.manage(&_reshape_output);
 
         _reshape.configure(input, &_reshape_output);
 
-        _memory_group.manage(&_gemm_output);
+//        _memory_group.manage(&_gemm_output);
 
-        _gemm_state_f.configure(input, weights, bias, &_gemm_output, 1.f, 1.f);
+        _reshape_output.allocator()->allocate();
+        _gemm_output.allocator()->allocate();
 
-        
+        _gemm_state_f.configure(weights, &_reshape_output, bias, &_gemm_output, 1.f, 1.f);
+
+        _copy_f.configure(&_gemm_output, output);
+
+    }
+
+    void BINEAttentionLayer::run() {
+        prepare();
+
+        BIMemoryGroupResourceScope scope_mg(_memory_group);
+
+        _reshape.run();
+
+        _gemm_state_f.run();
+
+        // 拷贝隐藏层到输出
+        _copy_f.run();
+    }
+
+    void BINEAttentionLayer::prepare() {
+        if (!_is_prepared) {
+            _reshape.prepare();
+            _gemm_state_f.prepare();
+
+            _is_prepared = true;
+        }
     }
 }

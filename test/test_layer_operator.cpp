@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <runtime/bi_tensor.hpp>
 #include <runtime/neon/functions/bi_ne_rnn_layer.hpp>
+#include <runtime/neon/functions/bi_ne_attention_layer.hpp>
 
 using namespace BatmanInfer;
 
@@ -80,4 +81,45 @@ TEST(BatmanInferLayer, RNNLayerTest) {
 
     // 打印结果
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
+}
+
+TEST(BatmanInferLayer, CPUAttentionTest) {
+    // 输入张量
+    const BITensorShape input_shape(1,   // batch size
+                                    16,  // sequence
+                                    768); // hidden dimension
+    const BITensorInfo input_info(input_shape, 1, BIDataType::F32);
+    BITensor input;
+    input.allocator()->init(input_info);
+
+    // 权重张量
+    const BITensorShape weights_shape(768,     // input_size (width, 匹配input宽度)
+                                      2304);    // hidden_units (height)
+    const BITensorInfo weights_info(weights_shape, 1, BIDataType::F32);
+    BITensor weights;
+    weights.allocator()->init(weights_info);
+
+    // 偏置矩阵
+    const BITensorShape bias_shape(2304);    // hidden_units
+    const BITensorInfo bias_info(bias_shape, 1, BIDataType::F32);
+    BITensor bias;
+    bias.allocator()->init(bias_info);
+
+    // 输出张量
+    const BITensorShape output_shape(16,    // hidden_units (width)
+                                     2304);     // batch_size (height)
+    const BITensorInfo output_info(output_shape, 1, BIDataType::F32);
+    BITensor output;
+    output.allocator()->init(output_info);
+
+    // 5. 分配内存
+    input.allocator()->allocate();
+    weights.allocator()->allocate();
+    bias.allocator()->allocate();
+    output.allocator()->allocate();
+
+    BINEAttentionLayer attention_layer;
+    attention_layer.configure(&input, &weights, &bias, &output);
+
+    attention_layer.run();
 }
