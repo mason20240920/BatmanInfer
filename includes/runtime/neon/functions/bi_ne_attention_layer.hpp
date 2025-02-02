@@ -7,6 +7,7 @@
 #include <runtime/neon/functions/bi_ne_reshape_layer.hpp>
 #include <runtime/neon/functions/bi_ne_gemm.hpp>
 #include <runtime/bi_memory_manager_on_demand.hpp>
+#include <runtime/neon/functions/bi_ne_split.hpp>
 #include <data/core/bi_types.hpp>
 #include <runtime/bi_memory_group.hpp>
 #include <runtime/bi_tensor.hpp>
@@ -85,10 +86,20 @@ namespace BatmanInfer {
         BINEGEMM _gemm_state_f;
         // 执行Reshape操作
         BINEReshapeLayer _reshape;
+
+        BINEReshapeLayer _reshape2;
+        // 进行切分split
+        BINESplit _split_layer;
         // 中间变量
         BITensor _gemm_output;
         // 转换变量
         BITensor _reshape_output;
+        // 第二层转换变量
+        BITensor _reshape_output_2;
+        // 输出split结果
+        BITensor _split_result_0;
+        BITensor _split_result_1;
+        BITensor _split_result_2;
         // 复制的对象
         BINECopy _copy_f;
         // 是否已经完全初始化

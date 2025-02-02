@@ -1079,5 +1079,5 @@ TEST(BIFullyConnected, BasicFullyTest) {
     format.row_delim = "\n";      // 每行换行
     format.align_columns = 1;     // 对齐列
 
-//    output.print(std::cout, format);
+    output.print(std::cout, format);
 }

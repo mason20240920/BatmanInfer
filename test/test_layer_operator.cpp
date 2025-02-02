@@ -106,8 +106,9 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     bias.allocator()->init(bias_info);
 
     // 输出张量
-    const BITensorShape output_shape(16,    // hidden_units (width)
-                                     2304);     // batch_size (height)
+    const BITensorShape output_shape(1,
+                                     16,    // hidden_units (width)
+                                     768);     // batch_size (height)
     const BITensorInfo output_info(output_shape, 1, BIDataType::F32);
     BITensor output;
     output.allocator()->init(output_info);
@@ -118,8 +119,32 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     bias.allocator()->allocate();
     output.allocator()->allocate();
 
+    // 模拟数据填充 (实际中应加载量化后的数据)
+    // 注意：这里的填充需要符合量化格式
+    auto input_ptr = reinterpret_cast<float *>(input.buffer());
+    for (size_t i = 0; i < input.info()->total_size(); ++i) {
+        input_ptr[i] = 1; // 假设输入数据全为 zero_point
+    }
+
+    auto weights_ptr = reinterpret_cast<float *>(weights.buffer());
+    for (size_t i = 0; i < weights.info()->total_size(); ++i) {
+        weights_ptr[i] = 1; // 假设权重数据全为 zero_point
+    }
+
+    auto biases_ptr = reinterpret_cast<float *>(bias.buffer());
+    for (size_t i = 0; i < bias.info()->total_size() / sizeof(int32_t); ++i) {
+        biases_ptr[i] = 1; // 偏置为零
+    }
+
     BINEAttentionLayer attention_layer;
     attention_layer.configure(&input, &weights, &bias, &output);
 
     attention_layer.run();
+
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+    output.print(std::cout, format);
 }
