@@ -132,6 +132,9 @@ namespace BatmanInfer {
                 rhs_to_use = &rhs_transposed;
             }
 
+            auto ret = lhs_to_use->dimension(0);
+            auto new_ret = rhs_to_use->dimension(1);
+
             BI_COMPUTE_RETURN_ERROR_ON_MSG(lhs_to_use->dimension(0) != rhs_to_use->dimension(1),
                                            "The product AB is defined only if the number of columns in A is equal to the "
                                            "number of rows in B (after transpose)");

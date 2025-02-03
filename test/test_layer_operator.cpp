@@ -114,11 +114,21 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     BITensor output;
     output.allocator()->init(output_info);
 
+    // 标量
+    const BITensorShape scalar_shape(1);
+    const BITensorInfo scalar_info(scalar_shape, 1, BIDataType::F32);
+    BITensor scalar;
+    scalar.allocator()->init(scalar_info);
+
+    PermutationVector perm{0, 2, 1, 3};
+    PermutationVector perm2{0, 2, 3, 1};
+
     // 5. 分配内存
     input.allocator()->allocate();
     weights.allocator()->allocate();
     bias.allocator()->allocate();
     output.allocator()->allocate();
+    scalar.allocator()->allocate();
 
     // 模拟数据填充 (实际中应加载量化后的数据)
     // 注意：这里的填充需要符合量化格式
@@ -137,15 +147,18 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
         biases_ptr[i] = 1; // 偏置为零
     }
 
+    auto scalar_ptr = reinterpret_cast<float *>(scalar.buffer());
+    scalar_ptr[0] = 0.5f;
+
     BINEAttentionLayer attention_layer;
-    attention_layer.configure(&input, &weights, &bias, &output);
+    attention_layer.configure(&input, &weights, &bias, &scalar, perm, perm2, &output);
 
     attention_layer.run();
 
-//    BIIOFormatInfo format;
-//    format.element_delim = ", ";  // 元素之间用逗号分隔
-//    format.row_delim = "\n";      // 每行换行
-//    format.align_columns = 1;     // 对齐列
-//
-//    output.print(std::cout, format);
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+    output.print(std::cout, format);
 }

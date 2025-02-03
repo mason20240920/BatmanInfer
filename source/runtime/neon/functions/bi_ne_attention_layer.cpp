@@ -32,6 +32,20 @@ namespace BatmanInfer {
             _reshape_split_output_0(),
             _transpose_split_0(),
             _transpose_split_output_0(),
+            _reshape_split_1(),
+            _transpose_split_1(),
+            _reshape_split_2(),
+            _transpose_split_2(),
+            _mul_op_0(),
+            _mul_op_1(),
+            _reshape_split_output_1(),
+            _transpose_split_output_1(),
+            _mul_split_output_1(),
+            _reshape_split_output_2(),
+            _transpose_split_output_2(),
+            _mul_split_output_2(),
+            _matmul_op(),
+            _mat_mul_output(),
             _is_prepared(false) {
 
     }
@@ -52,6 +66,9 @@ namespace BatmanInfer {
     void BINEAttentionLayer::configure(const BatmanInfer::BIITensor *input,
                                        const BatmanInfer::BIITensor *weights,
                                        const BatmanInfer::BIITensor *bias,
+                                       const BIITensor *scalar,
+                                       const PermutationVector &perm,
+                                       const PermutationVector &perm2,
                                        BatmanInfer::BIITensor *output) {
         // 输入的参数是否为空
         BI_COMPUTE_ERROR_ON_NULLPTR(input, weights, bias, output);
@@ -79,6 +96,12 @@ namespace BatmanInfer {
         // 第一层切分的transpose结构
         BITensorShape split_layer_0_trans_shape = BITensorShape(1, 12, 16, 64);
 
+        // 第二个分支的split的transpose不同
+        BITensorShape split_linear_1_trans_shape = BITensorShape(1, 12, 64, 16);
+
+        // 合并分支代码
+        BITensorShape mat_mul_shape = BITensorShape(1, 12, 16, 16);
+
         // 初始化标志，标识尚未准备好
         _is_prepared = false;
 
@@ -102,26 +125,36 @@ namespace BatmanInfer {
         _transpose_split_output_0.allocator()->init(
                 BITensorInfo(split_layer_0_trans_shape, 1, input->info()->data_type()));
 
-        _memory_group.manage(&_reshape_split_output_0);
+        // 初始化split_1的推理分支
+        _reshape_split_output_1.allocator()->init(BITensorInfo(split_layer_0_shape, 1, input->info()->data_type()));
+        _transpose_split_output_1.allocator()->init(
+                BITensorInfo(split_linear_1_trans_shape, 1, input->info()->data_type()));
+        _mul_split_output_1.allocator()->init(BITensorInfo(split_linear_1_trans_shape, 1, input->info()->data_type()));
 
-        _memory_group.manage(&_transpose_split_output_0);
+        // 初始化split_2的推理分支
+        _reshape_split_output_2.allocator()->init(BITensorInfo(split_layer_0_shape, 1, input->info()->data_type()));
+        _transpose_split_output_2.allocator()->init(
+                BITensorInfo(split_layer_0_trans_shape, 1, input->info()->data_type()));
+        _mul_split_output_2.allocator()->init(BITensorInfo(split_layer_0_trans_shape, 1, input->info()->data_type()));
 
+        // 推理分支代码合并
+        _mat_mul_output.allocator()->init(BITensorInfo(mat_mul_shape, 1, input->info()->data_type()));
 
-        // 将_reshape_output和_gemm_output交给内存管理器管理
-        _memory_group.manage(&_reshape_output);
-
-        _reshape.configure(input, &_reshape_output);
-
-        _memory_group.manage(&_gemm_output);
-
-
-        _gemm_state_f.configure(weights, &_reshape_output, bias, &_gemm_output, 1.f, 1.f);
-
-        _memory_group.manage(&_reshape_output_2);
-
-        _reshape2.configure(&_gemm_output, &_reshape_output_2);
 
         // 内存管理
+        _memory_group.manage(&_reshape_split_output_0);
+        _memory_group.manage(&_transpose_split_output_0);
+        _memory_group.manage(&_reshape_split_output_1);
+        _memory_group.manage(&_transpose_split_output_1);
+        _memory_group.manage(&_mul_split_output_1);
+        _memory_group.manage(&_reshape_split_output_2);
+        _memory_group.manage(&_transpose_split_output_2);
+        _memory_group.manage(&_mul_split_output_2);
+        _memory_group.manage(&_gemm_output);
+        _memory_group.manage(&_reshape_output_2);
+        _memory_group.manage(&_mat_mul_output);
+        // 将_reshape_output和_gemm_output交给内存管理器管理
+        _memory_group.manage(&_reshape_output);
         _memory_group.manage(&_split_result_0);
         _memory_group.manage(&_split_result_1);
         _memory_group.manage(&_split_result_2);
@@ -134,21 +167,56 @@ namespace BatmanInfer {
         _split_result_2.allocator()->allocate();
         _reshape_split_output_0.allocator()->allocate();
         _transpose_split_output_0.allocator()->allocate();
+        _reshape_split_output_1.allocator()->allocate();
+        _transpose_split_output_1.allocator()->allocate();
+        _mul_split_output_1.allocator()->allocate();
+        _reshape_split_output_2.allocator()->allocate();
+        _transpose_split_output_2.allocator()->allocate();
+        _mul_split_output_2.allocator()->allocate();
+        _mat_mul_output.allocator()->allocate();
 
 
 
         // 进行切分层的结果输入和输出
+        _reshape.configure(input, &_reshape_output);
+        _gemm_state_f.configure(weights, &_reshape_output, bias, &_gemm_output, 1.f, 1.f);
+        _reshape2.configure(&_gemm_output, &_reshape_output_2);
         std::vector<BIITensor *> outputs = {&_split_result_0, &_split_result_1, &_split_result_2};
-
-
         _split_layer.configure(&_reshape_output_2, outputs, 2);
-
         _reshape_split_0.configure(&_split_result_0, &_reshape_split_output_0);
+        _transpose_split_0.configure(&_reshape_split_output_0, &_transpose_split_output_0, perm);
+        _reshape_split_1.configure(&_split_result_1, &_reshape_split_output_1);
+        _transpose_split_1.configure(&_reshape_split_output_1, &_transpose_split_output_1, perm2);
+        _mul_op_0.configure(&_transpose_split_output_1,
+                            scalar,
+                            &_mul_split_output_1,
+                            1.0f,
+                            BIConvertPolicy::WRAP,
+                            BIRoundingPolicy::TO_ZERO);
+        _reshape_split_2.configure(&_split_result_2, &_reshape_split_output_2);
+        _transpose_split_2.configure(&_reshape_split_output_2, &_transpose_split_output_2, perm);
+        _mul_op_1.configure(&_transpose_split_output_2,
+                            scalar,
+                            &_mul_split_output_2,
+                            1.0f,
+                            BIConvertPolicy::WRAP,
+                            BIRoundingPolicy::TO_ZERO);
 
-        _transpose_split_0.configure(&_reshape_split_output_0, &_transpose_split_output_0,
-                                     PermutationVector{0, 2, 1, 3});
+        // Define MatMulInfo
+        BIMatMulInfo matmul_info; // No transpose for lhs or rhs
 
-        _copy_f.configure(&_transpose_split_output_0, output);
+        // Define CpuMatMulSettings
+        BICpuMatMulSettings settings;
+        // Enable fast math for optimization
+        settings = settings.fast_math(true);
+        // 设置不是常量
+        _mul_split_output_1.info()->set_are_values_constant(false);
+        _mul_split_output_2.info()->set_are_values_constant(false);
+        _matmul_op.configure(&_mul_split_output_1,
+                             &_mul_split_output_2,
+                             &_mat_mul_output, matmul_info, settings);
+
+        _copy_f.configure(&_mat_mul_output, output);
 
     }
 
@@ -170,6 +238,19 @@ namespace BatmanInfer {
         // 进行第一个Split推理分支进行切分
         _reshape_split_0.run();
         _transpose_split_0.run();
+
+        // 进行第二个Split推理分支进行运行
+        _reshape_split_1.run();
+        _transpose_split_1.run();
+        _mul_op_0.run();
+
+        // 进行第三个Split推理分支进行运行
+        _reshape_split_2.run();
+        _transpose_split_2.run();
+        _mul_op_1.run();
+
+        // 进行合并矩阵计算
+        _matmul_op.run();
 
         // 拷贝隐藏层到输出
         _copy_f.run();

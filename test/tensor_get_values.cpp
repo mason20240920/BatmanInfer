@@ -646,9 +646,9 @@ void print_tensor_qasymm8(const BITensor &tensor) {
 
 TEST(BITensor, NEMatMul_example_01) {
     // 定义输入和输出张量的形状
-    BITensorShape shape_a(3, 2); // 左矩阵 (3x2)
-    BITensorShape shape_b(4, 2); // 右矩阵 (4x2)，需要转置为 (2x4)
-    BITensorShape shape_c(4, 3); // 输出矩阵 (4x3)
+    BITensorShape shape_a(3, 2, 1); // 左矩阵 (3x2)
+    BITensorShape shape_b(4, 2, 1); // 右矩阵 (4x2)，需要转置为 (2x4)
+    BITensorShape shape_c(4, 3, 1); // 输出矩阵 (4x3)
 
     // 创建输入和输出张量
     BITensor tensor_a, tensor_b, tensor_c;
@@ -693,18 +693,77 @@ TEST(BITensor, NEMatMul_example_01) {
     print_tensor_qasymm8(tensor_a);
 }
 
+TEST(BITensor, NEMatMul_example_02) {
+    // 定义输入和输出张量的形状
+    BITensorShape shape_a(3, 2, 2, 1); // 左矩阵 (3x2)
+    BITensorShape shape_b(4, 2, 2, 1); // 右矩阵 (4x2)，需要转置为 (2x4)
+    BITensorShape shape_c(4, 3, 2, 1); // 输出矩阵 (4x3)
+
+    // 创建输入和输出张量
+    BITensor tensor_a, tensor_b, tensor_c;
+
+    // 配置张量
+    tensor_a.allocator()->init(BITensorInfo(shape_a, 1, BIDataType::F32));
+    tensor_b.allocator()->init(BITensorInfo(shape_b, 1, BIDataType::F32));
+    tensor_c.allocator()->init(BITensorInfo(shape_c, 1, BIDataType::F32));
+
+    tensor_a.info()->set_are_values_constant(false);
+    tensor_b.info()->set_are_values_constant(false);
+    // 定义 MatMul 配置信息
+    BIMatMulInfo matmul_info; // 不转置左矩阵，转置右矩阵
+    matmul_info.adj_lhs(false).adj_rhs(true);
+    BICpuMatMulSettings settings;
+    settings.fast_math(true); // 启用快速数学模式
+
+    // 定义激活函数信息（可选）
+//    BIActivationLayerInfo act_info(BIActivationLayerInfo::ActivationFunction::RELU);
+
+    // 创建 MatMul 操作对象
+    BINEMatMul matmul;
+
+    // 配置 MatMul 操作
+    matmul.configure(&tensor_a, &tensor_b, &tensor_c, matmul_info, settings);
+
+    // 分配内存
+    tensor_a.allocator()->allocate();
+    tensor_b.allocator()->allocate();
+    tensor_c.allocator()->allocate();
+
+    // 填充输入张量数据
+    auto a_ptr = reinterpret_cast<float *>(tensor_a.buffer());
+    auto b_ptr = reinterpret_cast<float *>(tensor_b.buffer());
+    for (int i = 0; i < shape_a.total_size(); ++i) {
+        a_ptr[i] = 1.0f; // 示例数据
+    }
+    for (int i = 0; i < shape_b.total_size(); ++i) {
+        b_ptr[i] = 2.0f; // 示例数据
+    }
+
+    matmul.run();
+
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+    tensor_c.print(std::cout, format);
+//    print_tensor_qasymm8(tensor_a);
+}
+
 TEST(BITensor, NEMul_example_01) {
     using namespace BatmanInfer;
     // 1. 创建张量形状和量化参数
     BITensorShape shape(32, 32);  // 示例大小为32x32
+    BITensorShape same_shape(1);
 
     // 初始化张量信息
     BITensorInfo tensor_info(shape, 1, BIDataType::F32);
+    BITensorInfo tensor_mul_info(same_shape, 1, BIDataType::F32);
 
     // 创建输入和输出张量
     BITensor src1, src2, dst;
     src1.allocator()->init(tensor_info);
-    src2.allocator()->init(tensor_info);
+    src2.allocator()->init(tensor_mul_info);
     dst.allocator()->init(tensor_info);
 
     // 分配内存
@@ -717,8 +776,10 @@ TEST(BITensor, NEMul_example_01) {
     float *src2_ptr = reinterpret_cast<float *>(src2.buffer());
     for (size_t i = 0; i < shape.total_size(); ++i) {
         src1_ptr[i] = static_cast<float>(i + 1); // src1: 1, 2, 3, ...
-        src2_ptr[i] = static_cast<float>(2);     // src2: 全部填充为 2
+//        src2_ptr[i] = static_cast<float>(2);     // src2: 全部填充为 2
     }
+
+    src2_ptr[0] = static_cast<float>(2);
 
     BINEPixelWiseMultiplication multiply;
     multiply.configure(&src1, &src2, &dst, 1.0f, BIConvertPolicy::SATURATE, BIRoundingPolicy::TO_ZERO);
@@ -729,7 +790,7 @@ TEST(BITensor, NEMul_example_01) {
     // 验证输出张量的数据
     float *dst_ptr = reinterpret_cast<float *>(dst.buffer());
     for (size_t i = 0; i < shape.total_size(); ++i)
-        EXPECT_FLOAT_EQ(dst_ptr[i], src1_ptr[i] * src2_ptr[i]); // 验证结果
+        EXPECT_FLOAT_EQ(dst_ptr[i], src1_ptr[i] * src2_ptr[0]); // 验证结果
 
     BIIOFormatInfo format;
     format.element_delim = ", ";  // 元素之间用逗号分隔
