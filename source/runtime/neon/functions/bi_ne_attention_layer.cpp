@@ -94,13 +94,13 @@ namespace BatmanInfer {
         BITensorShape split_layer_0_shape = BITensorShape(1, 16, 12, 64);
 
         // 第一层切分的transpose结构
-        BITensorShape split_layer_0_trans_shape = BITensorShape(1, 12, 16, 64);
+        BITensorShape split_layer_0_trans_shape = BITensorShape(64, 16, 12, 1);
 
         // 第二个分支的split的transpose不同
-        BITensorShape split_linear_1_trans_shape = BITensorShape(1, 12, 64, 16);
+        BITensorShape split_linear_1_trans_shape = BITensorShape(16, 64, 12, 1);
 
         // 合并分支代码
-        BITensorShape mat_mul_shape = BITensorShape(1, 12, 16, 16);
+        BITensorShape mat_mul_shape = BITensorShape(16, 16, 12, 1);
 
         // 初始化标志，标识尚未准备好
         _is_prepared = false;

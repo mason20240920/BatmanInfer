@@ -695,9 +695,9 @@ TEST(BITensor, NEMatMul_example_01) {
 
 TEST(BITensor, NEMatMul_example_02) {
     // 定义输入和输出张量的形状
-    BITensorShape shape_a(3, 2, 2, 1); // 左矩阵 (3x2)
-    BITensorShape shape_b(4, 2, 2, 1); // 右矩阵 (4x2)，需要转置为 (2x4)
-    BITensorShape shape_c(4, 3, 2, 1); // 输出矩阵 (4x3)
+    BITensorShape shape_a(3, 2, 2, 1);
+    BITensorShape shape_b(4, 2, 2, 1);
+    BITensorShape shape_c(4, 3, 2, 1);
 
     // 创建输入和输出张量
     BITensor tensor_a, tensor_b, tensor_c;

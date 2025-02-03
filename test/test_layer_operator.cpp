@@ -106,10 +106,10 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     bias.allocator()->init(bias_info);
 
     // 输出张量
-    const BITensorShape output_shape(1,
-                                     12,    // hidden_units (width)
-                                     16,
-                                     64);     // batch_size (height)
+    const BITensorShape output_shape(16,
+                                     16,    // hidden_units (width)
+                                     12,
+                                     1);     // batch_size (height)
     const BITensorInfo output_info(output_shape, 1, BIDataType::F32);
     BITensor output;
     output.allocator()->init(output_info);
@@ -120,8 +120,8 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     BITensor scalar;
     scalar.allocator()->init(scalar_info);
 
-    PermutationVector perm{0, 2, 1, 3};
-    PermutationVector perm2{0, 2, 3, 1};
+    PermutationVector perm{3, 1, 2, 0};
+    PermutationVector perm2{1, 3, 2, 0};
 
     // 5. 分配内存
     input.allocator()->allocate();
@@ -134,7 +134,7 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     // 注意：这里的填充需要符合量化格式
     auto input_ptr = reinterpret_cast<float *>(input.buffer());
     for (size_t i = 0; i < input.info()->total_size(); ++i) {
-        input_ptr[i] = 1; // 假设输入数据全为 zero_point
+        input_ptr[i] = 1 / 768; // 假设输入数据全为 zero_point
     }
 
     auto weights_ptr = reinterpret_cast<float *>(weights.buffer());
