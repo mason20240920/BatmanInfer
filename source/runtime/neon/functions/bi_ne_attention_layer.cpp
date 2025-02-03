@@ -28,6 +28,10 @@ namespace BatmanInfer {
             _split_result_1(),
             _split_result_2(),
             _split_layer(),
+            _reshape_split_0(),
+            _reshape_split_output_0(),
+            _transpose_split_0(),
+            _transpose_split_output_0(),
             _is_prepared(false) {
 
     }
@@ -69,6 +73,12 @@ namespace BatmanInfer {
         // 第三进行结果的Split
         BITensorShape split_shape = BITensorShape(1, 16, 768);
 
+        // 第一层切分的reshape结构
+        BITensorShape split_layer_0_shape = BITensorShape(1, 16, 12, 64);
+
+        // 第一层切分的transpose结构
+        BITensorShape split_layer_0_trans_shape = BITensorShape(1, 12, 16, 64);
+
         // 初始化标志，标识尚未准备好
         _is_prepared = false;
 
@@ -85,6 +95,16 @@ namespace BatmanInfer {
         _split_result_1.allocator()->init(BITensorInfo(split_shape, 1, input->info()->data_type()));
 
         _split_result_2.allocator()->init(BITensorInfo(split_shape, 1, input->info()->data_type()));
+
+        // 初始化split_0的推理分支
+        _reshape_split_output_0.allocator()->init(BITensorInfo(split_layer_0_shape, 1, input->info()->data_type()));
+
+        _transpose_split_output_0.allocator()->init(
+                BITensorInfo(split_layer_0_trans_shape, 1, input->info()->data_type()));
+
+        _memory_group.manage(&_reshape_split_output_0);
+
+        _memory_group.manage(&_transpose_split_output_0);
 
 
         // 将_reshape_output和_gemm_output交给内存管理器管理
@@ -112,6 +132,10 @@ namespace BatmanInfer {
         _split_result_0.allocator()->allocate();
         _split_result_1.allocator()->allocate();
         _split_result_2.allocator()->allocate();
+        _reshape_split_output_0.allocator()->allocate();
+        _transpose_split_output_0.allocator()->allocate();
+
+
 
         // 进行切分层的结果输入和输出
         std::vector<BIITensor *> outputs = {&_split_result_0, &_split_result_1, &_split_result_2};
@@ -119,7 +143,12 @@ namespace BatmanInfer {
 
         _split_layer.configure(&_reshape_output_2, outputs, 2);
 
-        _copy_f.configure(&_split_result_0, output);
+        _reshape_split_0.configure(&_split_result_0, &_reshape_split_output_0);
+
+        _transpose_split_0.configure(&_reshape_split_output_0, &_transpose_split_output_0,
+                                     PermutationVector{0, 2, 1, 3});
+
+        _copy_f.configure(&_transpose_split_output_0, output);
 
     }
 
@@ -137,6 +166,10 @@ namespace BatmanInfer {
         _reshape2.run();
 
         _split_layer.run();
+
+        // 进行第一个Split推理分支进行切分
+        _reshape_split_0.run();
+        _transpose_split_0.run();
 
         // 拷贝隐藏层到输出
         _copy_f.run();

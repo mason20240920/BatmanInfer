@@ -107,8 +107,9 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
 
     // 输出张量
     const BITensorShape output_shape(1,
-                                     16,    // hidden_units (width)
-                                     768);     // batch_size (height)
+                                     12,    // hidden_units (width)
+                                     16,
+                                     64);     // batch_size (height)
     const BITensorInfo output_info(output_shape, 1, BIDataType::F32);
     BITensor output;
     output.allocator()->init(output_info);
@@ -141,10 +142,10 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
 
     attention_layer.run();
 
-    BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
-
-    output.print(std::cout, format);
+//    BIIOFormatInfo format;
+//    format.element_delim = ", ";  // 元素之间用逗号分隔
+//    format.row_delim = "\n";      // 每行换行
+//    format.align_columns = 1;     // 对齐列
+//
+//    output.print(std::cout, format);
 }

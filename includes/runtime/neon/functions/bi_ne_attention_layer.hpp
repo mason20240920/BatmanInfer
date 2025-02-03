@@ -8,6 +8,8 @@
 #include <runtime/neon/functions/bi_ne_gemm.hpp>
 #include <runtime/bi_memory_manager_on_demand.hpp>
 #include <runtime/neon/functions/bi_ne_split.hpp>
+#include <runtime/neon/functions/bi_ne_permute.h>
+
 #include <data/core/bi_types.hpp>
 #include <runtime/bi_memory_group.hpp>
 #include <runtime/bi_tensor.hpp>
@@ -47,7 +49,6 @@ namespace BatmanInfer {
         * |F32    |F32    |F32    |F32    |F32    |F32    |
         * @param input 输入张量，形状为 [input_size, batch_size]。. Data types supported: F16/F32
         * @param weights 权重张量，形状为 [input_size, num_units]. Data types supported: Same as @p input
-        * @param recurrent_weights 循环权重张量，形状为 [num_units, num_units]
         * @param bias 偏置向量，形状为 [num_units]
         * @param hidden_state 隐藏状态张量，形状为 [num_units, batch_size]
         * @param output 输出张量，形状为 [num_units, batch_size]
@@ -88,6 +89,10 @@ namespace BatmanInfer {
         BINEReshapeLayer _reshape;
 
         BINEReshapeLayer _reshape2;
+
+        BINEReshapeLayer _reshape_split_0;
+
+        BINEPermute _transpose_split_0;
         // 进行切分split
         BINESplit _split_layer;
         // 中间变量
@@ -100,6 +105,12 @@ namespace BatmanInfer {
         BITensor _split_result_0;
         BITensor _split_result_1;
         BITensor _split_result_2;
+        // split 0 分支的reshape
+        BITensor _reshape_split_output_0;
+
+        BITensor _transpose_split_output_0;
+
+
         // 复制的对象
         BINECopy _copy_f;
         // 是否已经完全初始化
