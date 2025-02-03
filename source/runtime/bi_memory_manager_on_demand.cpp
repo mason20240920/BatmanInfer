@@ -10,9 +10,9 @@
 
 namespace BatmanInfer {
     BIMemoryManagerOnDemand::BIMemoryManagerOnDemand(std::shared_ptr<BIILifetimeManager> lifetime_manager,
-                                                     std::shared_ptr<BIIPoolManager> pool_manager):
-                                                     _lifetime_mgr(std::move(lifetime_manager)),
-                                                     _pool_mgr(std::move(pool_manager)){
+                                                     std::shared_ptr<BIIPoolManager> pool_manager) :
+            _lifetime_mgr(std::move(lifetime_manager)),
+            _pool_mgr(std::move(pool_manager)) {
         BI_COMPUTE_ERROR_ON_MSG(!_lifetime_mgr, "Lifetime manager not specified correctly!");
         BI_COMPUTE_ERROR_ON_MSG(!_pool_mgr, "Pool manager not specified correctly!");
     }
@@ -26,7 +26,7 @@ namespace BatmanInfer {
     }
 
     void BIMemoryManagerOnDemand::populate(BatmanInfer::BIIAllocator &allocator,
-                                            size_t num_pools) {
+                                           size_t num_pools) {
         // 确保生命周期管理器（_lifetime_mgr）已被正确初始化
         BI_COMPUTE_ERROR_ON(!_lifetime_mgr);
 

@@ -8,6 +8,7 @@
 #include <data/core/bi_tensor_info.hpp>
 #include <data/core/bi_types.hpp>
 #include <data/core/utils/misc/bi_shape_calculator.hpp>
+#include <function_info/bi_MatMulInfo.h>
 #include <data/core/bi_vlidate.hpp>
 #include <runtime/neon/bi_ne_scheduler.hpp>
 
@@ -46,6 +47,7 @@ namespace BatmanInfer {
             _mul_split_output_2(),
             _matmul_op(),
             _mat_mul_output(),
+            _copy_f(),
             _is_prepared(false) {
 
     }

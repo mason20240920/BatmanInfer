@@ -138,8 +138,9 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     }
 
     auto weights_ptr = reinterpret_cast<float *>(weights.buffer());
-    for (size_t i = 0; i < weights.info()->total_size(); ++i) {
-        weights_ptr[i] = 1; // 假设权重数据全为 zero_point
+    size_t num_elements = weights.info()->tensor_shape().total_size(); // 获取元素数量
+    for (size_t i = 0; i < num_elements; ++i) {
+        weights_ptr[i] = 1.0f; // 假设权重数据全为 zero_point
     }
 
     auto biases_ptr = reinterpret_cast<float *>(bias.buffer());
