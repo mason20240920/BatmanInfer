@@ -11,6 +11,8 @@
 #include <runtime/neon/functions/bi_ne_permute.h>
 #include <runtime/neon/functions/ne_pixel_wise_multiplication.hpp>
 #include <runtime/neon/functions/bi_ne_mat_mul.hpp>
+#include <runtime/neon/functions/bi_NEArithmeticAddition.h>
+#include <runtime/neon/functions/bi_NESoftmaxLayer.h>
 
 #include <data/core/bi_types.hpp>
 #include <runtime/bi_memory_group.hpp>
@@ -52,6 +54,7 @@ namespace BatmanInfer {
         * @param input 输入张量，形状为 [input_size, batch_size]。. Data types supported: F16/F32
         * @param weights 权重张量，形状为 [input_size, num_units]. Data types supported: Same as @p input
         * @param bias 偏置向量，形状为 [num_units]
+        * @param add_weights 相加权重
         * @param perm 进行切换的perm
         * @param output 输出张量，形状为 [num_units, batch_size]
         * @param info 激活层参数，用于定义激活函数（如 ReLU、Tanh 等）
@@ -60,8 +63,12 @@ namespace BatmanInfer {
                        const BIITensor *weights,
                        const BIITensor *bias,
                        const BIITensor *scalar,
+                       const BIITensor *add_weights,
+                       const BIITensor *weights_second,
+                       const BIITensor *bias_second,
                        const PermutationVector &perm,
                        const PermutationVector &perm2,
+                       const PermutationVector &final_perm,
                        BIITensor *output);
 
         /**
@@ -112,7 +119,23 @@ namespace BatmanInfer {
 
         BINEPixelWiseMultiplication _mul_op_1;
 
+        BINEArithmeticAddition _add_op;
+
+        BINESoftmaxLayerGeneric<false> _softmax_layer;
+
         BINEMatMul _matmul_op;
+
+        BINEMatMul _matmul_op1;
+
+        BINEPermute _transpose_sum;
+
+        BINEReshapeLayer _reshape_sum_layer;
+
+        // 执行矩阵乘法(GEMM), 用于计算当前状态或隐藏层的现象变换
+        BINEGEMM _gemm_state_sum_layer;
+
+        // 最后的Reshape Layer
+        BINEReshapeLayer _final_reshape_layer;
         // 进行切分split
         BINESplit _split_layer;
         // 中间变量
@@ -143,6 +166,26 @@ namespace BatmanInfer {
         BITensor _mul_split_output_2;
         // 矩乘输出
         BITensor _mat_mul_output;
+
+        // 矩阵相加
+        BITensor _mat_add_output;
+
+        // Softmax的值进行输出
+        BITensor _softmax_output;
+
+        // MatMul进行运算
+        BITensor _mat_mul_output_1;
+
+        // 最后的Transpose
+        BITensor _sum_transpose;
+
+        // 最后的Reshape
+        BITensor _reshape_sum_tensor;
+
+        // 最后的Gemm出来的结果
+        BITensor _gemm_sum_output;
+
+        BITensor _final_reshape_output;
 
         // 复制的对象
         BINECopy _copy_f;

@@ -28,6 +28,8 @@
 #include "runtime/neon/functions/bi_ne_mat_mul.hpp"
 #include "runtime/neon/functions/bi_NESoftmaxLayer.h"
 #include "data/core/utils/quantization/asymm_helpers.hpp"
+#include "runtime/neon/functions/bi_NEArithmeticAddition.h"
+#include "runtime/neon/functions/bi_ne_permute.h"
 #include <function_info/bi_MatMulInfo.h>
 #include <runtime/neon/functions/ne_pixel_wise_multiplication.hpp>
 #include <runtime/neon/functions/bi_ne_gemm_lowp_matrix_mul_core.hpp>
@@ -1047,6 +1049,111 @@ TEST(BICpuGemm, BasicGemmTest01) {
 //        std::cout << output_ptr[id.y() * output_shape[0] + id.x()] << " ";
 //        if (id.x() == output_shape[0] - 1) std::cout << std::endl;
 //    });
+}
+
+void fill_tensor_val(const BITensor &tensor, const float val) {
+    auto tensor_ptr = reinterpret_cast<float *>(tensor.buffer());
+    size_t num_elements = tensor.info()->tensor_shape().total_size(); // 获取元素数量
+    for (size_t i = 0; i < num_elements; ++i) {
+        tensor_ptr[i] = val;
+    }
+}
+
+void print_tensor(const BITensor &tensor) {
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+    tensor.print(std::cout, format);
+}
+
+TEST(BIADDBroadcast, BasicAddExample01) {
+    // 构造张量
+    BITensor tensor_A, tensor_B, tensor_out;
+
+    // 第一个张量：经过 Transpose 后的形状为 2×2×12×1
+    BITensorInfo info_A(BITensorShape(2, 2, 12, 1), 1, BIDataType::F32);
+    // 第二个张量：原始形状为 2×2，但扩展为 2×2×1×1 用于广播
+    BITensorInfo info_B(BITensorShape(2, 2), 1, BIDataType::F32);
+    // 输出张量：与 tensor_A 同维度
+    BITensorInfo info_out(BITensorShape(2, 2, 12, 1), 1, BIDataType::F32);
+
+    tensor_A.allocator()->init(info_A);
+    tensor_B.allocator()->init(info_B);
+    tensor_out.allocator()->init(info_out);
+
+    // 配置 NEArithmeticAddition，加法算子会自动处理广播条件
+    BINEArithmeticAddition add_op;
+    add_op.configure(&tensor_A,
+                     &tensor_B,
+                     &tensor_out, BIConvertPolicy::SATURATE);
+
+    // 分配内存
+    tensor_A.allocator()->allocate();
+    tensor_B.allocator()->allocate();
+    tensor_out.allocator()->allocate();
+
+    fill_tensor_val(tensor_A, 1);
+    fill_tensor_val(tensor_B, 2);
+
+    add_op.run();
+
+    print_tensor(tensor_out);
+
+}
+
+TEST(SoftmaxDimTest, ExampleTest01) {
+    // 原始张量
+    BITensor input_tensor, transposed_tensor1, transposed_tensor2, softmax_output, final_output;
+
+    // 初始化张量
+    BITensorInfo info_input(BITensorShape(1, 12, 16, 16),
+                            1,
+                            BIDataType::F32); // 转置后的形状
+    BITensorInfo info_transposed1(BITensorShape(16, 16, 12, 1),
+                                  1,
+                                  BIDataType::F32); // Softmax 前调整形状
+    BITensorInfo info_softmax(BITensorShape(16, 16, 12, 1),
+                              1,
+                              BIDataType::F32); // Softmax 输出形状
+    BITensorInfo info_final(BITensorShape(1, 12, 16, 16),
+                            1,
+                            BIDataType::F32); // 转置回原始形状
+
+    input_tensor.allocator()->init(info_input);
+    transposed_tensor1.allocator()->init(info_transposed1);
+    softmax_output.allocator()->init(info_softmax);
+    final_output.allocator()->init(info_final);
+
+    // 第一次转置：将目标维度移到最后
+    BINEPermute permute_layer1;
+    permute_layer1.configure(&input_tensor, &transposed_tensor1, PermutationVector(3U, 2U, 1U, 0U));
+
+    // Softmax 操作
+    BINESoftmaxLayerGeneric softmax_layer;
+    const float beta = 1.0f; // 指数的缩放因子
+    const int axis = 0;      // 在第 0 维度上执行 Softmax
+    softmax_layer.configure(&transposed_tensor1, &softmax_output, beta, axis);
+
+    // 第二次转置：将结果转回原始形状
+    BINEPermute permute_layer2;
+    permute_layer2.configure(&softmax_output, &final_output, PermutationVector(3U, 2U, 1U, 0U));
+
+    // 分配内存
+    input_tensor.allocator()->allocate();
+    transposed_tensor1.allocator()->allocate();
+    softmax_output.allocator()->allocate();
+    final_output.allocator()->allocate();
+
+    fill_tensor_val(input_tensor, 1);
+
+    // 执行操作
+    permute_layer1.run();
+    softmax_layer.run();
+    permute_layer2.run();
+
+    print_tensor(final_output);
 }
 
 TEST(BIFullyConnected, BasicFullyTest) {
