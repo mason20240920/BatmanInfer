@@ -417,6 +417,77 @@ namespace BatmanInfer {
     inline bool operator!=(const BIQuantizationInfo &lhs, const BIQuantizationInfo &rhs) {
         return !(operator==(lhs, rhs));
     }
+
+    /** Compute the requantization offset and scale
+ *
+ * @deprecated because reequantization using integer offsets creates rounding issues.
+ * Please use @ref arm_compute::compute_requantization_scale_float_offset() instead.
+ *
+ * In case of requantization of a quantized input tensor to an output tensor with another quantization
+ * instead of applying dequantization and then a quantization functions, we just compute new scale and
+ * offset.
+ *
+ * Assuming:
+ *   - q_i as input quantized value
+ *   - q_o as output quantized value
+ *   - z_i as input quantization offset value
+ *   - z_o as output quantization offset value
+ *   - s_i as input quantization scale value
+ *   - s_o as output quantization scale value
+ *   - z_n as new quantization offset value
+ *   - s_n as new quantization scale value
+ *
+ * q_o = ( q_i - z_i ) * s_i / s_o + z_o
+ *
+ * We can rewrite the formula as:
+ *
+ * q_o = ( q_i * s_i / s_o ) - z_i * s_i / s_o + z_o
+ *
+ * q_o = q_i / s_n + z_n
+ *
+ * Where:
+ *
+ * s_n = s_o / s_i
+ *
+ * z_n = - z_i * s_i / s_o + z_o
+ *
+ */
+    inline BIUniformQuantizationInfo compute_requantization_scale_offset(const BIUniformQuantizationInfo &uqinfo_in,
+                                                                         const BIUniformQuantizationInfo &uqinfo_out) {
+        float scale_to_apply = uqinfo_out.scale;
+        int32_t offset_to_apply = uqinfo_out.offset;
+
+        scale_to_apply /= uqinfo_in.scale;
+        // In order to minimize flooring we convert the offset to a float,
+        // then compute the new offset in the float domain,
+        // finally we convert it back as int32_t
+
+#ifdef __aarch64__
+        constexpr BIRoundingPolicy rounding_policy = BIRoundingPolicy::TO_NEAREST_EVEN;
+#else  //__aarch64__
+        constexpr BIRoundingPolicy rounding_policy = BIRoundingPolicy::TO_NEAREST_UP;
+#endif //__aarch64__
+
+        offset_to_apply -=
+                BatmanInfer::round(static_cast<float>(uqinfo_in.offset) * uqinfo_in.scale / uqinfo_out.scale,
+                                   rounding_policy);
+        return BIUniformQuantizationInfo(scale_to_apply, offset_to_apply);
+    }
+
+    /** Similar to @ref arm_compute::compute_requantization_scale_offset()
+     *  but returning offset as float instead of integer
+    */
+    inline BIUniformRequantizationInfo
+    compute_requantization_scale_float_offset(const BIUniformQuantizationInfo &uqinfo_in,
+                                              const BIUniformQuantizationInfo &uqinfo_out) {
+        float scale_to_apply = uqinfo_out.scale;
+        float offset_to_apply = static_cast<float>(uqinfo_out.offset);
+
+        scale_to_apply /= uqinfo_in.scale;
+        offset_to_apply -= static_cast<float>(uqinfo_in.offset) * uqinfo_in.scale / uqinfo_out.scale;
+
+        return BIUniformRequantizationInfo(scale_to_apply, offset_to_apply);
+    }
 }
 
 #endif //BATMANINFER_QUANTIZATION_INFO_HPP

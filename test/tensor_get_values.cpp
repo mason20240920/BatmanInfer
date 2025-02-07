@@ -1012,136 +1012,142 @@ void calculate_s32_range(BITensor &tensor, int32_t &min_val, int32_t &max_val) {
                         it);
 }
 
+/**
+ * 查找float数组的最大值
+ * @param size
+ * @param data
+ * @param min
+ * @param max
+ */
+void find_min_max(int size,
+                  const float *data,
+                  float *min,
+                  float *max) {
+    *min = *max = data[0];
+    for (int i = 0; i < size; i++) {
+        const float val = data[i];
+        *min = std::min(*min, val);
+        *max = std::max(*max, val);
+    }
+}
+
+/**
+ * 根据最小和最大的值, 返回Reasonable quantisation参数来使用float数组
+ * @param min
+ * @param max
+ * @return
+ */
+BIQuantizationInfo choose_quantization_params(float min,
+                                              float max) {
+    // Extend the [min,max] interval to contain 0 so we can represent it exactly
+    min = std::min(min, 0.f);
+    max = std::max(max, 0.f);
+
+    // Set the quantized min and max in float values
+    const float qmin = 0;
+    const float qmax = 255;
+
+    // Determine the scale
+    const float scale = (max - min) / (qmax - qmin);
+
+    // Determine the zero-point; using affine equation val = (qval-zerop) * scale
+    const float zero_point_real = qmin - min / scale;
+
+    // But we need to nudge the zero_point to an integer (exact quantized value)
+    std::uint8_t zero_point_nudged = 0;
+    if (zero_point_real < qmin)
+        zero_point_nudged = qmin;
+    else if (zero_point_real > qmax)
+        zero_point_nudged = qmax;
+    else
+        zero_point_nudged = static_cast<std::uint8_t>(support::cpp11::round(zero_point_real));
+
+    BIQuantizationInfo qinfo = BIQuantizationInfo(scale, zero_point_nudged);
+    return qinfo;
+}
+
+void quantize_values(int size, qasymm8_t *output, float *input, const BIQuantizationInfo &qinfo) {
+    for (int i = 0; i < size; i++)
+        output[i] = quantize_qasymm8(input[i], qinfo);
+    std::cout << "\n";
+}
+
 TEST(BICpuLowpGemm, LowpGemmTest01) {
-    ///////////////////////////////////////////////////////////////////////////////
-    // 1. 定量化参数的确定
-    //
-    // 我们假设原始数据范围为 [-0.2, 0.1]，
-    // 则量化比例计算为：
-    //    scale = (max - min) / (2^8 - 1) = (0.1 - (-0.2)) / 255 ≈ 0.00117647
-    //
-    // 同时量化零点计算为：
-    //    zero_point = round( -min / scale) = round(0.2 / 0.00117647) = 170
-    //
-    // 对于矩阵 A 和 B，它们的量化参数均为：
-    //    scale_A = scale_B = 0.00117647,  zero_point_A = zero_point_B = 170
-    ///////////////////////////////////////////////////////////////////////////////
-    const float scale_A = 0.00117647f;
-    const float scale_B = 0.00117647f;
-    const int zero_point_A = 170;
-    const int zero_point_B = 170;
+    size_t M = 2, N = 2, K = 2;
+    BITensor src1, src2, dst0;
 
-    ///////////////////////////////////////////////////////////////////////////////
-    // 2. 创建并初始化量化张量
-    //
-    // 此示例中我们构造一个 4x3 的矩阵 A 和一个 3x5 的矩阵 B，
-    // 矩阵乘法结果的大小为 4x5
-    //
-    // 注意：TensorShape 的排列顺序为 (width, height)
-    ///////////////////////////////////////////////////////////////////////////////
-    const int M = 2; // A 的行数
-    const int K = 2; // A 的列数，同时也是 B 的行数
-    const int N = 2; // B 的列数
+    // 初始化输入矩阵
+    BINEGEMM fgemm{};
 
-    BITensorShape shape_A(K, M);  // A: K x M
-    BITensorShape shape_B(N, K);  // B: N x K
-    BITensorShape shape_out(N, M); // 中间累加结果：S32类型，大小：N x M
+    src1.allocator()->init(BITensorInfo(BITensorShape(K, M), 1, BIDataType::F32));
+    src2.allocator()->init(BITensorInfo(BITensorShape(N, K), 1, BIDataType::F32));
+    dst0.allocator()->init(BITensorInfo(BITensorShape(N, M), 1, BIDataType::F32));
+    fgemm.configure(&src1, &src2, nullptr, &dst0, 1, 0);
 
-    // 构造 A 与 B 的张量信息（数据类型为 QASYMM8）
-    BITensorInfo info_A(shape_A, 1, BIDataType::QASYMM8, BIQuantizationInfo(scale_A, zero_point_A));
-    BITensorInfo info_B(shape_B, 1, BIDataType::QASYMM8, BIQuantizationInfo(scale_B, zero_point_B));
+    // Allocate matrices
+    src1.allocator()->allocate();
+    src2.allocator()->allocate();
+    dst0.allocator()->allocate();
 
-    // 中间累加结果为 int32 型
-    BITensorInfo info_intermediate(shape_out, 1, BIDataType::S32);
-    BITensorInfo info_output(shape_out, 1, BIDataType::QASYMM8, BIQuantizationInfo(scale_A, zero_point_A));
+    // Fill in tensors, by default fill in with known data - for easy testing
+    auto *src1_ptr = reinterpret_cast<float *>(src1.buffer());
+    auto *src2_ptr = reinterpret_cast<float *>(src2.buffer());
+    auto *dst0_ptr = reinterpret_cast<float *>(dst0.buffer());
 
-    BITensor tensor_A, tensor_B, tensor_intermediate, tensor_output;
-    tensor_A.allocator()->init(info_A);
-    tensor_B.allocator()->init(info_B);
-    tensor_intermediate.allocator()->init(info_intermediate);
-    tensor_output.allocator()->init(info_output);
+    // Fill in: one is the identity matrix, other is sequential values
+    // src1: Identity matrix
+    for (size_t i = 0; i < M * K; i++) {
+        src1_ptr[i] = 0;
+    }
+    for (size_t i = 0; i < M; i++) {
+        src1_ptr[i * K + i] = 1.0f;
+    }
 
+    // src2: Sequential values matrix
+    for (size_t i = 0; i < K * N; i++) {
+        src2_ptr[i] = i * 1.123f;
+    }
 
-    ///////////////////////////////////////////////////////////////////////////////
-    // 根据量化公式：
-    //    q(x) = round(x/scale) + zero_point
-    // 示例中原始矩阵 A 与 B 的部分元素如下：
-    //    A = [ [-0.2,  0.0],
-    //          [ 0.1, -0.1] ]
-    // 计算后得到：
-    //    A_q = [ [0,    170],
-    //            [255,  85] ]
-    //
-    //    B = [ [-0.1, -0.2],
-    //          [ 0.1,  0.0] ]
-    // 计算后得到：
-    //    B_q = [ [85,   0],
-    //            [255, 170] ]
-    //
-    // 为了示例，我们直接使用固定值填充（实际中将使用真实量化后的数据）
-    ///////////////////////////////////////////////////////////////////////////////
-    tensor_A.allocator()->allocate();
-    tensor_B.allocator()->allocate();
-    tensor_intermediate.allocator()->allocate();
-    tensor_output.allocator()->allocate();
+    // Run single precision gemm and print result
+    fgemm.run();
 
-    // 填充参数
-    uint8_t tensor_a_data[] = {0, 170, 255, 85};
-    uint8_t tensor_b_data[] = {85, 0, 255, 170};
+    print_tensor(src1);
+    print_tensor(src2);
+    print_tensor(dst0);
 
-    auto *tensor_a_ptr = reinterpret_cast<uint8_t *>(tensor_A.buffer());
-    auto *tensor_b_ptr = reinterpret_cast<uint8_t *>(tensor_B.buffer());
+    /*** Quantised asymmetric 8bit matrix  multiplication ***/
 
-    memcpy(tensor_a_ptr, tensor_a_data, sizeof(tensor_a_data));
-    memcpy(tensor_b_ptr, tensor_b_data, sizeof(tensor_b_data));
+    // Start by finding the quantisation parameters for each set of values
+    BITensor q_src1, q_src2, q_dst0, q_res, q_res_output;
+    float src1_min, src1_max, src2_min, src2_max, dst0_min, dst0_max;
 
-    ///////////////////////////////////////////////////////////////////////////////
-    // 4. 设置结果的量化设置
-    ///////////////////////////////////////////////////////////////////////////////
+    find_min_max(M * K, src1_ptr, &src1_min, &src1_max);
+    find_min_max(K * N, src2_ptr, &src2_min, &src2_max);
+    find_min_max(M * N, dst0_ptr, &dst0_min, &dst0_max);
 
-    GEMMInfo gemm_info;
-    // 计算量化参数
-    const int32_t output_offset = zero_point_A;
-    const float scale = scale_A;
+    const BIQuantizationInfo src1_qinfo = choose_quantization_params(src1_min, src1_max);
+    const BIQuantizationInfo src2_qinfo = choose_quantization_params(src2_min, src2_max);
+    const BIQuantizationInfo dst0_qinfo = choose_quantization_params(dst0_min, dst0_max);
 
-    // 设置输出阶段
-    BIGEMMLowpOutputStageInfo output_stage;
-    output_stage.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
-    output_stage.output_data_type = BIDataType::QASYMM8;
-    output_stage.gemmlowp_offset = output_offset;
-    // 计算multiplier和shift
-    int32_t output_multiplier;
-    int32_t output_shift;
-    quantization::calculate_quantized_multiplier_less_than_one(
-            scale, &output_multiplier, &output_shift);
-    output_stage.gemmlowp_multiplier = output_multiplier;
-    output_stage.gemmlowp_shift = output_shift;
-    // 设置到gemm_info
-    gemm_info.set_gemmlowp_output_stage(output_stage);
+    std::cout << "Matrix 1: min=" << src1_min << ", max=" << src1_max << ", ";
+    std::cout << "QuantisationInfo(" << src1_qinfo.scale()[0] << ", " << src1_qinfo.offset()[0] << ")\n";
+    std::cout << "Matrix 2: min=" << src2_min << ", max=" << src2_max << ", ";
+    std::cout << "QuantisationInfo(" << src2_qinfo.scale()[0] << ", " << src2_qinfo.offset()[0] << ")\n";
+    std::cout << "Result  : min=" << dst0_min << ", max=" << dst0_max << ", ";
+    std::cout << "QuantisationInfo(" << dst0_qinfo.scale()[0] << ", " << dst0_qinfo.offset()[0] << ")\n";
 
-    ///////////////////////////////////////////////////////////////////////////////
-    // 3. 使用 BIGEMMLowpMatrixMultiplyCore 进行量化 GEMM 运算
-    //
-    // 计算公式：
-    //    Y(i,j) = sum_k [ (A_q(i,k) - zero_point_A) * (B_q(k,j) - zero_point_B) ]
-    ///////////////////////////////////////////////////////////////////////////////
-    BINEGEMMLowpMatrixMultipleCore gemm;
-    gemm.configure(&tensor_A, &tensor_B, nullptr, &tensor_intermediate, gemm_info);
-    gemm.run();
+    // We now have the quantisation info and can configure the quantised tensors
+    q_src1.allocator()->init(BITensorInfo(BITensorShape(K, M), 1, BIDataType::QASYMM8, src1_qinfo));
+    q_src2.allocator()->init(BITensorInfo(BITensorShape(N, K), 1, BIDataType::QASYMM8, src2_qinfo));
+    q_dst0.allocator()->init(BITensorInfo(BITensorShape(N, M), 1, BIDataType::QASYMM8, dst0_qinfo));
 
-    ///////////////////////////////////////////////////////////////////////////////
-    // 5. 应用输出阶段，将中间结果转换为最终量化输出
-    ///////////////////////////////////////////////////////////////////////////////
-    BINEGEMMLowpOutputStage lowp_output_stage;
-    lowp_output_stage.configure(&tensor_intermediate, nullptr, &tensor_output, output_stage);
-    lowp_output_stage.run();
-
-    print_tensor(tensor_A);
-    print_tensor(tensor_B);
-    print_tensor(tensor_intermediate);
-    print_tensor(tensor_output);
-
-
+    // In this approach we use the QuantizationLayer construct to perform quantization
+    BINEQuantizationLayer q1;
+    BINEQuantizationLayer q2;
+    BINEQuantizationLayer q3;
+    q1.configure(&src1, &q_src1);
+    q2.configure(&src2, &q_src2);
+    q3.configure(&dst0, &q_dst0);
 }
 
 TEST(BICpuGemm, BasicGemmTest01) {
