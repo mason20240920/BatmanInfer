@@ -38,3 +38,4 @@
 #include "runtime/neon/functions/bi_ne_rnn_layer.hpp"
 #include "runtime/neon/functions/bi_ne_attention_layer.hpp"
 #include "runtime/neon/functions/bi_ne_slice.hpp"
+#include "runtime/neon/functions/bi_ne_gemm_lowp_output_stage.hpp"

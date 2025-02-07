@@ -141,7 +141,157 @@ namespace BatmanInfer {
         return str.str();
     }
 
-/** Formatted output of the WeightsInfo type.
+    /** Formatted output of the GEMMLowpOutputStageType type.
+     *
+     * @param[out] os        Output stream.
+     * @param[in]  gemm_type GEMMLowpOutputStageType to output.
+     *
+     * @return Modified output stream.
+     */
+    inline ::std::ostream &operator<<(::std::ostream &os, const BIGEMMLowpOutputStageType &gemm_type) {
+        switch (gemm_type) {
+            case BIGEMMLowpOutputStageType::NONE:
+                os << "NONE";
+                break;
+            case BIGEMMLowpOutputStageType::QUANTIZE_DOWN:
+                os << "QUANTIZE_DOWN";
+                break;
+            case BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT:
+                os << "QUANTIZE_DOWN_FIXEDPOINT";
+                break;
+            case BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FLOAT:
+                os << "QUANTIZE_DOWN_FLOAT";
+                break;
+            default:
+                BI_COMPUTE_ERROR("NOT_SUPPORTED!");
+        }
+        return os;
+    }
+
+    /** Formatted output of the DataType type.
+*
+* @param[out] os        Output stream.
+* @param[in]  data_type Type to output.
+*
+* @return Modified output stream.
+*/
+    inline ::std::ostream &operator<<(::std::ostream &os, const BIDataType &data_type) {
+        switch (data_type) {
+            case BIDataType::UNKNOWN:
+                os << "UNKNOWN";
+                break;
+            case BIDataType::U8:
+                os << "U8";
+                break;
+            case BIDataType::QSYMM8:
+                os << "QSYMM8";
+                break;
+            case BIDataType::QASYMM8:
+                os << "QASYMM8";
+                break;
+            case BIDataType::QASYMM8_SIGNED:
+                os << "QASYMM8_SIGNED";
+                break;
+            case BIDataType::QSYMM8_PER_CHANNEL:
+                os << "QSYMM8_PER_CHANNEL";
+                break;
+            case BIDataType::S8:
+                os << "S8";
+                break;
+            case BIDataType::U16:
+                os << "U16";
+                break;
+            case BIDataType::S16:
+                os << "S16";
+                break;
+            case BIDataType::QSYMM16:
+                os << "QSYMM16";
+                break;
+            case BIDataType::QASYMM16:
+                os << "QASYMM16";
+                break;
+            case BIDataType::U32:
+                os << "U32";
+                break;
+            case BIDataType::S32:
+                os << "S32";
+                break;
+            case BIDataType::U64:
+                os << "U64";
+                break;
+            case BIDataType::S64:
+                os << "S64";
+                break;
+            case BIDataType::BFLOAT16:
+                os << "BFLOAT16";
+                break;
+            case BIDataType::F16:
+                os << "F16";
+                break;
+            case BIDataType::F32:
+                os << "F32";
+                break;
+            case BIDataType::F64:
+                os << "F64";
+                break;
+            case BIDataType::SIZET:
+                os << "SIZET";
+                break;
+            default:
+                BI_COMPUTE_ERROR("NOT_SUPPORTED!");
+        }
+
+        return os;
+    }
+
+    /** Formatted output of the DataType type.
+    *
+    * @param[in] data_type Type to output.
+    *
+    * @return Formatted string.
+    */
+    inline std::string to_string(const BatmanInfer::BIDataType &data_type) {
+        std::stringstream str;
+        str << data_type;
+        return str.str();
+    }
+
+    /** Formatted output of the BIGEMMLowpOutputStageInfo type.
+     *
+     * @param[out] os        Output stream.
+     * @param[in]  gemm_info BIGEMMLowpOutputStageInfo to output.
+     *
+     * @return Modified output stream.
+     */
+    inline ::std::ostream &operator<<(::std::ostream &os, const BIGEMMLowpOutputStageInfo &gemm_info) {
+        os << "{type=" << gemm_info.type << ", "
+           << "gemlowp_offset=" << gemm_info.gemmlowp_offset << ", "
+           << "gemmlowp_multiplier=" << gemm_info.gemmlowp_multiplier << ", "
+           << "gemmlowp_shift=" << gemm_info.gemmlowp_shift << ", "
+           << "gemmlowp_min_bound=" << gemm_info.gemmlowp_min_bound << ", "
+           << "gemmlowp_max_bound=" << gemm_info.gemmlowp_max_bound << ", "
+           << "gemmlowp_multipliers=" << gemm_info.gemmlowp_multiplier << ", "
+           << "gemmlowp_shifts=" << gemm_info.gemmlowp_shift << ", "
+           << "gemmlowp_real_multiplier=" << gemm_info.gemmlowp_real_multiplier << ", "
+           << "is_quantized_per_channel=" << gemm_info.is_quantized_per_channel << ", "
+           << "output_data_type=" << gemm_info.output_data_type << "}";
+        return os;
+    }
+
+    /** Converts a @ref BIGEMMLowpOutputStageInfo to string
+     *
+     * @param[in] gemm_info GEMMLowpOutputStageInfo value to be converted
+     *
+     * @return String representing the corresponding GEMMLowpOutputStageInfo
+     */
+    inline std::string to_string(const BIGEMMLowpOutputStageInfo &gemm_info) {
+        std::stringstream str;
+        str << gemm_info;
+        return str.str();
+    }
+
+
+    /** Formatted output of the WeightsInfo type.
  *
  * @param[out] os           Output stream.
  * @param[in]  weights_info Type to output.

@@ -34,7 +34,25 @@
 #include <runtime/neon/functions/ne_pixel_wise_multiplication.hpp>
 #include <runtime/neon/functions/bi_ne_gemm_lowp_matrix_mul_core.hpp>
 #include <runtime/neon/functions/bi_NEFullyConnectedLayer.h>
+#include <runtime/neon/bi_ne_functions.h>
 
+template<typename TypeOut>
+void fill_tensor_val(const BatmanInfer::BITensor &tensor, const TypeOut val) {
+    auto tensor_ptr = reinterpret_cast<TypeOut *>(tensor.buffer());
+    size_t num_elements = tensor.info()->tensor_shape().total_size(); // 获取元素数量
+    for (size_t i = 0; i < num_elements; ++i) {
+        tensor_ptr[i] = val;
+    }
+}
+
+void print_tensor(const BatmanInfer::BITensor &tensor) {
+    BatmanInfer::BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+    tensor.print(std::cout, format);
+}
 
 TEST(test_tensor_values, tensor_values1) {
     using namespace BatmanInfer;
@@ -971,6 +989,161 @@ TEST(BICpuLowpGemm, BasicGemmTest) {
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 }
 
+/**
+ * 统计 S32 张量的最小值与最大值（假设整个张量的数据都参与统计）
+ * @param tensor
+ * @param min_val
+ * @param max_val
+ */
+void calculate_s32_range(BITensor &tensor, int32_t &min_val, int32_t &max_val) {
+    BIWindow window;
+    window.use_tensor_dimensions(tensor.info()->tensor_shape());
+    BIIterator it(&tensor, window);
+    min_val = std::numeric_limits<int32_t>::max();
+    max_val = std::numeric_limits<int32_t>::min();
+
+    execute_window_loop(window, [&](const BICoordinates &) {
+                            int32_t val = *((int32_t *) it.ptr());
+                            if (val < min_val)
+                                min_val = val;
+                            if (val > max_val)
+                                max_val = val;
+                        },
+                        it);
+}
+
+TEST(BICpuLowpGemm, LowpGemmTest01) {
+    ///////////////////////////////////////////////////////////////////////////////
+    // 1. 定量化参数的确定
+    //
+    // 我们假设原始数据范围为 [-0.2, 0.1]，
+    // 则量化比例计算为：
+    //    scale = (max - min) / (2^8 - 1) = (0.1 - (-0.2)) / 255 ≈ 0.00117647
+    //
+    // 同时量化零点计算为：
+    //    zero_point = round( -min / scale) = round(0.2 / 0.00117647) = 170
+    //
+    // 对于矩阵 A 和 B，它们的量化参数均为：
+    //    scale_A = scale_B = 0.00117647,  zero_point_A = zero_point_B = 170
+    ///////////////////////////////////////////////////////////////////////////////
+    const float scale_A = 0.00117647f;
+    const float scale_B = 0.00117647f;
+    const int zero_point_A = 170;
+    const int zero_point_B = 170;
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // 2. 创建并初始化量化张量
+    //
+    // 此示例中我们构造一个 4x3 的矩阵 A 和一个 3x5 的矩阵 B，
+    // 矩阵乘法结果的大小为 4x5
+    //
+    // 注意：TensorShape 的排列顺序为 (width, height)
+    ///////////////////////////////////////////////////////////////////////////////
+    const int M = 2; // A 的行数
+    const int K = 2; // A 的列数，同时也是 B 的行数
+    const int N = 2; // B 的列数
+
+    BITensorShape shape_A(K, M);  // A: K x M
+    BITensorShape shape_B(N, K);  // B: N x K
+    BITensorShape shape_out(N, M); // 中间累加结果：S32类型，大小：N x M
+
+    // 构造 A 与 B 的张量信息（数据类型为 QASYMM8）
+    BITensorInfo info_A(shape_A, 1, BIDataType::QASYMM8, BIQuantizationInfo(scale_A, zero_point_A));
+    BITensorInfo info_B(shape_B, 1, BIDataType::QASYMM8, BIQuantizationInfo(scale_B, zero_point_B));
+
+    // 中间累加结果为 int32 型
+    BITensorInfo info_intermediate(shape_out, 1, BIDataType::S32);
+    BITensorInfo info_output(shape_out, 1, BIDataType::QASYMM8, BIQuantizationInfo(scale_A, zero_point_A));
+
+    BITensor tensor_A, tensor_B, tensor_intermediate, tensor_output;
+    tensor_A.allocator()->init(info_A);
+    tensor_B.allocator()->init(info_B);
+    tensor_intermediate.allocator()->init(info_intermediate);
+    tensor_output.allocator()->init(info_output);
+
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // 根据量化公式：
+    //    q(x) = round(x/scale) + zero_point
+    // 示例中原始矩阵 A 与 B 的部分元素如下：
+    //    A = [ [-0.2,  0.0],
+    //          [ 0.1, -0.1] ]
+    // 计算后得到：
+    //    A_q = [ [0,    170],
+    //            [255,  85] ]
+    //
+    //    B = [ [-0.1, -0.2],
+    //          [ 0.1,  0.0] ]
+    // 计算后得到：
+    //    B_q = [ [85,   0],
+    //            [255, 170] ]
+    //
+    // 为了示例，我们直接使用固定值填充（实际中将使用真实量化后的数据）
+    ///////////////////////////////////////////////////////////////////////////////
+    tensor_A.allocator()->allocate();
+    tensor_B.allocator()->allocate();
+    tensor_intermediate.allocator()->allocate();
+    tensor_output.allocator()->allocate();
+
+    // 填充参数
+    uint8_t tensor_a_data[] = {0, 170, 255, 85};
+    uint8_t tensor_b_data[] = {85, 0, 255, 170};
+
+    auto *tensor_a_ptr = reinterpret_cast<uint8_t *>(tensor_A.buffer());
+    auto *tensor_b_ptr = reinterpret_cast<uint8_t *>(tensor_B.buffer());
+
+    memcpy(tensor_a_ptr, tensor_a_data, sizeof(tensor_a_data));
+    memcpy(tensor_b_ptr, tensor_b_data, sizeof(tensor_b_data));
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // 4. 设置结果的量化设置
+    ///////////////////////////////////////////////////////////////////////////////
+
+    GEMMInfo gemm_info;
+    // 计算量化参数
+    const int32_t output_offset = zero_point_A;
+    const float scale = scale_A;
+
+    // 设置输出阶段
+    BIGEMMLowpOutputStageInfo output_stage;
+    output_stage.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
+    output_stage.output_data_type = BIDataType::QASYMM8;
+    output_stage.gemmlowp_offset = output_offset;
+    // 计算multiplier和shift
+    int32_t output_multiplier;
+    int32_t output_shift;
+    quantization::calculate_quantized_multiplier_less_than_one(
+            scale, &output_multiplier, &output_shift);
+    output_stage.gemmlowp_multiplier = output_multiplier;
+    output_stage.gemmlowp_shift = output_shift;
+    // 设置到gemm_info
+    gemm_info.set_gemmlowp_output_stage(output_stage);
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // 3. 使用 BIGEMMLowpMatrixMultiplyCore 进行量化 GEMM 运算
+    //
+    // 计算公式：
+    //    Y(i,j) = sum_k [ (A_q(i,k) - zero_point_A) * (B_q(k,j) - zero_point_B) ]
+    ///////////////////////////////////////////////////////////////////////////////
+    BINEGEMMLowpMatrixMultipleCore gemm;
+    gemm.configure(&tensor_A, &tensor_B, nullptr, &tensor_intermediate, gemm_info);
+    gemm.run();
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // 5. 应用输出阶段，将中间结果转换为最终量化输出
+    ///////////////////////////////////////////////////////////////////////////////
+    BINEGEMMLowpOutputStage lowp_output_stage;
+    lowp_output_stage.configure(&tensor_intermediate, nullptr, &tensor_output, output_stage);
+    lowp_output_stage.run();
+
+    print_tensor(tensor_A);
+    print_tensor(tensor_B);
+    print_tensor(tensor_intermediate);
+    print_tensor(tensor_output);
+
+
+}
+
 TEST(BICpuGemm, BasicGemmTest01) {
     using namespace BatmanInfer;
     // 1. 定义小矩阵: 2x2 * 2x2 = 2x2
@@ -1135,23 +1308,6 @@ TEST(BICpuGemm, BasicGemmTest02) {
 //        std::cout << output_ptr[id.y() * output_shape[0] + id.x()] << " ";
 //        if (id.x() == output_shape[0] - 1) std::cout << std::endl;
 //    });
-}
-
-void fill_tensor_val(const BITensor &tensor, const float val) {
-    auto tensor_ptr = reinterpret_cast<float *>(tensor.buffer());
-    size_t num_elements = tensor.info()->tensor_shape().total_size(); // 获取元素数量
-    for (size_t i = 0; i < num_elements; ++i) {
-        tensor_ptr[i] = val;
-    }
-}
-
-void print_tensor(const BITensor &tensor) {
-    BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
-
-    tensor.print(std::cout, format);
 }
 
 TEST(BIADDBroadcast, BasicAddExample01) {

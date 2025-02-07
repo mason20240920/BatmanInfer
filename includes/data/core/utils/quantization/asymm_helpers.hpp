@@ -27,15 +27,16 @@ namespace BatmanInfer {
                                                 int32_t *shift,
                                                 bool ignore_epsilon = false);
 
-/** Calculate quantized representation of multiplier with value less than one.
- *
- * @param[in]  multiplier       Real multiplier.
- * @param[out] quant_multiplier Integer multiplier.
- * @param[out] right_shift      Right bit shift.
- * @param[in]  ignore_epsilon   When true, ignore pre-defined epsilon value. Defaults to false
- *
- * @return a status
- */
+
+        /** 计算小于 1 的量化乘子参数
+         *
+         * @param[in]  multiplier       Real multiplier. (输入的浮点乘子，要求在 [-epsilon, 1 + epsilon] 范围内，其中 epsilon 用于数值容差。)
+         * @param[out] quant_multiplier Integer multiplier. (输出的量化乘子（整数），用于后续的定点运算)
+         * @param[out] right_shift      Right bit shift. (输出的右移位数，用于对乘子进行缩放调整（右移表示除以 2^n）)
+         * @param[in]  ignore_epsilon   When true, ignore pre-defined epsilon value. Defaults to false (是否忽略 epsilon 容差的检查（在某些情况中可能不考虑数值容差）。)
+         *
+         * @return a status
+         */
         BIStatus calculate_quantized_multiplier_less_than_one(float multiplier,
                                                               int32_t *quant_multiplier,
                                                               int32_t *right_shift,

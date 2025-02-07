@@ -33,30 +33,51 @@ namespace BatmanInfer {
                                                               int32_t *quant_multiplier,
                                                               int32_t *right_shift,
                                                               bool ignore_epsilon) {
+            // 根据 ignore_epsilon 参数设置内部的 epsilon 值，
+            // 如果忽略 epsilon，则内部容差设置为 0；否则为预先定义的 epsilon。
             const float internal_epsilon = ignore_epsilon ? 0.0f : epsilon;
 
+            // 对输入指针进行空指针检查，确保 quant_multiplier 与 right_shift 非空。
             BI_COMPUTE_RETURN_ERROR_ON(quant_multiplier == nullptr);
             BI_COMPUTE_RETURN_ERROR_ON(right_shift == nullptr);
+
+            // 检查 multiplier 是否小于 -epsilon 或大于 1 + epsilon，
+            // 确保输入乘子在合理的范围内（乘子一般应该小于等于 1）。
             BI_COMPUTE_RETURN_ERROR_ON(multiplier < -internal_epsilon);
             BI_COMPUTE_RETURN_ERROR_ON(multiplier > 1.0f + internal_epsilon);
 
             int shift_exp = 0;
+            // std::frexp 将 multiplier 表示为 q * 2^(shift_exp) 的形式，其中 q 在 [0.5, 1) 内
             const double q = std::frexp(multiplier, &shift_exp);
+            // 右移位数取 -shift_exp，因为后续在定点数中需要进行右移操作（负的 shift_exp 意味着乘上 2^(|shift_exp|)）
             *right_shift = -1 * shift_exp;
+
+            // 将 q 转换为定点表示。fixed_point_one_Q0 表示一个定点数常量（例如 2^n 的值），
+            // 这里通过四舍五入将 q 转换为整数形式。
             auto q_fixed = static_cast<int64_t>(support::cpp11::round(q * fixed_point_one_Q0));
+            // 检查 q_fixed 是否超过了 fixed_point_one_Q0，确保结果不会溢出（理论上最多等于 fixed_point_one_Q0）。
             BI_COMPUTE_RETURN_ERROR_ON(q_fixed > fixed_point_one_Q0);
+
+            // 如果 q_fixed 恰好等于 fixed_point_one_Q0，则将其调整为一半，同时将右移位数减 1，
+            // 目的是保证 q_fixed 落在期望的范围内（例如防止乘子溢出）。
             if (q_fixed == fixed_point_one_Q0) {
                 q_fixed /= 2;
                 --*right_shift;
             }
 
+            // 当忽略 epsilon 而且右移位数过大（大于 31）时，将右移位数设置为 0，并置 q_fixed 为 0，
+            // 这种情况表示乘子非常小，从定点数角度看可以直接归零。
             if (ignore_epsilon && *right_shift > 31) {
                 *right_shift = 0;
                 q_fixed = 0;
             }
 
+            // 检查右移位数是否为负值（负值不符合逻辑，应始终为非负数）。
             BI_COMPUTE_RETURN_ERROR_ON(*right_shift < 0);
+            // 检查 q_fixed 是否超过 int32_t 的最大值，确保定点表示能够正确存储在 32 位整数中。
             BI_COMPUTE_RETURN_ERROR_ON(q_fixed > std::numeric_limits<int32_t>::max());
+
+            // 最后，将计算得到的定点 q_fixed 赋值到输出变量 quant_multiplier 中。
             *quant_multiplier = static_cast<int32_t>(q_fixed);
 
             return BIStatus{};
