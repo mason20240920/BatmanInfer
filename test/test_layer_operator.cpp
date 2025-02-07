@@ -5,8 +5,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <runtime/bi_tensor.hpp>
-#include <runtime/neon/functions/bi_ne_rnn_layer.hpp>
-#include <runtime/neon/functions/bi_ne_attention_layer.hpp>
+#include <runtime/neon/bi_ne_functions.h>
 
 using namespace BatmanInfer;
 
@@ -92,8 +91,8 @@ void print_new_tensor(const BITensor &tensor) {
     tensor.print(std::cout, format);
 }
 
-void fill_new_tensor_val(const BITensor &tensor, const float val) {
-    auto tensor_ptr = reinterpret_cast<float *>(tensor.buffer());
+void fill_new_tensor_val(const BITensor &tensor, const float16_t val) {
+    auto tensor_ptr = reinterpret_cast<float16_t *>(tensor.buffer());
     size_t num_elements = tensor.info()->tensor_shape().total_size(); // 获取元素数量
     for (size_t i = 0; i < num_elements; ++i) {
         tensor_ptr[i] = val;
@@ -106,33 +105,33 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     const BITensorShape input_shape(1,   // batch size
                                     16,  // sequence
                                     768); // hidden dimension
-    const BITensorInfo input_info(input_shape, 1, BIDataType::F32);
+    const BITensorInfo input_info(input_shape, 1, BIDataType::F16);
     BITensor input;
     input.allocator()->init(input_info);
 
     // 权重张量
     const BITensorShape weights_shape(768,     // input_size (width, 匹配input宽度)
                                       2304);    // hidden_units (height)
-    const BITensorInfo weights_info(weights_shape, 1, BIDataType::F32);
+    const BITensorInfo weights_info(weights_shape, 1, BIDataType::F16);
     BITensor weights;
     weights.allocator()->init(weights_info);
 
     // 偏置矩阵
     const BITensorShape bias_shape(2304);    // hidden_units
-    const BITensorInfo bias_info(bias_shape, 1, BIDataType::F32);
+    const BITensorInfo bias_info(bias_shape, 1, BIDataType::F16);
     BITensor bias;
     bias.allocator()->init(bias_info);
 
     // 权重张量
     const BITensorShape weights_shape2(768,     // input_size (width, 匹配input宽度)
                                        768);    // hidden_units (height)
-    const BITensorInfo weights_info2(weights_shape2, 1, BIDataType::F32);
+    const BITensorInfo weights_info2(weights_shape2, 1, BIDataType::F16);
     BITensor weights2;
     weights2.allocator()->init(weights_info2);
 
     // 偏置矩阵
     const BITensorShape bias_shape2(768);    // hidden_units
-    const BITensorInfo bias_info2(bias_shape2, 1, BIDataType::F32);
+    const BITensorInfo bias_info2(bias_shape2, 1, BIDataType::F16);
     BITensor bias2;
     bias2.allocator()->init(bias_info2);
 
@@ -140,19 +139,19 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     const BITensorShape output_shape(1,
                                      16,    // hidden_units (width)
                                      768);     // batch_size (height)
-    const BITensorInfo output_info(output_shape, 1, BIDataType::F32);
+    const BITensorInfo output_info(output_shape, 1, BIDataType::F16);
     BITensor output;
     output.allocator()->init(output_info);
 
     // 标量
     const BITensorShape scalar_shape(1);
-    const BITensorInfo scalar_info(scalar_shape, 1, BIDataType::F32);
+    const BITensorInfo scalar_info(scalar_shape, 1, BIDataType::F16);
     BITensor scalar;
     scalar.allocator()->init(scalar_info);
 
     // 相加权重
     const BITensorShape add_shape(16, 16);
-    const BITensorInfo add_info(add_shape, 1, BIDataType::F32);
+    const BITensorInfo add_info(add_shape, 1, BIDataType::F16);
     BITensor add_tensor;
     add_tensor.allocator()->init(add_info);
 
@@ -172,23 +171,13 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
 
     // 模拟数据填充 (实际中应加载量化后的数据)
     // 注意：这里的填充需要符合量化格式
-    auto input_ptr = reinterpret_cast<float *>(input.buffer());
-    for (size_t i = 0; i < input.info()->total_size(); ++i) {
-        input_ptr[i] = 1 / 768; // 假设输入数据全为 zero_point
-    }
-
-    auto weights_ptr = reinterpret_cast<float *>(weights.buffer());
-    size_t num_elements = weights.info()->tensor_shape().total_size(); // 获取元素数量
-    for (size_t i = 0; i < num_elements; ++i) {
-        weights_ptr[i] = 1.0f; // 假设权重数据全为 zero_point
-    }
-
-    auto biases_ptr = reinterpret_cast<float *>(bias.buffer());
-    for (size_t i = 0; i < bias.info()->total_size() / sizeof(int32_t); ++i) {
-        biases_ptr[i] = 1; // 偏置为零
-    }
+    fill_new_tensor_val(input, 1 / 768);
+    fill_new_tensor_val(weights, 1);
+    fill_new_tensor_val(bias, 1);
 
     fill_new_tensor_val(add_tensor, 1);
+    fill_new_tensor_val(weights2, 1);
+//    fill_new_tensor_val(bias2, 1);
 
     auto scalar_ptr = reinterpret_cast<float *>(scalar.buffer());
     scalar_ptr[0] = 0.5f;
@@ -217,7 +206,7 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
     // 输出运行时间
-    std::cout << "Function execution time: " << duration.count() / 1000 << " ms" << std::endl;
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
 //    print_new_tensor(output);
 }

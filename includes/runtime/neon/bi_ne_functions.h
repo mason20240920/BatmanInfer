@@ -34,5 +34,7 @@
 #include "runtime/neon/functions/bi_NEPReluLayer.h"
 #include "runtime/neon/functions/bi_ne_reshape_layer.hpp"
 #include "runtime/neon/functions/bi_NEScale.h"
-#include "runtime/neon/functions/bi_NESlice.h"
 #include "runtime/neon/functions/bi_NESoftmaxLayer.h"
+#include "runtime/neon/functions/bi_ne_rnn_layer.hpp"
+#include "runtime/neon/functions/bi_ne_attention_layer.hpp"
+#include "runtime/neon/functions/bi_ne_slice.hpp"

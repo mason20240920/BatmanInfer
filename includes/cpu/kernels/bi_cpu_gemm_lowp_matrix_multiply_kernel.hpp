@@ -37,7 +37,7 @@ namespace BatmanInfer {
                 void run_op(BatmanInfer::BIITensorPack &tensors, const BatmanInfer::BIWindow &window,
                             const BatmanInfer::ThreadInfo &info) override;
 
-                const char *name() const override;
+                [[nodiscard]] const char *name() const override;
 
             private:
                 bool _slide_matrix_b{true};

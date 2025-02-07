@@ -26,6 +26,11 @@ namespace BatmanInfer {
                                                           return (data.dt == BIDataType::F16) && data.isa.fp16;
                                                       },
                                 REGISTER_FP16_NEON(neon_fp16_gemm_matrix_mul)},
+                        {"neon_s8_gemm_matrix_mul",
+                                                      [](const BIDataTypeISASelectorData &data) {
+                                                          return (data.dt == BIDataType::S8) && data.isa.fp16;
+                                                      },
+                                REGISTER_FP16_NEON(neon_s8_gemm_matrix_mul)},
                 };
 
                 inline BIStatus validate_arguments(const BIITensorInfo *lhs,

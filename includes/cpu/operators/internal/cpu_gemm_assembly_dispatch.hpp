@@ -134,28 +134,29 @@ namespace BatmanInfer {
                     const BIAsmGemmInfo &info);
 
             /** 指示此函数是否可以用于处理给定的参数。
- *
- * @param[in] a    输入张量信息（矩阵 A）
- * @param[in] b    输入张量信息（矩阵 B）
- * @param[in] c    输入张量信息（矩阵 C），用于传递量化计算的偏置
- * @param[in] d    输出张量，用于存储矩阵乘法的结果。支持的数据类型与 @p input0 相同。
- * @param[in] info GEMM 元数据
- *
- * @return 一个状态。
- */
+             *
+             * @param[in] a    输入张量信息（矩阵 A）
+             * @param[in] b    输入张量信息（矩阵 B）
+             * @param[in] c    输入张量信息（矩阵 C），用于传递量化计算的偏置
+             * @param[in] d    输出张量，用于存储矩阵乘法的结果。支持的数据类型与 @p input0 相同。
+             * @param[in] info GEMM 元数据
+             *
+             * @return 一个状态。
+             */
             static BIStatus validate(const BIITensorInfo *a,
                                      const BIITensorInfo *b,
                                      const BIITensorInfo *c,
                                      const BIITensorInfo *d,
                                      const BIAsmGemmInfo &info);
 
-/** 指示是否存在可以用于处理给定参数的最优汇编实现。
- *
- * 此方法的用途与 @ref NEGEMMConvolutionLayer::has_opt_impl 相同，
- * 唯一的区别是需要通过参数 info 传递 BatmanInfer::WeightFormat 的值。
- *
- * @return 一个状态。
- */
+
+            /** 指示是否存在可以用于处理给定参数的最优汇编实现。
+             *
+             * 此方法的用途与 @ref NEGEMMConvolutionLayer::has_opt_impl 相同，
+             * 唯一的区别是需要通过参数 info 传递 BatmanInfer::WeightFormat 的值。
+             *
+             * @return 一个状态。
+             */
             static BIStatus has_opt_impl(BatmanInfer::BIWeightFormat &weight_format,
                                          const BIITensorInfo *a,
                                          const BIITensorInfo *b,

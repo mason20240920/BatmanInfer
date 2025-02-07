@@ -885,10 +885,10 @@ void fill_tensor_buffer(BITensor &tensor, BIDataType data_type, uint8_t fill_val
 TEST(BICpuLowpGemm, BasicGemmTest) {
     using namespace BatmanInfer;
 
-    const BITensorShape input_shape(1024, 1024);    // 2x2
-    const BITensorShape weights_shape(1024, 1024);  // 2x2
-    const BITensorShape output_shape(1024, 1024);   // 2x2
-    const BITensorShape bias_shape(1024);        // bias向量
+    const BITensorShape input_shape(2, 2);    // 2x2
+    const BITensorShape weights_shape(2, 2);  // 2x2
+    const BITensorShape output_shape(2, 2);   // 2x2
+    const BITensorShape bias_shape(2);        // bias向量
 
     // 2. 创建张量
     BITensor input, weights, bias, output;
@@ -951,7 +951,9 @@ TEST(BICpuLowpGemm, BasicGemmTest) {
 
     // 8. 配置并运行GEMM
     BINEGEMMLowpMatrixMultipleCore gemm;
-    gemm.configure(&input, &weights, nullptr, &output, gemm_info);
+    gemm.configure(&input, &weights, &bias, &output, gemm_info);
+
+    gemm.prepare();
 
     // 记录开始时间点
     auto start = std::chrono::high_resolution_clock::now();
@@ -967,24 +969,15 @@ TEST(BICpuLowpGemm, BasicGemmTest) {
 
     // 打印结果
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
-//    // 9. 打印结果
-//    BIWindow window;
-//    window.use_tensor_dimensions(output.info()->tensor_shape());
-//
-//    execute_window_loop(window, [&](const BICoordinates &id) {
-//        uint8_t *output_ptr = output.buffer();
-//        std::cout << static_cast<int>(output_ptr[id.y() * output_shape[0] + id.x()]) << " ";
-//        if (id.x() == output_shape[0] - 1) std::cout << std::endl;
-//    });
 }
 
 TEST(BICpuGemm, BasicGemmTest01) {
     using namespace BatmanInfer;
     // 1. 定义小矩阵: 2x2 * 2x2 = 2x2
-    const BITensorShape input_shape(16, 768);    // 2x2
-    const BITensorShape weights_shape(768, 2304);  // 2x2
-    const BITensorShape output_shape(16, 2304);   // 2x2
-    const BITensorShape bias_shape(2304);        // bias向量
+    const BITensorShape input_shape(3, 4);    // 2x2
+    const BITensorShape weights_shape(4, 5);  // 2x2
+    const BITensorShape output_shape(3, 5);   // 2x2
+    const BITensorShape bias_shape(5);        // bias向量
 
 // 2. 创建张量
     BITensor input, weights, bias, output;
@@ -1011,9 +1004,12 @@ TEST(BICpuGemm, BasicGemmTest01) {
     float *weights_ptr = reinterpret_cast<float *>(weights.buffer());
     float *bias_ptr = reinterpret_cast<float *>(bias.buffer());
 
-    float input_data[] = {-0.463f, -0.463f, -0.463f, -0.463f};
-    float weights_data[] = {-0.498f, -0.498f, -0.498f, -0.498f};
-    float bias_data[] = {100.0f, 100.0f};
+    float input_data[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f};
+    float weights_data[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                            1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                            1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                            1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    float bias_data[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
     memcpy(input_ptr, input_data, sizeof(input_data));
     memcpy(weights_ptr, weights_data, sizeof(weights_data));
@@ -1039,6 +1035,96 @@ TEST(BICpuGemm, BasicGemmTest01) {
     // 打印结果
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
+
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+    input.print(std::cout, format);
+    weights.print(std::cout, format);
+    output.print(std::cout, format);
+
+//// 7. 打印结果
+//    BIWindow window;
+//    window.use_tensor_dimensions(output.info()->tensor_shape());
+//
+//    execute_window_loop(window, [&](const BICoordinates &id) {
+//        float *output_ptr = reinterpret_cast<float *>(output.buffer());
+//        std::cout << output_ptr[id.y() * output_shape[0] + id.x()] << " ";
+//        if (id.x() == output_shape[0] - 1) std::cout << std::endl;
+//    });
+}
+
+TEST(BICpuGemm, BasicGemmTest02) {
+    using namespace BatmanInfer;
+    // 1. 定义小矩阵: 2x2 * 2x2 = 2x2
+    const BITensorShape input_shape(2, 2);    // 2x2
+    const BITensorShape weights_shape(2, 2);  // 2x2
+    const BITensorShape output_shape(2, 2);   // 2x2
+    const BITensorShape bias_shape(2);        // bias向量
+
+// 2. 创建张量
+    BITensor input, weights, bias, output;
+
+// 3. 配置张量信息（使用F32而不是QASYMM8）
+    BITensorInfo input_info(input_shape, 1, BIDataType::F16);
+    BITensorInfo weights_info(weights_shape, 1, BIDataType::QASYMM8);
+    BITensorInfo bias_info(bias_shape, 1, BIDataType::S32);
+    BITensorInfo output_info(output_shape, 1, BIDataType::QASYMM8);
+
+    // 4. 初始化并分配内存
+    input.allocator()->init(input_info);
+    weights.allocator()->init(weights_info);
+    bias.allocator()->init(bias_info);
+    output.allocator()->init(output_info);
+
+    input.allocator()->allocate();
+    weights.allocator()->allocate();
+    bias.allocator()->allocate();
+    output.allocator()->allocate();
+
+    // 5. 填充示例数据（使用之前反量化得到的实际值）
+    auto *input_ptr = reinterpret_cast<int8_t *>(input.buffer());
+    auto *weights_ptr = reinterpret_cast<int8_t *>(weights.buffer());
+    auto *bias_ptr = reinterpret_cast<int32_t *>(bias.buffer());
+
+    int8_t input_data[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    int8_t weights_data[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,};
+    int32_t bias_data[] = {1, 1, 1, 1, 1};
+
+    memcpy(input_ptr, input_data, sizeof(input_data));
+    memcpy(weights_ptr, weights_data, sizeof(weights_data));
+    memcpy(bias_ptr, bias_data, sizeof(bias_data));
+
+// 6. 配置并运行GEMM
+    BINEGEMM gemm;
+    gemm.configure(&weights, &input, &bias, &output, 1.0f, 1.0f);
+    gemm.prepare();
+
+    // 记录开始时间点
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // 调用需要测试的函数
+    gemm.run();
+
+    // 记录结束时间点
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // 计算时间差
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    // 打印结果
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
+
+
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+    input.print(std::cout, format);
+    weights.print(std::cout, format);
+    bias.print(std::cout, format);
+    output.print(std::cout, format);
 
 //// 7. 打印结果
 //    BIWindow window;

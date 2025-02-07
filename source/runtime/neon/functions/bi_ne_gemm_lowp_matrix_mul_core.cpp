@@ -108,8 +108,8 @@ namespace BatmanInfer {
         BIPixelValue type_max{};
         const BIDataType data_type = src->info()->data_type();
         std::tie(type_min, type_max) = get_min_max(data_type);
-        int32_t min_activation = type_min.get<int32_t>();
-        int32_t max_activation = type_max.get<int32_t>();
+        auto min_activation = type_min.get<int32_t>();
+        auto max_activation = type_max.get<int32_t>();
 
         const BIUniformQuantizationInfo uoqinfo = oqinfo.uniform();
         if (supported_acts.find(_impl->act_info.activation()) != supported_acts.end()) {

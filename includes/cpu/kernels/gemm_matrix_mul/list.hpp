@@ -7,6 +7,7 @@
 
 #include <cpu/kernels/gemm_matrix_mul/generic/neon/f32.hpp>
 #include <cpu/kernels/gemm_matrix_mul/generic/neon/fp16.hpp>
+#include <cpu/kernels/gemm_matrix_mul/generic/neon/s8.hpp>
 
 namespace BatmanInfer {
     namespace cpu {
@@ -17,6 +18,8 @@ namespace BatmanInfer {
         DECLARE_GEMM_MATRIX_MUL_KERNEL(neon_fp32_gemm_matrix_mul);
 
         DECLARE_GEMM_MATRIX_MUL_KERNEL(neon_fp16_gemm_matrix_mul);
+
+        DECLARE_GEMM_MATRIX_MUL_KERNEL(neon_s8_gemm_matrix_mul);
 
 #undef DECLARE_GEMMMATRIXMUL_KERNEL
     }

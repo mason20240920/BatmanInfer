@@ -656,7 +656,7 @@ namespace BatmanInfer {
                 auto d = tensors.get_tensor(BITensorType::ACL_DST);
                 BI_COMPUTE_ERROR_ON_NULLPTR(a, d);
 
-                // Only update at runtime if the src quantization is dynamic
+                // 如果源量化是动态的，则仅在运行时更新。
                 if (std::is_same<OutputStage, BatmanGemm::DequantizeFloat>::value &&
                     (a->info()->quantization_info().is_dynamic() || b->info()->quantization_info().is_dynamic())) {
                     // Output dequantization is just the two src scales multiplied together
@@ -700,7 +700,7 @@ namespace BatmanInfer {
                     b_to_use = pre_pretransposed_b.get();
                 }
 
-                // Check if B is pre-tranposed and de-reference if not
+                // Check if B is pre-transposed and de-reference if not
                 if (b_to_use && !_gemm_kernel_asm->B_is_pretransposed()) {
                     ldb = b_to_use->info()->strides_in_bytes().y() / b_to_use->info()->element_size();
                     multi_stride_b = b_to_use->info()->strides_in_bytes().z() / b_to_use->info()->element_size();
