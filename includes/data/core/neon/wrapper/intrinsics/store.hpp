@@ -21,13 +21,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef ARM_COMPUTE_WRAPPER_STORE_H
-#define ARM_COMPUTE_WRAPPER_STORE_H
+#pragma once
 
 #include <neon/neon_defines.h>
 
 namespace BatmanInfer {
     namespace wrapper {
+        /**
+         * 定义一个宏 `VSTORE_IMPL`，用于生成通用的 SIMD 数据存储函数。
+         * - `stype`：标量数据类型（如 uint8_t、int16_t）。
+         * - `vtype`：向量数据类型（如 uint8x8_t、float32x4_t）。
+         * - `prefix`：NEON 存储指令的前缀（如 vst1, vst1q）。
+         * - `postfix`：NEON 存储指令的后缀，表示数据类型（如 u8, s16）。
+         *
+         * 宏展开后生成一个内联函数 `vstore`，用于调用对应的 NEON 指令，
+         * 将向量数据（`val`）存储到指针 `ptr` 指向的内存中。
+         */
 #define VSTORE_IMPL(stype, vtype, prefix, postfix) \
     inline void vstore(stype *ptr, vtype val)      \
     {                                              \
@@ -80,5 +89,4 @@ namespace BatmanInfer {
 
 #undef VSTORE_IMPL
     } // namespace wrapper
-} // namespace arm_compute
-#endif /* ARM_COMPUTE_WRAPPER_STORE_H */
+} // namespace BatmanInfer

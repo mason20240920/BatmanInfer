@@ -1074,25 +1074,28 @@ void quantize_values(int size, qasymm8_t *output, float *input, const BIQuantiza
 
 TEST(BICpuLowpGemm, LowpGemmTest01) {
     size_t M = 2, N = 2, K = 2;
-    BITensor src1, src2, dst0;
+    BITensor src1, src2, dst0, bias;
 
     // 初始化输入矩阵
     BINEGEMM fgemm{};
 
     src1.allocator()->init(BITensorInfo(BITensorShape(K, M), 1, BIDataType::F32));
     src2.allocator()->init(BITensorInfo(BITensorShape(N, K), 1, BIDataType::F32));
+    bias.allocator()->init(BITensorInfo(BITensorShape(N), 1, BIDataType::F32));
     dst0.allocator()->init(BITensorInfo(BITensorShape(N, M), 1, BIDataType::F32));
-    fgemm.configure(&src1, &src2, nullptr, &dst0, 1, 0);
+    fgemm.configure(&src1, &src2, &bias, &dst0, 1, 1);
 
     // Allocate matrices
     src1.allocator()->allocate();
     src2.allocator()->allocate();
+    bias.allocator()->allocate();
     dst0.allocator()->allocate();
 
     // Fill in tensors, by default fill in with known data - for easy testing
     auto *src1_ptr = reinterpret_cast<float *>(src1.buffer());
     auto *src2_ptr = reinterpret_cast<float *>(src2.buffer());
     auto *dst0_ptr = reinterpret_cast<float *>(dst0.buffer());
+    auto *bias_ptr = reinterpret_cast<float *>(bias.buffer());
 
     // Fill in: one is the identity matrix, other is sequential values
     // src1: Identity matrix
@@ -1108,31 +1111,41 @@ TEST(BICpuLowpGemm, LowpGemmTest01) {
         src2_ptr[i] = i * 1.123f;
     }
 
+    for (size_t i = 0; i < K; i++)
+        bias_ptr[i] = 1.0f;
+
     // Run single precision gemm and print result
     fgemm.run();
 
     print_tensor(src1);
     print_tensor(src2);
+    print_tensor(bias);
     print_tensor(dst0);
 
     /*** Quantised asymmetric 8bit matrix  multiplication ***/
 
     // Start by finding the quantisation parameters for each set of values
     BITensor q_src1, q_src2, q_dst0, q_res, q_res_output;
+    BITensor q_bias;
     float src1_min, src1_max, src2_min, src2_max, dst0_min, dst0_max;
+    float bias_min, bias_max;
 
     find_min_max(M * K, src1_ptr, &src1_min, &src1_max);
     find_min_max(K * N, src2_ptr, &src2_min, &src2_max);
     find_min_max(M * N, dst0_ptr, &dst0_min, &dst0_max);
+    find_min_max(N, bias_ptr, &bias_min, &bias_max);
 
     const BIQuantizationInfo src1_qinfo = choose_quantization_params(src1_min, src1_max);
     const BIQuantizationInfo src2_qinfo = choose_quantization_params(src2_min, src2_max);
     const BIQuantizationInfo dst0_qinfo = choose_quantization_params(dst0_min, dst0_max);
+    const BIQuantizationInfo bias_qinfo = choose_quantization_params(bias_min, bias_max);
 
     std::cout << "Matrix 1: min=" << src1_min << ", max=" << src1_max << ", ";
     std::cout << "QuantisationInfo(" << src1_qinfo.scale()[0] << ", " << src1_qinfo.offset()[0] << ")\n";
     std::cout << "Matrix 2: min=" << src2_min << ", max=" << src2_max << ", ";
     std::cout << "QuantisationInfo(" << src2_qinfo.scale()[0] << ", " << src2_qinfo.offset()[0] << ")\n";
+    std::cout << "Bias  : min=" << bias_max << ", max=" << bias_max << ", ";
+    std::cout << "QuantisationInfo(" << bias_qinfo.scale()[0] << ", " << bias_qinfo.offset()[0] << ")\n";
     std::cout << "Result  : min=" << dst0_min << ", max=" << dst0_max << ", ";
     std::cout << "QuantisationInfo(" << dst0_qinfo.scale()[0] << ", " << dst0_qinfo.offset()[0] << ")\n";
 
@@ -1140,6 +1153,7 @@ TEST(BICpuLowpGemm, LowpGemmTest01) {
     q_src1.allocator()->init(BITensorInfo(BITensorShape(K, M), 1, BIDataType::QASYMM8, src1_qinfo));
     q_src2.allocator()->init(BITensorInfo(BITensorShape(N, K), 1, BIDataType::QASYMM8, src2_qinfo));
     q_dst0.allocator()->init(BITensorInfo(BITensorShape(N, M), 1, BIDataType::QASYMM8, dst0_qinfo));
+    q_bias.allocator()->init(BITensorInfo(BITensorShape(N), 1, BIDataType::S32));
 
     // In this approach we use the QuantizationLayer construct to perform quantization
     BINEQuantizationLayer q1;
@@ -1148,6 +1162,81 @@ TEST(BICpuLowpGemm, LowpGemmTest01) {
     q1.configure(&src1, &q_src1);
     q2.configure(&src2, &q_src2);
     q3.configure(&dst0, &q_dst0);
+    q_bias.allocator()->allocate();
+    // 偏置需要按照以下方式进行量化，因为在低精度矩阵乘法中，偏置添加到S32的累积结果中：
+    auto *q_bias_ptr = reinterpret_cast<int32_t *>(q_bias.buffer());
+    for (size_t i = 0; i < N; ++i) {
+        float real_bias = bias_ptr[i];
+        // 量化偏置值，使用输入张量的量化参数
+        int32_t quantized_bias = static_cast<int32_t>(std::round(
+                real_bias / (src1_qinfo.scale()[0] * src2_qinfo.scale()[0])));
+        q_bias_ptr[i] = quantized_bias;
+    }
+
+    // Configure low precision gemm and initialise result tensor (pre-output)
+    BINEGEMMLowpMatrixMultipleCore qgemm;
+    q_res.allocator()->init(BITensorInfo(BITensorShape(N, M), 1, BIDataType::S32));
+    qgemm.configure(&q_src1, &q_src2, nullptr, &q_res);
+
+    // Configure output stage after computing shift and multiplier parameters
+    BINEGEMMLowpOutputStage gemmlowp_output_stage;
+    int output_multiplier;
+    int output_shift;
+    float multiplier = (src1_qinfo.uniform().scale * src2_qinfo.uniform().scale) / dst0_qinfo.uniform().scale;
+    quantization::calculate_quantized_multiplier_less_than_one(multiplier, &output_multiplier, &output_shift);
+    std::cout << "(q_multiplier, q_shift) = (" << output_multiplier << ", " << output_shift << ")\n\n";
+
+    BIGEMMLowpOutputStageInfo info;
+    info.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
+    info.gemmlowp_multiplier = output_multiplier;
+    info.gemmlowp_shift = output_shift;
+    info.gemmlowp_offset = dst0_qinfo.uniform().offset;
+    info.output_data_type = BIDataType::QASYMM8;
+    q_res_output.info()->set_data_type(BIDataType::QASYMM8);
+    q_res_output.info()->set_num_channels(1);
+    gemmlowp_output_stage.configure(&q_res, &q_bias, &q_res_output, info);
+
+    // Allocate all tensors
+    q_src1.allocator()->allocate();
+    q_src2.allocator()->allocate();
+    q_dst0.allocator()->allocate();
+    q_res.allocator()->allocate();
+    q_res_output.allocator()->allocate();
+
+    // Run quantization layers (quantizes values of each tensor)
+    q1.run();
+    q2.run();
+    q3.run();
+    // Run low precision matrix multiply kernel
+    qgemm.run();
+    // Run output stage kernel
+    gemmlowp_output_stage.run();
+    std::cout << "\nTest Passed\n";
+
+    // Print quantized source matrices
+    print_tensor(q_src1);
+    print_tensor(q_src2);
+    // Print result matrix in int32 form - before output stage processing
+    std::cout << "Lowp GEMM output (int32):\n";
+    print_tensor(q_res);
+    // Print QASYMM8 (quantized) matrix
+    std::cout << "Output pipeline result matrix:\n";
+    print_tensor(q_res_output);
+
+    // Expected result
+    std::cout << "Expected result:\n";
+    print_tensor(q_dst0);
+
+    // 再次进行反量化
+    BITensor dq_dst0;
+    dq_dst0.allocator()->init(BITensorInfo(BITensorShape(N, M), 1, BIDataType::F16));
+    dq_dst0.allocator()->allocate();
+    BINEDequantizationLayer dq0;
+    dq0.configure(&q_dst0, &dq_dst0);
+
+    dq0.run();
+    std::cout << "Dequantization result:\n";
+    print_tensor(dq_dst0);
 }
 
 TEST(BICpuGemm, BasicGemmTest01) {

@@ -118,16 +118,6 @@ else ()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GLOG REQUIRED libglog)
 
-    # 设置Halide
-    #    set(HALIDE_DIR "/Users/mason/Desktop/Qualmnn/Halide_18_mac")
-
-    # 设置OpenBLAS
-    #    set(OPEN_BLAS "/Users/mason/Desktop/Qualmnn/OpenBLAS/install")
-
-    # 设置 ARM Compute Library 的路径
-    #    set(ARM_COMPUTE_LIB_PATH "/Users/mason/Downloads/QwenModel/arm_compute-v24.12-macos-aarch64-cpu-bin/lib/armv8.2-a-neon") # 替换为实际路径
-    #    set(ARM_COMPUTE_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/includes")
-
 endif ()
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DBI_COMPUTE_ENABLE_FP16  -DBI_COMPUTE_ENABLE_BF16 -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DENABLE_FP16_KERNELS")
@@ -161,62 +151,26 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/includes
         ${GLOG_INCLUDE_DIRS}
         ${OpenMP_INCLUDE}
         ${ARMADILLO_INCLUDE_DIRS}
-        #        ${HALIDE_DIR}/include
-        #        ${OPEN_BLAS}/include
-        #        ${ARM_COMPUTE_INCLUDE_PATH}
 )
 
 link_directories(${GLOG_LIBRARY_DIRS}
         ${ONNX_LIBRARIES}
-        #        ${HALIDE_DIR}/lib
-        #        ${OPEN_BLAS}/lib
-        #        ${ARM_COMPUTE_LIB_PATH}
 )
 
 # 匹配指定目录下的所有 .cpp 文件（包括子目录）
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/data/core/*.cpp)
-file(GLOB_RECURSE RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/neon/*.cpp)
+file(GLOB_RECURSE RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/*.cpp)
 file(GLOB_RECURSE CPU_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/cpu/*.cpp)
+file(GLOB_RECURSE COMMON_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/common/*.cpp)
+file(GLOB_RECURSE C_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/c/*.cpp)
 
 add_executable(BatmanInfer main.cpp
-        source/runtime/bi_allocator.cpp
-        source/runtime/bi_tensor_allocator.cpp
-        source/runtime/bi_memory_manager_on_demand.cpp
-        source/runtime/bi_i_siample_lifetime_manager.cpp
-        source/runtime/bi_blob_lifetime_manager.cpp
-        source/runtime/bi_blob_memory_pool.cpp
-        source/runtime/bi_pool_manager.cpp
-        source/runtime/bi_i_tensor_allocator.cpp
-        source/runtime/bi_memory.cpp
-        source/runtime/bi_tensor.cpp
         test/tensor_get_values.cpp
-        source/runtime/bi_i_weights_manager.cpp
-        source/common/cpu_info.cpp
-        source/common/cpu_model.cpp
-        source/common/cpu_isa_info.cpp
-        source/runtime/bi_i_scheduler.cpp
-        source/runtime/bi_scheduler_utils.cpp
-        source/runtime/cpp/bi_cpp_scheduler.cpp
-        source/runtime/omp/bi_imp_scheduler.cpp
-        source/runtime/cpp/bi_single_thread_scheduler.cpp
-        source/runtime/bi_scheduler.cpp
-        source/c/bcl_version.cpp
-        source/common/bi_i_operator.cpp
-        source/common/bi_i_tensor_v2.cpp
-        source/c/bcl_tensor.cpp
-        source/common/bi_allocator_wrapper.cpp
-        source/c/operators/bcl_activation.cpp
-        source/common/utils/bi_legacy_support.cpp
-        source/common/bi_tensor_pack.cpp
-        source/c/bcl_version.cpp
-        source/c/bcl_context.cpp
-        source/c/bcl_operators.cpp
-        source/c/bcl_queue.cpp
-        source/c/bcl_tensor_pack.cpp
-        source/runtime/experimental/operators/bi_cpu_gemm_lowp.cpp
         ${SOURCES}
         ${RUNTIME_SOURCES}
         ${CPU_SOURCES}
+        ${C_SOURCES}
+        ${COMMON_SOURCES}
         test/test_layer_operator.cpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
@@ -241,27 +195,6 @@ add_executable(BatmanInfer main.cpp
         #        test/test_resnt.cpp
         #        source/runtime/bi_memory.cpp
 )
-#        source/layer/detail/add.cpp
-#        source/layer/detail/global_average_pool.cpp
-#        source/layer/detail/flatten.cpp
-#        source/layer/detail/gemm.cpp
-#        test/test_operators.cpp
-#        source/layer/detail/concat.cpp
-#        source/layer/detail/expand.cpp
-#        source/layer/detail/trilu.cpp
-#        source/layer/detail/constant.cpp
-#        source/layer/detail/equal.cpp
-#        source/layer/detail/where.cpp
-#        source/layer/detail/cast.cpp
-#        source/layer/detail/sqrt.cpp
-#        source/layer/detail/div.cpp
-
-#        source/layer/detail/matmul.cpp
-#        source/layer/detail/mul.cpp
-#        source/layer/detail/transpose.cpp
-#        source/layer/detail/reshape.cpp
-#        source/layer/detail/split.cpp
-#        test/test_open_blas.cpp)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer
@@ -275,13 +208,7 @@ target_link_libraries(BatmanInfer
         ${OpenMP_omp_LIBRARY}
         ${ABSEL_LIBARARY}
         ${UTF8RANGE_LIBRARY}
-        #        Halide
-        #        ${OPEN_BLAS}/lib/libopenblas.a
-        #        ${ARM_COMPUTE_LIB_PATH}/libarm_compute-static.a
-        #        ${ARM_COMPUTE_LIB_PATH}/libarm_compute_graph-static.a
 )
-
-#message("check\t" ${HALIDE_DIR})
 
 if (ANDROID)
     target_link_libraries(BatmanInfer OpenMP::OpenMP_CXX)

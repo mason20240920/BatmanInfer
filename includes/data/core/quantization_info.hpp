@@ -488,6 +488,16 @@ namespace BatmanInfer {
 
         return BIUniformRequantizationInfo(scale_to_apply, offset_to_apply);
     }
+
+    /**
+     * Dequantize a value given a 8-bit symmetric quantization scheme
+     * @param value
+     * @param scale
+     * @return
+     */
+    inline float dequantize(int8_t value, float scale) {
+        return value * scale;
+    }
 }
 
 #endif //BATMANINFER_QUANTIZATION_INFO_HPP
