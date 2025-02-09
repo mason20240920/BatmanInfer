@@ -430,6 +430,40 @@ namespace BatmanInfer {
         return error_on_mismatching_shapes(function, file, line, 0U, tensor_1, tensor_2, std::forward<Ts>(tensors)...);
     }
 
+    /** Return an error if the passed tensor infos have different data layouts
+     *
+     * @param[in] function     Function in which the error occurred.
+     * @param[in] file         Name of the file where the error occurred.
+     * @param[in] line         Line on which the error occurred.
+     * @param[in] tensor_info  The first tensor info to be compared.
+     * @param[in] tensor_infos (Optional) Further allowed tensor infos.
+     *
+     * @return Status
+     */
+    template<typename... Ts>
+    inline BIStatus error_on_mismatching_data_layouts(
+            const char *function, const char *file, const int line, const BIITensorInfo *tensor_info,
+            Ts... tensor_infos) {
+        BI_COMPUTE_RETURN_ERROR_ON_LOC(tensor_info == nullptr, function, file, line);
+        BI_COMPUTE_RETURN_ON_ERROR(::BatmanInfer::error_on_nullptr(function, file, line, tensor_infos...));
+
+        BIDataLayout &&tensor_data_layout = tensor_info->data_layout();
+        const std::array<const BIITensorInfo *, sizeof...(Ts)> tensors_infos_array{{tensor_infos...}};
+        BI_COMPUTE_RETURN_ERROR_ON_LOC_MSG(std::any_of(tensors_infos_array.begin(), tensors_infos_array.end(),
+                                                       [&](const BIITensorInfo *tensor_info_obj) {
+                                                           return tensor_info_obj->data_layout() != tensor_data_layout;
+                                                       }),
+                                           function, file, line, "Tensors have different data layouts");
+        return BIStatus{};
+    }
+
+#define BI_COMPUTE_ERROR_ON_MISMATCHING_DATA_LAYOUT(...) \
+    BI_COMPUTE_ERROR_THROW_ON(                           \
+        ::BatmanInfer::error_on_mismatching_data_layouts(__func__, __FILE__, __LINE__, __VA_ARGS__))
+#define BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_LAYOUT(...) \
+    BI_COMPUTE_RETURN_ON_ERROR(                                 \
+        ::BatmanInfer::error_on_mismatching_data_layouts(__func__, __FILE__, __LINE__, __VA_ARGS__))
+
 #define BI_COMPUTE_ERROR_ON_MISMATCHING_SHAPES(...) \
     BI_COMPUTE_ERROR_THROW_ON(::BatmanInfer::error_on_mismatching_shapes(__func__, __FILE__, __LINE__, __VA_ARGS__))
 #define BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_SHAPES(...) \

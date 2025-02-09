@@ -1,5 +1,5 @@
 //
-// Created by Mason on 2025/1/23.
+// Created by Mason on 2025/2/9.
 //
 
 #pragma once
@@ -19,23 +19,23 @@ namespace BatmanInfer {
     // 前向声明
     class BIITensor;
 
-    class BINEAttentionLayer : public BIIFunction {
+    class BINEAttentionLowpLayer : public BIIFunction {
     public:
-        explicit BINEAttentionLayer(std::shared_ptr<BIIMemoryManager> memory_manager);
+        explicit BINEAttentionLowpLayer(std::shared_ptr<BIIMemoryManager> memory_manager);
 
-        BINEAttentionLayer() : BINEAttentionLayer(BIMemoryManagerOnDemand::make_default()) {
+        BINEAttentionLowpLayer() : BINEAttentionLowpLayer(BIMemoryManagerOnDemand::make_default()) {
 
         }
 
-        BINEAttentionLayer(const BINEAttentionLayer &) = delete;
+        BINEAttentionLowpLayer(const BINEAttentionLowpLayer &) = delete;
 
-        BINEAttentionLayer(BINEAttentionLayer &&) = delete;
+        BINEAttentionLowpLayer(BINEAttentionLowpLayer &&) = delete;
 
-        BINEAttentionLayer &operator=(const BINEAttentionLayer &) = delete;
+        BINEAttentionLowpLayer &operator=(const BINEAttentionLowpLayer &) = delete;
 
-        BINEAttentionLayer &operator=(BINEAttentionLayer &&) = delete;
+        BINEAttentionLowpLayer &operator=(BINEAttentionLowpLayer &&) = delete;
 
-        ~BINEAttentionLayer() override;
+        ~BINEAttentionLowpLayer() override;
 
         /**
         * 初始化函数
@@ -65,7 +65,6 @@ namespace BatmanInfer {
                        const PermutationVector &perm,
                        const PermutationVector &perm2,
                        const PermutationVector &final_perm,
-                       const BINormalizationLayerInfo &norm_info,
                        BIITensor *output);
 
         /**
@@ -92,10 +91,12 @@ namespace BatmanInfer {
     private:
         // 内存管理
         BIMemoryGroup _memory_group;
-        // 用于执行归一操作的层
-        BINENormalizationLayer _normalization_layer;
         // 执行矩阵乘法(GEMM), 用于计算当前状态或隐藏层的现象变换
-        BINEGEMM _gemm_state_f;
+        BINEGEMMLowpMatrixMultipleCore _gemm_state_f;
+        // 执行Reshape操作
+        BINEReshapeLayer _reshape;
+
+        BINEReshapeLayer _reshape2;
 
         BINEReshapeLayer _reshape_split_0;
 
@@ -127,13 +128,18 @@ namespace BatmanInfer {
         BINEReshapeLayer _reshape_sum_layer;
 
         // 执行矩阵乘法(GEMM), 用于计算当前状态或隐藏层的现象变换
-        BINEGEMM _gemm_state_sum_layer;
+        BINEGEMMLowpMatrixMultipleCore _gemm_state_sum_layer;
+
+        // 最后的Reshape Layer
+        BINEReshapeLayer _final_reshape_layer;
         // 进行切分split
         BINESplit _split_layer;
-        // 归一输出
-        BITensor _layer_nor_output;
         // 中间变量
         BITensor _gemm_output;
+        // 转换变量
+        BITensor _reshape_output;
+        // 第二层转换变量
+        BITensor _reshape_output_2;
         // 输出split结果
         BITensor _split_result_0;
         BITensor _split_result_1;
@@ -174,6 +180,8 @@ namespace BatmanInfer {
 
         // 最后的Gemm出来的结果
         BITensor _gemm_sum_output;
+
+        BITensor _final_reshape_output;
 
         // 复制的对象
         BINECopy _copy_f;

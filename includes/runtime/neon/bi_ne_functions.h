@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "runtime/neon/functions/bi_ne_normalization_layer.hpp"
+#include "runtime/neon/functions/bi_ne_mat_mul.hpp"
 #include "runtime/neon/functions/bi_ne_gemm.hpp"
 #include "runtime/neon/functions/bi_ne_gemm_lowp_matrix_mul_core.hpp"
 #include "runtime/neon/functions/bi_ne_reshape_layer.hpp"
@@ -39,3 +41,4 @@
 #include "runtime/neon/functions/bi_ne_attention_layer.hpp"
 #include "runtime/neon/functions/bi_ne_slice.hpp"
 #include "runtime/neon/functions/bi_ne_gemm_lowp_output_stage.hpp"
+#include <runtime/neon/functions/BINEAttentionLowpLayer.hpp>

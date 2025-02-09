@@ -17,25 +17,30 @@ namespace BatmanInfer {
     class BIITensor;
 
     /** Basic function to compute a SoftmaxLayer and a Log SoftmaxLayer. */
-    template <bool IS_LOG = false>
-    class BINESoftmaxLayerGeneric : public BIIFunction
-    {
+    template<bool IS_LOG = false>
+    class BINESoftmaxLayerGeneric : public BIIFunction {
     public:
         /** Constructor */
         BINESoftmaxLayerGeneric(std::shared_ptr<BIIMemoryManager> memory_manager);
-        BINESoftmaxLayerGeneric() : BINESoftmaxLayerGeneric(BIMemoryManagerOnDemand::make_default())
-        {
+
+        BINESoftmaxLayerGeneric() : BINESoftmaxLayerGeneric(BIMemoryManagerOnDemand::make_default()) {
         }
+
         /** Prevent instances of this class from being copied (As this class contains pointers) */
         BINESoftmaxLayerGeneric(const BINESoftmaxLayerGeneric &) = delete;
+
         /** Default move constructor */
         BINESoftmaxLayerGeneric(BINESoftmaxLayerGeneric &&);
+
         /** Prevent instances of this class from being copied (As this class contains pointers) */
         BINESoftmaxLayerGeneric &operator=(const BINESoftmaxLayerGeneric &) = delete;
+
         /** Default move assignment operator */
         BINESoftmaxLayerGeneric &operator=(BINESoftmaxLayerGeneric &&);
+
         /** Default destructor */
         ~BINESoftmaxLayerGeneric();
+
         /** Set the input and output tensors.
          *
          * Valid data layouts:
@@ -58,7 +63,8 @@ namespace BatmanInfer {
          *                       axis=1, softmax will be applied to 4x6=24 vectors of size 5. Defaults to 0
          */
         void configure(BIITensor *input, BIITensor *output, float beta = 1.0f, int32_t axis = 0);
-        /** Static function to check if given info will lead to a valid configuration of @ref NESoftmaxLayer
+
+        /** Static function to check if given info will lead to a valid configuration of @ref BINESoftmaxLayer
          *
          * @param[in] input  Source tensor info. Data types supported: QASYMM8/QASYMM8_SIGNED/F16/F32.
          * @param[in] output Destination tensor info. Data types supported: same as @p input
@@ -68,7 +74,8 @@ namespace BatmanInfer {
          *
          * @return a status
          */
-        static BIStatus validate(const BIITensorInfo *input, const BIITensorInfo *output, float beta = 1.0f, int32_t axis = 0);
+        static BIStatus
+        validate(const BIITensorInfo *input, const BIITensorInfo *output, float beta = 1.0f, int32_t axis = 0);
 
         // Inherited methods overridden:
         void run() override;
@@ -78,7 +85,7 @@ namespace BatmanInfer {
         std::unique_ptr<Impl> _impl;
     };
 
-    using BINESoftmaxLayer    = BINESoftmaxLayerGeneric<false>;
+    using BINESoftmaxLayer = BINESoftmaxLayerGeneric<false>;
     using BINELogSoftmaxLayer = BINESoftmaxLayerGeneric<true>;
 
 } // namespace BatmanInfer

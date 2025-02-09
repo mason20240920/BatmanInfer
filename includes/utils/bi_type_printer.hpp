@@ -755,6 +755,60 @@ namespace BatmanInfer {
         return str.str();
     }
 
+    inline ::std::ostream &operator<<(::std::ostream &os, const BINormType &norm_type) {
+        switch (norm_type) {
+            case BINormType::CROSS_MAP:
+                os << "CROSS_MAP";
+                break;
+            case BINormType::IN_MAP_1D:
+                os << "IN_MAP_1D";
+                break;
+            case BINormType::IN_MAP_2D:
+                os << "IN_MAP_2D";
+                break;
+            default:
+                BI_COMPUTE_ERROR("NOT_SUPPORTED!");
+        }
+
+        return os;
+    }
+
+    /** Formatted output of the Norm Type.
+    *
+    * @param[in] type Type to output.
+    *
+    * @return Formatted string.
+    */
+    inline std::string to_string(const BINormType &type) {
+        std::stringstream str;
+        str << type;
+        return str.str();
+    }
+
+    /** Formatted output of @ref BINormalizationLayerInfo.
+     *
+     * @param[in] info Type to output.
+     *
+     * @return Formatted string.
+     */
+    inline std::string to_string(const BINormalizationLayerInfo &info) {
+        std::stringstream str;
+        str << info.type() << ":NormSize=" << info.norm_size();
+        return str.str();
+    }
+
+    /** Formatted output of @ref NormalizationLayerInfo.
+     *
+     * @param[out] os   Output stream.
+     * @param[in]  info Type to output.
+     *
+     * @return Modified output stream.
+     */
+    inline ::std::ostream &operator<<(::std::ostream &os, const BINormalizationLayerInfo &info) {
+        os << info.type() << ":NormSize=" << info.norm_size();
+        return os;
+    }
+
 }
 
 #endif //BATMANINFER_BI_TYPE_PRINTER_HPP

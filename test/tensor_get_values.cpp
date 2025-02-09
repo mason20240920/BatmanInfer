@@ -1066,12 +1066,6 @@ BIQuantizationInfo choose_quantization_params(float min,
     return qinfo;
 }
 
-void quantize_values(int size, qasymm8_t *output, float *input, const BIQuantizationInfo &qinfo) {
-    for (int i = 0; i < size; i++)
-        output[i] = quantize_qasymm8(input[i], qinfo);
-    std::cout << "\n";
-}
-
 TEST(BICpuLowpGemm, LowpGemmTest01) {
     size_t M = 2, N = 2, K = 2;
     BITensor src1, src2, dst0, bias;

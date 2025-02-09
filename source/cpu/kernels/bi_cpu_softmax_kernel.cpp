@@ -40,12 +40,12 @@ namespace BatmanInfer {
                                 [](const SoftmaxKernelDataTypeISASelectorData &data) {
                                     return (!data.is_log && data.dt == BIDataType::QASYMM8);
                                 },
-                                REGISTER_QASYMM8_NEON(arm_compute::cpu::neon_qasymm8_softmax < false >)},
+                                REGISTER_QASYMM8_NEON(neon_qasymm8_softmax<false>)},
                         {"neon_qs8_softmax",
                                 [](const SoftmaxKernelDataTypeISASelectorData &data) {
                                     return (!data.is_log && data.dt == BIDataType::QASYMM8_SIGNED);
                                 },
-                                REGISTER_QASYMM8_SIGNED_NEON(arm_compute::cpu::neon_qasymm8_signed_softmax < false >)},
+                                REGISTER_QASYMM8_SIGNED_NEON(neon_qasymm8_signed_softmax<false>)},
                         {"neon_fp32_log_softmax",
                                 [](const SoftmaxKernelDataTypeISASelectorData &data) {
                                     return (data.is_log && data.dt == BIDataType::F32);
@@ -60,12 +60,12 @@ namespace BatmanInfer {
                                 [](const SoftmaxKernelDataTypeISASelectorData &data) {
                                     return (data.is_log && data.dt == BIDataType::QASYMM8);
                                 },
-                                REGISTER_QASYMM8_NEON(arm_compute::cpu::neon_qasymm8_softmax < true >)},
+                                REGISTER_QASYMM8_NEON(neon_qasymm8_softmax<true>)},
                         {"neon_qs8_log_softmax",
                                 [](const SoftmaxKernelDataTypeISASelectorData &data) {
                                     return (data.is_log && data.dt == BIDataType::QASYMM8_SIGNED);
                                 },
-                                REGISTER_QASYMM8_SIGNED_NEON(arm_compute::cpu::neon_qasymm8_signed_softmax < true >)},
+                                REGISTER_QASYMM8_SIGNED_NEON(neon_qasymm8_signed_softmax<true>)},
                 };
 
                 BIStatus validate_arguments_softmax(

@@ -91,19 +91,60 @@ void print_new_tensor(const BITensor &tensor) {
     tensor.print(std::cout, format);
 }
 
-void fill_new_tensor_val(const BITensor &tensor, const float16_t val) {
-    auto tensor_ptr = reinterpret_cast<float16_t *>(tensor.buffer());
+template<typename T>
+void fill_new_tensor_val(const BITensor &tensor, const T val) {
+    auto tensor_ptr = reinterpret_cast<T *>(tensor.buffer());
     size_t num_elements = tensor.info()->tensor_shape().total_size(); // 获取元素数量
     for (size_t i = 0; i < num_elements; ++i) {
         tensor_ptr[i] = val;
     }
 }
 
+/**
+ * 根据最小和最大的值, 返回Reasonable quantisation参数来使用float数组
+ * @param min
+ * @param max
+ * @return
+ */
+BIQuantizationInfo layer_choose_quantization_params(float min,
+                                                    float max) {
+    // Extend the [min,max] interval to contain 0 so we can represent it exactly
+    min = std::min(min, 0.f);
+    max = std::max(max, 0.f);
+
+    // Set the quantized min and max in float values
+    const float qmin = 0;
+    const float qmax = 255;
+
+    // Determine the scale
+    const float scale = (max - min) / (qmax - qmin);
+
+    // Determine the zero-point; using affine equation val = (qval-zerop) * scale
+    const float zero_point_real = qmin - min / scale;
+
+    // But we need to nudge the zero_point to an integer (exact quantized value)
+    std::uint8_t zero_point_nudged = 0;
+    if (zero_point_real < qmin)
+        zero_point_nudged = qmin;
+    else if (zero_point_real > qmax)
+        zero_point_nudged = qmax;
+    else
+        zero_point_nudged = static_cast<std::uint8_t>(support::cpp11::round(zero_point_real));
+
+    BIQuantizationInfo qinfo = BIQuantizationInfo(scale, zero_point_nudged);
+    return qinfo;
+}
+
+void quantize_values(int size, qasymm8_t *output, float *input, const BIQuantizationInfo &qinfo) {
+    for (int i = 0; i < size; i++)
+        output[i] = quantize_qasymm8(input[i], qinfo);
+    std::cout << "\n";
+}
+
 
 TEST(BatmanInferLayer, CPUAttentionTest) {
     // 输入张量
-    const BITensorShape input_shape(1,   // batch size
-                                    16,  // sequence
+    const BITensorShape input_shape(16,  // sequence
                                     768); // hidden dimension
     const BITensorInfo input_info(input_shape, 1, BIDataType::F16);
     BITensor input;
@@ -136,8 +177,7 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     bias2.allocator()->init(bias_info2);
 
     // 输出张量
-    const BITensorShape output_shape(1,
-                                     16,    // hidden_units (width)
+    const BITensorShape output_shape(16,    // hidden_units (width)
                                      768);     // batch_size (height)
     const BITensorInfo output_info(output_shape, 1, BIDataType::F16);
     BITensor output;
@@ -155,9 +195,19 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     BITensor add_tensor;
     add_tensor.allocator()->init(add_info);
 
-    PermutationVector perm{3, 1, 2, 0};
-    PermutationVector perm2{1, 3, 2, 0};
+    PermutationVector perm{2, 0, 1};
+    PermutationVector perm2{0, 2, 1};
     PermutationVector perm_final{1, 2, 0};
+
+    // 4. 初始化参数 (使用ACL规范参数)
+    const BINormalizationLayerInfo norm_info(
+            BINormType::CROSS_MAP, // 归一化类型
+            5,                                // 归一化窗口大小
+            0.0001f,                          // epsilon
+            0.75f,                            // beta
+            1.0f,                             // kappa
+            false                             // 是否跨通道
+    );
 
     // 5. 分配内存
     input.allocator()->allocate();
@@ -167,19 +217,19 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     scalar.allocator()->allocate();
     add_tensor.allocator()->allocate();
     weights2.allocator()->allocate();
-    bias.allocator()->allocate();
+    bias2.allocator()->allocate();
 
     // 模拟数据填充 (实际中应加载量化后的数据)
     // 注意：这里的填充需要符合量化格式
-    fill_new_tensor_val(input, 1 / 768);
-    fill_new_tensor_val(weights, 1);
-    fill_new_tensor_val(bias, 1);
+    fill_new_tensor_val(input, static_cast<float16_t>(1 / 768));
+    fill_new_tensor_val(weights, static_cast<float16_t>(1));
+    fill_new_tensor_val(bias, static_cast<float16_t>(1));
 
-    fill_new_tensor_val(add_tensor, 1);
-    fill_new_tensor_val(weights2, 1);
-//    fill_new_tensor_val(bias2, 1);
+    fill_new_tensor_val(add_tensor, static_cast<float16_t>(1));
+    fill_new_tensor_val(weights2, static_cast<float16_t>(1));
+    fill_new_tensor_val(bias2, static_cast<float16_t>(1));
 
-    auto scalar_ptr = reinterpret_cast<float *>(scalar.buffer());
+    auto scalar_ptr = reinterpret_cast<float16_t *>(scalar.buffer());
     scalar_ptr[0] = 0.5f;
 
     BINEAttentionLayer attention_layer;
@@ -193,6 +243,7 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
                               perm,
                               perm2,
                               perm_final,
+                              norm_info,
                               &output);
 
     // 获取开始时间点
@@ -203,10 +254,10 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     auto end = std::chrono::high_resolution_clock::now();
 
     // 计算耗时（以微秒为单位）
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
     // 输出运行时间
-    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
+    std::cout << "Function execution time: " << duration.count() << " milliseconds" << std::endl;
 
 //    print_new_tensor(output);
 }
