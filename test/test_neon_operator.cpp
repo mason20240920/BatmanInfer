@@ -192,3 +192,100 @@ TEST(NEONOperator, NENormalizationLayer) {
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     std::cout << "ACL execution time: " << duration.count() << " microseconds" << std::endl;
 }
+
+TEST(NEONOperator, NEFeedForwardLayer) {
+    using namespace BatmanInfer;
+    // 手动定义输入数据
+    const float16_t input_data[4] = {1.0f, -2.0f, 0.5f, 3.0f}; // 行优先存储
+
+    // 2. 初始化Tensor
+    BITensor src, dst;
+    src.allocator()->init(BITensorInfo(BITensorShape(2U, 2U), 1, BIDataType::F16));
+    dst.allocator()->init(BITensorInfo(BITensorShape(2U, 2U), 1, BIDataType::F16));
+    src.allocator()->allocate();
+    dst.allocator()->allocate();
+
+    // 3. 手动拷贝数据到Tensor
+    auto *src_ptr = reinterpret_cast<float16_t *>(src.buffer());
+    std::memcpy(src_ptr, input_data, 4 * sizeof(float16_t));
+
+    // 4. 配置GELU层
+    BINEActivationLayer gelu;
+    gelu.configure(&src, &dst, BIActivationLayerInfo(BIActivationLayerInfo::ActivationFunction::GELU));
+
+    // 5. 运行计算
+    gelu.run();
+
+    // 6. 输出结果
+    std::cout << "GELU Output:\n";
+
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+    dst.print(std::cout, format);
+}
+
+template<typename T>
+void copy_data_to_tensor(BatmanInfer::BITensor &input, const std::vector<T> &vec) {
+    auto *src_ptr = reinterpret_cast<T *>(input.buffer());
+    std::memcpy(src_ptr, vec.data(), vec.size() * sizeof(float16_t));
+}
+
+TEST(NEONOperator, NEGemmActLayer) {
+    using namespace BatmanInfer;
+
+    // 张量定义
+    BITensor src, weights, bias, dst;
+    const BITensorShape src_shape(3, 2);  // W=3, H=2 （列优先）
+    const BITensorShape weight_shape(2, 3); // 3x2矩阵转置为2x3
+    const BITensorShape bias_shape(2);
+
+    // 初始化张量（内存布局重要！）
+    src.allocator()->init(BITensorInfo(src_shape, 1, BIDataType::F16));
+    weights.allocator()->init(BITensorInfo(weight_shape, 1, BIDataType::F16));
+    bias.allocator()->init(BITensorInfo(bias_shape, 1, BIDataType::F16));
+    dst.allocator()->init(BITensorInfo(BITensorShape(2, 2), 1, BIDataType::F16));
+
+    // 填充测试数据（列优先）
+    const std::vector<float16_t> src_data = {
+            1, 2, 3,
+            4, 5, 6
+    };
+    const std::vector<float16_t> weights_data = {
+            0.5, 1.5, 1.0, 2.0, 1.5, 0.5
+    };
+    const std::vector<float16_t> bias_data = {0.2, -0.1};
+
+    src.allocator()->allocate();
+    weights.allocator()->allocate();
+    bias.allocator()->allocate();
+    dst.allocator()->allocate();
+
+    // 3. 手动拷贝数据到Tensor
+    copy_data_to_tensor(src, src_data);       // 原始形状2x3
+    copy_data_to_tensor(weights, weights_data); // 实际是3x2的转置
+    copy_data_to_tensor(bias, bias_data);
+
+    // 配置融合GELU的GEMM
+    BINEGEMM gemm;
+    GEMMInfo gemm_info;
+    gemm_info.set_fast_math(true);
+    gemm_info.set_activation_info(BIActivationLayerInfo(
+            BIActivationLayerInfo::ActivationFunction::GELU,
+            0.044715f, 0.79788458f
+    ));
+
+    gemm.configure(&src, &weights, &bias, &dst, 1.0f, 1.0f, gemm_info);
+    gemm.run();
+
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+    weights.print(std::cout, format);
+
+    dst.print(std::cout, format);
+}

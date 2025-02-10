@@ -261,3 +261,97 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
 
 //    print_new_tensor(output);
 }
+
+TEST(BatmanInferLayer, FeedForwardLayerTest) {
+    // 输入张量
+    const BITensorShape input_shape(768,  // sequence
+                                    16); // hidden dimension
+    const BITensorInfo input_info(input_shape, 1, BIDataType::F16);
+    BITensor input;
+    input.allocator()->init(input_info);
+
+    // 权重张量
+    const BITensorShape fc_weights_shape(3072,     // input_size (width, 匹配input宽度)
+                                         768);    // hidden_units (height)
+    const BITensorInfo fc_weights_info(fc_weights_shape, 1, BIDataType::F16);
+    BITensor fc_weights;
+    fc_weights.allocator()->init(fc_weights_info);
+
+    // 偏置矩阵
+    const BITensorShape fc_bias_shape(3072);    // hidden_units
+    const BITensorInfo fc_bias_info(fc_bias_shape, 1, BIDataType::F16);
+    BITensor fc_bias;
+    fc_bias.allocator()->init(fc_bias_info);
+
+    // 权重张量
+    const BITensorShape proj_weights_shape2(768,     // input_size (width, 匹配input宽度)
+                                            3072);    // hidden_units (height)
+    const BITensorInfo proj_weights_info2(proj_weights_shape2, 1, BIDataType::F16);
+    BITensor proj_weights;
+    proj_weights.allocator()->init(proj_weights_info2);
+
+    // 偏置矩阵
+    const BITensorShape proj_bias_shape2(768);    // hidden_units
+    const BITensorInfo proj_bias_info2(proj_bias_shape2, 1, BIDataType::F16);
+    BITensor proj_bias;
+    proj_bias.allocator()->init(proj_bias_info2);
+
+    // 输出张量
+    const BITensorShape output_shape(768,    // hidden_units (width)
+                                     16);     // batch_size (height)
+    const BITensorInfo output_info(output_shape, 1, BIDataType::F16);
+    BITensor output;
+    output.allocator()->init(output_info);
+
+    // 4. 初始化参数 (使用ACL规范参数)
+    const BINormalizationLayerInfo norm_info(
+            BINormType::CROSS_MAP, // 归一化类型
+            5,                                // 归一化窗口大小
+            0.0001f,                          // epsilon
+            0.75f,                            // beta
+            1.0f,                             // kappa
+            false                             // 是否跨通道
+    );
+
+    const BIActivationLayerInfo act_info(BIActivationFunction::GELU);
+
+
+    // 5. 分配内存
+    input.allocator()->allocate();
+    fc_weights.allocator()->allocate();
+    fc_bias.allocator()->allocate();
+    proj_weights.allocator()->allocate();
+    proj_bias.allocator()->allocate();
+    output.allocator()->allocate();
+
+    // 模拟数据填充 (实际中应加载量化后的数据)
+    // 注意：这里的填充需要符合量化格式
+    fill_new_tensor_val(input, static_cast<float16_t>(1 / 768));
+    fill_new_tensor_val(fc_weights, static_cast<float16_t>(1));
+    fill_new_tensor_val(fc_bias, static_cast<float16_t>(1));
+    fill_new_tensor_val(proj_weights, static_cast<float16_t>(1));
+    fill_new_tensor_val(proj_bias, static_cast<float16_t>(1));
+
+    BINEFeedForwardLayer feed_forward_layer;
+    feed_forward_layer.configure(&input,
+                                 &fc_weights,
+                                 &fc_bias,
+                                 &proj_weights,
+                                 &proj_bias,
+                                 act_info,
+                                 norm_info,
+                                 &output);
+
+    // 获取开始时间点
+    auto start = std::chrono::high_resolution_clock::now();
+    feed_forward_layer.run();
+
+    // 获取结束时间点
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // 计算耗时（以微秒为单位）
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+    // 输出运行时间
+    std::cout << "Function execution time: " << duration.count() << " milliseconds" << std::endl;
+}
