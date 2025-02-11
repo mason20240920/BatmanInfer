@@ -264,8 +264,8 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
 
 TEST(BatmanInferLayer, FeedForwardLayerTest) {
     // 输入张量
-    const BITensorShape input_shape(768,  // sequence
-                                    16); // hidden dimension
+    const BITensorShape input_shape(768,  // hidden size
+                                    16); // sequence length
     const BITensorInfo input_info(input_shape, 1, BIDataType::F16);
     BITensor input;
     input.allocator()->init(input_info);
@@ -316,22 +316,20 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
     const BIActivationLayerInfo act_info(BIActivationFunction::GELU);
 
 
-    // 5. 分配内存
-    input.allocator()->allocate();
     fc_weights.allocator()->allocate();
     fc_bias.allocator()->allocate();
     proj_weights.allocator()->allocate();
     proj_bias.allocator()->allocate();
     output.allocator()->allocate();
-
-    // 模拟数据填充 (实际中应加载量化后的数据)
-    // 注意：这里的填充需要符合量化格式
-    fill_new_tensor_val(input, static_cast<float16_t>(1 / 768));
+//    // 模拟数据填充 (实际中应加载量化后的数据)
+//    // 注意：这里的填充需要符合量化格式
+//    fill_new_tensor_val(input, static_cast<float16_t>(1 / 768));
     fill_new_tensor_val(fc_weights, static_cast<float16_t>(1));
     fill_new_tensor_val(fc_bias, static_cast<float16_t>(1));
     fill_new_tensor_val(proj_weights, static_cast<float16_t>(1));
     fill_new_tensor_val(proj_bias, static_cast<float16_t>(1));
-
+    // 获取开始时间点
+    auto start = std::chrono::high_resolution_clock::now();
     BINEFeedForwardLayer feed_forward_layer;
     feed_forward_layer.configure(&input,
                                  &fc_weights,
@@ -342,8 +340,31 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
                                  norm_info,
                                  &output);
 
-    // 获取开始时间点
-    auto start = std::chrono::high_resolution_clock::now();
+    input.allocator()->info().set_tensor_shape(BITensorShape(768, 1));
+    output.allocator()->info().set_tensor_shape(BITensorShape(768, 1));
+
+    // 5. 分配内存
+    input.allocator()->allocate();
+
+//    // 获取开始时间点
+//    auto start = std::chrono::high_resolution_clock::now();
+    feed_forward_layer.run();
+
+    input.allocator()->info().set_tensor_shape(BITensorShape(768, 2));
+    output.allocator()->info().set_tensor_shape(BITensorShape(768, 2));
+
+    fill_new_tensor_val(input, static_cast<float16_t>(1 / 768));
+
+    feed_forward_layer.run();
+
+    input.allocator()->info().set_tensor_shape(BITensorShape(768, 3));
+    output.allocator()->info().set_tensor_shape(BITensorShape(768, 3));
+
+    feed_forward_layer.run();
+
+    input.allocator()->info().set_tensor_shape(BITensorShape(768, 4));
+    output.allocator()->info().set_tensor_shape(BITensorShape(768, 4));
+
     feed_forward_layer.run();
 
     // 获取结束时间点
@@ -354,4 +375,6 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
 
     // 输出运行时间
     std::cout << "Function execution time: " << duration.count() << " milliseconds" << std::endl;
+
+    print_new_tensor(output);
 }

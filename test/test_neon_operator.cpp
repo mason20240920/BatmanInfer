@@ -228,9 +228,43 @@ TEST(NEONOperator, NEFeedForwardLayer) {
 }
 
 template<typename T>
-void copy_data_to_tensor(BatmanInfer::BITensor &input, const std::vector<T> &vec) {
+void copy_data_to_tensor(BatmanInfer::BITensor &input, const int start_width, const std::vector<T> &vec) {
     auto *src_ptr = reinterpret_cast<T *>(input.buffer());
-    std::memcpy(src_ptr, vec.data(), vec.size() * sizeof(float16_t));
+    std::memcpy(src_ptr + start_width * vec.size() * sizeof(uint8_t), vec.data(), vec.size() * sizeof(float16_t));
+}
+
+template<typename T>
+void run_dynamic_gemm(BatmanInfer::BINEGEMM &gemm,
+                      int seq_len,
+                      BatmanInfer::BITensor &src,
+                      BatmanInfer::BITensor &dst,
+                      const std::vector<T> &origin_vec) {
+    using namespace BatmanInfer;
+    auto new_shape = BITensorShape(2048, seq_len);
+    src.allocator()->info().set_tensor_shape(new_shape);
+    dst.allocator()->info().set_tensor_shape(new_shape);
+    copy_data_to_tensor(src, (seq_len - 1), origin_vec);
+    // 输入格式
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+//    src.print(std::cout, format);
+
+    // 开始时间节点
+    auto start = std::chrono::high_resolution_clock::now();
+    gemm.run();
+    // 结束时间节点
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // 计算耗时（以微秒为单位）
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+    // 输出运行时间
+    std::cout << "Current Sequence Length" << seq_len << std::endl;
+    std::cout << "Function execution time: " << duration.count() << " milliseconds" << std::endl;
+
+//    dst.print(std::cout, format);
 }
 
 TEST(NEONOperator, NEGemmActLayer) {
@@ -238,35 +272,20 @@ TEST(NEONOperator, NEGemmActLayer) {
 
     // 张量定义
     BITensor src, weights, bias, dst;
-    const BITensorShape src_shape(3, 2);  // W=3, H=2 （列优先）
-    const BITensorShape weight_shape(2, 3); // 3x2矩阵转置为2x3
-    const BITensorShape bias_shape(2);
+    const BITensorShape src_shape(2048, 4);  // W=3, H=2 （列优先）
+    const BITensorShape weight_shape(2048, 2048); // 3x2矩阵转置为2x3
+    const BITensorShape bias_shape(2048);
 
     // 初始化张量（内存布局重要！）
     src.allocator()->init(BITensorInfo(src_shape, 1, BIDataType::F16));
     weights.allocator()->init(BITensorInfo(weight_shape, 1, BIDataType::F16));
     bias.allocator()->init(BITensorInfo(bias_shape, 1, BIDataType::F16));
-    dst.allocator()->init(BITensorInfo(BITensorShape(2, 2), 1, BIDataType::F16));
-
-    // 填充测试数据（列优先）
-    const std::vector<float16_t> src_data = {
-            1, 2, 3,
-            4, 5, 6
-    };
-    const std::vector<float16_t> weights_data = {
-            0.5, 1.5, 1.0, 2.0, 1.5, 0.5
-    };
-    const std::vector<float16_t> bias_data = {0.2, -0.1};
+    dst.allocator()->init(BITensorInfo(BITensorShape(2048, 4), 1, BIDataType::F16));
 
     src.allocator()->allocate();
     weights.allocator()->allocate();
     bias.allocator()->allocate();
     dst.allocator()->allocate();
-
-    // 3. 手动拷贝数据到Tensor
-    copy_data_to_tensor(src, src_data);       // 原始形状2x3
-    copy_data_to_tensor(weights, weights_data); // 实际是3x2的转置
-    copy_data_to_tensor(bias, bias_data);
 
     // 配置融合GELU的GEMM
     BINEGEMM gemm;
@@ -278,14 +297,43 @@ TEST(NEONOperator, NEGemmActLayer) {
     ));
 
     gemm.configure(&src, &weights, &bias, &dst, 1.0f, 1.0f, gemm_info);
-    gemm.run();
 
-    BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    src.allocator()->info().set_tensor_shape(BITensorShape(2048, 1));
+    dst.allocator()->info().set_tensor_shape(BITensorShape(2048, 1));
 
-    weights.print(std::cout, format);
 
-    dst.print(std::cout, format);
+    // 填充测试数据（列优先）
+    const std::vector<float16_t> src_data = {
+            1, 2, 3, 4,
+    };
+    const std::vector<float16_t> weights_data = {
+            0.5, 1.5, 1, 1,
+            1.0, 2.0, 1, 1,
+            1.5, 0.5, 1, 1,
+            0.5, 0.5, 1, 1
+    };
+
+    const std::vector<float16_t> bias_data = {0.2, -0.1};
+
+
+    copy_data_to_tensor(weights, 0, weights_data); // 实际是3x2的转置
+    copy_data_to_tensor(bias, 0, bias_data);
+
+    run_dynamic_gemm(gemm, 1, src, dst, src_data);
+    const std::vector<float16_t> src_data2 = {
+            2, 4, 6, 8,
+    };
+    run_dynamic_gemm(gemm, 2, src, dst, src_data2);
+    const std::vector<float16_t> src_data3 = {
+            3, 6, 9, 12,
+    };
+    run_dynamic_gemm(gemm, 3, src, dst, src_data3);
+    run_dynamic_gemm(gemm, 4, src, dst, src_data3);
+
+//
+//    // 7. 释放内存（如果需要）
+//    src.allocator()->free();
+//    weights.allocator()->free();
+//    bias.allocator()->free();
+//    dst.allocator()->free();
 }
