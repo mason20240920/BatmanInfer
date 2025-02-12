@@ -7,6 +7,7 @@
 #include <neon/neon_defines.h>
 #include <runtime/neon/bi_ne_functions.h>
 #include "runtime/bi_scheduler.hpp"
+#include <cpu/kernels/layer_norm/generic/neon/fp16.hpp>
 
 /**
  * 使用Neon指令加速计算
@@ -258,11 +259,11 @@ void run_dynamic_gemm(BatmanInfer::BINEGEMM &gemm,
     auto end = std::chrono::high_resolution_clock::now();
 
     // 计算耗时（以微秒为单位）
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
     // 输出运行时间
-    std::cout << "Current Sequence Length" << seq_len << std::endl;
-    std::cout << "Function execution time: " << duration.count() << " milliseconds" << std::endl;
+    std::cout << "Current Sequence Length: " << seq_len << std::endl;
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
 //    dst.print(std::cout, format);
 }
@@ -336,4 +337,498 @@ TEST(NEONOperator, NEGemmActLayer) {
 //    weights.allocator()->free();
 //    bias.allocator()->free();
 //    dst.allocator()->free();
+}
+
+/**
+ * 假设输入输出为对齐的16字节内存地址
+ * RMSNorm 高性能实现 (公式: y = γ * x / sqrt(mean(x²) + ε))
+ * @param output 结果数组 [out] 对齐的16字节输出数组
+ * @param input 输入数组 [in]  对齐的16字节输入数组
+ * @param gamma 缩放系数
+ * @param epsilon 1e-5
+ * @param num_elements 元素总数(需要为8的倍数)
+ */
+void rms_norm_neon_fp16(float16_t *output,
+                        const float16_t *input,
+                        const float16_t *gamma,
+                        const float16_t epsilon,
+                        int num_elements) {
+    // 公式: sum_sq = Σ(x_i^2)
+
+    // 阶段1: 平方和计算 (优化指令级并行) --------------------------------
+    float16x8_t sum_sq_v0 = vdupq_n_f16(0.0f); // 使用双累加器消除数据依赖
+    float16x8_t sum_sq_v1 = vdupq_n_f16(0.0f);
+    int i = 0;
+
+    // 循环展开4次 (32 elements/iteration), 减少循环开销
+    for (; i <= num_elements - 64; i += 64) {
+        // 预取下个缓存行（ARM典型缓存行64字节）
+        __builtin_prefetch(input + i + 64);
+
+        // 加载8个向量（64字节）
+        float16x8_t x0 = vld1q_f16(input + i);
+        float16x8_t x1 = vld1q_f16(input + i + 8);
+        float16x8_t x2 = vld1q_f16(input + i + 16);
+        float16x8_t x3 = vld1q_f16(input + i + 24);
+        float16x8_t x4 = vld1q_f16(input + i + 32);
+        float16x8_t x5 = vld1q_f16(input + i + 40);
+        float16x8_t x6 = vld1q_f16(input + i + 48);
+        float16x8_t x7 = vld1q_f16(input + i + 56);
+
+        // 交错计算以隐藏指令延迟
+        sum_sq_v0 = vfmaq_f16(sum_sq_v0, x0, x0);
+        sum_sq_v1 = vfmaq_f16(sum_sq_v1, x1, x1);
+        sum_sq_v0 = vfmaq_f16(sum_sq_v0, x2, x2);
+        sum_sq_v1 = vfmaq_f16(sum_sq_v1, x3, x3);
+        sum_sq_v0 = vfmaq_f16(sum_sq_v0, x4, x4);
+        sum_sq_v1 = vfmaq_f16(sum_sq_v1, x5, x5);
+        sum_sq_v0 = vfmaq_f16(sum_sq_v0, x6, x6);
+        sum_sq_v1 = vfmaq_f16(sum_sq_v1, x7, x7);
+    }
+
+    // 合并累加器
+    sum_sq_v0 = vaddq_f16(sum_sq_v0, sum_sq_v1);
+
+    // 处理剩余元素（使用单累加器）
+    for (; i <= num_elements - 8; i += 8) {
+        float16x8_t x = vld1q_f16(input + i);
+        sum_sq_v0 = vfmaq_f16(sum_sq_v0, x, x);
+    }
+
+    // 阶段2: 归约计算 (保持高精度) -------------------------------------
+    float32x4_t sum_low = vcvt_f32_f16(vget_low_f16(sum_sq_v0));
+    float32x4_t sum_high = vcvt_f32_f16(vget_high_f16(sum_sq_v0));
+    sum_low = vaddq_f32(sum_low, sum_high);
+
+    float32x2_t sum_half = vadd_f32(vget_low_f32(sum_low), vget_high_f32(sum_low));
+    float sum_sq = vget_lane_f32(vpadd_f32(sum_half, sum_half), 0);
+
+    // 阶段3: 计算缩放因子 ---------------------------------------------
+    const auto N = static_cast<float >(num_elements);
+    const auto eps_f32 = (float) epsilon; // 正确使用标量转换函数
+    const float rms_inv = 1.0f / sqrtf(sum_sq / N + eps_f32);
+    const float16_t rms_inv_f16 = vduph_lane_f16(vcvt_f16_f32(vdupq_n_f32(rms_inv)), 0);
+    const float16x8_t rms_inv_v = vdupq_n_f16(rms_inv_f16); // 向量化的rms_inv
+
+
+    // 阶段4: 应用缩放 (优化存储指令) -----------------------------------
+    i = 0;
+    for (; i <= num_elements - 32; i += 32) {
+        // 加载input和gamma的4个向量
+        float16x8_t x0 = vld1q_f16(input + i);
+        float16x8_t g0 = vld1q_f16(gamma + i);
+        float16x8_t x1 = vld1q_f16(input + i + 8);
+        float16x8_t g1 = vld1q_f16(gamma + i + 8);
+        float16x8_t x2 = vld1q_f16(input + i + 16);
+        float16x8_t g2 = vld1q_f16(gamma + i + 16);
+        float16x8_t x3 = vld1q_f16(input + i + 24);
+        float16x8_t g3 = vld1q_f16(gamma + i + 24);
+
+        // 计算：output = (x * gamma) * rms_inv
+        vst1q_f16(output + i, vmulq_f16(vmulq_f16(x0, g0), rms_inv_v));
+        vst1q_f16(output + i + 8, vmulq_f16(vmulq_f16(x1, g1), rms_inv_v));
+        vst1q_f16(output + i + 16, vmulq_f16(vmulq_f16(x2, g2), rms_inv_v));
+        vst1q_f16(output + i + 24, vmulq_f16(vmulq_f16(x3, g3), rms_inv_v));
+    }
+
+    // 处理尾部元素
+    for (; i <= num_elements - 8; i += 8) {
+        float16x8_t x = vld1q_f16(input + i);
+        float16x8_t g = vld1q_f16(gamma + i);
+        vst1q_f16(output + i, vmulq_f16(vmulq_f16(x, g), rms_inv_v));
+    }
+}
+
+using namespace BatmanInfer;
+
+// 替代vaddvq_f16的手动归约实现
+inline float16_t manual_addv_f16(float16x8_t vec) {
+    // 步骤分解：将128位寄存器分解为两个64位部分
+    float16x4_t low = vget_low_f16(vec);
+    float16x4_t high = vget_high_f16(vec);
+
+    // 横向归约：((a+b)+(c+d)) + ((e+f)+(g+h))
+    float16x4_t sum1 = vpadd_f16(low, high);      // [a+b, c+d, e+f, g+h]
+    float16x4_t sum2 = vpadd_f16(sum1, sum1);     // [(a+b)+(c+d), (e+f)+(g+h), ...]
+    return vget_lane_f16(sum2, 0) + vget_lane_f16(sum2, 1);
+}
+
+void rms_norm_acl_tensor_fp16(BatmanInfer::BITensor &output,
+                              const BatmanInfer::BITensor &input,
+                              const BatmanInfer::BITensor &gamma,
+                              float epsilon = 1e-5f) {
+    // 条件检查
+    BI_COMPUTE_ERROR_ON_DATA_TYPE_CHANNEL_NOT_IN(&input, 1, BIDataType::F16);
+    BI_COMPUTE_ERROR_ON_MISMATCHING_DATA_TYPES(&input, &gamma, &output);
+    // 检查 H 维度匹配
+    BI_COMPUTE_ERROR_ON(input.info()->dimension(0) != gamma.info()->dimension(0));
+    // 检查是否能被8整除
+    BI_COMPUTE_ERROR_ON(gamma.info()->dimension(0) % 8 != 0);
+
+    // 获取 Tensor 信息
+    const auto in_shape = input.info()->tensor_shape();
+    const int H = static_cast<int>(in_shape[0]); // hidden_size （最内核维度）
+    const int S = static_cast<int>(in_shape[1]); // sequence_length （序列长度)
+    const int step = 8;
+
+    // 配置执行窗口
+    BIWindow window;
+    window.set(BIWindow::DimX, BIWindow::BIDimension(0, 1)); // H维度固定
+    window.set(BIWindow::DimY, BIWindow::BIDimension(0, S)); // 遍历S维度
+
+    BIIterator input_it(&input, window);
+    BIIterator output_it(&output, window);
+
+    // 阶段1: 平方和计算 (优化指令级并行) --------------------------------
+
+    // 双累加器初始化（每个窗口迭代独立）
+    float16x8_t sum_sq_v0 = vdupq_n_f16(0.0f);
+    float16x8_t sum_sq_v1 = vdupq_n_f16(0.0f);
+
+    // 平方和计算阶段
+    execute_window_loop(window, [&](const BICoordinates &id) {
+        //  获取当前处理位置的指针
+        const auto *in_ptr = reinterpret_cast<const float16_t *>(input_it.ptr());
+
+        // 窗口步长8时，直接展开4次处理32个元素（无需内部循环）
+        // 假设window的x维度步长是8，这里处理4个连续的8元素块
+        {
+            // 预取策略：提前预取下一个窗口的数据
+            __builtin_prefetch(in_ptr + 64); // 预取下一个缓存行
+
+            // 加载8个向量（64字节）
+            float16x8_t x0 = vld1q_f16(in_ptr);
+            float16x8_t x1 = vld1q_f16(in_ptr + 8);
+            float16x8_t x2 = vld1q_f16(in_ptr + 16);
+            float16x8_t x3 = vld1q_f16(in_ptr + 24);
+            float16x8_t x4 = vld1q_f16(in_ptr + 32);
+            float16x8_t x5 = vld1q_f16(in_ptr + 40);
+            float16x8_t x6 = vld1q_f16(in_ptr + 48);
+            float16x8_t x7 = vld1q_f16(in_ptr + 56);
+
+            // 交错计算以隐藏指令延迟
+            sum_sq_v0 = vfmaq_f16(sum_sq_v0, x0, x0);
+            sum_sq_v1 = vfmaq_f16(sum_sq_v1, x1, x1);
+            sum_sq_v0 = vfmaq_f16(sum_sq_v0, x2, x2);
+            sum_sq_v1 = vfmaq_f16(sum_sq_v1, x3, x3);
+            sum_sq_v0 = vfmaq_f16(sum_sq_v0, x4, x4);
+            sum_sq_v1 = vfmaq_f16(sum_sq_v1, x5, x5);
+            sum_sq_v0 = vfmaq_f16(sum_sq_v0, x6, x6);
+            sum_sq_v1 = vfmaq_f16(sum_sq_v1, x7, x7);
+        }
+
+
+    }, input_it);
+
+    // 合并累加器
+    sum_sq_v0 = vaddq_f16(sum_sq_v0, sum_sq_v1);
+
+    // 阶段2: 归约计算 (保持高精度) -------------------------------------
+    float32x4_t sum_low = vcvt_f32_f16(vget_low_f16(sum_sq_v0));
+    float32x4_t sum_high = vcvt_f32_f16(vget_high_f16(sum_sq_v0));
+    sum_low = vaddq_f32(sum_low, sum_high);
+    float32x2_t sum_half = vadd_f32(vget_low_f32(sum_low), vget_high_f32(sum_low));
+    float sum_sq = vget_lane_f32(vpadd_f32(sum_half, sum_half), 0);
+
+    // 阶段3: 计算缩放因子 ---------------------------------------------
+}
+
+void run_kernel(const BIITensor *input,
+                const BIITensor *gamma,
+                BIITensor *output,
+                const float16_t epsilon = 1e-5) {
+    // 创建窗口
+    BIWindow win;
+    win.set(BIWindow::DimX, BIWindow::BIDimension(0, 1));
+    win.set(BIWindow::DimY, BIWindow::BIDimension(0, input->info()->dimension(1)));
+
+    BIIterator input_it(input, win);
+    BIIterator output_it(output, win);
+
+    execute_window_loop(win, [&](const BICoordinates &id) {
+        // 获取输入/输出的数据指针
+        auto in_ptr = reinterpret_cast<const float16_t *>(input_it.ptr());
+        auto out_ptr = reinterpret_cast<float16_t *>(output_it.ptr());
+
+        // 阶段1: 平方和计算 (优化指令级并行) --------------------------------
+
+        // 双累加器初始化（每个窗口迭代独立）
+        float32x4_t sum_sq_v0 = vdupq_n_f32(0.0f);
+        float32x4_t sum_sq_v1 = vdupq_n_f32(0.0f);
+        int i = 0;
+        const int N = input->info()->dimension(0);
+
+        // 循环展开4次 (32 elements/iteration), 减少循环开销
+        for (; i <= N - 64; i += 64) {
+            // 预取下个缓存行（ARM典型缓存行64字节）
+            __builtin_prefetch(input + i + 64);
+
+            // 加载8个向量（64字节）
+            float16x8_t x0 = vld1q_f16(in_ptr + i);
+            float16x8_t x1 = vld1q_f16(in_ptr + i + 8);
+            float16x8_t x2 = vld1q_f16(in_ptr + i + 16);
+            float16x8_t x3 = vld1q_f16(in_ptr + i + 24);
+            float16x8_t x4 = vld1q_f16(in_ptr + i + 32);
+            float16x8_t x5 = vld1q_f16(in_ptr + i + 40);
+            float16x8_t x6 = vld1q_f16(in_ptr + i + 48);
+            float16x8_t x7 = vld1q_f16(in_ptr + i + 56);
+
+            // 交错计算以隐藏指令延迟
+            // 转换为 float32，并计算平方累加
+            sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_low_f16(x0)), vcvt_f32_f16(vget_low_f16(x0)));
+            sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_high_f16(x0)), vcvt_f32_f16(vget_high_f16(x0)));
+
+            sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_low_f16(x1)), vcvt_f32_f16(vget_low_f16(x1)));
+            sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_high_f16(x1)), vcvt_f32_f16(vget_high_f16(x1)));
+
+            sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_low_f16(x2)), vcvt_f32_f16(vget_low_f16(x2)));
+            sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_high_f16(x2)), vcvt_f32_f16(vget_high_f16(x2)));
+
+            sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_low_f16(x3)), vcvt_f32_f16(vget_low_f16(x3)));
+            sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_high_f16(x3)), vcvt_f32_f16(vget_high_f16(x3)));
+
+            sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_low_f16(x4)), vcvt_f32_f16(vget_low_f16(x4)));
+            sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_high_f16(x4)), vcvt_f32_f16(vget_high_f16(x4)));
+
+            sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_low_f16(x5)), vcvt_f32_f16(vget_low_f16(x5)));
+            sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_high_f16(x5)), vcvt_f32_f16(vget_high_f16(x5)));
+
+            sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_low_f16(x6)), vcvt_f32_f16(vget_low_f16(x6)));
+            sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_high_f16(x6)), vcvt_f32_f16(vget_high_f16(x6)));
+
+            sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_low_f16(x7)), vcvt_f32_f16(vget_low_f16(x7)));
+            sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_high_f16(x7)), vcvt_f32_f16(vget_high_f16(x7)));
+        }
+
+        // 合并累加器
+        sum_sq_v0 = vaddq_f32(sum_sq_v0, sum_sq_v1);
+
+        // 阶段2: 归约计算 (保持高精度) -------------------------------------
+        float32x2_t sum_half = vadd_f32(vget_low_f32(sum_sq_v0), vget_high_f32(sum_sq_v0));
+        float sum_sq = vget_lane_f32(vpadd_f32(sum_half, sum_half), 0);
+
+
+        // 阶段3: 计算缩放因子 ---------------------------------------------
+        const auto eps_f32 = (float) epsilon; // 正确使用标量转换函数
+        const float rms_inv = 1.0f / sqrtf(sum_sq / N + eps_f32);
+
+        const float16_t rms_inv_f16 = vduph_lane_f16(vcvt_f16_f32(vdupq_n_f32(rms_inv)), 0);
+        const float16x8_t rms_inv_v = vdupq_n_f16(rms_inv_f16); // 向量化的rms_inv
+
+
+
+        auto gamma_ptr = reinterpret_cast<const float16_t *>(gamma->buffer());
+        i = 0;
+        for (; i <= N - 32; i += 32) {
+            // 加载input和gamma的4个向量
+            float16x8_t x0 = vld1q_f16(in_ptr + i);
+            float16x8_t g0 = vld1q_f16(gamma_ptr + i);
+            float16x8_t x1 = vld1q_f16(in_ptr + i + 8);
+            float16x8_t g1 = vld1q_f16(gamma_ptr + i + 8);
+            float16x8_t x2 = vld1q_f16(in_ptr + i + 16);
+            float16x8_t g2 = vld1q_f16(gamma_ptr + i + 16);
+            float16x8_t x3 = vld1q_f16(in_ptr + i + 24);
+            float16x8_t g3 = vld1q_f16(gamma_ptr + i + 24);
+
+            // 计算：output = (x * gamma) * rms_inv
+            vst1q_f16(out_ptr + i, vmulq_f16(vmulq_f16(x0, g0), rms_inv_v));
+            vst1q_f16(out_ptr + i + 8, vmulq_f16(vmulq_f16(x1, g1), rms_inv_v));
+            vst1q_f16(out_ptr + i + 16, vmulq_f16(vmulq_f16(x2, g2), rms_inv_v));
+            vst1q_f16(out_ptr + i + 24, vmulq_f16(vmulq_f16(x3, g3), rms_inv_v));
+        }
+
+    }, input_it, output_it);
+}
+
+TEST(ARMWindow, WindowTest) {
+    // 输入格式
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+    BITensor input, output, gamma;
+
+    const int N = 768;
+
+    auto input_shape = BITensorShape(N, 12);
+    auto output_shape = BITensorShape(N, 12);
+    auto gamma_shape = BITensorShape(N);
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
+    output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F16));
+    gamma.allocator()->init(BITensorInfo(gamma_shape, 1, BIDataType::F16));
+
+    input.allocator()->allocate();
+    output.allocator()->allocate();
+    gamma.allocator()->allocate();
+
+    std::vector<float16_t> input_data(N * 12), gamma_data(N);
+    // 初始化输入数据（模拟正态分布）
+    for (int i = 0; i < (N * 12); ++i)
+        input_data[i] = static_cast<float16_t>((i % 32 - 16.0f) / 8.0f);
+    for (int i = 0; i < N; ++i)
+        gamma_data[i] = static_cast<float16_t>(1);
+
+    copy_data_to_tensor(input, 0, input_data);
+    copy_data_to_tensor(gamma, 0, gamma_data);
+
+    // 开始时间节点
+    auto start = std::chrono::high_resolution_clock::now();
+
+    run_kernel(&input, &gamma, &output);
+
+    // 结束时间节点
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // 计算耗时（以微秒为单位）
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
+
+//    input.print(std::cout, format);
+//    output.print(std::cout, format);
+}
+
+TEST(NEONOperator, RMSNormLayerTest) {
+    // 输入格式
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+    BITensor input, output, gamma;
+    auto input_shape = BITensorShape(768, 1);
+    auto gamma_shape = BITensorShape(768);
+
+    const int N = 768 * 1;
+    const int H = 768;
+
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
+    output.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
+    gamma.allocator()->init(BITensorInfo(gamma_shape, 1, BIDataType::F16));
+
+    input.allocator()->allocate();
+    output.allocator()->allocate();
+    gamma.allocator()->allocate();
+
+    std::vector<float16_t> input_data(N), gamma_data(H);
+
+    // 初始化输入数据（模拟正态分布）
+    for (int i = 0; i < N; ++i) {
+//        input_data[i] = static_cast<float16_t>(i);
+        input_data[i] = static_cast<float16_t>((i % 32 - 16.0f) / 8.0f);
+    }
+    for (int i = 0; i < H; ++i) {
+        gamma_data[i] = static_cast<float16_t>(1);
+    }
+
+    copy_data_to_tensor(input, 0, input_data);
+    copy_data_to_tensor(gamma, 0, gamma_data);
+
+    input.print(std::cout, format);
+    gamma.print(std::cout, format);
+
+    rms_norm_acl_tensor_fp16(output,
+                             input,
+                             gamma);
+
+    output.print(std::cout, format);
+}
+
+TEST(NEONOperator, RMSNormNeonCode) {
+    const int N = 768;
+    float16_t input[N], output[N], gamma[N];
+    const float16_t epsilon = 1e-5f;
+
+    // 初始化输入数据（模拟正态分布）
+    for (int i = 0; i < N; ++i) {
+        input[i] = static_cast<float16_t>((i % 32 - 16.0f) / 8.0f);
+        gamma[i] = static_cast<float16_t>(2);
+    }
+
+    // 开始时间节点
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // 调用NEON优化函数
+    rms_norm_neon_fp16(output, input, gamma, epsilon, N);
+    // 结束时间节点
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // 计算耗时（以微秒为单位）
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
+
+    // 打印前8个结果
+    std::cout << "NEON Output (first 8 elements):\n";
+    for (int i = 0; i < 8; ++i) {
+        std::cout << static_cast<float>(output[i]) << " ";
+    }
+    std::cout << "\n";
+}
+
+TEST(NEONOperator, LayerNorm) {
+    using namespace BatmanInfer;
+
+    // -------------------- 1. Tensor 配置 --------------------
+    constexpr int hidden_size = 8;
+    constexpr int seq_length = 4;
+
+    // 创建输入输出张量 [H=768, S=16]
+    BITensor input, output, gamma, beta;
+    BITensorInfo input_info({hidden_size, seq_length}, 1, BIDataType::F16);
+    BITensorInfo param_info({hidden_size}, 1, BIDataType::F16);
+
+    input.allocator()->init(input_info);
+    output.allocator()->init(input_info); // 输出与输入同维度
+    gamma.allocator()->init(param_info);
+    beta.allocator()->init(param_info);
+
+    // 分配内存
+    input.allocator()->allocate();
+    output.allocator()->allocate();
+    gamma.allocator()->allocate();
+    beta.allocator()->allocate();
+
+    // 填充测试数据（列优先）
+    const std::vector<float16_t> src_data = {
+            1, 2, 3, 4,
+            5, 6, 7, 8,
+            9, 10, 11, 12,
+            13, 14, 15, 16,
+            1, 2, 3, 4,
+            5, 6, 7, 8,
+            9, 10, 11, 12,
+            13, 14, 15, 16,
+    };
+
+    const std::vector<float16_t> gamma_data = {
+            1, 1, 1, 1, 1, 1, 1, 1
+    };
+
+    copy_data_to_tensor(input, 0, src_data);
+    copy_data_to_tensor(gamma, 0, gamma_data);
+
+    // -------------------- 3. 窗口配置 --------------------
+    BIWindow window;
+    window.use_tensor_dimensions(input.info()->tensor_shape());
+
+    // 配置并行维度
+    // Dim0: 隐藏维度（自动展开）
+    // Dim1: 序列维度（每个窗口对应一个序列位置）
+    window.set(0, BIWindow::BIDimension(0, hidden_size));
+    window.set(1, BIWindow::BIDimension(0, seq_length));
+
+    cpu::neon_layer_norm_float16_8_0_2D(window,
+                                        &input,    // ACL Tensor 会自动转换为 ITensor 接口
+                                        &gamma,
+                                        &beta,
+                                        &output);
+
+
+    // 输入格式
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+
+    output.print(std::cout, format);
 }

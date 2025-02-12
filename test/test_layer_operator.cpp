@@ -201,12 +201,12 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
 
     // 4. 初始化参数 (使用ACL规范参数)
     const BINormalizationLayerInfo norm_info(
-            BINormType::CROSS_MAP, // 归一化类型
-            5,                                // 归一化窗口大小
-            0.0001f,                          // epsilon
-            0.75f,                            // beta
-            1.0f,                             // kappa
-            false                             // 是否跨通道
+            BINormType::IN_MAP_1D, // 归一化类型
+            765,              // norm_size = 特征维度 (D=768)
+            1.0f,                 // alpha（缩放因子，对应 γ）
+            0.0f,                  // beta（平移项，对应 β）
+            0.0f,                 // kappa（禁用）
+            true                // is_scaled（自动缩放 alpha）
     );
 
     // 5. 分配内存
@@ -221,7 +221,7 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
 
     // 模拟数据填充 (实际中应加载量化后的数据)
     // 注意：这里的填充需要符合量化格式
-    fill_new_tensor_val(input, static_cast<float16_t>(1 / 768));
+    fill_new_tensor_val(input, static_cast<float16_t>(1));
     fill_new_tensor_val(weights, static_cast<float16_t>(1));
     fill_new_tensor_val(bias, static_cast<float16_t>(1));
 
@@ -244,6 +244,8 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
                               perm2,
                               perm_final,
                               norm_info,
+                              768,
+                              16,
                               &output);
 
     // 获取开始时间点
@@ -375,6 +377,51 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
 
     // 输出运行时间
     std::cout << "Function execution time: " << duration.count() << " milliseconds" << std::endl;
+
+    print_new_tensor(output);
+}
+
+TEST(BatmanInferLayer, RMSNormTest) {
+    // 输入张量
+    const BITensorShape input_shape(768,  // hidden size
+                                    16); // sequence length
+    const BITensorInfo input_info(input_shape, 1, BIDataType::F16);
+    BITensor input;
+    input.allocator()->init(input_info);
+
+    // gamma张量
+    const BITensorShape gamma_shape(768); // hidden size
+    const BITensorInfo gamma_info(gamma_shape, 1, BIDataType::F16);
+    BITensor gamma;
+    gamma.allocator()->init(gamma_info);
+
+    // 输出张量
+    const BITensorShape output_shape(768,    // hidden_units (width)
+                                     16);     // batch_size (height)
+    const BITensorInfo output_info(output_shape, 1, BIDataType::F16);
+    BITensor output;
+    output.allocator()->init(output_info);
+
+    input.allocator()->allocate();
+    gamma.allocator()->allocate();
+    output.allocator()->allocate();
+
+    fill_new_tensor_val(gamma, static_cast<float16_t>(1));
+
+    std::vector<float16_t> input_data(768 * 16);
+    // 初始化输入数据（模拟正态分布）
+    for (int i = 0; i < (768 * 16); ++i)
+        input_data[i] = static_cast<float16_t>((i % 32 - 16.0f) / 8.0f);
+
+    auto *src_ptr = reinterpret_cast<float16_t *>(input.buffer());
+    std::memcpy(src_ptr, input_data.data(), input_data.size() * sizeof(float16_t));
+
+
+    BINERMSNormLayer rms_norm;
+    rms_norm.configure(&input, &gamma, &output);
+
+    rms_norm.run();
+
 
     print_new_tensor(output);
 }

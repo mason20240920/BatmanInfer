@@ -37,7 +37,8 @@
 #include "runtime/neon/functions/bi_NEScale.h"
 #include "runtime/neon/functions/bi_NESoftmaxLayer.h"
 #include "runtime/neon/functions/bi_ne_rnn_layer.hpp"
-#include "runtime/neon/functions/bi_ne_attention_layer.hpp"
+#include "runtime/neon/functions/BINEAttentionLayer.hpp"
 #include "runtime/neon/functions/bi_ne_slice.hpp"
 #include "runtime/neon/functions/bi_ne_gemm_lowp_output_stage.hpp"
 #include <runtime/neon/functions/BINEAttentionLowpLayer.hpp>
+#include "runtime/neon/functions/BINERMSNormLayer.hpp"
