@@ -9,7 +9,7 @@
 namespace BatmanInfer {
     namespace cpu {
 #define DECLARE_RMS_NORMALIZATION_KERNEL(func_name)                                                      \
-    void func_name(const BIITensor *in, const BIITensor *scale, BIITensor *out)
+    void func_name(const BIWindow *win, const BIITensor *in, const BIITensor *scale, BIITensor *out)
 
         DECLARE_RMS_NORMALIZATION_KERNEL(neon_rms_norm_fp16_8_impl);
 

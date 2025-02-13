@@ -85,6 +85,10 @@ namespace BatmanInfer {
         BI_COMPUTE_ERROR_ON(_func == nullptr);
 
         // Run function
-        (*_func)(_input, _gamma, _output);
+        (*_func)(window, _input, _gamma, _output);
+    }
+
+    bool BINERMSNormLayerKernel::is_parallelisable() const {
+        return false;
     }
 }

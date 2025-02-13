@@ -30,14 +30,14 @@ namespace BatmanInfer {
     * @param gemma 可选的缩放参数 [H]
     * @param epsilon  防止除零的小量
     */
-    void rms_norm_fp16(const BIITensor *input,
+    void rms_norm_fp16(const BIWindow &window,
+                       const BIITensor *input,
                        BIITensor *output,
                        const BIITensor *gamma,
                        float epsilon = 1e-5) {
         // 创建窗口
-        BIWindow win;
-        win.set(BIWindow::DimX, BIWindow::BIDimension(0, 1));
-        win.set(BIWindow::DimY, BIWindow::BIDimension(0, input->info()->dimension(1)));
+        BIWindow win(window);
+        win.set(BIWindow::DimX, BIWindow::BIDimension(0, 1, 1));
 
         BIIterator input_it(input, win);
         BIIterator output_it(output, win);

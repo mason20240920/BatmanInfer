@@ -650,8 +650,8 @@ TEST(ARMWindow, WindowTest) {
 
     const int N = 768;
 
-    auto input_shape = BITensorShape(N, 12);
-    auto output_shape = BITensorShape(N, 12);
+    auto input_shape = BITensorShape(N, 16);
+    auto output_shape = BITensorShape(N, 16);
     auto gamma_shape = BITensorShape(N);
     input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
     output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F16));
@@ -661,7 +661,7 @@ TEST(ARMWindow, WindowTest) {
     output.allocator()->allocate();
     gamma.allocator()->allocate();
 
-    std::vector<float16_t> input_data(N * 12), gamma_data(N);
+    std::vector <float16_t> input_data(N * 12), gamma_data(N);
     // 初始化输入数据（模拟正态分布）
     for (int i = 0; i < (N * 12); ++i)
         input_data[i] = static_cast<float16_t>((i % 32 - 16.0f) / 8.0f);

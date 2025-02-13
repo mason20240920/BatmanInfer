@@ -420,7 +420,17 @@ TEST(BatmanInferLayer, RMSNormTest) {
     BINERMSNormLayer rms_norm;
     rms_norm.configure(&input, &gamma, &output);
 
+    // 开始时间节点
+    auto start = std::chrono::high_resolution_clock::now();
     rms_norm.run();
+    // 结束时间节点
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // 计算耗时（以微秒为单位）
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    // 输出运行时间
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
 
     print_new_tensor(output);
