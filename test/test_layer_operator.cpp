@@ -272,6 +272,11 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
     BITensor input;
     input.allocator()->init(input_info);
 
+    const BITensorShape gamma_shape(768);
+    const BITensorInfo gamma_info(gamma_shape, 1, BIDataType::F16);
+    BITensor gamma;
+    gamma.allocator()->init(gamma_info);
+
     // 权重张量
     const BITensorShape fc_weights_shape(3072,     // input_size (width, 匹配input宽度)
                                          768);    // hidden_units (height)
@@ -305,16 +310,6 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
     BITensor output;
     output.allocator()->init(output_info);
 
-    // 4. 初始化参数 (使用ACL规范参数)
-    const BINormalizationLayerInfo norm_info(
-            BINormType::CROSS_MAP, // 归一化类型
-            5,                                // 归一化窗口大小
-            0.0001f,                          // epsilon
-            0.75f,                            // beta
-            1.0f,                             // kappa
-            false                             // 是否跨通道
-    );
-
     const BIActivationLayerInfo act_info(BIActivationFunction::GELU);
 
 
@@ -323,6 +318,8 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
     proj_weights.allocator()->allocate();
     proj_bias.allocator()->allocate();
     output.allocator()->allocate();
+    gamma.allocator()->allocate();
+    input.allocator()->allocate();
 //    // 模拟数据填充 (实际中应加载量化后的数据)
 //    // 注意：这里的填充需要符合量化格式
 //    fill_new_tensor_val(input, static_cast<float16_t>(1 / 768));
@@ -330,42 +327,20 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
     fill_new_tensor_val(fc_bias, static_cast<float16_t>(1));
     fill_new_tensor_val(proj_weights, static_cast<float16_t>(1));
     fill_new_tensor_val(proj_bias, static_cast<float16_t>(1));
-    // 获取开始时间点
-    auto start = std::chrono::high_resolution_clock::now();
+    fill_new_tensor_val(gamma, static_cast<float16_t>(1));
+
     BINEFeedForwardLayer feed_forward_layer;
     feed_forward_layer.configure(&input,
                                  &fc_weights,
                                  &fc_bias,
                                  &proj_weights,
                                  &proj_bias,
+                                 &gamma,
                                  act_info,
-                                 norm_info,
                                  &output);
 
-    input.allocator()->info().set_tensor_shape(BITensorShape(768, 1));
-    output.allocator()->info().set_tensor_shape(BITensorShape(768, 1));
-
-    // 5. 分配内存
-    input.allocator()->allocate();
-
-//    // 获取开始时间点
-//    auto start = std::chrono::high_resolution_clock::now();
-    feed_forward_layer.run();
-
-    input.allocator()->info().set_tensor_shape(BITensorShape(768, 2));
-    output.allocator()->info().set_tensor_shape(BITensorShape(768, 2));
-
-    fill_new_tensor_val(input, static_cast<float16_t>(1 / 768));
-
-    feed_forward_layer.run();
-
-    input.allocator()->info().set_tensor_shape(BITensorShape(768, 3));
-    output.allocator()->info().set_tensor_shape(BITensorShape(768, 3));
-
-    feed_forward_layer.run();
-
-    input.allocator()->info().set_tensor_shape(BITensorShape(768, 4));
-    output.allocator()->info().set_tensor_shape(BITensorShape(768, 4));
+    // 获取开始时间点
+    auto start = std::chrono::high_resolution_clock::now();
 
     feed_forward_layer.run();
 
@@ -384,7 +359,7 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
 TEST(BatmanInferLayer, RMSNormTest) {
     // 输入张量
     const BITensorShape input_shape(768,  // hidden size
-                                    16); // sequence length
+                                    2); // sequence length
     const BITensorInfo input_info(input_shape, 1, BIDataType::F16);
     BITensor input;
     input.allocator()->init(input_info);
@@ -397,7 +372,7 @@ TEST(BatmanInferLayer, RMSNormTest) {
 
     // 输出张量
     const BITensorShape output_shape(768,    // hidden_units (width)
-                                     16);     // batch_size (height)
+                                     2);     // batch_size (height)
     const BITensorInfo output_info(output_shape, 1, BIDataType::F16);
     BITensor output;
     output.allocator()->init(output_info);
@@ -408,13 +383,15 @@ TEST(BatmanInferLayer, RMSNormTest) {
 
     fill_new_tensor_val(gamma, static_cast<float16_t>(1));
 
-    std::vector<float16_t> input_data(768 * 16);
+    std::vector<float16_t> input_data(768 * 2);
     // 初始化输入数据（模拟正态分布）
-    for (int i = 0; i < (768 * 16); ++i)
-        input_data[i] = static_cast<float16_t>((i % 32 - 16.0f) / 8.0f);
+    for (int i = 0; i < (768 * 2); ++i)
+        input_data[i] = static_cast<float16_t>(((i % 32 - 16.0f) / 8.0f) + (i / 100.0f));
 
     auto *src_ptr = reinterpret_cast<float16_t *>(input.buffer());
     std::memcpy(src_ptr, input_data.data(), input_data.size() * sizeof(float16_t));
+
+    print_new_tensor(input);
 
 
     BINERMSNormLayer rms_norm;

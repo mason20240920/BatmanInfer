@@ -51,7 +51,7 @@ namespace BatmanInfer {
          * @param fc_bias
          * @param proj_weights
          * @param proj_bias
-         * @param gemm_info 激活层参数，用于定义激活函数（如 ReLU、Tanh 等）
+         * @param gamma
          * @param output
          */
         void configure(const BIITensor *input,
@@ -59,8 +59,8 @@ namespace BatmanInfer {
                        const BIITensor *fc_bias,
                        const BIITensor *proj_weights,
                        const BIITensor *proj_bias,
+                       const BIITensor *gamma,
                        const BIActivationLayerInfo &act_info,
-                       const BINormalizationLayerInfo &norm_info,
                        BIITensor *output);
 
         static BIStatus validate(const BIITensorInfo *input,
@@ -68,6 +68,7 @@ namespace BatmanInfer {
                                  const BIITensorInfo *fc_bias,
                                  const BIITensorInfo *proj_weights,
                                  const BIITensorInfo *proj_bias,
+                                 const BIITensorInfo *gamma,
                                  const BIITensorInfo *output);
 
         // 继承函数
@@ -80,7 +81,7 @@ namespace BatmanInfer {
         BIMemoryGroup _memory_group;
 
         // 算子操作
-        BINENormalizationLayer _normalization_layer;  // 用于执行归一操作的层
+        BINERMSNormLayer _rms_layer;  // 用于执行归一操作的层
 
         BINEGEMM _c_fc_fuse_act;  // 用于进行扩展维度 (融合激活函数)
 

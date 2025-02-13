@@ -26,7 +26,7 @@ namespace BatmanInfer {
         BI_COMPUTE_ERROR_ON_NULLPTR(input, gamma, output);
         BI_COMPUTE_LOG_PARAMS(input, gamma, output);
 
-        _rms_norm_kernel = std::make_unique<BINERMSNormLayerKernel>();
+        _rms_norm_kernel = std::make_unique<cpu::BINERMSNormLayerKernel>();
         _rms_norm_kernel->configure(input, gamma, output);
 
     }
@@ -37,13 +37,13 @@ namespace BatmanInfer {
         // Perform validation step
         BI_COMPUTE_RETURN_ERROR_ON_NULLPTR(input, output, gamma);
 
-        BI_COMPUTE_RETURN_ON_ERROR(BINERMSNormLayerKernel::validate(input, gamma, output));
+        BI_COMPUTE_RETURN_ON_ERROR(cpu::BINERMSNormLayerKernel::validate(input, gamma, output));
 
         return BIStatus{};
     }
 
     void BINERMSNormLayer::run() {
         BIMemoryGroupResourceScope scope_mg(_memory_group);
-        BINEScheduler::get().schedule(_rms_norm_kernel.get(), BIWindow::DimY);
+        _rms_norm_kernel->run(_rms_norm_kernel->window(), ThreadInfo{});
     }
 }

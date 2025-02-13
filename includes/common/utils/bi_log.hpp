@@ -30,9 +30,9 @@
 #define BI_COMPUTE_CREATE_ACL_LOGGER()                                                                      \
     do                                                                                                       \
     {                                                                                                        \
-        if (BatmanInfer::logging::BILoggerRegistry::get().logger("ComputeLibrary") == nullptr)                 \
+        if (BatmanInfer::logging::BILoggerRegistry::get().logger("BatmanCompute") == nullptr)                 \
         {                                                                                                    \
-           BatmanInfer::logging::BILoggerRegistry::get().create_logger("ComputeLibrary",                      \
+           BatmanInfer::logging::BILoggerRegistry::get().create_logger("BatmanCompute",                      \
                                                                        BatmanInfer::logging::BILogLevel::INFO); \
         }                                                                                                    \
     } while (false)
@@ -46,7 +46,7 @@
     do                                                         \
     {                                                          \
         BI_COMPUTE_CREATE_ACL_LOGGER();                       \
-        BI_COMPUTE_LOG_MSG("ComputeLibrary", log_level, msg); \
+        BI_COMPUTE_LOG_MSG("BatmanCompute", log_level, msg); \
     } while (false)
 
 /** Log a message with format to the logger
@@ -92,7 +92,7 @@
     do                                                                                                  \
     {                                                                                                   \
         BI_COMPUTE_CREATE_ACL_LOGGER();                                                                \
-        BI_COMPUTE_LOG_MSG_WITH_FUNCNAME("ComputeLibrary", BatmanInfer::logging::BILogLevel::INFO, msg); \
+        BI_COMPUTE_LOG_MSG_WITH_FUNCNAME("BatmanCompute", BatmanInfer::logging::BILogLevel::INFO, msg); \
     } while (false)
 
 /** Function template specialization for the out of bound element at index = tuple_size

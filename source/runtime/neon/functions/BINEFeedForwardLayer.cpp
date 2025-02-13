@@ -17,7 +17,7 @@ namespace BatmanInfer {
 
     BINEFeedForwardLayer::BINEFeedForwardLayer(std::shared_ptr<BIIMemoryManager> memory_manager) :
             _memory_group(std::move(memory_manager)),
-            _normalization_layer(),
+            _rms_layer(),
             _c_fc_fuse_act(),
             _c_proj(),
             _copy_f(),
@@ -34,9 +34,10 @@ namespace BatmanInfer {
                                    const BatmanInfer::BIITensorInfo *fc_bias,
                                    const BatmanInfer::BIITensorInfo *proj_weights,
                                    const BatmanInfer::BIITensorInfo *proj_bias,
+                                   const BatmanInfer::BIITensorInfo *gamma,
                                    const BatmanInfer::BIITensorInfo *output) {
 
-        BI_COMPUTE_ERROR_ON_NULLPTR(input, fc_weights, fc_bias, proj_weights, proj_bias, output);
+        BI_COMPUTE_ERROR_ON_NULLPTR(input, fc_weights, fc_bias, proj_weights, proj_bias, output, gamma);
         BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_NOT_IN(input, BIDataType::F16, BIDataType::F32);
 
         BI_COMPUTE_RETURN_ERROR_ON(input->tensor_shape() != output->tensor_shape());
@@ -49,8 +50,8 @@ namespace BatmanInfer {
                                          const BatmanInfer::BIITensor *fc_bias,
                                          const BatmanInfer::BIITensor *proj_weights,
                                          const BatmanInfer::BIITensor *proj_bias,
+                                         const BatmanInfer::BIITensor *gamma,
                                          const BatmanInfer::BIActivationLayerInfo &act_info,
-                                         const BINormalizationLayerInfo &norm_info,
                                          BatmanInfer::BIITensor *output) {
         BI_COMPUTE_ERROR_ON_NULLPTR(input, fc_weights, fc_bias, proj_weights, proj_bias, output); // 输入的参数是否为空
 
@@ -60,10 +61,10 @@ namespace BatmanInfer {
                                                fc_bias->info(),
                                                proj_weights->info(),
                                                proj_bias->info(),
+                                               gamma->info(),
                                                output->info()));
 
-        BI_COMPUTE_LOG_PARAMS(input, fc_weights, fc_bias, proj_weights, proj_bias, act_info, norm_info,
-                              output); // 获取log的参数
+        BI_COMPUTE_LOG_PARAMS(input, fc_weights, fc_bias, proj_weights, proj_bias, gamma, act_info, output); // 获取log的参数
 
         // 中间变量输出的形状
         BITensorShape norm_output_shape = BITensorShape(input->info()->tensor_shape()); // 归一化输出
@@ -91,7 +92,7 @@ namespace BatmanInfer {
         proj_gemm_info.set_fast_math(true);
 
         // 算子进行配置
-        _normalization_layer.configure(input, &_norm_output, norm_info);
+        _rms_layer.configure(input, gamma, &_norm_output);
         _c_fc_fuse_act.configure(&_norm_output, fc_weights, fc_bias, &_fuse_output, 1.f, 1.f, fc_gemm_info);
         _c_proj.configure(&_fuse_output, proj_weights, proj_bias, &_proj_output, 1.0f, 1.0f, proj_gemm_info);
         _copy_f.configure(&_proj_output, output);
@@ -100,7 +101,7 @@ namespace BatmanInfer {
     void BINEFeedForwardLayer::run() {
         prepare();
         BIMemoryGroupResourceScope scope_mg(_memory_group);
-        _normalization_layer.run();
+        _rms_layer.run();
         _c_fc_fuse_act.run();
         _c_proj.run();
         _copy_f.run();

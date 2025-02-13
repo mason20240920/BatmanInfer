@@ -17,7 +17,9 @@
 namespace BatmanInfer {
     class BIITensor;
 
-    class BINERMSNormLayerKernel;
+    namespace cpu {
+        class BINERMSNormLayerKernel;
+    }
 
     /** Basic function to compute a RMS normalization layer. This function calls the following kernels:
      *
@@ -71,7 +73,7 @@ namespace BatmanInfer {
 
     private:
         BIMemoryGroup _memory_group; /**< Function memory group */
-        std::unique_ptr<BINERMSNormLayerKernel> _rms_norm_kernel; /**<RMS Normalization layer kernel */
+        std::unique_ptr<cpu::BINERMSNormLayerKernel> _rms_norm_kernel; /**<RMS Normalization layer kernel */
         BITensor _input;
         BITensor _gamma;
     };
