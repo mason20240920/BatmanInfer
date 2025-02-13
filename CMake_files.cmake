@@ -1,15 +1,3 @@
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/includes
-        ${Protobuf_INCLUDE_DIRS}
-        ${ONNX_INCLUDE_DIRS}
-        ${GLOG_INCLUDE_DIRS}
-        ${OpenMP_INCLUDE}
-        ${ARMADILLO_INCLUDE_DIRS}
-)
-
-link_directories(${GLOG_LIBRARY_DIRS}
-        ${ONNX_LIBRARIES}
-)
-
 # 匹配指定目录下的所有 .cpp 文件（包括子目录）
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/data/core/*.cpp)
 file(GLOB_RECURSE RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/*.cpp)
@@ -49,28 +37,3 @@ add_executable(BatmanInfer main.cpp
         #        test/test_resnt.cpp
         #        source/runtime/bi_memory.cpp
 )
-
-# 链接GoogleTest库
-target_link_libraries(BatmanInfer
-        ${ONNX_LIBRARIES}/libonnx_proto.a
-        GTest::gtest_main
-        ${ARMADILLO_LIBRARIES}
-        ${GLOG_LIBRARIES}
-        ${Protobuf_LIBRARIES}
-        ${OpenCV_LIBS}
-        ${ONNX_LIBRARIES}/libonnx.a
-        ${OpenMP_omp_LIBRARY}
-        ${ABSEL_LIBARARY}
-        ${UTF8RANGE_LIBRARY}
-)
-
-if (ANDROID)
-    target_link_libraries(BatmanInfer OpenMP::OpenMP_CXX)
-endif ()
-
-# 添加测试
-include(GoogleTest)
-#gtest_discover_tests(BatmanInfer)
-
-# 包含Armadillo头文件路径
-target_include_directories(BatmanInfer PRIVATE ${ARMADILLO_INCLUDE_DIRS})

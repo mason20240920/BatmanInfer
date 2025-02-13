@@ -150,6 +150,42 @@ include_directories(${Protobuf_INCLUDE_DIR})
 # 启动测试
 enable_testing()
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/includes
+        ${Protobuf_INCLUDE_DIRS}
+        ${ONNX_INCLUDE_DIRS}
+        ${GLOG_INCLUDE_DIRS}
+        ${OpenMP_INCLUDE}
+        ${ARMADILLO_INCLUDE_DIRS}
+)
+
+link_directories(${GLOG_LIBRARY_DIRS}
+        ${ONNX_LIBRARIES}
+)
+
 # 文件列表拆分
 include (CMake_files)
 
+# 链接GoogleTest库
+target_link_libraries(BatmanInfer
+        ${ONNX_LIBRARIES}/libonnx_proto.a
+        GTest::gtest_main
+        ${ARMADILLO_LIBRARIES}
+        ${GLOG_LIBRARIES}
+        ${Protobuf_LIBRARIES}
+        ${OpenCV_LIBS}
+        ${ONNX_LIBRARIES}/libonnx.a
+        ${OpenMP_omp_LIBRARY}
+        ${ABSEL_LIBARARY}
+        ${UTF8RANGE_LIBRARY}
+)
+
+if (ANDROID)
+    target_link_libraries(BatmanInfer OpenMP::OpenMP_CXX)
+endif ()
+
+# 添加测试
+include(GoogleTest)
+#gtest_discover_tests(BatmanInfer)
+
+# 包含Armadillo头文件路径
+target_include_directories(BatmanInfer PRIVATE ${ARMADILLO_INCLUDE_DIRS})
