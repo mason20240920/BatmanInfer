@@ -4,8 +4,10 @@ project(BatmanInfer)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
-# 指定标准库为 libc++
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # 指定标准库为 libc++
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+endif()
 
 # 检查目标平台
 if (ANDROID)
@@ -163,7 +165,7 @@ link_directories(${GLOG_LIBRARY_DIRS}
 )
 
 # 文件列表拆分
-include (CMake_files)
+include (${CMAKE_CURRENT_LIST_DIR}/CMake_files.cmake)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer
@@ -181,6 +183,8 @@ target_link_libraries(BatmanInfer
 
 if (ANDROID)
     target_link_libraries(BatmanInfer OpenMP::OpenMP_CXX)
+else()
+    target_link_libraries(BatmanInfer -lz)
 endif ()
 
 # 添加测试
