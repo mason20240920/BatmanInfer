@@ -46,13 +46,16 @@ namespace BatmanInfer {
 
     }
 
-    void BINEFeedForwardLayer::configure(const BatmanInfer::BIITensor *input, const BatmanInfer::BIITensor *fc_weights,
+    void BINEFeedForwardLayer::configure(const BatmanInfer::BIITensor *input,
+                                         const BatmanInfer::BIITensor *fc_weights,
                                          const BatmanInfer::BIITensor *fc_bias,
                                          const BatmanInfer::BIITensor *proj_weights,
                                          const BatmanInfer::BIITensor *proj_bias,
                                          const BatmanInfer::BIITensor *gamma,
                                          const BatmanInfer::BIActivationLayerInfo &act_info,
-                                         BatmanInfer::BIITensor *output) {
+                                         BatmanInfer::BIITensor *output,
+                                         const size_t &batch_size,
+                                         const size_t &seq_len) {
         BI_COMPUTE_ERROR_ON_NULLPTR(input, fc_weights, fc_bias, proj_weights, proj_bias, output); // 输入的参数是否为空
 
         BI_COMPUTE_ERROR_THROW_ON(
@@ -66,9 +69,12 @@ namespace BatmanInfer {
 
         BI_COMPUTE_LOG_PARAMS(input, fc_weights, fc_bias, proj_weights, proj_bias, gamma, act_info, output); // 获取log的参数
 
+        _max_batch = batch_size;
+        _max_seq = seq_len;
+
         // 中间变量输出的形状
         BITensorShape norm_output_shape = BITensorShape(input->info()->tensor_shape()); // 归一化输出
-        BITensorShape fc_fuse_output_shape = BITensorShape(3072, 16); // Gemm + GeLU 融合操作
+        BITensorShape fc_fuse_output_shape = BITensorShape(3072, seq_len, batch_size); // Gemm + GeLU 融合操作
         BITensorShape proj_output_shape = BITensorShape(output->info()->tensor_shape()); // 最后降解的操作
 
         // 初始化中间变量

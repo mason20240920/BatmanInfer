@@ -53,7 +53,7 @@ namespace BatmanInfer {
             float32x4_t sum_sq_v0 = vdupq_n_f32(0.0f);
             float32x4_t sum_sq_v1 = vdupq_n_f32(0.0f);
             int i = 0;
-            const int N = input->info()->dimension(0);
+            const int N = gamma->info()->dimension(0);
 
             // 循环展开4次 (32 elements/iteration), 减少循环开销
             for (; i <= N - 64; i += 64) {

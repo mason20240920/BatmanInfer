@@ -62,12 +62,13 @@ namespace BatmanInfer {
                        const BIITensor *add_weights,
                        const BIITensor *weights_second,
                        const BIITensor *bias_second,
+                       const BIITensor *gamma,
                        const PermutationVector &perm,
                        const PermutationVector &perm2,
                        const PermutationVector &final_perm,
-                       const BINormalizationLayerInfo &norm_info,
                        const size_t &hidden_size,
                        const size_t &max_seq_len,
+                       const size_t &batch_size,
                        BIITensor *output);
 
         /**
@@ -102,14 +103,48 @@ namespace BatmanInfer {
         BIMemoryGroup _memory_group;  // 内存组管理
 
         // Attention模块算子
-        BINENormalizationLayer _normalization_layer; // 用于执行归一操作的层
+        BINERMSNormLayer _normalization_layer; // 用于执行归一操作的层
         BINECopy _copy_f; // 张量复制层
+        BINEGEMM _gemm_state_f; // 执行矩阵乘法(GEMM), 用于计算当前状态或隐藏层的现象变换
+        BINESplit _split_layer; // 切分层
+        BINEReshapeLayer _reshape_1_f; // 分支1的reshape
+        BINEPermute _transpose_1_f; // 转置transpose
+        BINEReshapeLayer _reshape_2_f; // 分支2的reshape
+        BINEPermute _transpose_2_f; // 转置transpose
+        BINEReshapeLayer _reshape_3_f; // 分支2的reshape
+        BINEPermute _transpose_3_f; // 转置transpose
+        BINEPixelWiseMultiplication _mul_1_f;
+        BINEPixelWiseMultiplication _mul_2_f;
+        BINEMatMul _matmul_1_f;
+        BINEArithmeticAddition _add_f;
+        BINESoftmaxLayerGeneric<false> _softmax_layer;
+        BINEMatMul _matmul_2_f;
+        BINEPermute _transpose_final_f; // 转置transpose
+        BINEReshapeLayer _reshape_final_f; //
+        BINEGEMM _gemm_final_f;
 
         // 中间内存管理的张量输出
         BITensor _norm_output; // 归一化输出值
+        BITensor _gemm_output; // _gemm输出
+        BITensor _split_result_0;
+        BITensor _split_result_1;
+        BITensor _split_result_2;
+        BITensor _reshape_1_output;
+        BITensor _transpose_1_output;
+        BITensor _reshape_2_output;
+        BITensor _transpose_2_output;
+        BITensor _reshape_3_output;
+        BITensor _transpose_3_output;
+        BITensor _mul_1_output;
+        BITensor _mul_2_output;
+        BITensor _matmul_1_output;
+        BITensor _add_output;
+        BITensor _softmax_output;
+        BITensor _matmul_2_output;
+        BITensor _transpose_final_output;
+        BITensor _reshape_final_output;
+        BITensor _gemm_final_output;
 
-//        // 执行矩阵乘法(GEMM), 用于计算当前状态或隐藏层的现象变换
-//        BINEGEMM _gemm_state_f;
 //
 //        BINEReshapeLayer _reshape_split_0;
 //
@@ -190,6 +225,7 @@ namespace BatmanInfer {
         // 其他参数
         size_t _hidden_size;  // 隐藏层大小
         size_t _max_seq_len;  // 最大长度输入
+        size_t _batch_size; // 一块的大小
         bool _is_prepared; // 是否已经完全初始化
     };
 }

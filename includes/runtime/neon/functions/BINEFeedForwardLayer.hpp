@@ -61,7 +61,9 @@ namespace BatmanInfer {
                        const BIITensor *proj_bias,
                        const BIITensor *gamma,
                        const BIActivationLayerInfo &act_info,
-                       BIITensor *output);
+                       BIITensor *output,
+                       const size_t &batch_size,
+                       const size_t &seq_len);
 
         static BIStatus validate(const BIITensorInfo *input,
                                  const BIITensorInfo *fc_weights,
@@ -93,6 +95,10 @@ namespace BatmanInfer {
         BITensor _norm_output;  // 归一化输出
         BITensor _fuse_output; // 扩展激活函数输出
         BITensor _proj_output; // 恢复维度输出
+
+        // 参数长度
+        size_t _max_batch;
+        size_t _max_seq;
 
         // 其他参数 (是否准备就绪)
         bool _is_prepared;

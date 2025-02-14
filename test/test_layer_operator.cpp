@@ -141,18 +141,35 @@ void quantize_values(int size, qasymm8_t *output, float *input, const BIQuantiza
     std::cout << "\n";
 }
 
+void create_input_tensor(BIITensor &tensor, const int hidden_size) {
+    std::vector<float16_t> input_data(768 * hidden_size);
+    // 初始化输入数据（模拟正态分布）
+    for (int i = 0; i < (768 * hidden_size); ++i)
+        input_data[i] = static_cast<float16_t>(((i % 32 - 16.0f) / 8.0f));
+
+    auto *src_ptr = reinterpret_cast<float16_t *>(tensor.buffer());
+    std::memcpy(src_ptr, input_data.data(), input_data.size() * sizeof(float16_t));
+}
+
 
 TEST(BatmanInferLayer, CPUAttentionTest) {
     // 输入张量
-    const BITensorShape input_shape(16,  // sequence
-                                    768); // hidden dimension
+    const BITensorShape input_shape(768,  // sequence
+                                    16,
+                                    5); // hidden dimension
     const BITensorInfo input_info(input_shape, 1, BIDataType::F16);
     BITensor input;
     input.allocator()->init(input_info);
 
+    // 进行归一化的gamma张量
+    const BITensorShape gamma_shape(768);
+    const BITensorInfo gamma_info(gamma_shape, 1, BIDataType::F16);
+    BITensor gamma;
+    gamma.allocator()->init(gamma_info);
+
     // 权重张量
-    const BITensorShape weights_shape(768,     // input_size (width, 匹配input宽度)
-                                      2304);    // hidden_units (height)
+    const BITensorShape weights_shape(2304,     // input_size (width, 匹配input宽度)
+                                      768);    // hidden_units (height)
     const BITensorInfo weights_info(weights_shape, 1, BIDataType::F16);
     BITensor weights;
     weights.allocator()->init(weights_info);
@@ -177,8 +194,9 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     bias2.allocator()->init(bias_info2);
 
     // 输出张量
-    const BITensorShape output_shape(16,    // hidden_units (width)
-                                     768);     // batch_size (height)
+    const BITensorShape output_shape(768,    // hidden_units (width)
+                                     16,
+                                     5);     // batch_size (height)
     const BITensorInfo output_info(output_shape, 1, BIDataType::F16);
     BITensor output;
     output.allocator()->init(output_info);
@@ -195,19 +213,10 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     BITensor add_tensor;
     add_tensor.allocator()->init(add_info);
 
-    PermutationVector perm{2, 0, 1};
-    PermutationVector perm2{0, 2, 1};
-    PermutationVector perm_final{1, 2, 0};
+    PermutationVector perm{0, 2, 1, 3};
+    PermutationVector perm2{2, 0, 1, 3};
+    PermutationVector perm_final{0, 2, 1, 3};
 
-    // 4. 初始化参数 (使用ACL规范参数)
-    const BINormalizationLayerInfo norm_info(
-            BINormType::IN_MAP_1D, // 归一化类型
-            765,              // norm_size = 特征维度 (D=768)
-            1.0f,                 // alpha（缩放因子，对应 γ）
-            0.0f,                  // beta（平移项，对应 β）
-            0.0f,                 // kappa（禁用）
-            true                // is_scaled（自动缩放 alpha）
-    );
 
     // 5. 分配内存
     input.allocator()->allocate();
@@ -218,16 +227,18 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     add_tensor.allocator()->allocate();
     weights2.allocator()->allocate();
     bias2.allocator()->allocate();
+    gamma.allocator()->allocate();
 
     // 模拟数据填充 (实际中应加载量化后的数据)
     // 注意：这里的填充需要符合量化格式
-    fill_new_tensor_val(input, static_cast<float16_t>(1));
+    create_input_tensor(input, 2);
     fill_new_tensor_val(weights, static_cast<float16_t>(1));
     fill_new_tensor_val(bias, static_cast<float16_t>(1));
 
     fill_new_tensor_val(add_tensor, static_cast<float16_t>(1));
     fill_new_tensor_val(weights2, static_cast<float16_t>(1));
     fill_new_tensor_val(bias2, static_cast<float16_t>(1));
+    fill_new_tensor_val(gamma, static_cast<float16_t>(1));
 
     auto scalar_ptr = reinterpret_cast<float16_t *>(scalar.buffer());
     scalar_ptr[0] = 0.5f;
@@ -240,26 +251,29 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
                               &add_tensor,
                               &weights2,
                               &bias2,
+                              &gamma,
                               perm,
                               perm2,
                               perm_final,
-                              norm_info,
                               768,
                               16,
+                              5,
                               &output);
-
+//    print_new_tensor(input);
     // 获取开始时间点
     auto start = std::chrono::high_resolution_clock::now();
+
+
     attention_layer.run();
 
     // 获取结束时间点
     auto end = std::chrono::high_resolution_clock::now();
 
     // 计算耗时（以微秒为单位）
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
     // 输出运行时间
-    std::cout << "Function execution time: " << duration.count() << " milliseconds" << std::endl;
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
 //    print_new_tensor(output);
 }
@@ -267,7 +281,8 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
 TEST(BatmanInferLayer, FeedForwardLayerTest) {
     // 输入张量
     const BITensorShape input_shape(768,  // hidden size
-                                    16); // sequence length
+                                    16,  // sequence length
+                                    5);  // batch size
     const BITensorInfo input_info(input_shape, 1, BIDataType::F16);
     BITensor input;
     input.allocator()->init(input_info);
@@ -305,7 +320,8 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
 
     // 输出张量
     const BITensorShape output_shape(768,    // hidden_units (width)
-                                     16);     // batch_size (height)
+                                     16,
+                                     5);     // batch_size (height)
     const BITensorInfo output_info(output_shape, 1, BIDataType::F16);
     BITensor output;
     output.allocator()->init(output_info);
@@ -330,6 +346,7 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
     fill_new_tensor_val(gamma, static_cast<float16_t>(1));
 
     BINEFeedForwardLayer feed_forward_layer;
+
     feed_forward_layer.configure(&input,
                                  &fc_weights,
                                  &fc_bias,
@@ -337,10 +354,13 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
                                  &proj_bias,
                                  &gamma,
                                  act_info,
-                                 &output);
+                                 &output,
+                                 5,
+                                 16);
 
     // 获取开始时间点
     auto start = std::chrono::high_resolution_clock::now();
+
 
     feed_forward_layer.run();
 
@@ -348,17 +368,18 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
     auto end = std::chrono::high_resolution_clock::now();
 
     // 计算耗时（以微秒为单位）
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
     // 输出运行时间
-    std::cout << "Function execution time: " << duration.count() << " milliseconds" << std::endl;
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
-    print_new_tensor(output);
+//    print_new_tensor(output);
 }
 
 TEST(BatmanInferLayer, RMSNormTest) {
     // 输入张量
-    const BITensorShape input_shape(768,  // hidden size
+    const BITensorShape input_shape(768,
+                                    2,  // hidden size
                                     2); // sequence length
     const BITensorInfo input_info(input_shape, 1, BIDataType::F16);
     BITensor input;
@@ -371,7 +392,8 @@ TEST(BatmanInferLayer, RMSNormTest) {
     gamma.allocator()->init(gamma_info);
 
     // 输出张量
-    const BITensorShape output_shape(768,    // hidden_units (width)
+    const BITensorShape output_shape(768,
+                                     2,    // hidden_units (width)
                                      2);     // batch_size (height)
     const BITensorInfo output_info(output_shape, 1, BIDataType::F16);
     BITensor output;
@@ -383,9 +405,9 @@ TEST(BatmanInferLayer, RMSNormTest) {
 
     fill_new_tensor_val(gamma, static_cast<float16_t>(1));
 
-    std::vector<float16_t> input_data(768 * 2);
+    std::vector<float16_t> input_data(768 * 4);
     // 初始化输入数据（模拟正态分布）
-    for (int i = 0; i < (768 * 2); ++i)
+    for (int i = 0; i < (768 * 4); ++i)
         input_data[i] = static_cast<float16_t>(((i % 32 - 16.0f) / 8.0f) + (i / 100.0f));
 
     auto *src_ptr = reinterpret_cast<float16_t *>(input.buffer());
@@ -411,4 +433,179 @@ TEST(BatmanInferLayer, RMSNormTest) {
 
 
     print_new_tensor(output);
+}
+
+BITensor create_tensor(const BITensorShape &shapes) {
+    const BITensorInfo input_info(shapes, 1, BIDataType::F16);
+    BITensor input;
+    input.allocator()->init(input_info);
+    input.allocator()->allocate();
+    return input;
+}
+
+TEST(BatmanInferLayer, GEMMLayerTest) {
+    // 输入张量
+    const BITensorShape input_shape(768,
+                                    10,  // hidden size
+                                    5); // sequence length
+    const BITensorShape weight_shape(2304, 768);
+    const BITensorShape output_shape(2304, 10, 5);
+    const BITensorShape bias_shape(2304);
+    auto input = create_tensor(input_shape);
+    auto weight = create_tensor(weight_shape);
+    auto output = create_tensor(output_shape);
+    auto bias = create_tensor(bias_shape);
+
+    fill_new_tensor_val(input, static_cast<float16_t>(1));
+    fill_new_tensor_val(weight, static_cast<float16_t>(1));
+    fill_new_tensor_val(bias, static_cast<float16_t>(1));
+
+    GEMMInfo gemm_info;
+    gemm_info.set_pretranspose_B(false);
+
+    BINEGEMM gemm;
+    gemm.configure(&input, &weight, &bias, &output, 1.0f, 1.0f, gemm_info);
+
+    // 开始时间节点
+    auto start = std::chrono::high_resolution_clock::now();
+    gemm.run();
+    // 结束时间节点
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // 计算耗时（以微秒为单位）
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    // 输出运行时间
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
+
+//    print_new_tensor(output);
+}
+
+TEST(BatmanInferLayer, GPT2OneLayerTest) {
+    // 先确定需要的算子
+    BINEAttentionLayer attention_layer;
+    BINEArithmeticAddition add_f;
+    BINEFeedForwardLayer feedforward_layer;
+    BINEArithmeticAddition add_2_f;
+
+    // 输入张量
+    const BITensorShape input_shape(768,  // hidden size
+                                    16,  // sequence length
+                                    5);  // batch size
+    const BITensorShape gamma_shape(768);
+    const BITensorShape fc_weights_shape(3072,     // input_size (width, 匹配input宽度)
+                                         768);    // hidden_units (height)
+    const BITensorShape fc_bias_shape(3072);    // hidden_units
+    // 权重张量
+    const BITensorShape proj_weights_shape2(768,     // input_size (width, 匹配input宽度)
+                                            3072);    // hidden_units (height)
+    const BITensorShape proj_bias_shape2(768);    // hidden_units
+
+    const BITensorShape output_shape(768,    // hidden_units (width)
+                                     16,
+                                     5);     // batch_size (height)
+    const BIActivationLayerInfo act_info(BIActivationFunction::GELU);
+
+    // 权重张量
+    const BITensorShape weights_shape(2304,     // input_size (width, 匹配input宽度)
+                                      768);    // hidden_units (height)
+
+    // 偏置矩阵
+    const BITensorShape bias_shape(2304);    // hidden_units
+
+    // 权重张量
+    const BITensorShape weights_shape2(768,     // input_size (width, 匹配input宽度)
+                                       768);    // hidden_units (height)
+
+    // 偏置矩阵
+    const BITensorShape bias_shape2(768);    // hidden_units
+
+    // 标量
+    const BITensorShape scalar_shape(1);
+
+    // 相加权重
+    const BITensorShape add_shape(16, 16);
+
+    PermutationVector perm{0, 2, 1, 3};
+    PermutationVector perm2{2, 0, 1, 3};
+    PermutationVector perm_final{0, 2, 1, 3};
+
+    const auto input = create_tensor(input_shape);
+    const auto gamma = create_tensor(gamma_shape);
+    const auto fc_weights = create_tensor(fc_weights_shape);
+    const auto fc_bias = create_tensor(fc_bias_shape);
+    const auto proj_weights = create_tensor(proj_weights_shape2);
+    const auto proj_bias = create_tensor(proj_bias_shape2);
+    auto output = create_tensor(output_shape);
+    const auto weights = create_tensor(weights_shape);
+    const auto weights2 = create_tensor(weights_shape2);
+    const auto bias = create_tensor(bias_shape);
+    const auto bias2 = create_tensor(bias_shape2);
+    const auto scalar = create_tensor(scalar_shape);
+    const auto add_tensor = create_tensor(add_shape);
+
+    // 加法结果
+    auto add_temp_out = create_tensor(input_shape);
+    auto ffn_out = create_tensor(input_shape);
+    auto final_out = create_tensor(input_shape);
+
+    fill_new_tensor_val(fc_weights, static_cast<float16_t>(1));
+    fill_new_tensor_val(fc_bias, static_cast<float16_t>(1));
+    fill_new_tensor_val(proj_weights, static_cast<float16_t>(1));
+    fill_new_tensor_val(proj_bias, static_cast<float16_t>(1));
+    fill_new_tensor_val(gamma, static_cast<float16_t>(1));
+    fill_new_tensor_val(weights, static_cast<float16_t>(1));
+    fill_new_tensor_val(bias, static_cast<float16_t>(1));
+
+    fill_new_tensor_val(add_tensor, static_cast<float16_t>(1));
+    fill_new_tensor_val(weights2, static_cast<float16_t>(1));
+    fill_new_tensor_val(bias2, static_cast<float16_t>(1));
+    fill_new_tensor_val(gamma, static_cast<float16_t>(1));
+
+
+    attention_layer.configure(&input,
+                              &weights,
+                              &bias,
+                              &scalar,
+                              &add_tensor,
+                              &weights2,
+                              &bias2,
+                              &gamma,
+                              perm,
+                              perm2,
+                              perm_final,
+                              768,
+                              16,
+                              5,
+                              &output);
+
+    add_f.configure(&output, &input, &add_temp_out, BIConvertPolicy::WRAP);
+
+    feedforward_layer.configure(&add_temp_out, &fc_weights,
+                                &fc_bias,
+                                &proj_weights,
+                                &proj_bias,
+                                &gamma,
+                                act_info,
+                                &ffn_out,
+                                5,
+                                16);
+
+    add_2_f.configure(&add_temp_out, &ffn_out, &final_out, BIConvertPolicy::WRAP);
+
+
+    // 开始时间节点
+    auto start = std::chrono::high_resolution_clock::now();
+    attention_layer.run();
+    add_f.run();
+    feedforward_layer.run();
+    add_2_f.run();
+    // 结束时间节点
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // 计算耗时（以微秒为单位）
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+    // 输出运行时间
+    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 }
