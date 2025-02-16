@@ -8,6 +8,7 @@
 #include <runtime/neon/bi_ne_functions.h>
 #include "runtime/bi_scheduler.hpp"
 #include <cpu/kernels/layer_norm/generic/neon/fp16.hpp>
+#include <utils/utils.hpp>
 
 /**
  * 使用Neon指令加速计算
@@ -661,7 +662,7 @@ TEST(ARMWindow, WindowTest) {
     output.allocator()->allocate();
     gamma.allocator()->allocate();
 
-    std::vector <float16_t> input_data(N * 12), gamma_data(N);
+    std::vector<float16_t> input_data(N * 12), gamma_data(N);
     // 初始化输入数据（模拟正态分布）
     for (int i = 0; i < (N * 12); ++i)
         input_data[i] = static_cast<float16_t>((i % 32 - 16.0f) / 8.0f);
@@ -831,4 +832,79 @@ TEST(NEONOperator, LayerNorm) {
     format.align_columns = 1;     // 对齐列
 
     output.print(std::cout, format);
+}
+
+BITensor create_tensor(const std::string &file_name,
+                       const BITensorShape &shape) {
+    BITensor tensor;
+    BITensorInfo tensor_info(shape, 1, BIDataType::F16);
+    tensor.allocator()->init(tensor_info);
+    tensor.allocator()->allocate();
+    utils::read_npy_to_tensor(file_name, tensor);
+
+    return tensor;
+}
+
+BITensor create_normal_tensor(const BITensorShape &shape) {
+    BITensor tensor;
+    BITensorInfo tensor_info(shape, 1, BIDataType::F16);
+    tensor.allocator()->init(tensor_info);
+    tensor.allocator()->allocate();
+
+    return tensor;
+}
+
+void print_npy_tensor(const BITensor &tensor) {
+    // 输入格式
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = 1;     // 对齐列
+    tensor.print(std::cout, format);
+}
+
+TEST(NEONOperator, TensorReader) {
+    // 输入张量
+    BITensorShape input_shape(768, 16, 1);
+    auto input = create_normal_tensor(input_shape);
+    auto gemm_output = create_normal_tensor(input_shape);
+    auto gemm_output_1 = create_normal_tensor(BITensorShape(2304, 16));
+    std::vector<float16_t> values(768 * 16);
+    for (int i = 0; i < 768 * 16; ++i)
+        values[i] = static_cast<float16_t>(static_cast<float>(i) / 10000.0f);
+    memcpy(input.buffer(), values.data(), 768 * 16 * sizeof(float16_t));
+
+//    print_npy_tensor(input);
+
+    // RMS NORM参数
+    BITensorShape rms_norm_shape(768);
+    auto rms_norm_1 = create_tensor("/Users/mason/Downloads/gpt2_create/rms_attention_1.npy", rms_norm_shape);
+
+    // Gemm操作
+    BITensorShape weights_shape(2304, 768);
+    auto weights = create_tensor("/Users/mason/Downloads/gpt2_create/attn_c_attn_weight.npy", weights_shape);
+
+    BITensorShape bias_shape(2304);
+    auto bias = create_tensor("/Users/mason/Downloads/gpt2_create/attn_c_attn_bias.npy", bias_shape);
+
+    // 设置Split输出的Tensor模块
+    BITensorShape split_shape = BITensorShape(768, 16, 1);
+    auto split_0 = create_normal_tensor(split_shape);
+    auto split_1 = create_normal_tensor(split_shape);
+    auto split_2 = create_normal_tensor(split_shape);
+    std::vector<BIITensor *> splits_out{&split_0, &split_1, &split_2};
+
+    BINERMSNormLayer norm_layer;
+    norm_layer.configure(&input, &rms_norm_1, &gemm_output);
+
+    GEMMInfo gemm_info;
+    gemm_info.set_fast_math(true);
+
+    BINEGEMM gemm_layer;
+    gemm_layer.configure(&gemm_output, &weights, &bias, &gemm_output_1, 1.0f, 1.0f, gemm_info);
+
+    norm_layer.run();
+    gemm_layer.run();
+
+    print_npy_tensor(gemm_output_1);
 }

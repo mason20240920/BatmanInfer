@@ -50,7 +50,7 @@ namespace BatmanInfer {
             auto_init_if_empty(*output->info(), *input->info());
 
             // Perform validation step
-            BI_COMPUTE_ERROR_THROW_ON(validate_arguments(input->info(), output->info(), output->info()));
+            BI_COMPUTE_ERROR_THROW_ON(validate_arguments(input->info(), gamma->info(), output->info()));
 
             _input = input;
             _gamma = gamma;

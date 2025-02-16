@@ -173,6 +173,7 @@ add_executable(BatmanInfer main.cpp
         ${COMMON_SOURCES}
         test/test_layer_operator.cpp
         test/test_neon_operator.cpp
+        source/utils/utils.cpp
         #        test/test_onnx.cpp
         #        source/others/utils.cpp
         #        source/onnx_conv/OnnxUtils.cpp
