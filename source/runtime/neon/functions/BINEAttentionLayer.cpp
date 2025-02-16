@@ -69,7 +69,7 @@ namespace BatmanInfer {
         BI_COMPUTE_ERROR_ON_NULLPTR(input, weights, bias, output);
         BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_NOT_IN(input, BIDataType::F16, BIDataType::F32);
 
-        BI_COMPUTE_RETURN_ERROR_ON(input->num_dimensions() != 3);
+        BI_COMPUTE_RETURN_ERROR_ON(input->num_dimensions() != 2);
 
         return BIStatus{};
     }
@@ -181,7 +181,7 @@ namespace BatmanInfer {
         GEMMInfo gemm_info;
         gemm_info.set_fast_math(true);
         _gemm_state_f.configure(&_norm_output, weights, bias, &_gemm_output, 1.0f, 1.0f, gemm_info);
-        std::vector<BIITensor *> outputs = {&_split_result_0, &_split_result_1, &_split_result_2};
+        std::vector<BIITensor *> outputs = {&_split_result_1, &_split_result_2, &_split_result_0};
         _split_layer.configure(&_gemm_output, outputs, 0);
         _reshape_1_f.configure(&_split_result_0, &_reshape_1_output);
         _transpose_1_f.configure(&_reshape_1_output, &_transpose_1_output, perm);
@@ -212,8 +212,8 @@ namespace BatmanInfer {
         // 设置不是常量
         _mul_1_output.info()->set_are_values_constant(false);
         _mul_2_output.info()->set_are_values_constant(false);
-        _matmul_1_f.configure(&_mul_1_output,
-                              &_mul_2_output,
+        _matmul_1_f.configure(&_mul_2_output,
+                              &_mul_1_output,
                               &_matmul_1_output, matmul_info, settings);
         _add_f.configure(&_matmul_1_output,
                          add_weights,
@@ -230,12 +230,17 @@ namespace BatmanInfer {
                               &_matmul_2_output, matmul_info, settings);
         _transpose_final_f.configure(&_matmul_2_output, &_transpose_final_output, final_perm);
         _reshape_final_f.configure(&_transpose_final_output, &_reshape_final_output);
-        _gemm_final_f.configure(&_gemm_final_output, weights_second, bias_second, &_gemm_final_output, 1.f, 1.f,
+        _gemm_final_f.configure(&_reshape_final_output, weights_second, bias_second, &_gemm_final_output, 1.f, 1.f,
                                 gemm_info);
         _copy_f.configure(&_gemm_final_output, output);
     }
 
     void BINEAttentionLayer::run() {
+        // 输入格式
+        BIIOFormatInfo format;
+        format.element_delim = ", ";  // 元素之间用逗号分隔
+        format.row_delim = "\n";      // 每行换行
+        format.align_columns = 1;     // 对齐列
 //        prepare();
 
         BIMemoryGroupResourceScope scope_mg(_memory_group);

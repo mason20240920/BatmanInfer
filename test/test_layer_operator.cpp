@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <runtime/bi_tensor.hpp>
 #include <runtime/neon/bi_ne_functions.h>
+#include <utils/utils.hpp>
 
 using namespace BatmanInfer;
 
@@ -481,6 +482,17 @@ TEST(BatmanInferLayer, GEMMLayerTest) {
 //    print_new_tensor(output);
 }
 
+BITensor create_npy_tensor(const std::string &file_name,
+                           const BITensorShape &shape) {
+    BITensor tensor;
+    BITensorInfo tensor_info(shape, 1, BIDataType::F16);
+    tensor.allocator()->init(tensor_info);
+    tensor.allocator()->allocate();
+    utils::read_npy_to_tensor(file_name, tensor);
+
+    return tensor;
+}
+
 TEST(BatmanInferLayer, GPT2OneLayerTest) {
     // 先确定需要的算子
     BINEAttentionLayer attention_layer;
@@ -491,7 +503,7 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
     // 输入张量
     const BITensorShape input_shape(768,  // hidden size
                                     16,  // sequence length
-                                    5);  // batch size
+                                    1);  // batch size
     const BITensorShape gamma_shape(768);
     const BITensorShape fc_weights_shape(3072,     // input_size (width, 匹配input宽度)
                                          768);    // hidden_units (height)
@@ -503,7 +515,7 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
 
     const BITensorShape output_shape(768,    // hidden_units (width)
                                      16,
-                                     5);     // batch_size (height)
+                                     1);     // batch_size (height)
     const BIActivationLayerInfo act_info(BIActivationFunction::GELU);
 
     // 权重张量
@@ -531,36 +543,51 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
     PermutationVector perm_final{0, 2, 1, 3};
 
     const auto input = create_tensor(input_shape);
-    const auto gamma = create_tensor(gamma_shape);
-    const auto fc_weights = create_tensor(fc_weights_shape);
-    const auto fc_bias = create_tensor(fc_bias_shape);
-    const auto proj_weights = create_tensor(proj_weights_shape2);
-    const auto proj_bias = create_tensor(proj_bias_shape2);
+    const auto gamma = create_npy_tensor("/Users/mason/Downloads/gpt2_create/rms_attention_1.npy", gamma_shape);
+    const auto fc_weights = create_npy_tensor("/Users/mason/Downloads/gpt2_create/mlp_c_fc_weight.npy",
+                                              fc_weights_shape);
+    const auto fc_bias = create_npy_tensor("/Users/mason/Downloads/gpt2_create/mlp_c_fc_bias.npy", fc_bias_shape);
+    const auto proj_weights = create_npy_tensor("/Users/mason/Downloads/gpt2_create/mlp_c_proj_weight.npy",
+                                                proj_weights_shape2);
+    const auto proj_bias = create_npy_tensor("/Users/mason/Downloads/gpt2_create/mlp_c_proj_bias.npy",
+                                             proj_bias_shape2);
     auto output = create_tensor(output_shape);
-    const auto weights = create_tensor(weights_shape);
-    const auto weights2 = create_tensor(weights_shape2);
-    const auto bias = create_tensor(bias_shape);
-    const auto bias2 = create_tensor(bias_shape2);
+    const auto weights = create_npy_tensor("/Users/mason/Downloads/gpt2_create/attn_c_attn_weight.npy",
+                                           weights_shape);
+    const auto bias = create_npy_tensor("/Users/mason/Downloads/gpt2_create/attn_c_attn_bias.npy", bias_shape);
+    const auto weights2 = create_npy_tensor("/Users/mason/Downloads/gpt2_create/attn_c_proj_weight_2.npy",
+                                            weights_shape2);
+    const auto bias2 = create_npy_tensor("/Users/mason/Downloads/gpt2_create/attn_c_proj_bias_2.npy", bias_shape2);
+    const auto gamma2 = create_npy_tensor("/Users/mason/Downloads/gpt2_create/mlp_ln_2_weight.npy", gamma_shape);
     const auto scalar = create_tensor(scalar_shape);
-    const auto add_tensor = create_tensor(add_shape);
+    const auto add_tensor = create_npy_tensor("/Users/mason/Downloads/gpt2_create/_attn_Where_output_0.npy", add_shape);
 
     // 加法结果
     auto add_temp_out = create_tensor(input_shape);
     auto ffn_out = create_tensor(input_shape);
     auto final_out = create_tensor(input_shape);
 
-    fill_new_tensor_val(fc_weights, static_cast<float16_t>(1));
-    fill_new_tensor_val(fc_bias, static_cast<float16_t>(1));
-    fill_new_tensor_val(proj_weights, static_cast<float16_t>(1));
-    fill_new_tensor_val(proj_bias, static_cast<float16_t>(1));
-    fill_new_tensor_val(gamma, static_cast<float16_t>(1));
-    fill_new_tensor_val(weights, static_cast<float16_t>(1));
-    fill_new_tensor_val(bias, static_cast<float16_t>(1));
+    fill_new_tensor_val(scalar, static_cast<float16_t>(0.3535533845424652));
+    std::vector<float16_t> input_data(768 * 16);
+    for (int i = 0; i < 768 * 16; i++) {
+        input_data[i] = static_cast<float16_t>(i + 1) / 1000;
+    }
+    std::memcpy(input.buffer(), input_data.data(), 768 * 16 * sizeof(float16_t));
+//    print_new_tensor(input);
+//    fill_new_tensor_val(input, static_cast<float16_t>(0.001));
 
-    fill_new_tensor_val(add_tensor, static_cast<float16_t>(1));
-    fill_new_tensor_val(weights2, static_cast<float16_t>(1));
-    fill_new_tensor_val(bias2, static_cast<float16_t>(1));
-    fill_new_tensor_val(gamma, static_cast<float16_t>(1));
+//    fill_new_tensor_val(fc_weights, static_cast<float16_t>(1));
+//    fill_new_tensor_val(fc_bias, static_cast<float16_t>(1));
+//    fill_new_tensor_val(proj_weights, static_cast<float16_t>(1));
+//    fill_new_tensor_val(proj_bias, static_cast<float16_t>(1));
+//    fill_new_tensor_val(gamma, static_cast<float16_t>(1));
+//    fill_new_tensor_val(weights, static_cast<float16_t>(1));
+//    fill_new_tensor_val(bias, static_cast<float16_t>(1));
+//
+//    fill_new_tensor_val(add_tensor, static_cast<float16_t>(1));
+//    fill_new_tensor_val(weights2, static_cast<float16_t>(1));
+//    fill_new_tensor_val(bias2, static_cast<float16_t>(1));
+//    fill_new_tensor_val(gamma, static_cast<float16_t>(1));
 
 
     attention_layer.configure(&input,
@@ -576,7 +603,7 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
                               perm_final,
                               768,
                               16,
-                              5,
+                              1,
                               &output);
 
     add_f.configure(&output, &input, &add_temp_out, BIConvertPolicy::WRAP);
@@ -585,10 +612,10 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
                                 &fc_bias,
                                 &proj_weights,
                                 &proj_bias,
-                                &gamma,
+                                &gamma2,
                                 act_info,
                                 &ffn_out,
-                                5,
+                                1,
                                 16);
 
     add_2_f.configure(&add_temp_out, &ffn_out, &final_out, BIConvertPolicy::WRAP);
@@ -602,6 +629,8 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
     add_2_f.run();
     // 结束时间节点
     auto end = std::chrono::high_resolution_clock::now();
+
+    print_new_tensor(final_out);
 
     // 计算耗时（以微秒为单位）
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);

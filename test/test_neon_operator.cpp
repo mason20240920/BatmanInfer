@@ -887,6 +887,13 @@ TEST(NEONOperator, TensorReader) {
     BITensorShape bias_shape(2304);
     auto bias = create_tensor("/Users/mason/Downloads/gpt2_create/attn_c_attn_bias.npy", bias_shape);
 
+    // 设置Split输出的Tensor模块
+    BITensorShape split_shape = BITensorShape(768, 16, 1);
+    auto split_0 = create_normal_tensor(split_shape);
+    auto split_1 = create_normal_tensor(split_shape);
+    auto split_2 = create_normal_tensor(split_shape);
+    std::vector<BIITensor *> splits_out{&split_0, &split_1, &split_2};
+
     BINERMSNormLayer norm_layer;
     norm_layer.configure(&input, &rms_norm_1, &gemm_output);
 
