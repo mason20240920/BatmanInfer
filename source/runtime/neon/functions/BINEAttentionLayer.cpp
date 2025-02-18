@@ -69,7 +69,7 @@ namespace BatmanInfer {
         BI_COMPUTE_ERROR_ON_NULLPTR(input, weights, bias, output);
         BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_NOT_IN(input, BIDataType::F16, BIDataType::F32);
 
-        BI_COMPUTE_RETURN_ERROR_ON(input->num_dimensions() != 2);
+        BI_COMPUTE_RETURN_ERROR_ON(input->num_dimensions() == 1);
 
         return BIStatus{};
     }

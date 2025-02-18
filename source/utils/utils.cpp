@@ -27,5 +27,24 @@ namespace BatmanInfer {
             loader.open(file_name);
             loader.fill_tensor(tensor);
         }
+
+        BITensor create_tensor(const BITensorShape &shapes) {
+            const BITensorInfo input_info(shapes, 1, BIDataType::F16);
+            BITensor input;
+            input.allocator()->init(input_info);
+            input.allocator()->allocate();
+            return input;
+        }
+
+        BITensor create_npy_tensor(const std::string &file_name,
+                                   const BITensorShape &shape) {
+            BITensor tensor;
+            BITensorInfo tensor_info(shape, 1, BIDataType::F16);
+            tensor.allocator()->init(tensor_info);
+            tensor.allocator()->allocate();
+            utils::read_npy_to_tensor(file_name, tensor);
+
+            return tensor;
+        }
     }
 }

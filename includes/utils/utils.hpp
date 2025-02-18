@@ -283,6 +283,11 @@ namespace BatmanInfer {
 
 
         void read_npy_to_tensor(const std::string &file_name, BITensor &tensor);
+
+        BITensor create_tensor(const BITensorShape &shapes);
+
+        BITensor create_npy_tensor(const std::string &file_name,
+                                   const BITensorShape &shape);
     }
 }
 

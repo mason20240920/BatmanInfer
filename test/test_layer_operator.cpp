@@ -436,14 +436,6 @@ TEST(BatmanInferLayer, RMSNormTest) {
     print_new_tensor(output);
 }
 
-BITensor create_tensor(const BITensorShape &shapes) {
-    const BITensorInfo input_info(shapes, 1, BIDataType::F16);
-    BITensor input;
-    input.allocator()->init(input_info);
-    input.allocator()->allocate();
-    return input;
-}
-
 TEST(BatmanInferLayer, GEMMLayerTest) {
     // 输入张量
     const BITensorShape input_shape(768,
@@ -452,10 +444,10 @@ TEST(BatmanInferLayer, GEMMLayerTest) {
     const BITensorShape weight_shape(2304, 768);
     const BITensorShape output_shape(2304, 10, 5);
     const BITensorShape bias_shape(2304);
-    auto input = create_tensor(input_shape);
-    auto weight = create_tensor(weight_shape);
-    auto output = create_tensor(output_shape);
-    auto bias = create_tensor(bias_shape);
+    auto input = utils::create_tensor(input_shape);
+    auto weight = utils::create_tensor(weight_shape);
+    auto output = utils::create_tensor(output_shape);
+    auto bias = utils::create_tensor(bias_shape);
 
     fill_new_tensor_val(input, static_cast<float16_t>(1));
     fill_new_tensor_val(weight, static_cast<float16_t>(1));
@@ -480,17 +472,6 @@ TEST(BatmanInferLayer, GEMMLayerTest) {
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
 //    print_new_tensor(output);
-}
-
-BITensor create_npy_tensor(const std::string &file_name,
-                           const BITensorShape &shape) {
-    BITensor tensor;
-    BITensorInfo tensor_info(shape, 1, BIDataType::F16);
-    tensor.allocator()->init(tensor_info);
-    tensor.allocator()->allocate();
-    utils::read_npy_to_tensor(file_name, tensor);
-
-    return tensor;
 }
 
 TEST(BatmanInferLayer, GPT2OneLayerTest) {
@@ -542,30 +523,30 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
     PermutationVector perm2{2, 0, 1, 3};
     PermutationVector perm_final{0, 2, 1, 3};
 
-    const auto input = create_tensor(input_shape);
-    const auto gamma = create_npy_tensor("/Users/mason/Downloads/gpt2_create/rms_attention_1.npy", gamma_shape);
-    const auto fc_weights = create_npy_tensor("/Users/mason/Downloads/gpt2_create/mlp_c_fc_weight.npy",
-                                              fc_weights_shape);
-    const auto fc_bias = create_npy_tensor("/Users/mason/Downloads/gpt2_create/mlp_c_fc_bias.npy", fc_bias_shape);
-    const auto proj_weights = create_npy_tensor("/Users/mason/Downloads/gpt2_create/mlp_c_proj_weight.npy",
-                                                proj_weights_shape2);
-    const auto proj_bias = create_npy_tensor("/Users/mason/Downloads/gpt2_create/mlp_c_proj_bias.npy",
-                                             proj_bias_shape2);
-    auto output = create_tensor(output_shape);
-    const auto weights = create_npy_tensor("/Users/mason/Downloads/gpt2_create/attn_c_attn_weight.npy",
-                                           weights_shape);
-    const auto bias = create_npy_tensor("/Users/mason/Downloads/gpt2_create/attn_c_attn_bias.npy", bias_shape);
-    const auto weights2 = create_npy_tensor("/Users/mason/Downloads/gpt2_create/attn_c_proj_weight_2.npy",
-                                            weights_shape2);
-    const auto bias2 = create_npy_tensor("/Users/mason/Downloads/gpt2_create/attn_c_proj_bias_2.npy", bias_shape2);
-    const auto gamma2 = create_npy_tensor("/Users/mason/Downloads/gpt2_create/mlp_ln_2_weight.npy", gamma_shape);
-    const auto scalar = create_tensor(scalar_shape);
-    const auto add_tensor = create_npy_tensor("/Users/mason/Downloads/gpt2_create/_attn_Where_output_0.npy", add_shape);
+    const auto input = utils::create_tensor(input_shape);
+    const auto gamma = utils::create_npy_tensor("./input_res/rms_attention_1.npy", gamma_shape);
+    const auto fc_weights = utils::create_npy_tensor("./input_res/mlp_c_fc_weight.npy",
+                                                     fc_weights_shape);
+    const auto fc_bias = utils::create_npy_tensor("./input_res/mlp_c_fc_bias.npy", fc_bias_shape);
+    const auto proj_weights = utils::create_npy_tensor("./input_res/mlp_c_proj_weight.npy",
+                                                       proj_weights_shape2);
+    const auto proj_bias = utils::create_npy_tensor("./input_res/mlp_c_proj_bias.npy",
+                                                    proj_bias_shape2);
+    auto output = utils::create_tensor(output_shape);
+    const auto weights = utils::create_npy_tensor("./input_res/attn_c_attn_weight.npy",
+                                                  weights_shape);
+    const auto bias = utils::create_npy_tensor("./input_res/attn_c_attn_bias.npy", bias_shape);
+    const auto weights2 = utils::create_npy_tensor("./input_res/attn_c_proj_weight_2.npy",
+                                                   weights_shape2);
+    const auto bias2 = utils::create_npy_tensor("./input_res/attn_c_proj_bias_2.npy", bias_shape2);
+    const auto gamma2 = utils::create_npy_tensor("./input_res/mlp_ln_2_weight.npy", gamma_shape);
+    const auto scalar = utils::create_tensor(scalar_shape);
+    const auto add_tensor = utils::create_npy_tensor("./input_res/_attn_Where_output_0.npy", add_shape);
 
     // 加法结果
-    auto add_temp_out = create_tensor(input_shape);
-    auto ffn_out = create_tensor(input_shape);
-    auto final_out = create_tensor(input_shape);
+    auto add_temp_out = utils::create_tensor(input_shape);
+    auto ffn_out = utils::create_tensor(input_shape);
+    auto final_out = utils::create_tensor(input_shape);
 
     fill_new_tensor_val(scalar, static_cast<float16_t>(0.3535533845424652));
     std::vector<float16_t> input_data(768 * 16);
@@ -573,21 +554,6 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
         input_data[i] = static_cast<float16_t>(i + 1) / 1000;
     }
     std::memcpy(input.buffer(), input_data.data(), 768 * 16 * sizeof(float16_t));
-//    print_new_tensor(input);
-//    fill_new_tensor_val(input, static_cast<float16_t>(0.001));
-
-//    fill_new_tensor_val(fc_weights, static_cast<float16_t>(1));
-//    fill_new_tensor_val(fc_bias, static_cast<float16_t>(1));
-//    fill_new_tensor_val(proj_weights, static_cast<float16_t>(1));
-//    fill_new_tensor_val(proj_bias, static_cast<float16_t>(1));
-//    fill_new_tensor_val(gamma, static_cast<float16_t>(1));
-//    fill_new_tensor_val(weights, static_cast<float16_t>(1));
-//    fill_new_tensor_val(bias, static_cast<float16_t>(1));
-//
-//    fill_new_tensor_val(add_tensor, static_cast<float16_t>(1));
-//    fill_new_tensor_val(weights2, static_cast<float16_t>(1));
-//    fill_new_tensor_val(bias2, static_cast<float16_t>(1));
-//    fill_new_tensor_val(gamma, static_cast<float16_t>(1));
 
 
     attention_layer.configure(&input,
