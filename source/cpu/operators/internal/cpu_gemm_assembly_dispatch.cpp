@@ -930,20 +930,31 @@ namespace BatmanInfer {
 
         }
 
+        /**
+         * 汇编GEMM的优化
+         * @param expected_weight_format 权重张量布局
+         * @param a  张量信息a
+         * @param b  张量信息b
+         * @param c  张量信息c
+         * @param d  张量信息d
+         * @param info 汇编信息
+         * @return
+         */
         BIStatus BICpuGemmAssemblyDispatch::has_opt_impl(BatmanInfer::BIWeightFormat &expected_weight_format,
                                                          const BatmanInfer::BIITensorInfo *a,
                                                          const BatmanInfer::BIITensorInfo *b,
                                                          const BatmanInfer::BIITensorInfo *c,
                                                          const BatmanInfer::BIITensorInfo *d,
                                                          const BatmanInfer::cpu::BIAsmGemmInfo &info) {
-            BI_COMPUTE_ERROR_ON_NULLPTR(a, b, d);
-            BI_COMPUTE_UNUSED(c);
-            BatmanGemm::Activation act = assembly_utils::map_to_batman_gemm_activation(info.activation_info);
-            Params p = extract_parameters(a, b, d, info);
-            const CPUInfo &ci = BINEScheduler::get().cpu_info();
-            unsigned int num_threads = BINEScheduler::get().num_threads();
+            // 验证合理性
+            BI_COMPUTE_ERROR_ON_NULLPTR(a, b, d);  // 验证a, b, d是否为空
+            BI_COMPUTE_UNUSED(c); // c 不使用
+            BatmanGemm::Activation act = assembly_utils::map_to_batman_gemm_activation(info.activation_info);  // 映射激活函数
+            Params p = extract_parameters(a, b, d, info); // 提取优化参数信息
+            const CPUInfo &ci = BINEScheduler::get().cpu_info(); // 获取CPU信息(L1 Caches, L2 Caches, CPU核心数量)
+            unsigned int num_threads = BINEScheduler::get().num_threads(); // 当前线程数量: Mac 10个
             BatmanGemm::GemmConfig cfg;
-            cfg.weight_format = assembly_utils::map_to_batman_gemm_weight_format(info.weight_format);
+            cfg.weight_format = assembly_utils::map_to_batman_gemm_weight_format(info.weight_format); // 映射Gemm的权重数据格式
             BatmanGemm::WeightFormat arm_gemm_expected_wf = assembly_utils::map_to_batman_gemm_weight_format(
                     expected_weight_format);
             BatmanGemm::GemmArgs args(&ci, p.M, p.N, p.K,
@@ -1044,12 +1055,22 @@ namespace BatmanInfer {
             return _batman_gemm->has_stateless_impl();
         }
 
+        /**
+         * 验证GEMM汇编代码
+         * @param a  张量信息a
+         * @param b  张量信息b
+         * @param c  偏置值信息c
+         * @param d  输出结果
+         * @param info 汇编信息
+         * @return
+         */
         BIStatus
         BICpuGemmAssemblyDispatch::validate(const BatmanInfer::BIITensorInfo *a,
                                             const BatmanInfer::BIITensorInfo *b,
                                             const BatmanInfer::BIITensorInfo *c,
                                             const BatmanInfer::BIITensorInfo *d,
                                             const BatmanInfer::cpu::BIAsmGemmInfo &info) {
+            // 不需要用汇编信息和偏置值
             BI_COMPUTE_UNUSED(c, info);
             BI_COMPUTE_RETURN_ERROR_ON_NULLPTR(a, b, d);
             BI_COMPUTE_RETURN_ERROR_ON_CPU_F16_UNSUPPORTED(a);
@@ -1060,6 +1081,7 @@ namespace BatmanInfer {
 #ifndef __aarch64__
             BI_COMPUTE_RETURN_ERROR_ON_MSG(a->element_size() == 1, "8bit integer types only supported for aarch64");
 #endif /* __aarch64__ */
+            // 查看数据格式到底对不对
             BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_CHANNEL_NOT_IN(a, 1,
                                                                 BIDataType::U8,
                                                                 BIDataType::QASYMM8,

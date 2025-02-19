@@ -111,21 +111,38 @@ namespace BatmanGemm {
         }
     };
 
+    /**
+     * GEMM运算参数配置容器（面相卷积优化）
+     * 设计目标：通过参数化配置实现ARM架构下的矩阵运算极致优化
+     */
     struct GemmArgs {
     public:
-        const BICPUInfo *_ci;
-        unsigned int _Msize; // num of tiles
-        unsigned int _Nsize; // output channels
-        unsigned int _Ksize; // input channels
-        unsigned int _Ksections;
-        unsigned int _nbatches;
-        unsigned int _nmulti; // n_gemms to be performed
-        bool _indirect_input;
-        Activation _act;
-        int _maxthreads;
-        bool _fixed_format;
-        bool _fast_mode;
-        bool _accumulate;
+        // ================= 硬件环境参数 =================
+        const BICPUInfo *_ci;  ///< CPU指令集特征描述符（含NEON/SVE支持状态）
+
+        // ================= 矩阵维度参数 =================
+        unsigned int _Msize; ///< 输出空间维度（Tile数量，对应卷积输出特征图空间划分）
+        unsigned int _Nsize; ///< 输出通道数（对应卷积核数量）
+        unsigned int _Ksize; ///< 输入通道数×卷积核尺寸（对应im2col展开后的列数）
+        unsigned int _Ksections; ///< K维度分段数（用于多核并行负载均衡）
+
+        // ================= 批量处理参数 =================
+        unsigned int _nbatches;  ///< 批量大小（batch_size，支持批处理加速）
+        unsigned int _nmulti; ///< 多实例GEMM数量（用于分组卷积等场景）
+
+        // ================= 内存优化参数 =================
+        bool _indirect_input; ///< 是否启用间接输入模式（避免数据拷贝，直接通过指针跳转访问）
+
+        // ================= 后处理参数 =================
+        Activation _act; ///< 激活函数类型（ReLU/Sigmoid等，支持融合计算)
+
+        // ================= 并行计算参数 =================
+        int _maxthreads; ///< 最大线程数（与OpenMP调度器协同工作）
+
+        // ================= 模式开关参数 =================
+        bool _fixed_format; ///< 是否固定内存布局（与BIWeightFormat::OHWIo4i2等格式配合）
+        bool _fast_mode;  ///< 快速计算模式（精度换速度，适用于推理场景）
+        bool _accumulate; ///< 累加模式（用于梯度计算等需要累加的场景）
         const GemmConfig *_cfg;
 
         GemmArgs(const BICPUInfo *ci,

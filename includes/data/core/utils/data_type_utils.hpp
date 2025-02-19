@@ -223,6 +223,11 @@ namespace BatmanInfer {
         return std::make_tuple(min, max);
     }
 
+    /**
+     * 是不是每个channel进行数据量化
+     * @param dt
+     * @return
+     */
     inline bool is_data_type_quantized_per_channel(BIDataType dt) {
         switch (dt) {
             case BIDataType::QSYMM8_PER_CHANNEL:
@@ -238,14 +243,12 @@ namespace BatmanInfer {
      *
      * @return True if data type is of asymmetric quantized signed type, else false.
      */
-    inline bool is_data_type_quantized_asymmetric_signed(BIDataType dt)
-    {
-        switch (dt)
-        {
-        case BIDataType::QASYMM8_SIGNED:
-            return true;
-        default:
-            return false;
+    inline bool is_data_type_quantized_asymmetric_signed(BIDataType dt) {
+        switch (dt) {
+            case BIDataType::QASYMM8_SIGNED:
+                return true;
+            default:
+                return false;
         }
     }
 

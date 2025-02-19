@@ -39,11 +39,11 @@ namespace BatmanInfer {
             BatmanInfer::BIWeightFormat weight_format{BatmanInfer::BIWeightFormat::UNSPECIFIED};
             bool reshape_b_only_on_first_run{true};
             bool accumulate{false};
-            /** Whether we want to perform an additional transpose of b before passing it to gemm or pretranspose_B_array
-             * @note This transpose b operation is also considered a form of "reshape" or "transform", so should be counted for
-             *       by the reshape_b_only_on_first_run flag
-             * @note This flag will be silently ignored (assumed to be false) when the weight_format is a fixed format. Because
-             *       fixed format kernels do not accept weights (B) with any prior transformations
+            /**
+             * 是否需要在调用gemm前对矩阵B进行额外转置操作，或使用预转置的B数组（pretranspose_B_array）
+             * @note 此处的B矩阵转置操作被视为一种"重塑"或"变换"操作，因此需要受reshape_b_only_on_first_run标志位控制
+             * @note 当使用固定格式（weight_format）时，该标志会被静默忽略（自动设为false），
+             *        因为固定格式内核不接受经过任何预处理的权重矩阵B
              */
             bool transpose_b{false};
         };

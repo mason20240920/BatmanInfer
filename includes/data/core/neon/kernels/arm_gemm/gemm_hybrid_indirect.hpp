@@ -778,33 +778,34 @@ namespace BatmanGemm {
             _col_bias = reinterpret_cast<int32_t *>(in_buffer);
         }
 
-        // Estimate cycles for given problem given provided parameters.
-        // "perf_type" is a type to pass along to get_performance_parameters to get the right set of performance
-        // parameters - it's arbitrary but usually either the input or output type.
+        /**
+         * 估算给定参数下GEMM操作的指令周期数
+         * @tparam perf_type 性能参数类型（通常为输入/输出数据类型）
+         * @param args GEMM参数集（包含维度、批量等）
+         * @param os 输出阶段处理配置（如量化参数）
+         * @return 预估的总周期数
+         */
         template<typename perf_type>
         static uint64_t estimate_cycles(const GemmArgs &args, const OutputStage &os = {}) {
             const PerformanceParameters params = strategy::template get_performance_parameters<perf_type>(args._ci);
 
-            // Note: Current hybrid kernels don't actually round up height (they
-            // have paths for each possible height).  Might need to make this
-            // configurable in future.
+            /* 基础MAC操作量计算 */
+            // 总MAC数 = 批次 × 多实例 × 行数 × 对齐后的列数 × 总通道数
             uint64_t total_macs = static_cast<uint64_t>(args._nbatches) * args._nmulti * args._Msize *
                                   roundup(args._Nsize, strategy::out_width()) * get_ktotal(args);
 
             float mac_cycles = static_cast<float>(total_macs) / params.kernel_macs_cycle;
 
-            // TODO: A bit of a kludge here: current hybrid kernels incur extra
-            // overhead where the width is not a multiple of kernel width.  It's
-            // most noticable where the overall width is quite low, so add 15%
-            // penalty for such widths.
+            /* 宽度补偿策略（混合内核优化） */
+            // 当输出宽度不足内核宽度或处于过渡区间时，增加15%周期惩罚
             if ((args._Nsize < strategy::out_width()) ||
                 (args._Nsize > strategy::out_width() && args._Nsize < 2 * strategy::out_width())) {
-                mac_cycles *= 1.15f;
+                mac_cycles *= 1.15f; // 宽度补偿系数
             }
 
             uint64_t total_cycles = mac_cycles;
 
-            // Quantizing kernels with separate quantize need to add in the extra stages.
+            /* 量化处理分支（Requantize32独立量化模式） */
             if (std::is_same<OutputStage, Requantize32>::value && SeparateQuantize) {
                 const Requantize32 *qp = reinterpret_cast<const Requantize32 *>(&os);
 

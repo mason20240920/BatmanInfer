@@ -512,21 +512,21 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     // Basic using
     using namespace BatmanInfer;
 
-    BatmanInfer::BIScheduler::get().set_num_threads(4);
+    BatmanInfer::BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
 
     // 输入张量 A, B, C 和输出张量D
     BITensor a, b, c, d;
 
     // 配置张量的形状 (假设矩阵 A 是 MxK，矩阵 B 是 KxN）
-    const unsigned int M = 4; // 矩阵A的行数
+    unsigned int M = 2; // 矩阵A的行数
     const unsigned int K = 3; // 矩阵A的列数，矩阵B的行数
-    const unsigned int N = 2; // 矩阵B的列数
+    const unsigned int N = 4; // 矩阵B的列数
 
     // 配置张量的形状和数据类型
-    BITensorInfo a_info(BITensorShape(K, M), 1, BIDataType::F32);  // 矩阵 A
-    BITensorInfo b_info(BITensorShape(N, K), 1, BIDataType::F32);  // 矩阵 B
-    BITensorInfo c_info(BITensorShape(N, M), 1, BIDataType::F32);  // 矩阵 C（可选）
-    BITensorInfo d_info(BITensorShape(N, M), 1, BIDataType::F32);  // 输出矩阵 D
+    BITensorInfo a_info(BITensorShape(K, M, 2), 1, BIDataType::F16);  // 矩阵 A
+    BITensorInfo b_info(BITensorShape(N, K), 1, BIDataType::F16);  // 矩阵 B
+    BITensorInfo c_info(BITensorShape(N), 1, BIDataType::F16);  // 矩阵 C（可选）
+    BITensorInfo d_info(BITensorShape(N, M, 2), 1, BIDataType::F16);  // 输出矩阵 D
 
     // 初始化张量
     a.allocator()->init(a_info);
@@ -539,10 +539,9 @@ TEST(BITensor, NEGEMM_exmaple_01) {
 
     // 配置 NEGEMM 函数
     float alpha = 1.0f;  // 矩阵乘积的权重
-    float beta = 0.1f;   // 矩阵 C 的权重（如果不需要 C，可以设置为 0）
+    float beta = 1.0f;   // 矩阵 C 的权重（如果不需要 C，可以设置为 0）
 
-    GEMMInfo gemm_info(false, false, true /* enable reshaping */, 0, 0, true /* reshape only on first run */);
-
+    GEMMInfo gemm_info;
     gemm.configure(&a, &b, &c, &d, alpha, beta, gemm_info);
 
     // 分配内存(为张量分配内存)
@@ -552,17 +551,17 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     d.allocator()->allocate();
 
     // 示例：填充张量 A 的数据
-    auto a_data = reinterpret_cast<float *>(a.buffer());
-    for (unsigned int i = 0; i < M * K; ++i) {
-        a_data[i] = static_cast<float>(i);  // 填充一些测试数据
+    auto a_data = reinterpret_cast<float16_t *>(a.buffer());
+    for (unsigned int i = 0; i < M * K * 5; ++i) {
+        a_data[i] = static_cast<float16_t>(1);  // 填充一些测试数据
     }
-    auto b_data = reinterpret_cast<float *>(b.buffer());
+    auto b_data = reinterpret_cast<float16_t *>(b.buffer());
     for (unsigned int i = 0; i < K * N; ++i) {
-        b_data[i] = static_cast<float>(1);  // 填充一些测试数据
+        b_data[i] = static_cast<float16_t>(1);  // 填充一些测试数据
     }
-    auto c_data = reinterpret_cast<float *>(c.buffer());
-    for (unsigned int i = 0; i < M * N; ++i) {
-        c_data[i] = static_cast<float>(1);  // 填充一些测试数据
+    auto c_data = reinterpret_cast<float16_t *>(c.buffer());
+    for (unsigned int i = 0; i < N; ++i) {
+        c_data[i] = static_cast<float16_t>(1);  // 填充一些测试数据
     }
 
     BIIOFormatInfo format;
@@ -575,21 +574,41 @@ TEST(BITensor, NEGEMM_exmaple_01) {
 //    b.print(std::cout, format);
 
     gemm.run();
-    const BITensorShape output_shape(N, M);
+
+    d.print(std::cout, format);
+
+    std::cout << "============================================================" << std::endl;
+
+    d.allocator()->free();
+    a.allocator()->free();
+
+    // 进行形状修改
+    M = 4;
+
+    a_info = BITensorInfo(BITensorShape(K, M, 5), 1, BIDataType::F16);  // 矩阵 A
+    d_info = BITensorInfo(BITensorShape(N, M, 5), 1, BIDataType::F16);  // 输出矩阵 D
+    a.allocator()->init(a_info);
+    d.allocator()->init(d_info);
+//    d = BITensor(d_info);
+
+
+    a.allocator()->allocate();
+    d.allocator()->allocate();
+
+    // 示例：填充张量 A 的数据
+    a_data = reinterpret_cast<float16_t *>(a.buffer());
+    for (unsigned int i = 0; i < M * K * 5; ++i) {
+        a_data[i] = static_cast<float16_t>(3);  // 填充一些测试数据
+    }
+
+    a.print(std::cout, format);
+
+
+    gemm.run();
 
     // 访问输出数据
-//    d.print(std::cout, format);
-    float output_data[M * N];
-    std::memcpy(output_data, d.buffer(), sizeof(output_data));
+    d.print(std::cout, format);
 
-    // 打印张量
-    std::cout << "Output matrix:" << std::endl;
-    for (size_t i = 0; i < output_shape[1]; ++i) {
-        for (size_t j = 0; j < output_shape[0]; ++j) {
-            std::cout << static_cast<float >(output_data[i * output_shape[0] + j]) << " ";
-        }
-        std::cout << std::endl;
-    }
 }
 
 TEST(BITensor, NESplit_example_02) {

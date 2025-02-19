@@ -205,7 +205,7 @@ namespace BatmanInfer {
                 _name = std::string("BICpuActivationKernel").append("/").append(uk->name);
 
 #ifdef __aarch64__
-                // Initialise lut_manager
+                // 初始化查找表
                 BILUTManager &lut_manager = BILUTManager::get_instance();
 
                 // TODO (COMPMID-7511): delegate to LUTManager

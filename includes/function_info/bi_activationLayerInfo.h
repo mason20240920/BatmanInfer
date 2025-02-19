@@ -39,23 +39,23 @@ namespace BatmanInfer {
     /** Activation Layer Information class */
     class BIActivationLayerInfo {
     public:
-        typedef BatmanInfer::BIActivationFunction ActivationFunction;
+        typedef BatmanInfer::BIActivationFunction ActivationFunction; // 激活函数
 
         /** Lookup table  */
 #ifdef __aarch64__
-        using LookupTable256 = std::array<qasymm8_t, 256>;
-        using LookupTable65536 = std::array<float16_t, 65536>;
+        using LookupTable256 = std::array<qasymm8_t, 256>;  // 查找表 (int8) [0, 255]
+        using LookupTable65536 = std::array<float16_t, 65536>;  // 查找表 (float16) [0, 65536]
 #endif // __aarch64__
 
         BIActivationLayerInfo() = default;
 
         /** Default Constructor
          *
-         * @param[in] f The activation function to use.
-         * @param[in] a (Optional) The alpha parameter used by some activation functions
+         * @param[in] f 需要使用的激活函数.
+         * @param[in] a (Optional) 一些激活函数需要的alpha参数
          *              (@ref ActivationFunction::BOUNDED_RELU, @ref ActivationFunction::LU_BOUNDED_RELU,
          *              @ref ActivationFunction::LINEAR, @ref ActivationFunction::TANH).
-         * @param[in] b (Optional) The beta parameter used by some activation functions
+         * @param[in] b (Optional) 一些激活函数需要的beta参数
          *              (@ref ActivationFunction::LINEAR, @ref ActivationFunction::LU_BOUNDED_RELU,
          *              @ref ActivationFunction::TANH).
          */
@@ -117,14 +117,14 @@ namespace BatmanInfer {
         }
 
     private:
-        ActivationFunction _act     = {BIActivationLayerInfo::ActivationFunction::IDENTITY};
-        float              _a       = {};
-        float              _b       = {};
-        bool               _enabled = {false};
+        ActivationFunction _act = {BIActivationLayerInfo::ActivationFunction::IDENTITY}; // 激活函数
+        float _a = {};
+        float _b = {};
+        bool _enabled = {false};
 
 #ifdef __aarch64__
-        LookupTable256                    _lut = {};
-        std::shared_ptr<LookupTable65536> _lut_fp16{nullptr};
+        LookupTable256 _lut = {};  // 查找表 - 256
+        std::shared_ptr<LookupTable65536> _lut_fp16{nullptr};  // 查找表: 65536
 #endif // __aarch64__
     };
 

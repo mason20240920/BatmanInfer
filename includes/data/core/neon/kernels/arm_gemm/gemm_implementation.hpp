@@ -245,23 +245,32 @@ namespace BatmanGemm {
     template<typename Tlop, typename Trop, typename Tret, class OutputStage = Nothing>
     const GemmImplementation<Tlop, Trop, Tret, OutputStage> *gemm_implementation_list();
 
-/*
- * Select a GEMM implementation for the given arguments.
- *
- * The logic here returns the method on the list which supports the
- * requested problem parameters, matches the provided filters (method and/or
- * name string match) and offers the lowest cycle estimate.  A cycle
- * estimate of '0' is treated as a special value, causing the corresponding
- * method to be selected immediately.
- *
- * If no method supports the requested parameters and passes the filters,
- * this function returns false and doesn't touch the provided pointer
- * reference.
- */
+
+    /**
+     * 用给定的参数选择一个GEMM的实现汇编代码
+     *
+     * 本逻辑从候选列表中选取满足以下条件的实现方法：
+     * 1. 支持请求的问题参数
+     * 2. 匹配提供的筛选条件（方法类型和/或名称字符串匹配）
+     * 3. 提供最低周期估算值（特殊值0表示立即选用该方案）
+     *
+     * 若没有方法满足参数要求并通过筛选：
+     * - 返回false
+     * - 不修改提供的指针引用
+     *
+     * @tparam Tlop float16_t
+     * @tparam Trop float16_t
+     * @tparam Tret float16_t
+     * @tparam OutputStage
+     * @param args 参数
+     * @param os 输出策略
+     * @param impl 实现的函数
+     * @return
+     */
     template<typename Tlop, typename Trop, typename Tret, class OutputStage>
     bool find_implementation(const GemmArgs &args, const OutputStage &os,
                              const GemmImplementation<Tlop, Trop, Tret, OutputStage> *&impl) {
-        auto gemms = gemm_implementation_list<Tlop, Trop, Tret, OutputStage>();
+        auto gemms = gemm_implementation_list<Tlop, Trop, Tret, OutputStage>(); // 获取汇编的函数数组指针
         const GemmConfig *cfg = args._cfg;
 
         const GemmImplementation<Tlop, Trop, Tret, OutputStage> *saved_impl = nullptr;
@@ -341,7 +350,6 @@ namespace BatmanGemm {
         if (success)
             wf = UniqueGemmCommon<Tlop, Trop, Tret>(impl->do_instantiate(args, os))->get_config().weight_format;
         return success;
-//        return false;
     }
 
     template<typename Tlop, typename Trop, typename Tret, class OutputStage>
