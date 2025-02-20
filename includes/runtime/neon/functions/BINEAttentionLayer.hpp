@@ -115,8 +115,7 @@ namespace BatmanInfer {
         BINEPermute _transpose_3_f; // 转置transpose
         BINEPixelWiseMultiplication _mul_1_f;
         BINEPixelWiseMultiplication _mul_2_f;
-        BINEMatMul _matmul_1_f;
-        BINEArithmeticAddition _add_f;
+        BINEGEMM _gemm_fuse_f;
         BINESoftmaxLayerGeneric<false> _softmax_layer;
         BINEMatMul _matmul_2_f;
         BINEPermute _transpose_final_f; // 转置transpose
@@ -137,90 +136,12 @@ namespace BatmanInfer {
         BITensor _transpose_3_output;
         BITensor _mul_1_output;
         BITensor _mul_2_output;
-        BITensor _matmul_1_output;
-        BITensor _add_output;
+        BITensor _gemm_fuse_output;
         BITensor _softmax_output;
         BITensor _matmul_2_output;
         BITensor _transpose_final_output;
         BITensor _reshape_final_output;
         BITensor _gemm_final_output;
-
-//
-//        BINEReshapeLayer _reshape_split_0;
-//
-//        BINEPermute _transpose_split_0;
-//
-//        // 进行split 1 和 split 2分支的切换
-//        BINEReshapeLayer _reshape_split_1;
-//
-//        BINEPermute _transpose_split_1;
-//
-//        BINEPixelWiseMultiplication _mul_op_0;
-//
-//        BINEReshapeLayer _reshape_split_2;
-//
-//        BINEPermute _transpose_split_2;
-//
-//        BINEPixelWiseMultiplication _mul_op_1;
-//
-//        BINEArithmeticAddition _add_op;
-//
-//        BINESoftmaxLayerGeneric<false> _softmax_layer;
-//
-//        BINEMatMul _matmul_op;
-//
-//        BINEMatMul _matmul_op1;
-//
-//        BINEPermute _transpose_sum;
-//
-//        BINEReshapeLayer _reshape_sum_layer;
-//
-//        // 执行矩阵乘法(GEMM), 用于计算当前状态或隐藏层的现象变换
-//        BINEGEMM _gemm_state_sum_layer;
-//        // 进行切分split
-//        BINESplit _split_layer;
-//        // 中间变量
-//        BITensor _gemm_output;
-//        // 输出split结果
-//        BITensor _split_result_0;
-//        BITensor _split_result_1;
-//        BITensor _split_result_2;
-//        // split 0 分支的reshape
-//        BITensor _reshape_split_output_0;
-//
-//        BITensor _transpose_split_output_0;
-//        // split 1 分支的代码
-//        BITensor _reshape_split_output_1;
-//
-//        BITensor _transpose_split_output_1;
-//
-//        BITensor _mul_split_output_1;
-//        // split 2 分支的代码
-//        BITensor _reshape_split_output_2;
-//
-//        BITensor _transpose_split_output_2;
-//
-//        BITensor _mul_split_output_2;
-//        // 矩乘输出
-//        BITensor _mat_mul_output;
-//
-//        // 矩阵相加
-//        BITensor _mat_add_output;
-//
-//        // Softmax的值进行输出
-//        BITensor _softmax_output;
-//
-//        // MatMul进行运算
-//        BITensor _mat_mul_output_1;
-//
-//        // 最后的Transpose
-//        BITensor _sum_transpose;
-//
-//        // 最后的Reshape
-//        BITensor _reshape_sum_tensor;
-//
-//        // 最后的Gemm出来的结果
-//        BITensor _gemm_sum_output;
 
         // 其他参数
         size_t _hidden_size;  // 隐藏层大小

@@ -1,19 +1,19 @@
 //
-// Created by Mason on 2025/2/17.
+// Created by Mason on 2025/2/20.
 //
 
-#include <glog/logging.h>
-#include <gtest/gtest.h>
+#include <benchmark/benchmark.h>
 #include <runtime/bi_tensor.hpp>
 #include <runtime/neon/bi_ne_functions.h>
 #include <utils/utils.hpp>
 #include <runtime/bi_scheduler.hpp>
 #include <thread>
+#include <omp.h>
 
 using namespace BatmanInfer;
 
 template<typename T>
-void fill_model_tensor_val(const BITensor &tensor, const T val) {
+void fill_perf_tensor_val(const BITensor &tensor, const T val) {
     auto tensor_ptr = reinterpret_cast<T *>(tensor.buffer());
     size_t num_elements = tensor.info()->tensor_shape().total_size(); // 获取元素数量
     for (size_t i = 0; i < num_elements; ++i) {
@@ -21,30 +21,8 @@ void fill_model_tensor_val(const BITensor &tensor, const T val) {
     }
 }
 
-/**
- * 性能统计结构体
- */
-struct PerfStats {
-    double avg_ms; // 平均耗时
-    double std_dev_ms; // 标准差
-    double min_ms; // 最小耗时
-    double max_ms; // 最大耗时
-    size_t iterations; // 有效迭代次数
-};
-
-// 定义成员函数指针类型
-using MemberFunc = void (BIIFunction::*)();
-
-PerfStats measure_performance(BIIFunction *obj,
-                              MemberFunc kernel_func,
-                              size_t warmup = 10,
-                              size_t iterations = 1000,
-                              double outlier_threshold = 3.0) {
-
-}
-
-TEST(ModelPerfTest, GPT2Perf) {
-    BIScheduler::set(BIScheduler::Type::OMP);
+static void BM_RunCoreLogic(benchmark::State &state) {
+//    BIScheduler::set(BIScheduler::Type::OMP);
     BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
     // 先确定需要的算子
     BINEAttentionLayer attention_layer;
@@ -119,7 +97,7 @@ TEST(ModelPerfTest, GPT2Perf) {
     auto ffn_out = utils::create_tensor(input_shape);
     auto final_out = utils::create_tensor(input_shape);
 
-    fill_model_tensor_val(scalar, static_cast<float16_t>(0.3535533845424652));
+    fill_perf_tensor_val(scalar, static_cast<float16_t>(0.3535533845424652));
 
 
     attention_layer.configure(&input,
@@ -159,67 +137,21 @@ TEST(ModelPerfTest, GPT2Perf) {
     std::vector<double> timings;
     timings.reserve(iterations);
 
-    // 预测阶段（不记录时间）
-    for (size_t i = 0; i < warmup; ++i) {
-        std::vector<float16_t> input_data(768 * 16);
-        for (int i = 0; i < 768 * 16; i++) {
-            input_data[i] = static_cast<float16_t>(i + 1) / 1000;
-        }
-        std::memcpy(input.buffer(), input_data.data(), 768 * 16 * sizeof(float16_t));
+    for (auto _: state) {
+        // 排除准备时间
+        state.PauseTiming();
+        state.ResumeTiming();
         attention_layer.run();
         add_f.run();
         feedforward_layer.run();
         add_2_f.run();
+        state.PauseTiming();
+        state.ResumeTiming();
     }
-
-    // 修改input的sequence长度
-
-    // 正式测量
-    for (size_t i = 0; i < iterations; ++i) {
-        auto start = std::chrono::high_resolution_clock::now();
-        attention_layer.run();
-        add_f.run();
-        feedforward_layer.run();
-        add_2_f.run();
-        auto end = std::chrono::high_resolution_clock::now();
-
-        double duration = std::chrono::duration<double, std::milli>(end - start).count();
-        timings.push_back(duration);
-    }
-
-    // 异常值过滤
-    auto result = [&] {
-        double sum = std::accumulate(timings.begin(), timings.end(), 0.0);
-        double mean = sum / timings.size();
-        double sq_sum = std::inner_product(timings.begin(), timings.end(),
-                                           timings.begin(), 0.0);
-        double stdev = std::sqrt(sq_sum / timings.size() - mean * mean);
-        return std::make_pair(mean, stdev);
-    }();
-    double avg = result.first;
-    double std_dev = result.second;
-
-    // 应用3-sigma法则过滤异常值
-    std::vector<double> filtered;
-    std::copy_if(timings.begin(), timings.end(), std::back_inserter(filtered),
-                 [=](double x) { return std::abs(x - avg) < outlier_threshold * std_dev; });
-
-    // 重新计算统计量
-    double valid_avg = std::accumulate(filtered.begin(), filtered.end(), 0.0) / filtered.size();
-    auto [min_it, max_it] = std::minmax_element(filtered.begin(), filtered.end());
-
-    auto perf_status = PerfStats{
-            valid_avg,
-            std_dev,
-            *min_it,
-            *max_it,
-            filtered.size()
-    };
-
-    std::cout << "Performance Report:\n"
-              << "Iterations: " << perf_status.iterations << "\n"
-              << "Avg Time:   " << perf_status.avg_ms << " ms\n"
-              << "Std Dev:    " << perf_status.std_dev_ms << " ms\n"
-              << "Min Time:   " << perf_status.min_ms << " ms\n"
-              << "Max Time:   " << perf_status.max_ms << " ms\n";
 }
+
+BENCHMARK(BM_RunCoreLogic)->MinTime(10.0) // 最小总运行时间
+        ->Repetitions(5)  // 重复5组测试取平均值
+        ->MeasureProcessCPUTime(); // 测量进程CPU时间
+
+BENCHMARK_MAIN();

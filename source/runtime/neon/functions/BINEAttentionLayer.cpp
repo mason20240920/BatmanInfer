@@ -30,9 +30,8 @@ namespace BatmanInfer {
             _transpose_3_f(),
             _mul_1_f(),
             _mul_2_f(),
-            _matmul_1_f(),
+            _gemm_fuse_f(),
             _matmul_2_f(),
-            _add_f(),
             _softmax_layer(),
             _transpose_final_f(),
             _reshape_final_f(),
@@ -50,8 +49,7 @@ namespace BatmanInfer {
             _transpose_3_output(),
             _mul_1_output(),
             _mul_2_output(),
-            _matmul_1_output(),
-            _add_output(),
+            _gemm_fuse_output(),
             _softmax_output(),
             _matmul_2_output(),
             _transpose_final_output(),
@@ -124,8 +122,7 @@ namespace BatmanInfer {
         _transpose_3_output.allocator()->init(BITensorInfo(transpose_1_shape, 1, input->info()->data_type()));
         _mul_1_output.allocator()->init(BITensorInfo(transpose_2_shape, 1, input->info()->data_type()));
         _mul_2_output.allocator()->init(BITensorInfo(transpose_1_shape, 1, input->info()->data_type()));
-        _matmul_1_output.allocator()->init(BITensorInfo(matmul_1_shape, 1, input->info()->data_type()));
-        _add_output.allocator()->init(BITensorInfo(matmul_1_shape, 1, input->info()->data_type()));
+        _gemm_fuse_output.allocator()->init(BITensorInfo(matmul_1_shape, 1, input->info()->data_type()));
         _softmax_output.allocator()->init(BITensorInfo(matmul_1_shape, 1, input->info()->data_type()));
         _matmul_2_output.allocator()->init(BITensorInfo(transpose_1_shape, 1, input->info()->data_type()));
         _transpose_final_output.allocator()->init(BITensorInfo(reshape_split_shape, 1, input->info()->data_type()));
@@ -147,9 +144,8 @@ namespace BatmanInfer {
         _memory_group.manage(&_transpose_3_output);
         _memory_group.manage(&_mul_1_output);
         _memory_group.manage(&_mul_2_output);
-        _memory_group.manage(&_matmul_1_output);
+        _memory_group.manage(&_gemm_fuse_output);
         _memory_group.manage(&_matmul_2_output);
-        _memory_group.manage(&_add_output);
         _memory_group.manage(&_softmax_output);
         _memory_group.manage(&_transpose_final_output);
         _memory_group.manage(&_reshape_final_output);
@@ -168,8 +164,7 @@ namespace BatmanInfer {
         _transpose_3_output.allocator()->allocate();
         _mul_1_output.allocator()->allocate();
         _mul_2_output.allocator()->allocate();
-        _matmul_1_output.allocator()->allocate();
-        _add_output.allocator()->allocate();
+        _gemm_fuse_output.allocator()->allocate();
         _softmax_output.allocator()->allocate();
         _matmul_2_output.allocator()->allocate();
         _transpose_final_output.allocator()->allocate();
@@ -212,14 +207,8 @@ namespace BatmanInfer {
         // 设置不是常量
         _mul_1_output.info()->set_are_values_constant(false);
         _mul_2_output.info()->set_are_values_constant(false);
-        _matmul_1_f.configure(&_mul_2_output,
-                              &_mul_1_output,
-                              &_matmul_1_output, matmul_info, settings);
-        _add_f.configure(&_matmul_1_output,
-                         add_weights,
-                         &_add_output,
-                         BIConvertPolicy::SATURATE);
-        _softmax_layer.configure(&_add_output,
+        _gemm_fuse_f.configure(&_mul_2_output, &_mul_1_output, add_weights, &_gemm_fuse_output, 1.0f, 1.0f, gemm_info);
+        _softmax_layer.configure(&_gemm_fuse_output,
                                  &_softmax_output,
                                  1.0f,
                                  0);
@@ -236,11 +225,6 @@ namespace BatmanInfer {
     }
 
     void BINEAttentionLayer::run() {
-        // 输入格式
-        BIIOFormatInfo format;
-        format.element_delim = ", ";  // 元素之间用逗号分隔
-        format.row_delim = "\n";      // 每行换行
-        format.align_columns = 1;     // 对齐列
 //        prepare();
 
         BIMemoryGroupResourceScope scope_mg(_memory_group);
@@ -257,61 +241,13 @@ namespace BatmanInfer {
         _reshape_3_f.run();
         _transpose_3_f.run();
         _mul_2_f.run();
-        _matmul_1_f.run();
-        _add_f.run();
+        _gemm_fuse_f.run();
         _softmax_layer.run();
         _matmul_2_f.run();
         _transpose_final_f.run();
         _reshape_final_f.run();
         _gemm_final_f.run();
         _copy_f.run(); // 运行拷贝
-
-//        _reshape.run();
-
-//        _reshape_output.print(_reshape_output)
-
-//        _gemm_state_f.run();
-//
-////        _reshape2.run();
-//
-//        _split_layer.run();
-//
-//        // 进行第一个Split推理分支进行切分
-//        _reshape_split_0.run();
-//        _transpose_split_0.run();
-//
-//        // 进行第二个Split推理分支进行运行
-//        _reshape_split_1.run();
-//        _transpose_split_1.run();
-//        _mul_op_0.run();
-//
-//        // 进行第三个Split推理分支进行运行
-//        _reshape_split_2.run();
-//        _transpose_split_2.run();
-//        _mul_op_1.run();
-//
-//        // 进行合并矩阵计算
-//        _matmul_op.run();
-//
-//        // 进行矩阵的相加
-//        _add_op.run();
-//
-//        // 进行softmax运算
-//        _softmax_layer.run();
-//
-//        // 结果进行最后的矩阵计算
-//        _matmul_op1.run();
-//
-//        // 进行transpose
-//        _transpose_sum.run();
-//
-//        // 运行reshape: 16x12x64 -> 16x768
-//        _reshape_sum_layer.run();
-//
-//        // 进行gemm运算
-//        _gemm_state_sum_layer.run();
-
-//        _final_reshape_layer.run();
 
     }
 

@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 # 指定标准库为 libc++
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+option(ENABLE_BENCHMARK "For enable benchmark" OFF)
 
 # 检查目标平台
 if (ANDROID)
@@ -120,6 +121,7 @@ else ()
 
 endif ()
 
+
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DBI_COMPUTE_DISABLE_THREADS_HINT -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DBI_COMPUTE_ENABLE_FP16  -DBI_COMPUTE_ENABLE_BF16 -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DENABLE_FP16_KERNELS -DENABLE_QASYMM8_KERNELS")
 
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g -gdwarf-2  -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DBI_COMPUTE_ENABLE_FP16  -DBI_COMPUTE_ENABLE_BF16 -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DENABLE_FP16_KERNELS -DENABLE_QASYMM8_KERNELS")
@@ -135,6 +137,16 @@ FetchContent_Declare(
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
+
+if (ENABLE_BENCHMARK)
+    # 获取Google Benchmark
+    include(FetchContent)
+    FetchContent_Declare(
+            googlebenchmark
+            GIT_REPOSITORY https://github.com/google/benchmark.git
+            GIT_TAG v1.8.0)
+    FetchContent_MakeAvailable(googlebenchmark)
+endif ()
 
 # 查找OpenCV库
 find_package(OpenCV REQUIRED)
@@ -163,6 +175,11 @@ file(GLOB_RECURSE RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/runtime/*.c
 file(GLOB_RECURSE CPU_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/cpu/*.cpp)
 file(GLOB_RECURSE COMMON_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/common/*.cpp)
 file(GLOB_RECURSE C_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/c/*.cpp)
+if (ENABLE_BENCHMARK)
+    file(GLOB_RECURSE BENCHMARK_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/benchmark/*.cpp)
+else ()
+    file(GLOB_RECURSE BENCHMARK_SOURCES "")
+endif ()
 
 add_executable(BatmanInfer main.cpp
         test/tensor_get_values.cpp
@@ -175,29 +192,20 @@ add_executable(BatmanInfer main.cpp
         test/test_neon_operator.cpp
         source/utils/utils.cpp
         test/test_perf_model.cpp
-        #        test/test_onnx.cpp
-        #        source/others/utils.cpp
-        #        source/onnx_conv/OnnxUtils.cpp
-        #        source/ir.cpp
-        #        source/runtime_attr.cpp
-        #        source/runtime_op.cpp
-        #        source/runtime_ir.cpp
-        #        source/tensor_util.cpp
-        #        test/test_topo.cpp
-        #        source/operators/batman_operator.cpp
-        #        source/layer/abstract/layer.cpp
-        #        source/layer/abstract/layer_factory.cpp
-        #        source/layer/abstract/param_layer.cpp
-        #        source/layer/detail/relu.cpp
-        #        source/layer/detail/softmax.cpp
-        #        source/layer/detail/sigmoid.cpp
-        #        source/layer/detail/maxpooling.cpp
-        #        test/test_halide_drom.cpp
-        #        source/layer/detail/convolution.cpp
-        #        test/test_convolution.cpp
-        #        test/test_resnt.cpp
-        #        source/runtime/bi_memory.cpp
+        ${BENCHMARK_SOURCES}
 )
+
+if (ENABLE_BENCHMARK)
+    add_executable(matmul_benchmark      # 基准测试程序
+            benchmark/benchmark_test/matmul_op_test.cpp
+            ${SOURCES}
+            ${RUNTIME_SOURCES}
+            ${CPU_SOURCES}
+            ${C_SOURCES}
+            ${COMMON_SOURCES}
+            source/utils/utils.cpp
+    )
+endif ()
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer
@@ -215,6 +223,22 @@ target_link_libraries(BatmanInfer
 
 if (ANDROID)
     target_link_libraries(BatmanInfer OpenMP::OpenMP_CXX)
+endif ()
+
+if (ENABLE_BENCHMARK)
+    target_link_libraries(matmul_benchmark
+            ${ONNX_LIBRARIES}/libonnx_proto.a
+            GTest::gtest_main
+            ${ARMADILLO_LIBRARIES}
+            ${GLOG_LIBRARIES}
+            ${Protobuf_LIBRARIES}
+            ${OpenCV_LIBS}
+            ${ONNX_LIBRARIES}/libonnx.a
+            ${OpenMP_omp_LIBRARY}
+            ${ABSEL_LIBARARY}
+            ${UTF8RANGE_LIBRARY}
+            benchmark::benchmark
+    )
 endif ()
 
 # 添加测试
