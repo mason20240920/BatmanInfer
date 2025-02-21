@@ -444,10 +444,10 @@ TEST(BatmanInferLayer, GEMMLayerTest) {
     const BITensorShape weight_shape(2304, 768);
     const BITensorShape output_shape(2304, 10, 5);
     const BITensorShape bias_shape(2304);
-    auto input = utils::create_tensor(input_shape);
-    auto weight = utils::create_tensor(weight_shape);
-    auto output = utils::create_tensor(output_shape);
-    auto bias = utils::create_tensor(bias_shape);
+    auto input = utils::create_tensor(input_shape, nullptr);
+    auto weight = utils::create_tensor(weight_shape, nullptr);
+    auto output = utils::create_tensor(output_shape, nullptr);
+    auto bias = utils::create_tensor(bias_shape, nullptr);
 
     fill_new_tensor_val(input, static_cast<float16_t>(1));
     fill_new_tensor_val(weight, static_cast<float16_t>(1));
@@ -523,7 +523,7 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
     PermutationVector perm2{2, 0, 1, 3};
     PermutationVector perm_final{0, 2, 1, 3};
 
-    const auto input = utils::create_tensor(input_shape);
+    const auto input = utils::create_tensor(input_shape, nullptr);
     const auto gamma = utils::create_npy_tensor("./input_res/rms_attention_1.npy", gamma_shape);
     const auto fc_weights = utils::create_npy_tensor("./input_res/mlp_c_fc_weight.npy",
                                                      fc_weights_shape);
@@ -532,7 +532,7 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
                                                        proj_weights_shape2);
     const auto proj_bias = utils::create_npy_tensor("./input_res/mlp_c_proj_bias.npy",
                                                     proj_bias_shape2);
-    auto output = utils::create_tensor(output_shape);
+    auto output = utils::create_tensor(output_shape, nullptr);
     const auto weights = utils::create_npy_tensor("./input_res/attn_c_attn_weight.npy",
                                                   weights_shape);
     const auto bias = utils::create_npy_tensor("./input_res/attn_c_attn_bias.npy", bias_shape);
@@ -540,13 +540,13 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
                                                    weights_shape2);
     const auto bias2 = utils::create_npy_tensor("./input_res/attn_c_proj_bias_2.npy", bias_shape2);
     const auto gamma2 = utils::create_npy_tensor("./input_res/mlp_ln_2_weight.npy", gamma_shape);
-    const auto scalar = utils::create_tensor(scalar_shape);
+    const auto scalar = utils::create_tensor(scalar_shape, nullptr);
     const auto add_tensor = utils::create_npy_tensor("./input_res/_attn_Where_output_0.npy", add_shape);
 
     // 加法结果
-    auto add_temp_out = utils::create_tensor(input_shape);
-    auto ffn_out = utils::create_tensor(input_shape);
-    auto final_out = utils::create_tensor(input_shape);
+    auto add_temp_out = utils::create_tensor(input_shape, nullptr);
+    auto ffn_out = utils::create_tensor(input_shape, nullptr);
+    auto final_out = utils::create_tensor(input_shape, nullptr);
 
     fill_new_tensor_val(scalar, static_cast<float16_t>(0.3535533845424652));
     std::vector<float16_t> input_data(768 * 16);

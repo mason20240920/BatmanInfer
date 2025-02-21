@@ -567,6 +567,10 @@ namespace BatmanGemm {
             }
         }
 
+        void set_dynamic_M_size(int M_size) {
+            // TODO: For future dynamic
+        }
+
         // Accumulation buffer size
         size_t get_accumulation_buffer_size() const {
             // We only support an accumulation buffer for non-merge cases.

@@ -28,10 +28,12 @@ namespace BatmanInfer {
             loader.fill_tensor(tensor);
         }
 
-        BITensor create_tensor(const BITensorShape &shapes) {
+        BITensor create_tensor(const BITensorShape &shapes, BIMemoryGroup *group) {
             const BITensorInfo input_info(shapes, 1, BIDataType::F16);
             BITensor input;
             input.allocator()->init(input_info);
+            if (group != nullptr)
+                group->manage(&input);
             input.allocator()->allocate();
             return input;
         }

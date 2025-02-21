@@ -122,6 +122,10 @@ namespace BatmanGemm {
             return true;
         }
 
+        void set_dynamic_M_size(int M_size) {
+            // TODO: fixed for future
+        }
+
         // Stateless execute
         void execute_stateless(const ndcoord_t &work_range, const ndcoord_t &, int,
                                BIGemmArrays<To, To, Tr> &g_array) override {

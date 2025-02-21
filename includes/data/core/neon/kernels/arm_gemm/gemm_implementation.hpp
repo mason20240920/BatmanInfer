@@ -347,6 +347,7 @@ namespace BatmanGemm {
     bool has_opt_gemm(WeightFormat &wf, const GemmArgs &args, const OutputStage &os) {
         const GemmImplementation<Tlop, Trop, Tret, OutputStage> *impl;
         const bool success = find_implementation<Tlop, Trop, Tret, OutputStage>(args, os, impl);
+        // TODO [!!!Important] check your gemm best shape for calculating
         if (success)
             wf = UniqueGemmCommon<Tlop, Trop, Tret>(impl->do_instantiate(args, os))->get_config().weight_format;
         return success;

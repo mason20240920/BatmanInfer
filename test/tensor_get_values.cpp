@@ -512,15 +512,15 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     // Basic using
     using namespace BatmanInfer;
 
-    BatmanInfer::BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
+    BatmanInfer::BIScheduler::get().set_num_threads(4);
 
     // 输入张量 A, B, C 和输出张量D
     BITensor a, b, c, d;
 
     // 配置张量的形状 (假设矩阵 A 是 MxK，矩阵 B 是 KxN）
-    unsigned int M = 16; // 矩阵A的行数
-    const unsigned int K = 768; // 矩阵A的列数，矩阵B的行数
-    const unsigned int N = 3072; // 矩阵B的列数
+    unsigned int M = 1; // 矩阵A的行数
+    const unsigned int K = 5; // 矩阵A的列数，矩阵B的行数
+    const unsigned int N = 5; // 矩阵B的列数
 
     // 配置张量的形状和数据类型
     BITensorInfo a_info(BITensorShape(K, M, 2), 1, BIDataType::F16);  // 矩阵 A
@@ -553,15 +553,15 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     // 示例：填充张量 A 的数据
     auto a_data = reinterpret_cast<float16_t *>(a.buffer());
     for (unsigned int i = 0; i < M * K * 2; ++i) {
-        a_data[i] = static_cast<float16_t>(i);  // 填充一些测试数据
+        a_data[i] = static_cast<float16_t>(i) * 0.1;  // 填充一些测试数据
     }
     auto b_data = reinterpret_cast<float16_t *>(b.buffer());
     for (unsigned int i = 0; i < K * N; ++i) {
-        b_data[i] = static_cast<float16_t>(i * 0.1);  // 填充一些测试数据
+        b_data[i] = static_cast<float16_t>(i) * 0.01;  // 填充一些测试数据
     }
     auto c_data = reinterpret_cast<float16_t *>(c.buffer());
     for (unsigned int i = 0; i < N; ++i) {
-        c_data[i] = static_cast<float16_t>(1);  // 填充一些测试数据
+        c_data[i] = static_cast<float16_t>(0.1);  // 填充一些测试数据
     }
 
     BIIOFormatInfo format;
@@ -592,11 +592,15 @@ TEST(BITensor, NEGEMM_exmaple_01) {
 
     std::cout << "============================================================" << std::endl;
 
-//    d.allocator()->free();
-//    a.allocator()->free();
+    d.allocator()->free();
+    a.allocator()->free();
+//    c.allocator()->free();
 
     // 进行形状修改
-    M = 15;
+    M = 3;
+
+    // 记录开始时间点
+    start = std::chrono::high_resolution_clock::now();
 
     a_info = BITensorInfo(BITensorShape(K, M, 2), 1, BIDataType::F16);  // 矩阵 A
     d_info = BITensorInfo(BITensorShape(N, M, 2), 1, BIDataType::F16);  // 输出矩阵 D
@@ -613,9 +617,15 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     for (unsigned int i = 0; i < M * K * 2; ++i) {
         a_data[i] = static_cast<float16_t>(i * 2);  // 填充一些测试数据
     }
+//    c_data = reinterpret_cast<float16_t *>(c.buffer());
+//    for (unsigned int i = 0; i < N; ++i) {
+//        c_data[i] = static_cast<float16_t>(1);  // 填充一些测试数据
+//    }
 
-    // 记录开始时间点
-    start = std::chrono::high_resolution_clock::now();
+    a.print(std::cout, format);
+
+//    // 记录开始时间点
+//    start = std::chrono::high_resolution_clock::now();
 
     // 调用需要测试的函数
     gemm.run();
@@ -628,9 +638,9 @@ TEST(BITensor, NEGEMM_exmaple_01) {
 
     // 打印结果
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
-
-
-    // 访问输出数据
+//
+//
+//    // 访问输出数据
     d.print(std::cout, format);
 
 }

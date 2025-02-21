@@ -88,7 +88,7 @@ namespace BatmanInfer {
                         workspace.end());
     }
 
-/** Allocate all tensors with Persistent or Prepare lifetime if not already allocated */
+    /** Allocate all tensors with Persistent or Prepare lifetime if not already allocated */
     template<typename TensorType>
     void allocate_tensors(const experimental::BIMemoryRequirements &mem_reqs, WorkspaceData<TensorType> &workspace) {
         for (auto &ws: workspace) {
@@ -105,7 +105,7 @@ namespace BatmanInfer {
         }
     }
 
-/** Utility function to release tensors with lifetime marked as Prepare */
+    /** Utility function to release tensors with lifetime marked as Prepare */
     template<typename TensorType>
     void release_temporaries(const experimental::BIMemoryRequirements &mem_reqs, WorkspaceData<TensorType> &workspace) {
         for (auto &ws: workspace) {

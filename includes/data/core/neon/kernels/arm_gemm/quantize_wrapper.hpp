@@ -135,6 +135,10 @@ namespace BatmanGemm {
             _args._maxthreads = nthreads;
         }
 
+        void set_dynamic_M_size(int M_size) override {
+            // TODO: fixed for the future
+        }
+
         // TODO: Make this actually stateless. This still uses the stateful
         // execution data because it requires a workspace which would also need to
         // be handled statelessly.

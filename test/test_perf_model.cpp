@@ -44,8 +44,9 @@ PerfStats measure_performance(BIIFunction *obj,
 }
 
 TEST(ModelPerfTest, GPT2Perf) {
-    BIScheduler::set(BIScheduler::Type::OMP);
+//    BIScheduler::set(BIScheduler::Type::OMP);
     BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
+    BIMemoryGroup group{BIMemoryManagerOnDemand::make_default()};
     // 先确定需要的算子
     BINEAttentionLayer attention_layer;
     BINEArithmeticAddition add_f;
@@ -94,7 +95,7 @@ TEST(ModelPerfTest, GPT2Perf) {
     PermutationVector perm2{2, 0, 1, 3};
     PermutationVector perm_final{0, 2, 1, 3};
 
-    auto input = utils::create_tensor(input_shape);
+    auto input = utils::create_tensor(input_shape, nullptr);
     const auto gamma = utils::create_npy_tensor("./input_res/rms_attention_1.npy", gamma_shape);
     const auto fc_weights = utils::create_npy_tensor("./input_res/mlp_c_fc_weight.npy",
                                                      fc_weights_shape);
@@ -103,7 +104,7 @@ TEST(ModelPerfTest, GPT2Perf) {
                                                        proj_weights_shape2);
     const auto proj_bias = utils::create_npy_tensor("./input_res/mlp_c_proj_bias.npy",
                                                     proj_bias_shape2);
-    auto output = utils::create_tensor(output_shape);
+    auto output = utils::create_tensor(output_shape, nullptr);
     const auto weights = utils::create_npy_tensor("./input_res/attn_c_attn_weight.npy",
                                                   weights_shape);
     const auto bias = utils::create_npy_tensor("./input_res/attn_c_attn_bias.npy", bias_shape);
@@ -111,13 +112,13 @@ TEST(ModelPerfTest, GPT2Perf) {
                                                    weights_shape2);
     const auto bias2 = utils::create_npy_tensor("./input_res/attn_c_proj_bias_2.npy", bias_shape2);
     const auto gamma2 = utils::create_npy_tensor("./input_res/mlp_ln_2_weight.npy", gamma_shape);
-    const auto scalar = utils::create_tensor(scalar_shape);
+    const auto scalar = utils::create_tensor(scalar_shape, nullptr);
     const auto add_tensor = utils::create_npy_tensor("./input_res/_attn_Where_output_0.npy", add_shape);
 
     // 加法结果
-    auto add_temp_out = utils::create_tensor(input_shape);
-    auto ffn_out = utils::create_tensor(input_shape);
-    auto final_out = utils::create_tensor(input_shape);
+    auto add_temp_out = utils::create_tensor(input_shape, nullptr);
+    auto ffn_out = utils::create_tensor(input_shape, nullptr);
+    auto final_out = utils::create_tensor(input_shape, nullptr);
 
     fill_model_tensor_val(scalar, static_cast<float16_t>(0.3535533845424652));
 
@@ -222,4 +223,12 @@ TEST(ModelPerfTest, GPT2Perf) {
               << "Std Dev:    " << perf_status.std_dev_ms << " ms\n"
               << "Min Time:   " << perf_status.min_ms << " ms\n"
               << "Max Time:   " << perf_status.max_ms << " ms\n";
+}
+
+TEST(ModelPerfTest, KVCaches) {
+    // 1. 预分配缓存空间（示例为最大长度128）
+    size_t head_dim = 4;
+    size_t num_heads = 2;
+    BITensor k_cache;
+    BITensorInfo cache_info(BITensorShape(head_dim, num_heads, 128), 1, BIDataType::F16);
 }

@@ -416,6 +416,14 @@ namespace BatmanGemm {
             _args._cfg = nullptr;
         }
 
+        /**
+         * Dynamic set M size in runtime (fixed for DeepSeek-V3)
+         * @param M_size
+         */
+        void set_dynamic_M_size(int M_size) {
+            _args._Msize = M_size;
+        }
+
         // Interface implementation - Compulsory functions
         ndrange_t get_window_size() const override {
             return {_window_range.total_size()};
