@@ -178,22 +178,22 @@ namespace BatmanInfer {
                                     const BIActivationLayerInfo &act_info) {
             BI_COMPUTE_ERROR_ON_NULLPTR(lhs, rhs, dst);
             BI_COMPUTE_LOG_PARAMS(lhs, rhs, dst, info, settings);
-            BI_COMPUTE_ERROR_THROW_ON(BICpuMatMul::validate(lhs, rhs, dst, info, settings));
+            BI_COMPUTE_ERROR_THROW_ON(BICpuMatMul::validate(lhs, rhs, dst, info, settings)); // 先验证能不能使用MatMul
 
             _adj_lhs = info.adj_lhs();
             _adj_rhs = info.adj_rhs();
             _fast_math = settings.fast_math();
 
-            // 1. Create and reshape tensors
+            // 1. 创建和重置张量
             // ------------------------------------------------------
-            // a. Clone TensorInfo to prevent changing original tensor values during setup
-            // b. Change shape of lhs/dst to [x, y, 1, collapsed(z)] to match assembly kernel configuration
+            // a. 初始化阶段拷贝TensorInfo信息，防止修改输入张量被修改
+            // b. 修改lhs/dst的数据格式到[x, y, 1, collapsed(z)]适配汇编核 kernel configuration
             // c. For rhs collapse all dimensions larger than 3 to z dimension
             BITensorInfo lhs_to_use = *lhs->clone();
             BITensorInfo dst_to_use = *dst->clone();
             BITensorInfo rhs_to_use = *rhs->clone();
 
-            // Save starting shape of tensors
+            // 保存初始时候的张量形状信息
             _original_lhs_shape = lhs_to_use.tensor_shape();
             _original_dst_shape = dst_to_use.tensor_shape();
             _original_rhs_shape = rhs_to_use.tensor_shape();
@@ -207,7 +207,7 @@ namespace BatmanInfer {
                                   _original_dst_shape.collapsed_from(2).z()));
             rhs_to_use.set_tensor_shape(_original_rhs_shape.collapsed_from(2));
 
-            // 2.  Configuration for transpose of lhs/rhs
+            // 2.  配置AB矩阵的转置
             // ------------------------------------------------------
             // Initialise transposed TensorInfo class for aux tensors (intermediary tensors)
             if (_adj_lhs) {
@@ -260,7 +260,7 @@ namespace BatmanInfer {
                 _gemm_info.fast_mode = BatmanInfer::is_fixed_format_fast_math(expected_weight_format);
             }
 
-            // Configure Asm Kernel
+            // 配置汇编核
             _asm_glue = std::make_unique<cpu::BICpuGemmAssemblyDispatch>();
             _asm_glue->configure(&lhs_to_use, &rhs_to_use, nullptr, &dst_to_use,
                                  _gemm_info); // c is nullptr as bias not supported in MatMul

@@ -660,18 +660,30 @@ namespace BatmanGemm {
             return args._Ksections * roundup(args._Ksize, strategy::k_unroll());
         }
 
+        /***
+         * 计算GEMM运算中K维度的分块大小 (K-blocking策略)
+         *
+         * @desc:
+         *      核心逻辑分成三个阶段:
+         *      1. 优先使用用户的配置的内部分块大小
+         *      2. 针对ARM SME架构的特殊优化
+         *      3. 通用缓存优化
+         *
+         * @param args GEMM运算参数集合，包含硬件配置和问题规格
+         * @return K维度的最佳分块大小
+         */
         static unsigned int get_k_block_size(const GemmArgs &args) {
+            // 第一阶段：优先使用用户配置的固定分块大小
             if (args._cfg && args._cfg->inner_block_size) {
                 return roundup(args._cfg->inner_block_size, strategy::k_unroll());
             }
 
-            // K blocking not supported if we are requantizing with the merging
-            // kernels.
+            // 特殊处理：量化融合操作时不进行K分块
             if (std::is_same<OutputStage, Requantize32>::value && MergeStep) {
                 return get_ktotal(args);
             }
 
-            const unsigned int L1_size = args._ci->get_L1_cache_size();
+            const unsigned int L1_size = args._ci->get_L1_cache_size(); // 获取L1缓存容量
 
             // Special blocking for SME
             if (is_sme<strategy>::value) {
@@ -702,24 +714,30 @@ namespace BatmanGemm {
                 return k_block;
             }
 
+            // 第三阶段：通用缓存优化策略
             unsigned int k_block;
 
             // k_block: Find out how much of the larger array can be loaded into half the cache.
             // This should account for associative caches.
+            // 计算基础块大小：L1缓存半容量 / (元素大小 * 最大输出维度)
+            // L1_size / 2 一半放张量A的块, 一半放张量B的块
+            // sizeof(Tloi) 数据元素大小
             k_block = (L1_size / 2) / (sizeof(Tloi) * (std::max(strategy::out_width(), strategy::out_height())));
 
             // Needs to be (at least a single) multiple of the K unroll level.
+            // 向量化对齐(确保每次处理的数据量是向量化宽度的整数倍)
             k_block /= strategy::k_unroll();
             k_block = std::max(k_block, 1U) * strategy::k_unroll();
 
             // Now tune to presented problem size; this is how many blocks we need.
-            unsigned int num_k_blocks = iceildiv(get_ktotal(args), k_block);
+            // 动态分组计算: (根据总工作量(total_k)和单次处理能力(k_block)计算分组数)
+            unsigned int num_k_blocks = iceildiv(get_ktotal(args), k_block); // 计算理论分块数
 
             // So divide the space equally into that many blocks.
-            k_block = iceildiv(get_ktotal(args), num_k_blocks);
+            k_block = iceildiv(get_ktotal(args), num_k_blocks); // 重新计算实际块大小
 
             // And round UP to the K unroll level required.
-            k_block = roundup(k_block, strategy::k_unroll());
+            k_block = roundup(k_block, strategy::k_unroll()); // 最终对齐调整
 
             assert(k_block > 0);
 
@@ -1374,7 +1392,7 @@ namespace BatmanGemm {
         // Estimate cycles for given problem given provided parameters
         template<typename perf_type>
         static uint64_t estimate_cycles(const GemmArgs &args) {
-            unsigned int k_blocks = iceildiv(args._Ksize, get_k_block_size(args));
+            unsigned int k_blocks = iceildiv(args._Ksize, get_k_block_size(args)); // 计算A的x轴维度的切分(列)的块数量
 
             const PerformanceParameters &params = strategy::template get_performance_parameters<perf_type>(args._ci);
 

@@ -77,7 +77,7 @@ namespace BatmanGemm {
                 [](const GemmArgs &args) { return GemmInterleaved<cls_sve_interleaved_fp16_mla_8x3VL, __fp16, __fp16, __fp16>::estimate_cycles<__fp16>(args); },
                 [](const GemmArgs &args) { return new GemmInterleaved<cls_sve_interleaved_fp16_mla_8x3VL, __fp16, __fp16, __fp16>(args); }
             ),
-#ifdef ARM_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS
+#ifdef BI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS
             GemmImplementation<__fp16, __fp16, __fp16>::with_estimate(
                 GemmMethod::GEMM_INTERLEAVED,
                 "sve_ffinterleaved_fp16_mla_8x3VL",
@@ -94,8 +94,8 @@ namespace BatmanGemm {
                 [](const GemmArgs &args) { return GemmHybridIndirectFixedFormat<cls_sve_ffhybrid_fp16_mla_6x4VL, __fp16, __fp16>::estimate_cycles<__fp16>(args); },
                 [](const GemmArgs &args) { return new GemmHybridIndirectFixedFormat<cls_sve_ffhybrid_fp16_mla_6x4VL, __fp16, __fp16>(args); }
             ),
-#endif // ARM_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS
-#endif // ARM_COMPUTE_ENABLE_SVE
+#endif // BI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS
+#endif // BI_COMPUTE_ENABLE_SVE
 #if defined(__aarch64__)
             GemmImplementation<__fp16, __fp16, __fp16>::with_estimate(
                     GemmMethod::GEMM_HYBRID,

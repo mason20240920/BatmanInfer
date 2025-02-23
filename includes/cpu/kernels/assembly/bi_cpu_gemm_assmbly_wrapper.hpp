@@ -39,7 +39,7 @@ namespace BatmanInfer {
                  * 构造函数
                  * @return
                  */
-                BICpuGemmAssemblyWrapperKernel() : _kernel(nullptr), _name("CpuGemmAssemblyWrapperKernel") {
+                BICpuGemmAssemblyWrapperKernel() : _kernel(nullptr), _name("BICpuGemmAssemblyWrapperKernel") {
                 }
 
                 BICpuGemmAssemblyWrapperKernel(BICpuGemmAssemblyWrapperKernel
@@ -87,7 +87,7 @@ namespace BatmanInfer {
                     const auto *bias = reinterpret_cast<const TypeOutput *>(tensors.get_tensor(ACL_SRC_2)->buffer());
                     auto *Cptr = reinterpret_cast<TypeOutput *>(tensors.get_tensor(ACL_DST)->buffer());
                     // dynamic set M size
-                    const auto Msize = tensors.get_tensor(ACL_SRC_0)->info()->tensor_shape().x();
+                    const auto Msize = tensors.get_tensor(ACL_SRC_0)->info()->tensor_shape().y();
 
                     BI_COMPUTE_ERROR_ON_NULLPTR(Aptr, Cptr);
 

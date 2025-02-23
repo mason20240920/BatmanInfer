@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <iostream>
 
 namespace BatmanGemm {
     /* Structure describing an implementation.  For each supported combination
@@ -247,7 +248,7 @@ namespace BatmanGemm {
 
 
     /**
-     * 用给定的参数选择一个GEMM的实现汇编代码
+     * 用给定的参数选择一个GEMM的实现汇编代码(其中用评估function进行运行计算)
      *
      * 本逻辑从候选列表中选取满足以下条件的实现方法：
      * 1. 支持请求的问题参数
@@ -276,6 +277,7 @@ namespace BatmanGemm {
         const GemmImplementation<Tlop, Trop, Tret, OutputStage> *saved_impl = nullptr;
         uint64_t best_estimate = 0;
 
+        // 根据评估函数给出效率最高的汇编内核Kernel
         for (const GemmImplementation<Tlop, Trop, Tret, OutputStage> *i = gemms;
              i->method != GemmMethod::DEFAULT; i++) {
             /* Skip if this implementation doesn't support these args. */

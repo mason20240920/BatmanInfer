@@ -422,6 +422,10 @@ namespace BatmanGemm {
          */
         void set_dynamic_M_size(int M_size) {
             _args._Msize = M_size;
+            if (_Mround < _args._Msize)
+                throw "M size is not corporate";
+            _window_range = BINDRange<4>{iceildiv(_args._Msize, strategy::out_height()), _args._nbatches,
+                                         iceildiv(_args._Nsize, _n_block), _args._nmulti};
         }
 
         // Interface implementation - Compulsory functions
@@ -500,9 +504,10 @@ namespace BatmanGemm {
                     return;
                 }
 
-                // Process rows either 'out_height' rows at a time, or do all valid rows at once with a single kernel call.
-                // The separate quantizer path only handles one block of rows at a time (as it has to store sums and intermediate results).
-                // THe convolution path only generates the pointers for one block of rows at a time.
+                // 处理图像行时有两种方式：可以每次处理 'out_height' 行，
+                // 或者通过单次内核调用一次性处理所有有效行。
+                // 独立的量化器路径每次仅处理一个行块（需要存储求和结果及中间值），
+                // 而卷积路径每次仅生成一个行块的指针
                 const bool process_all_rows = (!SeparateQuantize && !_convolver);
 
                 do {

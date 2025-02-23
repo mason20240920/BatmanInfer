@@ -512,7 +512,7 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     // Basic using
     using namespace BatmanInfer;
 
-    BatmanInfer::BIScheduler::get().set_num_threads(4);
+    BatmanInfer::BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
 
     // 输入张量 A, B, C 和输出张量D
     BITensor a, b, c, d;
@@ -541,7 +541,7 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     float alpha = 1.0f;  // 矩阵乘积的权重
     float beta = 1.0f;   // 矩阵 C 的权重（如果不需要 C，可以设置为 0）
 
-    GEMMInfo gemm_info;
+    GEMMInfo gemm_info(false, false, false);
     gemm.configure(&a, &b, &c, &d, alpha, beta, gemm_info);
 
     // 分配内存(为张量分配内存)
@@ -553,15 +553,15 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     // 示例：填充张量 A 的数据
     auto a_data = reinterpret_cast<float16_t *>(a.buffer());
     for (unsigned int i = 0; i < M * K * 2; ++i) {
-        a_data[i] = static_cast<float16_t>(i) * 0.1;  // 填充一些测试数据
+        a_data[i] = static_cast<float16_t>(i * 2 + 0.1);  // 填充一些测试数据
     }
     auto b_data = reinterpret_cast<float16_t *>(b.buffer());
     for (unsigned int i = 0; i < K * N; ++i) {
-        b_data[i] = static_cast<float16_t>(i) * 0.01;  // 填充一些测试数据
+        b_data[i] = static_cast<float16_t>(i + 0.1);  // 填充一些测试数据
     }
     auto c_data = reinterpret_cast<float16_t *>(c.buffer());
-    for (unsigned int i = 0; i < N; ++i) {
-        c_data[i] = static_cast<float16_t>(0.1);  // 填充一些测试数据
+    for (unsigned int i = 0; i < N * M * 2; ++i) {
+        c_data[i] = static_cast<float16_t>(1.111f);  // 填充一些测试数据
     }
 
     BIIOFormatInfo format;
@@ -572,6 +572,7 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     // 打印数据
     a.print(std::cout, format);
     b.print(std::cout, format);
+    c.print(std::cout, format);
 
     // 记录开始时间点
     auto start = std::chrono::high_resolution_clock::now();
@@ -606,7 +607,6 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     d_info = BITensorInfo(BITensorShape(N, M, 2), 1, BIDataType::F16);  // 输出矩阵 D
     a.allocator()->init(a_info);
     d.allocator()->init(d_info);
-//    d = BITensor(d_info);
 
 
     a.allocator()->allocate();
@@ -615,17 +615,8 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     // 示例：填充张量 A 的数据
     a_data = reinterpret_cast<float16_t *>(a.buffer());
     for (unsigned int i = 0; i < M * K * 2; ++i) {
-        a_data[i] = static_cast<float16_t>(i * 2);  // 填充一些测试数据
+        a_data[i] = static_cast<float16_t>(float(i / 2) + +0.1f);  // 填充一些测试数据
     }
-//    c_data = reinterpret_cast<float16_t *>(c.buffer());
-//    for (unsigned int i = 0; i < N; ++i) {
-//        c_data[i] = static_cast<float16_t>(1);  // 填充一些测试数据
-//    }
-
-    a.print(std::cout, format);
-
-//    // 记录开始时间点
-//    start = std::chrono::high_resolution_clock::now();
 
     // 调用需要测试的函数
     gemm.run();
@@ -638,11 +629,13 @@ TEST(BITensor, NEGEMM_exmaple_01) {
 
     // 打印结果
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
-//
-//
-//    // 访问输出数据
+    // 访问输出数据
     d.print(std::cout, format);
-
+    auto d_data = reinterpret_cast<float16_t *>(d.buffer());
+    for (unsigned int i = 0; i < M * K * 2; ++i) {
+        auto ret = d_data[i];
+        std::cout << ret << "\t";
+    }
 }
 
 TEST(BITensor, NESplit_example_02) {
@@ -718,10 +711,15 @@ void print_tensor_qasymm8(const BITensor &tensor) {
 }
 
 TEST(BITensor, NEMatMul_example_01) {
+    int batch_size = 5;
+    int sequence_len = 1;
+    int kv_one_len = 1;
+    int head_num = 12;
+    int head_dim = 64;
     // 定义输入和输出张量的形状
-    BITensorShape shape_a(3, 2, 1); // 左矩阵 (3x2)
-    BITensorShape shape_b(4, 2, 1); // 右矩阵 (4x2)，需要转置为 (2x4)
-    BITensorShape shape_c(4, 3, 1); // 输出矩阵 (4x3)
+    BITensorShape shape_a(head_dim, kv_one_len, head_num, batch_size); // 左矩阵 (3x2)
+    BITensorShape shape_b(sequence_len, head_dim, head_num, batch_size); // 右矩阵 (4x2)，需要转置为 (2x4)
+    BITensorShape shape_c(sequence_len, kv_one_len, head_num, batch_size); // 输出矩阵 (4x3)
 
     // 创建输入和输出张量
     BITensor tensor_a, tensor_b, tensor_c;
@@ -735,7 +733,7 @@ TEST(BITensor, NEMatMul_example_01) {
     tensor_b.info()->set_are_values_constant(false);
     // 定义 MatMul 配置信息
     BIMatMulInfo matmul_info; // 不转置左矩阵，转置右矩阵
-    matmul_info.adj_lhs(true).adj_rhs(false);
+    matmul_info.adj_lhs(false).adj_rhs(false);
     BICpuMatMulSettings settings;
     settings.fast_math(true); // 启用快速数学模式
 
@@ -763,28 +761,30 @@ TEST(BITensor, NEMatMul_example_01) {
         b_ptr[i] = 128 + 2 * i; // 示例数据
     }
 
+    matmul.run();
+
     print_tensor_qasymm8(tensor_a);
 }
 
 TEST(BITensor, NEMatMul_example_02) {
     // 定义输入和输出张量的形状
-    BITensorShape shape_a(3, 2, 2, 1);
-    BITensorShape shape_b(4, 2, 2, 1);
-    BITensorShape shape_c(4, 3, 2, 1);
+    BITensorShape shape_a(3, 2, 2, 4);
+    BITensorShape shape_b(4, 3, 2, 4);
+    BITensorShape shape_c(4, 2, 2, 4);
 
     // 创建输入和输出张量
     BITensor tensor_a, tensor_b, tensor_c;
 
     // 配置张量
-    tensor_a.allocator()->init(BITensorInfo(shape_a, 1, BIDataType::F32));
-    tensor_b.allocator()->init(BITensorInfo(shape_b, 1, BIDataType::F32));
-    tensor_c.allocator()->init(BITensorInfo(shape_c, 1, BIDataType::F32));
+    tensor_a.allocator()->init(BITensorInfo(shape_a, 1, BIDataType::F16));
+    tensor_b.allocator()->init(BITensorInfo(shape_b, 1, BIDataType::F16));
+    tensor_c.allocator()->init(BITensorInfo(shape_c, 1, BIDataType::F16));
 
     tensor_a.info()->set_are_values_constant(false);
     tensor_b.info()->set_are_values_constant(false);
     // 定义 MatMul 配置信息
     BIMatMulInfo matmul_info; // 不转置左矩阵，转置右矩阵
-    matmul_info.adj_lhs(false).adj_rhs(true);
+    matmul_info.adj_lhs(false).adj_rhs(false);
     BICpuMatMulSettings settings;
     settings.fast_math(true); // 启用快速数学模式
 
@@ -803,13 +803,13 @@ TEST(BITensor, NEMatMul_example_02) {
     tensor_c.allocator()->allocate();
 
     // 填充输入张量数据
-    auto a_ptr = reinterpret_cast<float *>(tensor_a.buffer());
-    auto b_ptr = reinterpret_cast<float *>(tensor_b.buffer());
+    auto a_ptr = reinterpret_cast<float16_t *>(tensor_a.buffer());
+    auto b_ptr = reinterpret_cast<float16_t *>(tensor_b.buffer());
     for (int i = 0; i < shape_a.total_size(); ++i) {
-        a_ptr[i] = 1.0f; // 示例数据
+        a_ptr[i] = static_cast<float16_t>(1.0f); // 示例数据
     }
     for (int i = 0; i < shape_b.total_size(); ++i) {
-        b_ptr[i] = 2.0f; // 示例数据
+        b_ptr[i] = static_cast<float16_t>(2.0f); // 示例数据
     }
 
     matmul.run();

@@ -107,14 +107,14 @@ namespace BatmanInfer {
                         /* batches */ 1,
                         /* multis */ 1,
                         /* sections */ 1,
-                        /* indirect */ false};
+                        /* indirect */ false}; // 默认的是[M: 输出张量的y轴, 输出张量的x轴, 输入张量的x轴]
 
                 if (info.method == BIAsmConvMethod::Conv || info.method == BIAsmConvMethod::Indirect) {
                     p.indirect = true;
                     p.sections = b->tensor_shape()[2] * b->tensor_shape()[3];
                 } else {
-                    p.multis = b->tensor_shape().z();
-                    p.batches = d->tensor_shape().total_size_upper(2) / p.multis;
+                    p.multis = b->tensor_shape().z(); // b张量的三维的z轴(并行模块)
+                    p.batches = d->tensor_shape().total_size_upper(2) / p.multis; // d张量大于维度2, z轴以上的所有进行并行
                 }
 
                 // 更新M如果GEMM3D作为输出
@@ -1141,9 +1141,11 @@ namespace BatmanInfer {
                 const BIITensorInfo *a, const BIITensorInfo *b, const BIITensorInfo *c, BIITensorInfo *d,
                 const BIAsmGemmInfo &info) {
             BI_COMPUTE_ERROR_ON_NULLPTR(a, b, d);
-            BatmanGemm::Activation act = assembly_utils::map_to_batman_gemm_activation(info.activation_info);
+            BatmanGemm::Activation act = assembly_utils::map_to_batman_gemm_activation(
+                    info.activation_info); // 映射激活函数(从info到GEMM激活函数)
 
-            //If we don't support a combination of data types, silently return: it is the caller's responsibility to check if configure() was successful via is_configured()
+            //If we don't support a combination of data types, silently return: it is the caller's responsibility
+            // to check if configure() was successful via is_configured()
             if (!BICpuGemmAssemblyDispatch::validate(a, b, c, d, info)) {
                 return;
             }

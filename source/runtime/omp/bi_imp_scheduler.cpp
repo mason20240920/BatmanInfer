@@ -58,9 +58,9 @@ namespace BatmanInfer {
         BI_COMPUTE_ERROR_ON_MSG(hints.strategy() == BIStrategyHint::DYNAMIC,
                                 "Dynamic scheduling is not supported in OMPScheduler");
 
-        const BIWindow     &max_window    = window;
+        const BIWindow &max_window = window;
         const unsigned int num_iterations = max_window.num_iterations(hints.split_dimension());
-        const unsigned int mws            = kernel->get_mws(CPUInfo::get(), _num_threads);
+        const unsigned int mws = kernel->get_mws(CPUInfo::get(), _num_threads);
 
         // Ensure each thread has mws amount of work to do (i.e. ceil(num_iterations / mws) threads)
         const unsigned int candidate_num_threads = (num_iterations + mws - 1) / mws;
@@ -73,9 +73,9 @@ namespace BatmanInfer {
             info.cpu_info = &cpu_info();
             kernel->run_op(tensors, max_window, info);
         } else {
-            const unsigned int                    num_windows = num_threads;
+            const unsigned int num_windows = num_threads;
             std::vector<BIIScheduler::BIWorkload> workloads(num_windows);
-            for (unsigned int                     t           = 0; t < num_windows; t++) {
+            for (unsigned int t = 0; t < num_windows; t++) {
                 //Capture 't' by copy, all the other variables by reference:
                 workloads[t] = [t, &hints, &max_window, &num_windows, &kernel, &tensors](const ThreadInfo &info) {
                     BIWindow win = max_window.split_window(hints.split_dimension(), t, num_windows);
@@ -91,7 +91,7 @@ namespace BatmanInfer {
 
     void BIOMPScheduler::run_workloads(std::vector<BIWorkload> &workloads) {
         // 计算任务的总数，即 workloads 的大小，并将其存储在 amount_of_work 中
-        const auto         amount_of_work     = static_cast<unsigned int>(workloads.size());
+        const auto amount_of_work = static_cast<unsigned int>(workloads.size());
         // 线程数不能超过任务数，因此取两者的最小值
         const unsigned int num_threads_to_use = std::min(_num_threads, amount_of_work);
 
@@ -101,7 +101,7 @@ namespace BatmanInfer {
         // 存储线程相关的信息
         ThreadInfo info;
         // 当前 CPU 信息的指针
-        info.cpu_info    = &cpu_info();
+        info.cpu_info = &cpu_info();
         // 实际使用的线程数
         info.num_threads = static_cast<int>(num_threads_to_use);
 
