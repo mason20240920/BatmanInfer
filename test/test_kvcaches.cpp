@@ -89,12 +89,28 @@ TEST(KVCaches, NEGEMMCaches) {
     tensor_c.print(std::cout, format);
 }
 
+void match_info(BITensor &tensor, const std::vector<float16_t> &vec) {
+    auto shape = tensor.info()->tensor_shape().total_size();
+    auto tensor_data = reinterpret_cast<float16_t *>(tensor.buffer());
+    for (int i = 0; i < shape; i++) {
+        tensor_data[i] = vec[i];
+    }
+}
+
 TEST(KVCaches, DynamicGemm) {
+    BIScheduler::get().set_num_threads(1);
+    // 进行矩阵计算的KVCaches
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = true;     // 对齐列
+    int batch_size = 1;
+    int sequence_len = 2;
     // 测试动态输入NEGEMM的过程
-    BITensorShape tensor_a_shape(4, 4, 5);
-    BITensorShape tensor_b_shape(6, 4);
-    BITensorShape tensor_bias_shape(6);
-    BITensorShape tensor_d_shape(6, 4, 5);
+    BITensorShape tensor_a_shape(2, sequence_len, batch_size);
+    BITensorShape tensor_b_shape(4, 2);
+    BITensorShape tensor_bias_shape(4, sequence_len);
+    BITensorShape tensor_d_shape(4, sequence_len, batch_size);
 
     BITensorInfo tensor_a_info(tensor_a_shape, 1, BIDataType::F16);
     BITensorInfo tensor_b_info(tensor_b_shape, 1, BIDataType::F16);
@@ -115,6 +131,13 @@ TEST(KVCaches, DynamicGemm) {
     tensor_d.allocator()->allocate();
 
     // 进行赋值
+    std::vector<float16_t> data_a{1, 2, 3, 4};
+    std::vector<float16_t> data_b{1, 1, 1, 1, 1, 1, 1, 1};
+    std::vector<float16_t> data_bias{3, 3, 3, 3};
+    match_info(tensor_a, data_a);
+    match_info(tensor_b, data_b);
+    match_info(bias, data_bias);
+
 
 
     // 运行推理
@@ -124,10 +147,29 @@ TEST(KVCaches, DynamicGemm) {
 
     gemm.configure(&tensor_a, &tensor_b, &bias, &tensor_d, 1.0f, 1.0f, gemm_info);
 
-//    auto start = std::chrono::high_resolution_clock::now();
     gemm.run();
-//    auto end = std::chrono::high_resolution_clock::now();
 
-//    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-//    std::cout << duration.count() << std::endl;
+    tensor_d.print(std::cout, format);
+
+    // 动态更新
+    sequence_len = 3;
+    batch_size = 2;
+    tensor_a_shape = BITensorShape(2, sequence_len, batch_size);
+    tensor_d_shape = BITensorShape(4, sequence_len, batch_size);
+
+    tensor_a_info = BITensorInfo(tensor_a_shape, 1, BIDataType::F16);
+    tensor_d_info = BITensorInfo(tensor_d_shape, 1, BIDataType::F16);
+
+    // 初始化
+    tensor_a.allocator()->init(tensor_a_info);
+    tensor_d.allocator()->init(tensor_d_info);
+
+    tensor_a.allocator()->allocate();
+    tensor_d.allocator()->allocate();
+
+    data_a = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    match_info(tensor_a, data_a);
+    gemm.run();
+
+    tensor_d.print(std::cout, format);
 }

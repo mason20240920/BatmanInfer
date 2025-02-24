@@ -51,6 +51,15 @@ namespace BatmanGemm {
             return false;
         }
 
+        bool set_dynamic_batch_size(int batch_size) override {
+            // TODO: fixed for the future
+            return false;
+        }
+
+        void update_parameters() override {
+            // TODO: For future dynamic
+        }
+
         // TODO: Make this actually stateless. This still uses the stateful
         // execution data because it requires a workspace which would also need to
         // be handled statelessly.

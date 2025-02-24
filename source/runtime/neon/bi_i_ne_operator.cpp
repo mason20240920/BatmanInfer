@@ -27,10 +27,6 @@ namespace BatmanInfer {
             BINEScheduler::get().schedule_op(_kernel.get(), BIWindow::DimY, window, tensors);
         }
 
-        void BIINEOperator::dynamic_configure(const BIWindow &window) {
-            _kernel->dynamic_window(window);
-        }
-
         void BIINEOperator::prepare(BatmanInfer::BIITensorPack &constants) {
             BI_COMPUTE_UNUSED(constants);
         }

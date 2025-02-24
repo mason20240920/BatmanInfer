@@ -210,6 +210,19 @@ namespace BatmanGemm {
          */
         virtual bool set_dynamic_M_size(int M_size) = 0;
 
+        /**
+         * 动态设置batch size
+         * @param batch_size
+         * @return
+         */
+        virtual bool set_dynamic_batch_size(int batch_size) = 0;
+
+        /**
+         * 更新参数
+         * @return
+         */
+        virtual void update_parameters() = 0;
+
         /* 设置数组的函数实现，用于接收正确类型的参数。 */
         virtual void set_arrays(const To *A,
                                 const int lda,

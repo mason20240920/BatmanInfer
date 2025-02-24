@@ -567,9 +567,18 @@ namespace BatmanGemm {
             }
         }
 
-        bool set_dynamic_M_size(int M_size) {
+        bool set_dynamic_M_size(int M_size) override {
             // TODO: For future dynamic
             return false;
+        }
+
+        bool set_dynamic_batch_size(int batch_size) override {
+            // TODO: For future dynamic
+            return false;
+        }
+
+        void update_parameters() override {
+            // TODO: For future dynamic
         }
 
         // Accumulation buffer size

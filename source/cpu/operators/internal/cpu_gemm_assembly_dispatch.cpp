@@ -126,6 +126,16 @@ namespace BatmanInfer {
             }
 
             /**
+             * 根据输出张量d刷新batches
+             * @param d
+             * @param p
+             */
+            void update_parameters(const BIITensorInfo *d,
+                                   Params &p) {
+                p.batches = d->tensor_shape().total_size_upper(3) / p.multis;
+            }
+
+            /**
              * @brief 调度启发式
              *        根据指定的矩阵乘法方法 (GemmMethod) 和数据类型 (DataType)，返回适合的调度策略 (IScheduler::Hints)
              * @param method
@@ -814,10 +824,14 @@ namespace BatmanInfer {
                                              ldd, batch_stride_d, multi_stride_d, bias, 0);
 
                 // configure the window, if window is change, just dynamic change the window
-                auto ret = _gemm_kernel_asm->set_dynamic_M_size(in0_tensor.info()->tensor_shape().y());
-                if (ret) {
+                auto is_dynamic_m = _gemm_kernel_asm->set_dynamic_M_size(in0_tensor.info()->tensor_shape().y());
+                auto is_dynamic_batch = _gemm_kernel_asm->set_dynamic_batch_size(
+                        in0_tensor.info()->tensor_shape().z());
+
+                if (is_dynamic_m || is_dynamic_batch) {
+                    _gemm_kernel_asm->update_parameters();
                     BIWindow win = to_window(_gemm_kernel_asm->get_window_size());
-                    _optimised_kernel->dynamic_window(win);
+                    _optimised_kernel->dynamic_configure(win);
                 }
 
                 // Schedule

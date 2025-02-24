@@ -416,6 +416,20 @@ namespace BatmanGemm {
             _args._cfg = nullptr;
         }
 
+        bool set_dynamic_batch_size(int batch_size) override {
+            if (batch_size == _args._nbatches)
+                return false;
+            _args._nbatches = batch_size;
+            return true;
+        }
+
+        void update_parameters() override {
+            if (_Mround < _args._Msize)
+                _Mround = roundup(_args._Msize, strategy::out_height());
+            _window_range = BINDRange<4>{iceildiv(_args._Msize, strategy::out_height()), _args._nbatches,
+                                         iceildiv(_args._Nsize, _n_block), _args._nmulti};
+        }
+
         /**
          * Dynamic set M size in runtime (fixed for DeepSeek-V3)
          * @param M_size
@@ -424,10 +438,6 @@ namespace BatmanGemm {
             if (M_size == _args._Msize)
                 return false;
             _args._Msize = M_size;
-            if (_Mround < _args._Msize)
-                _Mround = roundup(_args._Msize, strategy::out_height());
-            _window_range = BINDRange<4>{iceildiv(_args._Msize, strategy::out_height()), _args._nbatches,
-                                         iceildiv(_args._Nsize, _n_block), _args._nmulti};
             return true;
         }
 

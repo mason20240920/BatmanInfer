@@ -36,8 +36,6 @@ namespace BatmanInfer {
 
             BIINEOperator &operator=(BIINEOperator &&) = default;
 
-            void dynamic_configure(const BIWindow &window);
-
             ~BIINEOperator();
 
             void run(BatmanInfer::BIITensorPack &tensors) override;

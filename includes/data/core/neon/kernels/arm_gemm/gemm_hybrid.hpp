@@ -127,6 +127,15 @@ namespace BatmanGemm {
             return false;
         }
 
+        bool set_dynamic_batch_size(int batch_size) override {
+            // TODO: fixed for the future
+            return false;
+        }
+
+        void update_parameters() override {
+            // TODO: For future dynamic
+        }
+
         // Stateless execute
         void execute_stateless(const ndcoord_t &work_range, const ndcoord_t &, int,
                                BIGemmArrays<To, To, Tr> &g_array) override {
