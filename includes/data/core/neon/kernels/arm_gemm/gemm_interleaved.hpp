@@ -567,8 +567,9 @@ namespace BatmanGemm {
             }
         }
 
-        void set_dynamic_M_size(int M_size) {
+        bool set_dynamic_M_size(int M_size) {
             // TODO: For future dynamic
+            return false;
         }
 
         // Accumulation buffer size

@@ -135,8 +135,9 @@ namespace BatmanGemm {
             _args._maxthreads = nthreads;
         }
 
-        void set_dynamic_M_size(int M_size) override {
+        bool set_dynamic_M_size(int M_size) override {
             // TODO: fixed for the future
+            return false;
         }
 
         // TODO: Make this actually stateless. This still uses the stateful

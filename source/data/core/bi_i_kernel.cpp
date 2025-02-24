@@ -10,8 +10,7 @@ const BIWindow &BIIKernel::window() const {
     return _window;
 }
 
-BIIKernel::BIIKernel() : _window()
-{
+BIIKernel::BIIKernel() : _window() {
     // 创建一个空窗口，以确保子类自己设置窗口值。
     _window.set(BIWindow::DimX, BIWindow::BIDimension(0, 0, 1));
     _window.set(BIWindow::DimY, BIWindow::BIDimension(0, 0, 1));
@@ -30,5 +29,9 @@ bool BIIKernel::is_window_configured() const {
 }
 
 void BIIKernel::configure(const BatmanInfer::BIWindow &window) {
+    _window = window;
+}
+
+void BIIKernel::dynamic_configure(const BIWindow &window) {
     _window = window;
 }

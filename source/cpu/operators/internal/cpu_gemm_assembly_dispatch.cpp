@@ -813,8 +813,16 @@ namespace BatmanInfer {
                                              out_ptr,
                                              ldd, batch_stride_d, multi_stride_d, bias, 0);
 
+                // configure the window, if window is change, just dynamic change the window
+                auto ret = _gemm_kernel_asm->set_dynamic_M_size(in0_tensor.info()->tensor_shape().y());
+                if (ret) {
+                    BIWindow win = to_window(_gemm_kernel_asm->get_window_size());
+                    _optimised_kernel->dynamic_window(win);
+                }
+
                 // Schedule
-                BINEScheduler::get().schedule_op(_optimised_kernel.get(), scheduling_hint, _optimised_kernel->window(),
+                BINEScheduler::get().schedule_op(_optimised_kernel.get(), scheduling_hint,
+                                                 _optimised_kernel->window(),
                                                  gemm_pack);
             }
 

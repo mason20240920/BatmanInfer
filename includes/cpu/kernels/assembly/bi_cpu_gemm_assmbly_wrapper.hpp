@@ -135,6 +135,19 @@ namespace BatmanInfer {
                     }
                 }
 
+                /**
+                 * 动态更新窗口
+                 * @param kernel
+                 */
+                void dynamic_configure(BatmanGemm::BIGemmCommon<TypeInput, TypeWeight, TypeOutput> *kernel) {
+                    BI_COMPUTE_ERROR_ON_NULLPTR((reinterpret_cast<void *>(kernel)));
+                    _kernel = kernel;
+
+                    BIWindow win = to_window(kernel->get_window_size());
+
+                    BIINEKernel::dynamic_configure(win);
+                }
+
 
                 size_t get_mws(const BatmanInfer::CPUInfo &platform, size_t thread_count) const override {
                     BI_COMPUTE_UNUSED(thread_count);

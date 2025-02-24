@@ -208,7 +208,7 @@ namespace BatmanGemm {
          * 动态设置矩阵M的大小
          * @param M_size
          */
-        virtual void set_dynamic_M_size(int M_size) = 0;
+        virtual bool set_dynamic_M_size(int M_size) = 0;
 
         /* 设置数组的函数实现，用于接收正确类型的参数。 */
         virtual void set_arrays(const To *A,

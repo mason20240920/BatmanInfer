@@ -122,8 +122,9 @@ namespace BatmanGemm {
             return true;
         }
 
-        void set_dynamic_M_size(int M_size) {
+        bool set_dynamic_M_size(int M_size) {
             // TODO: fixed for future
+            return false;
         }
 
         // Stateless execute

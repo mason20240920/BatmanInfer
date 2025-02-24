@@ -85,6 +85,14 @@ namespace BatmanInfer {
         }
 
         /**
+         * 动态设置dynamic_window
+         * @param window
+         */
+        virtual void dynamic_window(const BIWindow &window) {
+            BI_COMPUTE_UNUSED(window);
+        }
+
+        /**
          * @brief 内核的名称
          * @return
          */

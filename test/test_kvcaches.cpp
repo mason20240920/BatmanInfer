@@ -21,11 +21,11 @@ TEST(KVCaches, NEGEMMCaches) {
     format.row_delim = "\n";      // 每行换行
     format.align_columns = true;     // 对齐列
 
-    int batch_size = 5;
+    int batch_size = 1;
     int sequence_len = 16;
-    int kv_one_len = 16;
-    int head_num = 12;
-    int head_dim = 64;
+    int kv_one_len = 1;
+    int head_num = 1;
+    int head_dim = 2;
     // 定义输入和输出张量的形状
     BITensorShape shape_a(head_dim, kv_one_len, head_num, batch_size); // 左矩阵 (3x2)
     BITensorShape shape_b(sequence_len, head_dim, head_num, batch_size); // 右矩阵 (4x2)，需要转置为 (2x4)
@@ -46,7 +46,7 @@ TEST(KVCaches, NEGEMMCaches) {
     matmul_info.adj_lhs(false).adj_rhs(false);
     BICpuMatMulSettings settings;
     settings.fast_math(true); // 启用快速数学模式
-    settings.fixed_format(true);
+//    settings.fixed_format(true);
 
     // 定义激活函数信息（可选）
 //    BIActivationLayerInfo act_info(BIActivationLayerInfo::ActivationFunction::RELU);
@@ -66,20 +66,68 @@ TEST(KVCaches, NEGEMMCaches) {
     auto a_ptr = reinterpret_cast<float16_t *>(tensor_a.buffer());
     auto b_ptr = reinterpret_cast<float16_t *>(tensor_b.buffer());
     for (int i = 0; i < shape_a.total_size(); ++i) {
-        a_ptr[i] = static_cast<float16_t>(i * 0.01); // 示例数据
+        a_ptr[i] = static_cast<float16_t>(i); // 示例数据
     }
     for (int i = 0; i < shape_b.total_size(); ++i) {
-        b_ptr[i] = static_cast<float16_t>(1 * 0.1); // 示例数据
+        b_ptr[i] = static_cast<float16_t>(1); // 示例数据
     }
 
     // 开始时间节点
-    auto start = std::chrono::high_resolution_clock::now();
+//    auto start = std::chrono::high_resolution_clock::now();
     matmul.run();
-    // 结束时间节点
-    auto end = std::chrono::high_resolution_clock::now();
-    // 计算耗时（以微秒为单位）
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-    // 输出运行时间
-    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
+    tensor_c.print(std::cout, format);
+
+    // 更新数据
+    for (int i = 0; i < shape_a.total_size(); ++i) {
+        a_ptr[i] = static_cast<float16_t>(i + 1); // 示例数据
+    }
+
+    std::cout << "=======" << std::endl;
+
+    matmul.run();
+    tensor_c.print(std::cout, format);
+}
+
+TEST(KVCaches, DynamicGemm) {
+    // 测试动态输入NEGEMM的过程
+    BITensorShape tensor_a_shape(4, 4, 5);
+    BITensorShape tensor_b_shape(6, 4);
+    BITensorShape tensor_bias_shape(6);
+    BITensorShape tensor_d_shape(6, 4, 5);
+
+    BITensorInfo tensor_a_info(tensor_a_shape, 1, BIDataType::F16);
+    BITensorInfo tensor_b_info(tensor_b_shape, 1, BIDataType::F16);
+    BITensorInfo tensor_bias_info(tensor_bias_shape, 1, BIDataType::F16);
+    BITensorInfo tensor_d_info(tensor_d_shape, 1, BIDataType::F16);
+
+    BITensor tensor_a, tensor_b, bias, tensor_d;
+
+    // 初始化
+    tensor_a.allocator()->init(tensor_a_info);
+    tensor_b.allocator()->init(tensor_b_info);
+    bias.allocator()->init(tensor_bias_info);
+    tensor_d.allocator()->init(tensor_d_info);
+
+    tensor_a.allocator()->allocate();
+    tensor_b.allocator()->allocate();
+    bias.allocator()->allocate();
+    tensor_d.allocator()->allocate();
+
+    // 进行赋值
+
+
+    // 运行推理
+    BINEGEMM gemm;
+    GEMMInfo gemm_info;
+    gemm_info.set_fast_math(true);
+
+    gemm.configure(&tensor_a, &tensor_b, &bias, &tensor_d, 1.0f, 1.0f, gemm_info);
+
+//    auto start = std::chrono::high_resolution_clock::now();
+    gemm.run();
+//    auto end = std::chrono::high_resolution_clock::now();
+
+//    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+//    std::cout << duration.count() << std::endl;
 }

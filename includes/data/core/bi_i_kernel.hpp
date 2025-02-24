@@ -63,6 +63,12 @@ namespace BatmanInfer {
      */
         void configure(const BIWindow &window);
 
+        /**
+         * 动态更新内核接口窗口
+         * @param window
+         */
+        void dynamic_configure(const BIWindow &window);
+
     private:
         BIWindow _window;
     };

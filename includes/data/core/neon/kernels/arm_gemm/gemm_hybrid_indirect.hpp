@@ -281,7 +281,7 @@ namespace BatmanGemm {
         /* Blocking info */
         unsigned int _n_block;
         const unsigned int _k_block;
-        const unsigned int _Mround;
+        unsigned int _Mround;
 
         /* Pretransposed buffer. */
         const Troi *_B_transposed = nullptr;
@@ -420,12 +420,15 @@ namespace BatmanGemm {
          * Dynamic set M size in runtime (fixed for DeepSeek-V3)
          * @param M_size
          */
-        void set_dynamic_M_size(int M_size) {
+        bool set_dynamic_M_size(int M_size) {
+            if (M_size == _args._Msize)
+                return false;
             _args._Msize = M_size;
             if (_Mround < _args._Msize)
-                throw "M size is not corporate";
+                _Mround = roundup(_args._Msize, strategy::out_height());
             _window_range = BINDRange<4>{iceildiv(_args._Msize, strategy::out_height()), _args._nbatches,
                                          iceildiv(_args._Nsize, _n_block), _args._nmulti};
+            return true;
         }
 
         // Interface implementation - Compulsory functions
