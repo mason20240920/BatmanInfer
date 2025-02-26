@@ -270,6 +270,9 @@ namespace BatmanInfer {
             auto asm_mem_req = _asm_glue->workspace();
             // Specify memory required by gemm kernel
             int idx = 0;
+            // 1. 现在默认只会第一次创建修改B矩阵的转置
+            // 2. 所以现在对B矩阵进行动态创建
+            // 3. B矩阵的逻辑是aux.slot = 1026
             for (const auto &aux: asm_mem_req) {
                 _aux_mem[idx] = aux;
                 idx++;
@@ -281,6 +284,43 @@ namespace BatmanInfer {
             auto lhs = tensors.get_tensor(ACL_SRC_0);
             auto rhs = tensors.get_const_tensor(ACL_SRC_1);
             auto dst = tensors.get_tensor(ACL_DST);
+
+            // Update for dynamic tensors (dynamic batch size and dynamic sequence length
+            BITensorInfo lhs_to_use = *lhs->info()->clone();
+            BITensorInfo dst_to_use = *dst->info()->clone();
+            BITensorInfo rhs_to_use = *rhs->info()->clone();
+
+            // 保存初始时候的张量形状信息
+            _original_lhs_shape = lhs_to_use.tensor_shape();
+            _original_dst_shape = dst_to_use.tensor_shape();
+            _original_rhs_shape = rhs_to_use.tensor_shape();
+
+            // Reshape lhs for use with assembly kernels.
+            lhs_to_use.set_tensor_shape(
+                    BITensorShape(_original_lhs_shape.x(), _original_lhs_shape.y(), 1,
+                                  _original_lhs_shape.collapsed_from(2).z()));
+            dst_to_use.set_tensor_shape(
+                    BITensorShape(_original_dst_shape.x(), _original_dst_shape.y(), 1,
+                                  _original_dst_shape.collapsed_from(2).z()));
+            rhs_to_use.set_tensor_shape(_original_rhs_shape.collapsed_from(2));
+
+            // 获取动态的aux结果(但是他会在prepare阶段初始化放在tensors里面
+            size_t tensor_b_align;
+            auto tensor_size = _asm_glue->dynamic_tensor_b_size(&lhs_to_use, &rhs_to_use, &dst_to_use, tensor_b_align);
+            tensors.remove_tensor(1026);
+            BITensor transpose_b_tensor;
+            transpose_b_tensor.allocator()->init(BITensorInfo(BITensorShape(tensor_size), 1, BIDataType::F16),
+                                                 tensor_b_align);
+            transpose_b_tensor.allocator()->allocate();
+            tensors.add_tensor(1026, &transpose_b_tensor);
+
+
+            // 配置汇编核
+//            _asm_glue = std::make_unique<cpu::BICpuGemmAssemblyDispatch>();
+//            _asm_glue->configure(&lhs_to_use, &rhs_to_use, nullptr, &dst_to_use,
+//                                 _gemm_info); // c is nullptr as bias not supported in MatMul
+//
+//            BI_COMPUTE_EXIT_ON_MSG(!_asm_glue->is_configured(), "Error in CpuGemmAssemblyDispatch configuration");
 
             // Reshape LHS and DST to ensure compatibility with GEMM asm kernel (Batch dimensions is 4th for lhs and dst within asm)
             // Collapse RHS (necessary to support dimensions larger than 3 in gemm assembly)

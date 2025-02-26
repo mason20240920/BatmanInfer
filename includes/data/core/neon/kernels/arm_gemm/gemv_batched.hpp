@@ -56,6 +56,11 @@ namespace BatmanGemm {
             return false;
         }
 
+        bool set_dynamic_nmulti_size(int nmulti) override {
+            // TODO: fixed for the future
+            return false;
+        }
+
         void update_parameters() override {
             // TODO: For future dynamic
         }

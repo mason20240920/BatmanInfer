@@ -149,6 +149,11 @@ namespace BatmanGemm {
             // TODO: For future dynamic
         }
 
+        bool set_dynamic_nmulti_size(int nmulti) override {
+            // TODO: fixed for the future
+            return false;
+        }
+
         // TODO: Make this actually stateless. This still uses the stateful
         // execution data because it requires a workspace which would also need to
         // be handled statelessly.

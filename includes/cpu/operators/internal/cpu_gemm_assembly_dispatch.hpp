@@ -73,11 +73,17 @@ namespace BatmanInfer {
 
                 virtual bool isVarWeightsKernel() const = 0;
 
+                virtual void update_configure_parameters(const BIITensorInfo *a,
+                                                         const BIITensorInfo *b,
+                                                         const BIITensorInfo *d) = 0;
+
                 virtual void update_quantization_parameters(const BIGEMMLowpOutputStageInfo &,
                                                             const BIQuantizationInfo &,
                                                             const BIQuantizationInfo &,
                                                             const bool,
                                                             const bool) = 0;
+
+                virtual size_t dynamic_tensor_b(size_t &align) const = 0;
 
                 virtual ~IFallback() = default;
 
@@ -163,6 +169,11 @@ namespace BatmanInfer {
                                          const BIITensorInfo *c,
                                          const BIITensorInfo *d,
                                          const BIAsmGemmInfo &info);
+
+            size_t dynamic_tensor_b_size(const BIITensorInfo *a,
+                                         const BIITensorInfo *b,
+                                         const BIITensorInfo *c,
+                                         size_t &align);
 
 
             /** 检查是否支持无状态实现

@@ -214,12 +214,137 @@ static void BM_RUNKVCaches(benchmark::State &state) {
     }
 }
 
-BENCHMARK(BM_RunCoreLogic)->MinTime(10.0) // 最小总运行时间
-        ->Repetitions(5)  // 重复5组测试取平均值
-        ->MeasureProcessCPUTime(); // 测量进程CPU时间
+static void BM_RUNGEMMLowp(benchmark::State &state) {
+    BIScheduler::set(BIScheduler::Type::OMP);
+    BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
+    int batch_size = 5;
+    int sequence_len = 16;
+    // 测试动态输入NEGEMM的过程
+    BITensorShape tensor_a_shape(768, sequence_len, batch_size);
+    BITensorShape tensor_b_shape(2304, 768);
+    BITensorShape tensor_bias_shape(2304);
+    BITensorShape tensor_d_shape(2304, sequence_len, batch_size);
 
-BENCHMARK(BM_RUNKVCaches)->MinTime(3.0) // 最小总运行时间
+    BITensorInfo tensor_a_info(tensor_a_shape, 1, BIDataType::QASYMM8_SIGNED);
+    BITensorInfo tensor_b_info(tensor_b_shape, 1, BIDataType::QASYMM8_SIGNED);
+    BITensorInfo tensor_bias_info(tensor_bias_shape, 1, BIDataType::S32);
+    BITensorInfo tensor_d_info(tensor_d_shape, 1, BIDataType::S32);
+    BITensorInfo output_info(tensor_d_shape, 1, BIDataType::S32);
+
+    BITensor tensor_a, tensor_b, bias, tensor_d, tensor_output;
+
+    // 初始化
+    tensor_a.allocator()->init(tensor_a_info);
+    tensor_b.allocator()->init(tensor_b_info);
+    bias.allocator()->init(tensor_bias_info);
+    tensor_d.allocator()->init(tensor_d_info);
+    tensor_output.allocator()->init(output_info);
+
+    tensor_a.allocator()->allocate();
+    tensor_b.allocator()->allocate();
+    bias.allocator()->allocate();
+    tensor_d.allocator()->allocate();
+    tensor_output.allocator()->allocate();
+
+    // 进行赋值
+//    std::vector<int8_t> data_a{1, 2, 3, 4, 5, 6, 7, 8};
+//    std::vector<int8_t> data_b{1, 1, 1, 1, 1, 1, 1, 1};
+//    std::vector<int8_t> data_bias{3, 3, 3, 3};
+//    match_info(tensor_a, data_a);
+//    match_info(tensor_b, data_b);
+//    match_info(bias, data_bias);
+
+
+    // 运行推理
+    BINEGEMMLowpMatrixMultipleCore gemm;
+    GEMMInfo gemm_info;
+    gemm_info.set_fast_math(true);
+
+    gemm.configure(&tensor_a, &tensor_b, nullptr, &tensor_d, gemm_info);
+
+    BINEArithmeticAddition add;
+    add.configure(&tensor_d, &bias, &tensor_output, BIConvertPolicy::SATURATE);
+
+    for (auto _: state) {
+        // 排除准备时间
+        state.PauseTiming();
+        state.ResumeTiming();
+        gemm.run();
+        add.run();
+        state.PauseTiming();
+        state.ResumeTiming();
+    }
+}
+
+static void BM_RUNGEMM(benchmark::State &state) {
+    BIScheduler::set(BIScheduler::Type::OMP);
+    BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
+    int batch_size = 5;
+    int sequence_len = 16;
+    // 测试动态输入NEGEMM的过程
+    BITensorShape tensor_a_shape(768, sequence_len, batch_size);
+    BITensorShape tensor_b_shape(2304, 768);
+    BITensorShape tensor_bias_shape(2304);
+    BITensorShape tensor_d_shape(2304, sequence_len, batch_size);
+
+    BITensorInfo tensor_a_info(tensor_a_shape, 1, BIDataType::F16);
+    BITensorInfo tensor_b_info(tensor_b_shape, 1, BIDataType::F16);
+    BITensorInfo tensor_bias_info(tensor_bias_shape, 1, BIDataType::F16);
+    BITensorInfo tensor_d_info(tensor_d_shape, 1, BIDataType::F16);
+
+    BITensor tensor_a, tensor_b, bias, tensor_d;
+
+    // 初始化
+    tensor_a.allocator()->init(tensor_a_info);
+    tensor_b.allocator()->init(tensor_b_info);
+    bias.allocator()->init(tensor_bias_info);
+    tensor_d.allocator()->init(tensor_d_info);
+
+    tensor_a.allocator()->allocate();
+    tensor_b.allocator()->allocate();
+    bias.allocator()->allocate();
+    tensor_d.allocator()->allocate();
+
+    // 进行赋值
+//    std::vector<int8_t> data_a{1, 2, 3, 4, 5, 6, 7, 8};
+//    std::vector<int8_t> data_b{1, 1, 1, 1, 1, 1, 1, 1};
+//    std::vector<int8_t> data_bias{3, 3, 3, 3};
+//    match_info(tensor_a, data_a);
+//    match_info(tensor_b, data_b);
+//    match_info(bias, data_bias);
+
+
+    // 运行推理
+    BINEGEMM gemm;
+    GEMMInfo gemm_info;
+    gemm_info.set_fast_math(true);
+
+    gemm.configure(&tensor_a, &tensor_b, &bias, &tensor_d, 1.0f, 1.0f, gemm_info);
+
+    for (auto _: state) {
+        // 排除准备时间
+        state.PauseTiming();
+        state.ResumeTiming();
+        gemm.run();
+        state.PauseTiming();
+        state.ResumeTiming();
+    }
+}
+
+//BENCHMARK(BM_RunCoreLogic)->MinTime(10.0) // 最小总运行时间
+//        ->Repetitions(5)  // 重复5组测试取平均值
+//        ->MeasureProcessCPUTime(); // 测量进程CPU时间
+//
+//BENCHMARK(BM_RUNKVCaches)->MinTime(3.0) // 最小总运行时间
+//        ->Repetitions(5)  // 重复5组测试取平均值
+//        ->MeasureProcessCPUTime(); // 测量进程CPU时间
+
+BENCHMARK(BM_RUNGEMM)->MinTime(5.0) // 最小总运行时间
         ->Repetitions(5)  // 重复5组测试取平均值
-        ->MeasureProcessCPUTime(); // 测量进程CPU时间
+        ->MeasureProcessCPUTime()->Unit(benchmark::kMillisecond); // 测量进程CPU时间
+
+BENCHMARK(BM_RUNGEMMLowp)->MinTime(5.0) // 最小总运行时间
+        ->Repetitions(5)  // 重复5组测试取平均值
+        ->MeasureProcessCPUTime()->Unit(benchmark::kMillisecond); // 测量进程CPU时间
 
 BENCHMARK_MAIN();

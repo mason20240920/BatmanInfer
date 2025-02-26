@@ -103,8 +103,7 @@ namespace BatmanInfer {
                     auto win = BatmanGemm::to_ndcoord(window);
 
                     BatmanGemm::ndcoord_t thread_locator{};
-
-                    _kernel->set_dynamic_M_size(Msize);
+                    
                     _kernel->execute_stateless(win, thread_locator, info.thread_id, ga);
                 }
 

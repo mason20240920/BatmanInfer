@@ -13,8 +13,80 @@
 
 using namespace BatmanInfer;
 
-TEST(KVCaches, NEGEMMCaches) {
+template<typename T>
+void match_info(BITensor &tensor, const std::vector<T> &vec) {
+    auto shape = tensor.info()->tensor_shape().total_size();
+    auto tensor_data = reinterpret_cast<T *>(tensor.buffer());
+    for (int i = 0; i < shape; i++) {
+        tensor_data[i] = vec[i];
+    }
+}
+
+TEST(KVCaches, NEGEMMINT8) {
     BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
+
+    // 进行矩阵计算的KVCaches
+    BIIOFormatInfo format;
+    format.element_delim = ", ";  // 元素之间用逗号分隔
+    format.row_delim = "\n";      // 每行换行
+    format.align_columns = true;     // 对齐列
+
+    int batch_size = 1;
+    int sequence_len = 1;
+    // 测试动态输入NEGEMM的过程
+    BITensorShape tensor_a_shape(2, sequence_len, batch_size);
+    BITensorShape tensor_b_shape(4, 2);
+    BITensorShape tensor_bias_shape(4);
+    BITensorShape tensor_d_shape(4, sequence_len, batch_size);
+
+    BITensorInfo tensor_a_info(tensor_a_shape, 1, BIDataType::QASYMM8_SIGNED);
+    BITensorInfo tensor_b_info(tensor_b_shape, 1, BIDataType::QASYMM8_SIGNED);
+    BITensorInfo tensor_bias_info(tensor_bias_shape, 1, BIDataType::S32);
+    BITensorInfo tensor_d_info(tensor_d_shape, 1, BIDataType::S32);
+    BITensorInfo output_info(tensor_d_shape, 1, BIDataType::S32);
+
+    BITensor tensor_a, tensor_b, bias, tensor_d, tensor_output;
+
+    // 初始化
+    tensor_a.allocator()->init(tensor_a_info);
+    tensor_b.allocator()->init(tensor_b_info);
+    bias.allocator()->init(tensor_bias_info);
+    tensor_d.allocator()->init(tensor_d_info);
+    tensor_output.allocator()->init(output_info);
+
+    tensor_a.allocator()->allocate();
+    tensor_b.allocator()->allocate();
+    bias.allocator()->allocate();
+    tensor_d.allocator()->allocate();
+    tensor_output.allocator()->allocate();
+
+    // 进行赋值
+    std::vector<int8_t> data_a{1, 2, 3, 4, 5, 6, 7, 8};
+    std::vector<int8_t> data_b{1, 1, 1, 1, 1, 1, 1, 1};
+    std::vector<int32_t> data_bias{3, 3, 3, 3};
+    match_info(tensor_a, data_a);
+    match_info(tensor_b, data_b);
+    match_info(bias, data_bias);
+
+
+    // 运行推理
+    BINEGEMMLowpMatrixMultipleCore gemm;
+    GEMMInfo gemm_info;
+    gemm_info.set_fast_math(true);
+
+    gemm.configure(&tensor_a, &tensor_b, nullptr, &tensor_d, gemm_info);
+
+    BINEArithmeticAddition add;
+    add.configure(&tensor_d, &bias, &tensor_output, BIConvertPolicy::WRAP);
+
+    gemm.run();
+    add.run();
+
+    tensor_output.print(std::cout, format);
+}
+
+TEST(KVCaches, NEGEMMCaches) {
+    BIScheduler::get().set_num_threads(1);
     // 进行矩阵计算的KVCaches
     BIIOFormatInfo format;
     format.element_delim = ", ";  // 元素之间用逗号分隔
@@ -72,33 +144,42 @@ TEST(KVCaches, NEGEMMCaches) {
         b_ptr[i] = static_cast<float16_t>(1); // 示例数据
     }
 
-    // 开始时间节点
-//    auto start = std::chrono::high_resolution_clock::now();
     matmul.run();
 
     tensor_c.print(std::cout, format);
-
-    // 更新数据
-    for (int i = 0; i < shape_a.total_size(); ++i) {
-        a_ptr[i] = static_cast<float16_t>(i + 1); // 示例数据
-    }
 
     std::cout << "=======" << std::endl;
+    tensor_a.allocator()->free();
+    tensor_b.allocator()->free();
+    tensor_c.allocator()->free();
+    batch_size = 2;
+    shape_a = BITensorShape(head_dim, kv_one_len, head_num, batch_size); // 左矩阵 (3x2)
+    shape_b = BITensorShape(sequence_len, head_dim, head_num, batch_size);
+    shape_c = BITensorShape(sequence_len, kv_one_len, head_num, batch_size);
+    tensor_a.allocator()->init(BITensorInfo(shape_a, 1, BIDataType::F16));
+    tensor_b.allocator()->init(BITensorInfo(shape_b, 1, BIDataType::F16));
+    tensor_c.allocator()->init(BITensorInfo(shape_c, 1, BIDataType::F16));
+    tensor_b.allocator()->allocate();
+    tensor_a.allocator()->allocate();
+    tensor_c.allocator()->allocate();
+
+    // 填充输入张量数据
+    a_ptr = reinterpret_cast<float16_t *>(tensor_a.buffer());
+    b_ptr = reinterpret_cast<float16_t *>(tensor_b.buffer());
+    for (int i = 0; i < shape_a.total_size(); ++i) {
+        a_ptr[i] = static_cast<float16_t>(i); // 示例数据
+    }
+    for (int i = 0; i < shape_b.total_size(); ++i) {
+        b_ptr[i] = static_cast<float16_t>(1); // 示例数据
+    }
+
 
     matmul.run();
     tensor_c.print(std::cout, format);
-}
-
-void match_info(BITensor &tensor, const std::vector<float16_t> &vec) {
-    auto shape = tensor.info()->tensor_shape().total_size();
-    auto tensor_data = reinterpret_cast<float16_t *>(tensor.buffer());
-    for (int i = 0; i < shape; i++) {
-        tensor_data[i] = vec[i];
-    }
 }
 
 TEST(KVCaches, DynamicGemm) {
-    BIScheduler::get().set_num_threads(1);
+    BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
     // 进行矩阵计算的KVCaches
     BIIOFormatInfo format;
     format.element_delim = ", ";  // 元素之间用逗号分隔

@@ -581,6 +581,11 @@ namespace BatmanGemm {
             // TODO: For future dynamic
         }
 
+        bool set_dynamic_nmulti_size(int nmulti) override {
+            // TODO: fixed for the future
+            return false;
+        }
+
         // Accumulation buffer size
         size_t get_accumulation_buffer_size() const {
             // We only support an accumulation buffer for non-merge cases.

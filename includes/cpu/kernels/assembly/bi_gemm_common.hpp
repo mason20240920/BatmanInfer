@@ -211,6 +211,13 @@ namespace BatmanGemm {
         virtual bool set_dynamic_M_size(int M_size) = 0;
 
         /**
+         * 动态设置矩阵的线程数量
+         * @param nmulti
+         * @return
+         */
+        virtual bool set_dynamic_nmulti_size(int nmulti) = 0;
+
+        /**
          * 动态设置batch size
          * @param batch_size
          * @return

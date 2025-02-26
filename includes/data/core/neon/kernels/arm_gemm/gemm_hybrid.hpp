@@ -136,6 +136,11 @@ namespace BatmanGemm {
             // TODO: For future dynamic
         }
 
+        bool set_dynamic_nmulti_size(int nmulti) override {
+            // TODO: fixed for the future
+            return false;
+        }
+
         // Stateless execute
         void execute_stateless(const ndcoord_t &work_range, const ndcoord_t &, int,
                                BIGemmArrays<To, To, Tr> &g_array) override {

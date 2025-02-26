@@ -965,7 +965,7 @@ TEST(BICpuLowpGemm, BasicGemmTest) {
     BITensor input, weights, bias, output;
 
     // 3. 量化参数
-    const BIQuantizationInfo quant_info(1.0f / 255.0f, 128);
+    const BIQuantizationInfo quant_info(1.0f / 255.0f, 0);
 
     // 4. 配置张量信息
     BITensorInfo input_info(input_shape, 1, BIDataType::QASYMM8, quant_info);

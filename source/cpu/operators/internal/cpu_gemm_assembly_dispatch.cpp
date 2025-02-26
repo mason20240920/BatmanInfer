@@ -126,6 +126,28 @@ namespace BatmanInfer {
             }
 
             /**
+             * 简化版数据导出
+             * @param a
+             * @param b
+             * @param d
+             * @return
+             */
+            Params extract_simplify_parameters(const BIITensorInfo *a,
+                                               const BIITensorInfo *b,
+                                               const BIITensorInfo *d) {
+                Params p{/* M */ static_cast<unsigned int>(d->tensor_shape().y()),
+                        /* N */ static_cast<unsigned int>(d->tensor_shape().x()),
+                        /* K */ static_cast<unsigned int>(a->tensor_shape().x()),
+                        /* batches */ 1,
+                        /* multis */ 1,
+                        /* sections */ 1,
+                        /* indirect */ false}; // 默认的是[M: 输出张量的y轴, 输出张量的x轴, 输入张量的x轴]
+                p.multis = b->tensor_shape().z(); // b张量的三维的z轴(并行模块)
+                p.batches = d->tensor_shape().total_size_upper(2) / p.multis; // d张量大于维度2, z轴以上的所有进行并行
+                return p;
+            }
+
+            /**
              * 根据输出张量d刷新batches
              * @param d
              * @param p
@@ -215,6 +237,14 @@ namespace BatmanInfer {
                 bool is_configured() const override;
 
                 experimental::BIMemoryRequirements workspace() const override;
+
+                void update_configure_parameters(const BatmanInfer::BIITensorInfo *a,
+                                                 const BatmanInfer::BIITensorInfo *b,
+                                                 const BatmanInfer::BIITensorInfo *d) override;
+
+                size_t dynamic_tensor_b(size_t &align) const override;
+
+                void dynamic_update_info();
 
                 bool isVarWeightsKernel() const override {
                     if (!_gemm_kernel_asm) {
@@ -335,6 +365,33 @@ namespace BatmanInfer {
                 bool _run_pre_pretranspose_b{false};
                 bool _B_pre_pretranspose_required{false};
             };
+
+            template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage>
+            void BatmanInfer::cpu::Fallback<TypeInput, TypeWeight, TypeOutput, OutputStage>::dynamic_update_info() {
+                // Forcing 128-byte alignment (required by 32-bit kernels)
+                const unsigned int alignment = 128;
+                const size_t B_pretranspose_size = _gemm_kernel_asm->get_B_pretransposed_array_size();
+                _pretranspose_info = BITensorInfo(BITensorShape(B_pretranspose_size), 1, BIDataType::U8);
+            }
+
+            template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage>
+            size_t
+            BatmanInfer::cpu::Fallback<TypeInput, TypeWeight, TypeOutput, OutputStage>::dynamic_tensor_b(
+                    size_t &align) const {
+                align = 128;
+                return _gemm_kernel_asm->get_B_pretransposed_array_size();
+            }
+
+            template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage>
+            void
+            BatmanInfer::cpu::Fallback<TypeInput, TypeWeight, TypeOutput, OutputStage>::update_configure_parameters(
+                    const BatmanInfer::BIITensorInfo *a, const BatmanInfer::BIITensorInfo *b,
+                    const BatmanInfer::BIITensorInfo *d) {
+                Params p = extract_simplify_parameters(a, b, d);
+                _gemm_kernel_asm->set_dynamic_M_size(p.M);
+                _gemm_kernel_asm->set_dynamic_batch_size(p.batches);
+                _gemm_kernel_asm->set_dynamic_nmulti_size(p.multis);
+            }
 
             template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage>
             std::tuple<bool, const int32_t *, const int32_t *, const int32_t *>
@@ -579,6 +636,8 @@ namespace BatmanInfer {
                 }
             }
 
+            // 动态更新transpose
+
             template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage>
             void Fallback<TypeInput, TypeWeight, TypeOutput, OutputStage>::prepare(BIITensorPack &tensors) {
                 if (!_is_prepared) {
@@ -665,6 +724,9 @@ namespace BatmanInfer {
                 auto c = tensors.get_const_tensor(BITensorType::ACL_SRC_2);
                 auto d = tensors.get_tensor(BITensorType::ACL_DST);
                 BI_COMPUTE_ERROR_ON_NULLPTR(a, d);
+
+                // 动态更新B张量数据(变更为最新的形状)
+                dynamic_update_info();
 
                 // 如果源量化是动态的，则仅在运行时更新。
                 if (std::is_same<OutputStage, BatmanGemm::DequantizeFloat>::value &&
@@ -827,12 +889,17 @@ namespace BatmanInfer {
                 auto is_dynamic_m = _gemm_kernel_asm->set_dynamic_M_size(in0_tensor.info()->tensor_shape().y());
                 auto is_dynamic_batch = _gemm_kernel_asm->set_dynamic_batch_size(
                         in0_tensor.info()->tensor_shape().z());
-
-                if (is_dynamic_m || is_dynamic_batch) {
-                    _gemm_kernel_asm->update_parameters();
-                    BIWindow win = to_window(_gemm_kernel_asm->get_window_size());
-                    _optimised_kernel->dynamic_configure(win);
-                }
+                auto is_dynamic_multi = _gemm_kernel_asm->set_dynamic_nmulti_size(
+                        in0_tensor.info()->tensor_shape()[3]);
+//
+//                if (is_dynamic_m || is_dynamic_batch || is_dynamic_multi) {
+//                    _gemm_kernel_asm->update_parameters();
+//                    BIWindow win = to_window(_gemm_kernel_asm->get_window_size());
+//                    _optimised_kernel->dynamic_configure(win);
+//                }
+                _gemm_kernel_asm->update_parameters();
+                BIWindow win = to_window(_gemm_kernel_asm->get_window_size());
+                _optimised_kernel->dynamic_configure(win);
 
                 // Schedule
                 BINEScheduler::get().schedule_op(_optimised_kernel.get(), scheduling_hint,
@@ -1247,6 +1314,12 @@ namespace BatmanInfer {
                                                                        const bool negated_offsets) {
             BI_COMPUTE_ERROR_ON(_batman_gemm == nullptr);
             _batman_gemm->update_quantization_parameters(output_info, a, b, is_prepared, negated_offsets);
+        }
+
+        size_t BICpuGemmAssemblyDispatch::dynamic_tensor_b_size(const BIITensorInfo *a, const BIITensorInfo *b,
+                                                                const BIITensorInfo *d, size_t &align) {
+            _batman_gemm->update_configure_parameters(a, b, d);
+            return _batman_gemm->dynamic_tensor_b(align);
         }
     } // namespace cpu
 }

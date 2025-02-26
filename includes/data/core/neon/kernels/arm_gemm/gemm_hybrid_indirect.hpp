@@ -441,6 +441,13 @@ namespace BatmanGemm {
             return true;
         }
 
+        bool set_dynamic_nmulti_size(int nmulti) override {
+            if (nmulti == _args._nmulti)
+                return false;
+            _args._nmulti = nmulti;
+            return true;
+        }
+
         // Interface implementation - Compulsory functions
         ndrange_t get_window_size() const override {
             return {_window_range.total_size()};

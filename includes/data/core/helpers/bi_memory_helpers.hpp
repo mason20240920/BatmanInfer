@@ -37,6 +37,16 @@ namespace BatmanInfer {
         return manage_workspace<TensorType>(mem_reqs, mgroup, run_pack, dummy_pack);
     }
 
+    /**
+     * 配置转置之类的张量内存信息
+     * @tparam TensorType
+     * @param mem_reqs
+     * @param mgroup
+     * @param run_pack
+     * @param prep_pack
+     * @param allocate_now
+     * @return
+     */
     template<typename TensorType>
     WorkspaceData<TensorType> manage_workspace(const experimental::BIMemoryRequirements &mem_reqs,
                                                BIMemoryGroup &mgroup,
@@ -49,13 +59,13 @@ namespace BatmanInfer {
                 continue;
             }
 
-            const auto aux_info = BITensorInfo{BITensorShape(req.size), 1, BIDataType::U8};
+            const auto aux_info = BITensorInfo{BITensorShape(req.size), 1, BIDataType::U8}; // 创建一个张量信息
             workspace_memory.emplace_back(
                     WorkspaceDataElement<TensorType>{req.slot, req.lifetime, std::make_unique<TensorType>()});
 
-            auto aux_tensor = workspace_memory.back().tensor.get();
+            auto aux_tensor = workspace_memory.back().tensor.get(); // 获取最后的内存的tensor
             BI_COMPUTE_ERROR_ON_NULLPTR(aux_tensor);
-            aux_tensor->allocator()->init(aux_info, req.alignment);
+            aux_tensor->allocator()->init(aux_info, req.alignment); // 根据aux_info进行初始化, req.alignment是初始化信息
 
             if (req.lifetime == experimental::MemoryLifetime::Temporary) {
                 mgroup.manage(aux_tensor);
