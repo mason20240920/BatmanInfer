@@ -15,6 +15,7 @@
 #include <data/core/bi_vlidate.hpp>
 
 #include <thread>
+#include <iomanip>
 
 // 临时数据
 #include <cpu/operators/internal/cpu_gemm_assembly_dispatch.hpp>
