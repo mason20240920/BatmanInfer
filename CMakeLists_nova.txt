@@ -10,6 +10,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 option(ENABLE_BENCHMARK "For enable benchmark" OFF)
 
+add_definitions(-DONNX_ML)
 # 检查目标平台
 if (ANDROID)
     # Set the CMake prefix path
@@ -93,10 +94,15 @@ if (ANDROID)
     set(GLOG_LIBRARIES "${CMAKE_SOURCE_DIR}/third_party/glog/lib/libglog.a")
 else ()
     # 查找OpenMP
-    set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
+    # set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
+    # set(OpenMP_C_LIB_NAMES "omp")
+    # set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
+    # set(OpenMP_INCLUDE "/opt/homebrew/opt/libomp/include")
+    set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/Cellar/libomp/19.1.7/include")
     set(OpenMP_C_LIB_NAMES "omp")
-    set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
-    set(OpenMP_INCLUDE "/opt/homebrew/opt/libomp/include")
+    set(OpenMP_omp_LIBRARY "/opt/homebrew/Cellar/libomp/19.1.7/lib/libomp.dylib")
+    set(OpenMP_INCLUDE "/opt/homebrew/Cellar/libomp/19.1.7/include")
+
     message(STATUS "Configuring for non-Android platform")
     # 查找Armadillo库
     find_package(Armadillo REQUIRED)
@@ -105,7 +111,8 @@ else ()
     # 查找abseil
     find_package(absl REQUIRED)
     # 查找 ONNX 包
-    find_package(onnx REQUIRED)
+    # find_package(onnx REQUIRED)
+    find_package(ONNX REQUIRED)
     # 设置libs库
     set(ONNX_LIBRARIES "/usr/local/lib")
     # 设置abseil
@@ -132,24 +139,27 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g -gdwarf-2 -DENABLE_INTEGER_KERNELS -DBI_COMP
 
 
 # 下载GoogleTest项目
-include(FetchContent)
-FetchContent_Declare(
-        googletest
-        URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-)
+# include(FetchContent)
+# FetchContent_Declare(
+#         googletest
+#         URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+# )
+find_package(GTest REQUIRED)
+message("GTest_DIR: " "${GTest_DIR}")
 
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+# FetchContent_MakeAvailable(googletest)
 
 if (ENABLE_BENCHMARK)
     # 获取Google Benchmark
-    include(FetchContent)
-    FetchContent_Declare(
-            googlebenchmark
-            GIT_REPOSITORY https://github.com/google/benchmark.git
-            GIT_TAG v1.8.0)
-    FetchContent_MakeAvailable(googlebenchmark)
+    # include(FetchContent)
+    # FetchContent_Declare(
+    #         googlebenchmark
+    #         GIT_REPOSITORY https://github.com/google/benchmark.git
+    #         GIT_TAG v1.8.0)
+    # FetchContent_MakeAvailable(googlebenchmark)
+    find_package(benchmark REQUIRED)
 endif ()
 
 # 查找OpenCV库
@@ -192,6 +202,8 @@ target_link_libraries(BatmanInfer
 
 if (ANDROID)
     target_link_libraries(BatmanInfer OpenMP::OpenMP_CXX)
+else()
+    target_link_libraries(BatmanInfer -lz)
 endif ()
 
 if (ENABLE_BENCHMARK)
