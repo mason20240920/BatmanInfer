@@ -45,11 +45,12 @@ void fill_tensor_val(const BatmanInfer::BITensor &tensor, const TypeOut val) {
     }
 }
 
-void print_tensor(const BatmanInfer::BITensor &tensor) {
+void print_tensor(const BatmanInfer::BITensor &tensor, const std::string &name = "temp") {
+    std::cout << name << std::endl;
     BatmanInfer::BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
 
     tensor.print(std::cout, format);
 }
@@ -105,7 +106,7 @@ TEST(test_tensor_values, tensor_values1) {
     const BITensorShape weights_shape_conv0(kernel_x_conv0, kernel_y_conv0, src_shape.z(), ofm_conv0);
 
     weights0.allocator()->init(BITensorInfo(weights_shape_conv0, 1, BIDataType::F32));
-//    weights0.print(std::cout);
+    //    weights0.print(std::cout);
 
     std::cout << "Hello" << std::endl;
 }
@@ -123,9 +124,9 @@ TEST(test_tensor_values, nd_range_test) {
     while (!it.done()) {
         // 打印当前线性索引和对应的多维坐标
         std::cout << "Linear index: " << it.dim(0)
-                  << ", dim(0): " << it.dim(0)
-                  << ", dim(1): " << it.dim(1)
-                  << ", dim(2): " << it.dim(2) << std::endl;
+                << ", dim(0): " << it.dim(0)
+                << ", dim(1): " << it.dim(1)
+                << ", dim(2): " << it.dim(2) << std::endl;
 
         // 打印 dim0_max的值
         std::cout << "dim0_max: " << it.dim0_max() << std::endl;
@@ -170,7 +171,6 @@ TEST(test_tensor_values, work_load_test) {
     for (auto &t: threads) {
         t.join();
     }
-
 }
 
 struct Params {
@@ -196,13 +196,15 @@ Params extract_parameters(const BatmanInfer::BIITensorInfo *a,
                           const BatmanInfer::BIITensorInfo *d,
                           const BatmanInfer::cpu::BIAsmGemmInfo &info) {
     BI_COMPUTE_ERROR_ON_NULLPTR(a, b, d);
-    Params p{/* M */ static_cast<unsigned int>(d->tensor_shape().y()),
-            /* N */ static_cast<unsigned int>(d->tensor_shape().x()),
-            /* K */ static_cast<unsigned int>(a->tensor_shape().x()),
-            /* batches */ 1,
-            /* multis */ 1,
-            /* sections */ 1,
-            /* indirect */ false};
+    Params p{
+        /* M */ static_cast<unsigned int>(d->tensor_shape().y()),
+        /* N */ static_cast<unsigned int>(d->tensor_shape().x()),
+        /* K */ static_cast<unsigned int>(a->tensor_shape().x()),
+        /* batches */ 1,
+        /* multis */ 1,
+        /* sections */ 1,
+        /* indirect */ false
+    };
 
     if (info.method == BatmanInfer::cpu::BIAsmConvMethod::Conv ||
         info.method == BatmanInfer::cpu::BIAsmConvMethod::Indirect) {
@@ -229,19 +231,19 @@ TEST(test_tensor_values, extract_params) {
     BITensorInfo tensor_a(shape_a, 1, data_type_a);
 
     // 2. 创建输入张量 B 的信息
-    BITensorShape shape_b(4, 2, 2, 2);  // B 的形状为 4 × 2 × 2 × 2
-    BIDataType data_type_b = BIDataType::QASYMM8;  // 假设 B 的数据类型为 FLOAT32
+    BITensorShape shape_b(4, 2, 2, 2); // B 的形状为 4 × 2 × 2 × 2
+    BIDataType data_type_b = BIDataType::QASYMM8; // 假设 B 的数据类型为 FLOAT32
     BITensorInfo tensor_b(shape_b, 1, data_type_b);
 
     // 3. 创建输出张量 D 的信息
-    BITensorShape shape_d(3, 2, 2);  // D 的形状为 3 × 2 × 2
-    BIDataType data_type_d = BIDataType::QASYMM8;  // 假设 D 的数据类型为 FLOAT32
+    BITensorShape shape_d(3, 2, 2); // D 的形状为 3 × 2 × 2
+    BIDataType data_type_d = BIDataType::QASYMM8; // 假设 D 的数据类型为 FLOAT32
     BITensorInfo tensor_d(shape_d, 1, data_type_d);
 
     // 4. 创建配置信息
     cpu::BIAsmGemmInfo info;
-    info.method = cpu::BIAsmConvMethod::Conv;  // 设置为普通卷积方法
-    info.depth_output_gemm3d = false;  // 不使用 3D GEMM 输出
+    info.method = cpu::BIAsmConvMethod::Conv; // 设置为普通卷积方法
+    info.depth_output_gemm3d = false; // 不使用 3D GEMM 输出
 
     // 5. 调用 extract_parameters 函数
     Params params = extract_parameters(&tensor_a, &tensor_b, &tensor_d, info);
@@ -337,8 +339,8 @@ TEST(BIIteratorTest, TestIteratorInit) {
     // 打印结果以验证
     for (size_t i = 0; i < num_dims; ++i) {
         std::cout << "Dim " << i << ":\n";
-//        std::cout << "  Stride: " << iterator._dims[i]._stride << "\n";
-//        std::cout << "  Start: " << iterator._dims[i]._dim_start << "\n";
+        //        std::cout << "  Stride: " << iterator._dims[i]._stride << "\n";
+        //        std::cout << "  Start: " << iterator._dims[i]._dim_start << "\n";
     }
 }
 
@@ -359,19 +361,18 @@ TEST(BITensorTest, transpose_test) {
     output.allocator()->allocate();
 
     // 填充输入张量数据
-//    uint8_t input_data[] = {1, 2, 3, 4, 5, 6}; // 3x2 矩阵
-//    std::memcpy(input.buffer(), input_data, sizeof(input_data));
+    //    uint8_t input_data[] = {1, 2, 3, 4, 5, 6}; // 3x2 矩阵
+    //    std::memcpy(input.buffer(), input_data, sizeof(input_data));
 
     // 执行转置
     transpose.run();
 
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
 
     output.print(std::cout, format);
-
 }
 
 
@@ -402,15 +403,15 @@ TEST(BITensorTest, reshape_test) {
 
     uint8_t *output_data = reinterpret_cast<uint8_t *>(output_tensor.buffer());
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
 
-//    output_tensor.print(std::cout, format);
+    //    output_tensor.print(std::cout, format);
     for (int i = 0; i < 16; ++i) {
         std::cout << static_cast<int>(output_data[i]) << " ";
     }
-//    output_tensor.print(std::cout);
+    //    output_tensor.print(std::cout);
     std::cout << std::endl;
 }
 
@@ -441,28 +442,26 @@ TEST(BITensorTest, CustomInterleaveHeight) {
 TEST(BITensorTest, GEMMIntervalTest) {
     using namespace BatmanInfer;
     // 定义输入和输出张量的形状
-    BITensorShape src_shape(16, 16);  // 假设输入是16x16矩阵
+    BITensorShape src_shape(16, 16); // 假设输入是16x16矩阵
 
     // 创建输入和输出张量
     BITensor src, dst;
 
     // 配置输入张量
-    src.allocator()->init(BITensorInfo(src_shape, 1, BIDataType::F32));  // 假设数据类型为F32
+    src.allocator()->init(BITensorInfo(src_shape, 1, BIDataType::F32)); // 假设数据类型为F32
 
     // 分配张量内存
     src.allocator()->allocate();
-//    dst.allocator()->allocate();
+    //    dst.allocator()->allocate();
     ::cpu::kernels::BICpuGemmInterleave4x4Kernel kernel;
     kernel.configure(src.info(), dst.info());
-
-
 }
 
 void interleave_B_inplace(const float *B, float *B_interleave) {
     // Load four rows of B
-    float32x4_t b_row0 = vld1q_f32(B);      // Load [b11, b12, b13, b14]
-    float32x4_t b_row1 = vld1q_f32(B + 4);  // Load [b21, b22, b23, b24]
-    float32x4_t b_row2 = vld1q_f32(B + 8);  // Load [b31, b32, b33, b34]
+    float32x4_t b_row0 = vld1q_f32(B); // Load [b11, b12, b13, b14]
+    float32x4_t b_row1 = vld1q_f32(B + 4); // Load [b21, b22, b23, b24]
+    float32x4_t b_row2 = vld1q_f32(B + 8); // Load [b31, b32, b33, b34]
     float32x4_t b_row3 = vld1q_f32(B + 12); // Load [b41, b42, b43, b44]
 
     // Transpose using NEON intrinsics
@@ -494,10 +493,10 @@ void print_matrix(const char *name, const float *mat, int rows, int cols) {
 TEST(BITensor, GEMMInterval) {
     const int rows = 4, cols = 4;
     float B[rows * cols] = {
-            1, 2, 3, 4,    // B = [1  2  3  4]
-            5, 6, 7, 8,    //     [5  6  7  8]
-            9, 10, 11, 12,   //     [9  10 11 12]
-            13, 14, 15, 16    //     [13 14 15 16]
+        1, 2, 3, 4, // B = [1  2  3  4]
+        5, 6, 7, 8, //     [5  6  7  8]
+        9, 10, 11, 12, //     [9  10 11 12]
+        13, 14, 15, 16 //     [13 14 15 16]
     };
     float B_interleaved[rows * cols] = {0};
 
@@ -523,10 +522,10 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     const unsigned int N = 5; // 矩阵B的列数
 
     // 配置张量的形状和数据类型
-    BITensorInfo a_info(BITensorShape(K, M, 2), 1, BIDataType::F16);  // 矩阵 A
-    BITensorInfo b_info(BITensorShape(N, K), 1, BIDataType::F16);  // 矩阵 B
-    BITensorInfo c_info(BITensorShape(N), 1, BIDataType::F16);  // 矩阵 C（可选）
-    BITensorInfo d_info(BITensorShape(N, M, 2), 1, BIDataType::F16);  // 输出矩阵 D
+    BITensorInfo a_info(BITensorShape(K, M, 2), 1, BIDataType::F16); // 矩阵 A
+    BITensorInfo b_info(BITensorShape(N, K), 1, BIDataType::F16); // 矩阵 B
+    BITensorInfo c_info(BITensorShape(N), 1, BIDataType::F16); // 矩阵 C（可选）
+    BITensorInfo d_info(BITensorShape(N, M, 2), 1, BIDataType::F16); // 输出矩阵 D
 
     // 初始化张量
     a.allocator()->init(a_info);
@@ -538,8 +537,8 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     BINEGEMM gemm;
 
     // 配置 NEGEMM 函数
-    float alpha = 1.0f;  // 矩阵乘积的权重
-    float beta = 1.0f;   // 矩阵 C 的权重（如果不需要 C，可以设置为 0）
+    float alpha = 1.0f; // 矩阵乘积的权重
+    float beta = 1.0f; // 矩阵 C 的权重（如果不需要 C，可以设置为 0）
 
     GEMMInfo gemm_info(false, false, false);
     gemm.configure(&a, &b, &c, &d, alpha, beta, gemm_info);
@@ -553,21 +552,21 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     // 示例：填充张量 A 的数据
     auto a_data = reinterpret_cast<float16_t *>(a.buffer());
     for (unsigned int i = 0; i < M * K * 2; ++i) {
-        a_data[i] = static_cast<float16_t>(i * 2 + 0.1);  // 填充一些测试数据
+        a_data[i] = static_cast<float16_t>(i * 2 + 0.1); // 填充一些测试数据
     }
     auto b_data = reinterpret_cast<float16_t *>(b.buffer());
     for (unsigned int i = 0; i < K * N; ++i) {
-        b_data[i] = static_cast<float16_t>(i + 0.1);  // 填充一些测试数据
+        b_data[i] = static_cast<float16_t>(i + 0.1); // 填充一些测试数据
     }
     auto c_data = reinterpret_cast<float16_t *>(c.buffer());
     for (unsigned int i = 0; i < N * M * 2; ++i) {
-        c_data[i] = static_cast<float16_t>(1.111f);  // 填充一些测试数据
+        c_data[i] = static_cast<float16_t>(1.111f); // 填充一些测试数据
     }
 
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
 
     // 打印数据
     a.print(std::cout, format);
@@ -595,7 +594,7 @@ TEST(BITensor, NEGEMM_exmaple_01) {
 
     d.allocator()->free();
     a.allocator()->free();
-//    c.allocator()->free();
+    //    c.allocator()->free();
 
     // 进行形状修改
     M = 3;
@@ -603,8 +602,8 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     // 记录开始时间点
     start = std::chrono::high_resolution_clock::now();
 
-    a_info = BITensorInfo(BITensorShape(K, M, 2), 1, BIDataType::F16);  // 矩阵 A
-    d_info = BITensorInfo(BITensorShape(N, M, 2), 1, BIDataType::F16);  // 输出矩阵 D
+    a_info = BITensorInfo(BITensorShape(K, M, 2), 1, BIDataType::F16); // 矩阵 A
+    d_info = BITensorInfo(BITensorShape(N, M, 2), 1, BIDataType::F16); // 输出矩阵 D
     a.allocator()->init(a_info);
     d.allocator()->init(d_info);
 
@@ -615,7 +614,7 @@ TEST(BITensor, NEGEMM_exmaple_01) {
     // 示例：填充张量 A 的数据
     a_data = reinterpret_cast<float16_t *>(a.buffer());
     for (unsigned int i = 0; i < M * K * 2; ++i) {
-        a_data[i] = static_cast<float16_t>(float(i / 2) + +0.1f);  // 填充一些测试数据
+        a_data[i] = static_cast<float16_t>(float(i / 2) + +0.1f); // 填充一些测试数据
     }
 
     // 调用需要测试的函数
@@ -670,9 +669,9 @@ TEST(BITensor, NESplit_example_02) {
     }
 
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
 
     // Step 5: 运行 NESplit
     split_layer.run();
@@ -680,14 +679,14 @@ TEST(BITensor, NESplit_example_02) {
     std::cout << "NESplit executed successfully!" << std::endl;
 
     for (auto &tensor: output_tensors) {
-//        tensor.print(std::cout, format);
+        //        tensor.print(std::cout, format);
     }
 }
 
 void print_tensor_qasymm8(const BITensor &tensor) {
     // 获取张量的量化信息
     auto quant_info = tensor.info()->quantization_info();
-    float scale = quant_info.uniform().scale;  // 量化比例因子
+    float scale = quant_info.uniform().scale; // 量化比例因子
     int32_t offset = quant_info.uniform().offset; // 量化零点
 
     // 获取张量形状
@@ -738,7 +737,7 @@ TEST(BITensor, NEMatMul_example_01) {
     settings.fast_math(true); // 启用快速数学模式
 
     // 定义激活函数信息（可选）
-//    BIActivationLayerInfo act_info(BIActivationLayerInfo::ActivationFunction::RELU);
+    //    BIActivationLayerInfo act_info(BIActivationLayerInfo::ActivationFunction::RELU);
 
     // 创建 MatMul 操作对象
     BINEMatMul matmul;
@@ -789,7 +788,7 @@ TEST(BITensor, NEMatMul_example_02) {
     settings.fast_math(true); // 启用快速数学模式
 
     // 定义激活函数信息（可选）
-//    BIActivationLayerInfo act_info(BIActivationLayerInfo::ActivationFunction::RELU);
+    //    BIActivationLayerInfo act_info(BIActivationLayerInfo::ActivationFunction::RELU);
 
     // 创建 MatMul 操作对象
     BINEMatMul matmul;
@@ -815,18 +814,18 @@ TEST(BITensor, NEMatMul_example_02) {
     matmul.run();
 
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
 
     tensor_c.print(std::cout, format);
-//    print_tensor_qasymm8(tensor_a);
+    //    print_tensor_qasymm8(tensor_a);
 }
 
 TEST(BITensor, NEMul_example_01) {
     using namespace BatmanInfer;
     // 1. 创建张量形状和量化参数
-    BITensorShape shape(32, 32);  // 示例大小为32x32
+    BITensorShape shape(32, 32); // 示例大小为32x32
     BITensorShape same_shape(1);
 
     // 初始化张量信息
@@ -849,7 +848,7 @@ TEST(BITensor, NEMul_example_01) {
     float *src2_ptr = reinterpret_cast<float *>(src2.buffer());
     for (size_t i = 0; i < shape.total_size(); ++i) {
         src1_ptr[i] = static_cast<float>(i + 1); // src1: 1, 2, 3, ...
-//        src2_ptr[i] = static_cast<float>(2);     // src2: 全部填充为 2
+        //        src2_ptr[i] = static_cast<float>(2);     // src2: 全部填充为 2
     }
 
     src2_ptr[0] = static_cast<float>(2);
@@ -866,9 +865,9 @@ TEST(BITensor, NEMul_example_01) {
         EXPECT_FLOAT_EQ(dst_ptr[i], src1_ptr[i] * src2_ptr[0]); // 验证结果
 
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
 
     dst.print(std::cout, format);
 }
@@ -903,10 +902,10 @@ TEST(NESoftmaxLayerTest, BasicSoftmaxTest) {
     // 检查输出
     float *output_data = reinterpret_cast<float *>(output.buffer());
     float expected_output[] = {
-            std::exp(1.0f) / (std::exp(1.0f) + std::exp(2.0f) + std::exp(3.0f) + std::exp(4.0f)),
-            std::exp(2.0f) / (std::exp(1.0f) + std::exp(2.0f) + std::exp(3.0f) + std::exp(4.0f)),
-            std::exp(3.0f) / (std::exp(1.0f) + std::exp(2.0f) + std::exp(3.0f) + std::exp(4.0f)),
-            std::exp(4.0f) / (std::exp(1.0f) + std::exp(2.0f) + std::exp(3.0f) + std::exp(4.0f)),
+        std::exp(1.0f) / (std::exp(1.0f) + std::exp(2.0f) + std::exp(3.0f) + std::exp(4.0f)),
+        std::exp(2.0f) / (std::exp(1.0f) + std::exp(2.0f) + std::exp(3.0f) + std::exp(4.0f)),
+        std::exp(3.0f) / (std::exp(1.0f) + std::exp(2.0f) + std::exp(3.0f) + std::exp(4.0f)),
+        std::exp(4.0f) / (std::exp(1.0f) + std::exp(2.0f) + std::exp(3.0f) + std::exp(4.0f)),
     };
 
     // 验证输出是否与预期一致
@@ -914,9 +913,9 @@ TEST(NESoftmaxLayerTest, BasicSoftmaxTest) {
         EXPECT_NEAR(output_data[i], expected_output[i], 1e-5);
     }
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
 
     std::cout << "Output matrix:" << std::endl;
     output.print(std::cout, format);
@@ -946,7 +945,7 @@ void fill_tensor_buffer(BITensor &tensor, BIDataType data_type, uint8_t fill_val
     } else if (data_type == BIDataType::F32) {
         // 填充 S32 类型的张量
         for (size_t i = 0; i < total_size / sizeof(float); ++i) {
-            reinterpret_cast<float *>(buffer_ptr)[i] = static_cast<float >(fill_value);
+            reinterpret_cast<float *>(buffer_ptr)[i] = static_cast<float>(fill_value);
         }
     } else {
         throw std::runtime_error("Unsupported data type for tensor filling!");
@@ -956,10 +955,10 @@ void fill_tensor_buffer(BITensor &tensor, BIDataType data_type, uint8_t fill_val
 TEST(BICpuLowpGemm, BasicGemmTest) {
     using namespace BatmanInfer;
 
-    const BITensorShape input_shape(2, 2);    // 2x2
-    const BITensorShape weights_shape(2, 2);  // 2x2
-    const BITensorShape output_shape(2, 2);   // 2x2
-    const BITensorShape bias_shape(2);        // bias向量
+    const BITensorShape input_shape(2, 2); // 2x2
+    const BITensorShape weights_shape(2, 2); // 2x2
+    const BITensorShape output_shape(2, 2); // 2x2
+    const BITensorShape bias_shape(2); // bias向量
 
     // 2. 创建张量
     BITensor input, weights, bias, output;
@@ -1014,7 +1013,7 @@ TEST(BICpuLowpGemm, BasicGemmTest) {
     int32_t output_multiplier;
     int32_t output_shift;
     quantization::calculate_quantized_multiplier_less_than_one(
-            scale, &output_multiplier, &output_shift);
+        scale, &output_multiplier, &output_shift);
     output_stage.gemmlowp_multiplier = output_multiplier;
     output_stage.gemmlowp_shift = output_shift;
     // 设置到gemm_info
@@ -1216,7 +1215,7 @@ TEST(BICpuLowpGemm, LowpGemmTest01) {
         float real_bias = bias_ptr[i];
         // 量化偏置值，使用输入张量的量化参数
         int32_t quantized_bias = static_cast<int32_t>(std::round(
-                real_bias / (src1_qinfo.scale()[0] * src2_qinfo.scale()[0])));
+            real_bias / (src1_qinfo.scale()[0] * src2_qinfo.scale()[0])));
         q_bias_ptr[i] = quantized_bias;
     }
 
@@ -1384,7 +1383,7 @@ TEST(BICpuGemmLowp, LowpBiasAddExample) {
         float real_bias = bias_ptr[i];
         // 量化偏置值，使用输入张量的量化参数
         int32_t quantized_bias = static_cast<int32_t>(std::round(
-                real_bias / (src1_qinfo.scale()[0] * src2_qinfo.scale()[0])));
+            real_bias / (src1_qinfo.scale()[0] * src2_qinfo.scale()[0])));
         q_bias_ptr[i] = quantized_bias;
     }
 
@@ -1393,7 +1392,7 @@ TEST(BICpuGemmLowp, LowpBiasAddExample) {
     q_res.allocator()->init(BITensorInfo(BITensorShape(N, M), 1, BIDataType::QASYMM8, dst0_qinfo));
 
     // Configure output stage after computing shift and multiplier parameters
-//    BINEGEMMLowpOutputStage gemmlowp_output_stage;
+    //    BINEGEMMLowpOutputStage gemmlowp_output_stage;
     int output_multiplier;
     int output_shift;
     float multiplier = (src1_qinfo.uniform().scale * src2_qinfo.uniform().scale) / dst0_qinfo.uniform().scale;
@@ -1414,7 +1413,7 @@ TEST(BICpuGemmLowp, LowpBiasAddExample) {
     gemm_info.set_gemmlowp_output_stage(info);
 
     qgemm.configure(&q_src1, &q_src2, &q_bias, &q_res, gemm_info);
-//    gemmlowp_output_stage.configure(&q_res, &q_bias, &q_res_output, info);
+    //    gemmlowp_output_stage.configure(&q_res, &q_bias, &q_res_output, info);
 
     // Allocate all tensors
     q_src1.allocator()->allocate();
@@ -1430,7 +1429,7 @@ TEST(BICpuGemmLowp, LowpBiasAddExample) {
     // Run low precision matrix multiply kernel
     qgemm.run();
     // Run output stage kernel
-//    gemmlowp_output_stage.run();
+    //    gemmlowp_output_stage.run();
     std::cout << "\nTest Passed\n";
 
     // Print quantized source matrices
@@ -1442,8 +1441,8 @@ TEST(BICpuGemmLowp, LowpBiasAddExample) {
     std::cout << "Lowp GEMM output (int32):\n";
     print_tensor(q_res);
     // Print QASYMM8 (quantized) matrix
-//    std::cout << "Output pipeline result matrix:\n";
-//    print_tensor(q_res_output);
+    //    std::cout << "Output pipeline result matrix:\n";
+    //    print_tensor(q_res_output);
 
     // Expected result
     std::cout << "Expected result:\n";
@@ -1464,21 +1463,21 @@ TEST(BICpuGemmLowp, LowpBiasAddExample) {
 TEST(BICpuGemm, BasicGemmTest01) {
     using namespace BatmanInfer;
     // 1. 定义小矩阵: 2x2 * 2x2 = 2x2
-    const BITensorShape input_shape(3, 4);    // 2x2
-    const BITensorShape weights_shape(4, 5);  // 2x2
-    const BITensorShape output_shape(3, 5);   // 2x2
-    const BITensorShape bias_shape(5);        // bias向量
+    const BITensorShape input_shape(3, 4); // 2x2
+    const BITensorShape weights_shape(4, 5); // 2x2
+    const BITensorShape output_shape(3, 5); // 2x2
+    const BITensorShape bias_shape(5); // bias向量
 
-// 2. 创建张量
+    // 2. 创建张量
     BITensor input, weights, bias, output;
 
-// 3. 配置张量信息（使用F32而不是QASYMM8）
+    // 3. 配置张量信息（使用F32而不是QASYMM8）
     BITensorInfo input_info(input_shape, 1, BIDataType::F32);
     BITensorInfo weights_info(weights_shape, 1, BIDataType::F32);
     BITensorInfo bias_info(bias_shape, 1, BIDataType::F32);
     BITensorInfo output_info(output_shape, 1, BIDataType::F32);
 
-// 4. 初始化并分配内存
+    // 4. 初始化并分配内存
     input.allocator()->init(input_info);
     weights.allocator()->init(weights_info);
     bias.allocator()->init(bias_info);
@@ -1495,17 +1494,19 @@ TEST(BICpuGemm, BasicGemmTest01) {
     float *bias_ptr = reinterpret_cast<float *>(bias.buffer());
 
     float input_data[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f};
-    float weights_data[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                            1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                            1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                            1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    float weights_data[] = {
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f
+    };
     float bias_data[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
     memcpy(input_ptr, input_data, sizeof(input_data));
     memcpy(weights_ptr, weights_data, sizeof(weights_data));
     memcpy(bias_ptr, bias_data, sizeof(bias_data));
 
-// 6. 配置并运行GEMM
+    // 6. 配置并运行GEMM
     BINEGEMM gemm;
     gemm.configure(&weights, &input, &bias, &output, 1.0f, 1.0f);
     gemm.prepare();
@@ -1527,36 +1528,36 @@ TEST(BICpuGemm, BasicGemmTest01) {
 
 
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
     input.print(std::cout, format);
     weights.print(std::cout, format);
     output.print(std::cout, format);
 
-//// 7. 打印结果
-//    BIWindow window;
-//    window.use_tensor_dimensions(output.info()->tensor_shape());
-//
-//    execute_window_loop(window, [&](const BICoordinates &id) {
-//        float *output_ptr = reinterpret_cast<float *>(output.buffer());
-//        std::cout << output_ptr[id.y() * output_shape[0] + id.x()] << " ";
-//        if (id.x() == output_shape[0] - 1) std::cout << std::endl;
-//    });
+    //// 7. 打印结果
+    //    BIWindow window;
+    //    window.use_tensor_dimensions(output.info()->tensor_shape());
+    //
+    //    execute_window_loop(window, [&](const BICoordinates &id) {
+    //        float *output_ptr = reinterpret_cast<float *>(output.buffer());
+    //        std::cout << output_ptr[id.y() * output_shape[0] + id.x()] << " ";
+    //        if (id.x() == output_shape[0] - 1) std::cout << std::endl;
+    //    });
 }
 
 TEST(BICpuGemm, BasicGemmTest02) {
     using namespace BatmanInfer;
     // 1. 定义小矩阵: 2x2 * 2x2 = 2x2
-    const BITensorShape input_shape(2, 2);    // 2x2
-    const BITensorShape weights_shape(2, 2);  // 2x2
-    const BITensorShape output_shape(2, 2);   // 2x2
-    const BITensorShape bias_shape(2);        // bias向量
+    const BITensorShape input_shape(2, 2); // 2x2
+    const BITensorShape weights_shape(2, 2); // 2x2
+    const BITensorShape output_shape(2, 2); // 2x2
+    const BITensorShape bias_shape(2); // bias向量
 
-// 2. 创建张量
+    // 2. 创建张量
     BITensor input, weights, bias, output;
 
-// 3. 配置张量信息（使用F32而不是QASYMM8）
+    // 3. 配置张量信息（使用F32而不是QASYMM8）
     BITensorInfo input_info(input_shape, 1, BIDataType::F16);
     BITensorInfo weights_info(weights_shape, 1, BIDataType::QASYMM8);
     BITensorInfo bias_info(bias_shape, 1, BIDataType::S32);
@@ -1586,7 +1587,7 @@ TEST(BICpuGemm, BasicGemmTest02) {
     memcpy(weights_ptr, weights_data, sizeof(weights_data));
     memcpy(bias_ptr, bias_data, sizeof(bias_data));
 
-// 6. 配置并运行GEMM
+    // 6. 配置并运行GEMM
     BINEGEMM gemm;
     gemm.configure(&weights, &input, &bias, &output, 1.0f, 1.0f);
     gemm.prepare();
@@ -1608,23 +1609,23 @@ TEST(BICpuGemm, BasicGemmTest02) {
 
 
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
     input.print(std::cout, format);
     weights.print(std::cout, format);
     bias.print(std::cout, format);
     output.print(std::cout, format);
 
-//// 7. 打印结果
-//    BIWindow window;
-//    window.use_tensor_dimensions(output.info()->tensor_shape());
-//
-//    execute_window_loop(window, [&](const BICoordinates &id) {
-//        float *output_ptr = reinterpret_cast<float *>(output.buffer());
-//        std::cout << output_ptr[id.y() * output_shape[0] + id.x()] << " ";
-//        if (id.x() == output_shape[0] - 1) std::cout << std::endl;
-//    });
+    //// 7. 打印结果
+    //    BIWindow window;
+    //    window.use_tensor_dimensions(output.info()->tensor_shape());
+    //
+    //    execute_window_loop(window, [&](const BICoordinates &id) {
+    //        float *output_ptr = reinterpret_cast<float *>(output.buffer());
+    //        std::cout << output_ptr[id.y() * output_shape[0] + id.x()] << " ";
+    //        if (id.x() == output_shape[0] - 1) std::cout << std::endl;
+    //    });
 }
 
 TEST(BIADDBroadcast, BasicAddExample01) {
@@ -1659,7 +1660,6 @@ TEST(BIADDBroadcast, BasicAddExample01) {
     add_op.run();
 
     print_tensor(tensor_out);
-
 }
 
 TEST(SoftmaxDimTest, ExampleTest01) {
@@ -1692,7 +1692,7 @@ TEST(SoftmaxDimTest, ExampleTest01) {
     // Softmax 操作
     BINESoftmaxLayerGeneric softmax_layer;
     const float beta = 1.0f; // 指数的缩放因子
-    const int axis = 0;      // 在第 0 维度上执行 Softmax
+    const int axis = 0; // 在第 0 维度上执行 Softmax
     softmax_layer.configure(&transposed_tensor1, &softmax_output, beta, axis);
 
     // 第二次转置：将结果转回原始形状
@@ -1732,9 +1732,9 @@ TEST(BIFullyConnected, BasicFullyTest) {
     BITensor input, weights, biases, output;
 
     // 配置量化信息 (scale 和 zero_point)
-    BIQuantizationInfo input_quant_info(0.1f, 128);   // 假设输入张量的 scale=0.1, zero_point=128
+    BIQuantizationInfo input_quant_info(0.1f, 128); // 假设输入张量的 scale=0.1, zero_point=128
     BIQuantizationInfo weights_quant_info(0.05f, 128); // 假设权重张量的 scale=0.05, zero_point=128
-    BIQuantizationInfo output_quant_info(0.2f, 128);  // 假设输出张量的 scale=0.2, zero_point=128
+    BIQuantizationInfo output_quant_info(0.2f, 128); // 假设输出张量的 scale=0.2, zero_point=128
 
     // 初始化张量的数据类型和量化信息
     input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::QASYMM8, input_quant_info));
@@ -1790,9 +1790,115 @@ TEST(BIFullyConnected, BasicFullyTest) {
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
 
     output.print(std::cout, format);
+}
+
+/**
+ * @brief gemmlowp 矩阵计算
+ * @param input_data  QASYMM8输入数据
+ * @param weights_data QSYMM8_PER_CHANNEL权重数据
+ * @param input_scale 输入scale
+ * @param input_offset 输入zero point
+ * @param weight_scales 权重每通道scale
+ * @param M 矩阵维度
+ * @param K
+ * @param N
+ * @param num_channels 通道数
+ */
+void gemmlowp_mixed_quantized(
+    const int8_t *input_data,
+    const int8_t *weights_data,
+    float input_scale,
+    uint8_t input_offset,
+    const float *weight_scales,
+    int M, int K, int N,
+    int num_channels) {
+    // 1. 创建输入tensor (QASYMM8)
+    BITensorShape input_shape(K, M); // [M, K]
+    BITensor input;
+    input.allocator()->init(
+        BITensorInfo(input_shape, 1, BIDataType::QASYMM8_SIGNED, BIQuantizationInfo(input_scale, input_offset)));
+
+    // 2. 创建权重tensor (QSYMM8_PER_CHANNEL)
+    BITensorShape weights_shape(N, K); // [K, N]
+    BITensor weights;
+    // 为每个通道创建scale vector
+    std::vector<float> weight_scales_vec(weight_scales, weight_scales + num_channels);
+    weights.allocator()->init(BITensorInfo(
+        weights_shape, 1, BIDataType::QASYMM8_SIGNED, BIQuantizationInfo(weight_scales_vec)));
+
+    // 3. 创建中间输出tensor (S32)
+    BITensorShape output_shape(N, M); // [M, N]
+    BITensor output_s32;
+    output_s32.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::S32));
+
+    // 4. 分配内存
+    input.allocator()->allocate();
+    weights.allocator()->allocate();
+    output_s32.allocator()->allocate();
+
+    // 5. 拷贝数据
+    std::memcpy(input.buffer(), input_data, input.info()->total_size());
+    std::memcpy(weights.buffer(), weights_data, weights.info()->total_size());
+    print_tensor(input, "input");
+
+    // 6. 创建输出GEMMLowp核心计算
+    BINEGEMMLowpMatrixMultipleCore gemmlowp_mm_score;
+    gemmlowp_mm_score.configure(&input, &weights, nullptr, &output_s32);
+    print_tensor(weights, "weights");
+
+    // 7. 创建并配置GEMMLowp核心计算
+    BIGEMMLowpOutputStageInfo output_stage_info;
+    output_stage_info.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
+    output_stage_info.output_data_type = BIDataType::S32;
+
+    // // 计算输出量化参数
+    // const float output_scale = input_scale * (*std::max_element(weight_scales, weight_scales + num_channels));
+    // const int32_t output_offset = 0; // 对称量化输出
+    // output_stage_info.gemmlowp_multiplier = static_cast<int32_t>(output_scale * (1 << 31));
+    // output_stage_info.gemmlowp_shift = 31;
+    // output_stage_info.gemmlowp_offset = output_offset; // 8. 创建最终输出tensor (QASYMM8)
+    // BITensor final_output;
+    // final_output.allocator()->init(BITensorInfo(
+    //     output_shape,
+    //     1,
+    //     BIDataType::QASYMM8,
+    //     BIQuantizationInfo(output_scale, output_offset)
+    // ));
+    // final_output.allocator()->allocate();
+
+    // 9. 创建并配置输出stage
+    BINEGEMMLowpOutputStage output_stage;
+    // output_stage.configure(&output_s32, nullptr, &final_output, output_stage_info); // 10. 执行计算
+    gemmlowp_mm_score.run();
+    // output_stage.run();
+    // 配置S32中间结果的量化信息，把每个通道的整体scale设置好
+    std::vector<float> final_scales(num_channels);
+    for (int i = 0; i < num_channels; i++) {
+        final_scales[i] = input_scale * weight_scales[i];
+    }
+
+    // 再次进行反量化
+    BITensor dq_dst0;
+    dq_dst0.allocator()->init(BITensorInfo(BITensorShape(N, M), 1, BIDataType::F16));
+    dq_dst0.allocator()->allocate();
+    BINEDequantizationLayer dq0;
+    // dq0.configure(&final_output, &dq_dst0);
+
+    print_tensor(output_s32, "output");
+    print_tensor(dq_dst0);
+}
+
+TEST(GEMMLOWPCOMPARE, BASICGEMMLOWP) {
+    const std::vector<int8_t> input_vec = {-49, -17, 16, 94, 127, -128};
+    const std::vector<int8_t> weighs_vec = {-17, -16, 17, 52, 127, -127};
+    const float input_scale = 0.015294118021048752f;
+    const int8_t input_offset = 16;
+    const float weights_scale[2] = {0.0118, 0.0252};
+
+    gemmlowp_mixed_quantized(input_vec.data(), weighs_vec.data(), input_scale, input_offset, weights_scale, 2, 3, 2, 2);
 }

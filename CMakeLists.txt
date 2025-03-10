@@ -164,7 +164,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/includes
         ${ONNX_INCLUDE_DIRS}
         ${GLOG_INCLUDE_DIRS}
         ${OpenMP_INCLUDE}
-        ${ARMADILLO_INCLUDE_DIRS}
 )
 
 link_directories(${GLOG_LIBRARY_DIRS}

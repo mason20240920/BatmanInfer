@@ -27,9 +27,9 @@ TEST(KVCaches, NEGEMMINT8) {
 
     // 进行矩阵计算的KVCaches
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = true;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = true; // 对齐列
 
     int batch_size = 1;
     int sequence_len = 1;
@@ -86,12 +86,12 @@ TEST(KVCaches, NEGEMMINT8) {
 }
 
 TEST(KVCaches, NEGEMMCaches) {
-    BIScheduler::get().set_num_threads(1);
+    BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
     // 进行矩阵计算的KVCaches
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = true;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = true; // 对齐列
 
     int batch_size = 1;
     int sequence_len = 16;
@@ -118,10 +118,10 @@ TEST(KVCaches, NEGEMMCaches) {
     matmul_info.adj_lhs(false).adj_rhs(false);
     BICpuMatMulSettings settings;
     settings.fast_math(true); // 启用快速数学模式
-//    settings.fixed_format(true);
+    //    settings.fixed_format(true);
 
     // 定义激活函数信息（可选）
-//    BIActivationLayerInfo act_info(BIActivationLayerInfo::ActivationFunction::RELU);
+    //    BIActivationLayerInfo act_info(BIActivationLayerInfo::ActivationFunction::RELU);
 
     // 创建 MatMul 操作对象
     BINEMatMul matmul;
@@ -182,9 +182,9 @@ TEST(KVCaches, DynamicGemm) {
     BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
     // 进行矩阵计算的KVCaches
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = true;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = true; // 对齐列
     int batch_size = 1;
     int sequence_len = 2;
     // 测试动态输入NEGEMM的过程
@@ -218,7 +218,6 @@ TEST(KVCaches, DynamicGemm) {
     match_info(tensor_a, data_a);
     match_info(tensor_b, data_b);
     match_info(bias, data_bias);
-
 
 
     // 运行推理
