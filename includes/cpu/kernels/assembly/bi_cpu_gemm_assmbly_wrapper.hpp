@@ -43,10 +43,10 @@ namespace BatmanInfer {
                 }
 
                 BICpuGemmAssemblyWrapperKernel(BICpuGemmAssemblyWrapperKernel
-                                               &) = delete;
+                    &) = delete;
 
                 BICpuGemmAssemblyWrapperKernel(BICpuGemmAssemblyWrapperKernel
-                                               &&) = default;
+                    &&) = default;
 
                 BICpuGemmAssemblyWrapperKernel &operator=(BICpuGemmAssemblyWrapperKernel &) = delete;
 
@@ -86,8 +86,6 @@ namespace BatmanInfer {
                     const auto *Bptr = reinterpret_cast<const TypeWeight *>(tensors.get_tensor(ACL_SRC_1)->buffer());
                     const auto *bias = reinterpret_cast<const TypeOutput *>(tensors.get_tensor(ACL_SRC_2)->buffer());
                     auto *Cptr = reinterpret_cast<TypeOutput *>(tensors.get_tensor(ACL_DST)->buffer());
-                    // dynamic set M size
-                    const auto Msize = tensors.get_tensor(ACL_SRC_0)->info()->tensor_shape().y();
 
                     BI_COMPUTE_ERROR_ON_NULLPTR(Aptr, Cptr);
 
@@ -103,7 +101,7 @@ namespace BatmanInfer {
                     auto win = BatmanGemm::to_ndcoord(window);
 
                     BatmanGemm::ndcoord_t thread_locator{};
-                    
+
                     _kernel->execute_stateless(win, thread_locator, info.thread_id, ga);
                 }
 
@@ -154,7 +152,6 @@ namespace BatmanInfer {
 
                     return BIICPPKernel::default_mws;
                 }
-
 
             private:
                 BatmanGemm::BIGemmCommon<TypeInput, TypeWeight, TypeOutput> *_kernel;
