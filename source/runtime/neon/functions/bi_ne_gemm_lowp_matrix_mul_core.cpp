@@ -38,7 +38,7 @@ namespace BatmanInfer {
 
     BINEGEMMLowpMatrixMultipleCore::BINEGEMMLowpMatrixMultipleCore(std::shared_ptr<BIIMemoryManager> memory_manager,
                                                                    BatmanInfer::BIIWeightsManager *weights_manager)
-            : _impl(std::make_unique<Impl>()) {
+        : _impl(std::make_unique<Impl>()) {
         _impl->weights_manager = weights_manager;
         _impl->memory_group = BIMemoryGroup(memory_manager);
     }
@@ -62,12 +62,16 @@ namespace BatmanInfer {
         _impl->op = std::make_unique<cpu::BICpuGemmLowpMatrixMultiplyCore>();
         _impl->op->configure(a->info(), b_info_to_use.get(), (c != nullptr ? c->info() : nullptr), output->info(),
                              gemm_info);
-        _impl->run_pack = {{BITensorType::ACL_SRC_0, a},
-                           {BITensorType::ACL_SRC_1, b},
-                           {BITensorType::ACL_SRC_2, c},
-                           {BITensorType::ACL_DST,   output}};
-        _impl->prep_pack = {{BITensorType::ACL_SRC_1, b},
-                            {BITensorType::ACL_SRC_2, c}};
+        _impl->run_pack = {
+            {BITensorType::ACL_SRC_0, a},
+            {BITensorType::ACL_SRC_1, b},
+            {BITensorType::ACL_SRC_2, c},
+            {BITensorType::ACL_DST, output}
+        };
+        _impl->prep_pack = {
+            {BITensorType::ACL_SRC_1, b},
+            {BITensorType::ACL_SRC_2, c}
+        };
         _impl->aux_mem_req = _impl->op->workspace();
         _impl->act_info = gemm_info.activation_info();
         _impl->workspace_tensors = manage_workspace<BITensor>(_impl->aux_mem_req, _impl->memory_group, _impl->run_pack,
@@ -91,9 +95,9 @@ namespace BatmanInfer {
     void BINEGEMMLowpMatrixMultipleCore::update_quantization_parameters() {
         // Supported activations in GEMM
         const std::set<BIActivationLayerInfo::ActivationFunction> supported_acts = {
-                BIActivationLayerInfo::ActivationFunction::RELU,
-                BIActivationLayerInfo::ActivationFunction::BOUNDED_RELU,
-                BIActivationLayerInfo::ActivationFunction::LU_BOUNDED_RELU
+            BIActivationLayerInfo::ActivationFunction::RELU,
+            BIActivationLayerInfo::ActivationFunction::BOUNDED_RELU,
+            BIActivationLayerInfo::ActivationFunction::LU_BOUNDED_RELU
         };
 
         auto src = _impl->run_pack.get_const_tensor(ACL_SRC_0);

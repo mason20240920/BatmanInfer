@@ -23,45 +23,46 @@ void fill_perf_tensor_val(const BITensor &tensor, const T val) {
 }
 
 static void BM_RunCoreLogic(benchmark::State &state) {
-//    BIScheduler::set(BIScheduler::Type::OMP);
+    //    BIScheduler::set(BIScheduler::Type::OMP);
     BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
     // 先确定需要的算子
     BINEAttentionLayer attention_layer;
     BINEArithmeticAddition add_f;
     BINEFeedForwardLayer feedforward_layer;
     BINEArithmeticAddition add_2_f;
+    const int batch_size = 5;
 
     // 输入张量
-    const BITensorShape input_shape(768,  // hidden size
-                                    16,  // sequence length
-                                    5);  // batch size
+    const BITensorShape input_shape(768, // hidden size
+                                    16, // sequence length
+                                    batch_size); // batch size
     const BITensorShape gamma_shape(768);
-    const BITensorShape fc_weights_shape(3072,     // input_size (width, 匹配input宽度)
-                                         768);    // hidden_units (height)
-    const BITensorShape fc_bias_shape(3072);    // hidden_units
+    const BITensorShape fc_weights_shape(3072, // input_size (width, 匹配input宽度)
+                                         768); // hidden_units (height)
+    const BITensorShape fc_bias_shape(3072); // hidden_units
     // 权重张量
-    const BITensorShape proj_weights_shape2(768,     // input_size (width, 匹配input宽度)
-                                            3072);    // hidden_units (height)
-    const BITensorShape proj_bias_shape2(768);    // hidden_units
+    const BITensorShape proj_weights_shape2(768, // input_size (width, 匹配input宽度)
+                                            3072); // hidden_units (height)
+    const BITensorShape proj_bias_shape2(768); // hidden_units
 
-    const BITensorShape output_shape(768,    // hidden_units (width)
+    const BITensorShape output_shape(768, // hidden_units (width)
                                      16,
-                                     5);     // batch_size (height)
+                                     batch_size); // batch_size (height)
     const BIActivationLayerInfo act_info(BIActivationFunction::GELU);
 
     // 权重张量
-    const BITensorShape weights_shape(2304,     // input_size (width, 匹配input宽度)
-                                      768);    // hidden_units (height)
+    const BITensorShape weights_shape(2304, // input_size (width, 匹配input宽度)
+                                      768); // hidden_units (height)
 
     // 偏置矩阵
-    const BITensorShape bias_shape(2304);    // hidden_units
+    const BITensorShape bias_shape(2304); // hidden_units
 
     // 权重张量
-    const BITensorShape weights_shape2(768,     // input_size (width, 匹配input宽度)
-                                       768);    // hidden_units (height)
+    const BITensorShape weights_shape2(768, // input_size (width, 匹配input宽度)
+                                       768); // hidden_units (height)
 
     // 偏置矩阵
-    const BITensorShape bias_shape2(768);    // hidden_units
+    const BITensorShape bias_shape2(768); // hidden_units
 
     // 标量
     const BITensorShape scalar_shape(1);
@@ -114,7 +115,7 @@ static void BM_RunCoreLogic(benchmark::State &state) {
                               perm_final,
                               768,
                               16,
-                              5,
+                              batch_size,
                               &output);
 
     add_f.configure(&output, &input, &add_temp_out, BIConvertPolicy::WRAP);
@@ -126,12 +127,12 @@ static void BM_RunCoreLogic(benchmark::State &state) {
                                 &gamma2,
                                 act_info,
                                 &ffn_out,
-                                5,
+                                batch_size,
                                 16);
 
     add_2_f.configure(&add_temp_out, &ffn_out, &final_out, BIConvertPolicy::WRAP);
 
-    const auto warmup = 10;  // 预热次数
+    const auto warmup = 10; // 预热次数
     const auto iterations = 1000; // 运行次数
     const double outlier_threshold = 3.0; // 异常值阈值(标准差倍数)
 
@@ -247,12 +248,12 @@ static void BM_RUNGEMMLowp(benchmark::State &state) {
     tensor_output.allocator()->allocate();
 
     // 进行赋值
-//    std::vector<int8_t> data_a{1, 2, 3, 4, 5, 6, 7, 8};
-//    std::vector<int8_t> data_b{1, 1, 1, 1, 1, 1, 1, 1};
-//    std::vector<int8_t> data_bias{3, 3, 3, 3};
-//    match_info(tensor_a, data_a);
-//    match_info(tensor_b, data_b);
-//    match_info(bias, data_bias);
+    //    std::vector<int8_t> data_a{1, 2, 3, 4, 5, 6, 7, 8};
+    //    std::vector<int8_t> data_b{1, 1, 1, 1, 1, 1, 1, 1};
+    //    std::vector<int8_t> data_bias{3, 3, 3, 3};
+    //    match_info(tensor_a, data_a);
+    //    match_info(tensor_b, data_b);
+    //    match_info(bias, data_bias);
 
 
     // 运行推理
@@ -306,12 +307,12 @@ static void BM_RUNGEMM(benchmark::State &state) {
     tensor_d.allocator()->allocate();
 
     // 进行赋值
-//    std::vector<int8_t> data_a{1, 2, 3, 4, 5, 6, 7, 8};
-//    std::vector<int8_t> data_b{1, 1, 1, 1, 1, 1, 1, 1};
-//    std::vector<int8_t> data_bias{3, 3, 3, 3};
-//    match_info(tensor_a, data_a);
-//    match_info(tensor_b, data_b);
-//    match_info(bias, data_bias);
+    //    std::vector<int8_t> data_a{1, 2, 3, 4, 5, 6, 7, 8};
+    //    std::vector<int8_t> data_b{1, 1, 1, 1, 1, 1, 1, 1};
+    //    std::vector<int8_t> data_bias{3, 3, 3, 3};
+    //    match_info(tensor_a, data_a);
+    //    match_info(tensor_b, data_b);
+    //    match_info(bias, data_bias);
 
 
     // 运行推理
@@ -331,20 +332,20 @@ static void BM_RUNGEMM(benchmark::State &state) {
     }
 }
 
-//BENCHMARK(BM_RunCoreLogic)->MinTime(10.0) // 最小总运行时间
-//        ->Repetitions(5)  // 重复5组测试取平均值
-//        ->MeasureProcessCPUTime(); // 测量进程CPU时间
-//
+BENCHMARK(BM_RunCoreLogic)->MinTime(10.0) // 最小总运行时间
+        ->Repetitions(5) // 重复5组测试取平均值
+        ->MeasureProcessCPUTime()->Unit(benchmark::kMillisecond);; // 测量进程CPU时间
+
 //BENCHMARK(BM_RUNKVCaches)->MinTime(3.0) // 最小总运行时间
 //        ->Repetitions(5)  // 重复5组测试取平均值
 //        ->MeasureProcessCPUTime(); // 测量进程CPU时间
 
-BENCHMARK(BM_RUNGEMM)->MinTime(5.0) // 最小总运行时间
-        ->Repetitions(5)  // 重复5组测试取平均值
-        ->MeasureProcessCPUTime()->Unit(benchmark::kMillisecond); // 测量进程CPU时间
-
-BENCHMARK(BM_RUNGEMMLowp)->MinTime(5.0) // 最小总运行时间
-        ->Repetitions(5)  // 重复5组测试取平均值
-        ->MeasureProcessCPUTime()->Unit(benchmark::kMillisecond); // 测量进程CPU时间
+// BENCHMARK(BM_RUNGEMM)->MinTime(5.0) // 最小总运行时间
+//         ->Repetitions(5)  // 重复5组测试取平均值
+//         ->MeasureProcessCPUTime()->Unit(benchmark::kMillisecond); // 测量进程CPU时间
+//
+// BENCHMARK(BM_RUNGEMMLowp)->MinTime(5.0) // 最小总运行时间
+//         ->Repetitions(5)  // 重复5组测试取平均值
+//         ->MeasureProcessCPUTime()->Unit(benchmark::kMillisecond); // 测量进程CPU时间
 
 BENCHMARK_MAIN();
