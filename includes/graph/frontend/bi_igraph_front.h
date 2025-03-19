@@ -68,6 +68,18 @@ namespace frontend {
             _tail_node = (nid != NullTensorID) ? nid : _tail_node;
         }
 
+        void set_target(const BITarget target_hint) {
+            _hints.target_hint = target_hint;
+        }
+
+        void set_fast_math_hit(const BIFastMathHint fast_math_hint) {
+            _hints.fast_math_hint = fast_math_hint;
+        }
+
+        void add_layer_rhs(BIILayer &&layer) {
+            add_layer(layer);
+        }
+
     protected:
         FrontendHints _hints     = {};
         NodeID        _tail_node = { EmptyNodeID };

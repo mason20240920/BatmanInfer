@@ -6,7 +6,7 @@
 
 #include "graph/backends/bi_backendRegistry.h"
 #include "graph/bi_graphContext.h"
-// #include "graph/mutators/bi_graphMutators.h"
+#include "graph/mutators/bi_graph_mutators.h"
 
 namespace BatmanInfer {
 
@@ -52,7 +52,6 @@ namespace graph {
         }
     }
 
-    /*
     BIPassManager create_default_pass_manager(BITarget target, const BIGraphConfig &cfg)
     {
         BI_COMPUTE_UNUSED(target);
@@ -66,28 +65,27 @@ namespace graph {
             case BIDataType::QASYMM8:
             case BIDataType::QASYMM8_SIGNED:
                 {
-                    pm.append(std::make_unique<SyntheticDataTypeMutator>(cfg.synthetic_type));
+                    pm.append(std::make_unique<BISyntheticDataTypeMutator>(cfg.synthetic_type));
                     break;
                 }
             default:
                 {
-                    BI_COMPUTE_ERROR("Unsupported DataType for SyntheticDataTypeMutator");
+                    BI_COMPUTE_ERROR("Unsupported DataType for BISyntheticDataTypeMutator");
                     break;
                 }
             }
         }
-        pm.append(std::make_unique<NodeFusionMutator>());
-        pm.append(std::make_unique<GroupedConvolutionMutator>());
-        pm.append(std::make_unique<InPlaceOperationMutator>());
+        pm.append(std::make_unique<BINodeFusionMutator>());
+        pm.append(std::make_unique<BIGroupedConvolutionMutator>());
+        pm.append(std::make_unique<BIInPlaceOperationMutator>());
 
         // Passes that mutate backend information
-        pm.append(std::make_unique<DepthConcatSubTensorMutator>());
-        pm.append(std::make_unique<SplitLayerSubTensorMutator>());
-        pm.append(std::make_unique<NodeExecutionMethodMutator>());
+        // pm.append(std::make_unique<DepthConcatSubTensorMutator>());
+        // pm.append(std::make_unique<SplitLayerSubTensorMutator>());
+        pm.append(std::make_unique<BINodeExecutionMethodMutator>());
 
         return pm;
     }
-     */
 
     void release_default_graph_context(BIGraphContext &ctx)
     {

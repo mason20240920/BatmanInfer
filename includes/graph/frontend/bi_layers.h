@@ -273,10 +273,11 @@ namespace frontend {
         {
             BINodeIdxPair input         = {s.tail_node(), 0};
             BINodeParams  common_params = {name(), s.hints().target_hint};
-            return GraphBuilder::add_convolution_node(s.graph(), common_params, input, Size2D(_conv_width, _conv_height),
-                                                      _ofm, _conv_info, _num_groups, s.hints().convolution_method_hint,
-                                                      s.hints().fast_math_hint, std::move(_weights), std::move(_bias),
-                                                      std::move(_weights_quant_info), std::move(_out_quant_info));
+            return GraphBuilder::add_convolution_node(
+                s.graph(), common_params, input, Size2D(_conv_width, _conv_height),
+                _ofm, _conv_info, _num_groups, s.hints().convolution_method_hint,
+                s.hints().fast_math_hint, std::move(_weights), std::move(_bias),
+                std::move(_weights_quant_info), std::move(_out_quant_info));
         }
 
     private:
@@ -389,6 +390,60 @@ namespace frontend {
         int                      _depth_multiplier;
         const BIQuantizationInfo _weights_quant_info;
         const BIQuantizationInfo _out_quant_info;
+    };
+
+    /** Attention Layer */
+    class BIAttentionLayer final : public BIILayer
+    {
+    public:
+        /** construct a attention layer
+         *
+         * @param[in]
+         */
+        BIAttentionLayer(BIITensorAccessorUPtr  weight_c,
+                         BIITensorAccessorUPtr  bias_c,
+                         BIITensorAccessorUPtr  weights_p,
+                         BIITensorAccessorUPtr  bias_p,
+                         BIITensorAccessorUPtr  gamma,
+                         PermutationVector      perm,
+                         PermutationVector      perm2,
+                         PermutationVector      perm_final,
+                         unsigned int           hidden_size,
+                         unsigned int           max_seq_len,
+                         unsigned int           batch_size)
+            : _weights_c(std::move(weight_c)),
+              _bias_c(std::move(bias_c)),
+              _weights_p(std::move(weights_p)),
+              _bias_p(std::move(bias_p)),
+              _gamma(std::move(gamma)),
+              _perm(perm),
+              _perm2(perm2),
+              _perm_final(perm_final),
+              _hidden_size(hidden_size),
+              _max_sequence_length(max_seq_len),
+              _batch_size(batch_size)
+        {
+        }
+
+        NodeID create_layer(BIIGraphFront &s) override {
+            BINodeIdxPair input         = {s.tail_node(), 0};
+            BINodeParams  common_params = {name(), s.hints().target_hint};
+            return 0;
+        }
+
+
+    private:
+        BIITensorAccessorUPtr   _weights_c;
+        BIITensorAccessorUPtr   _bias_c;
+        BIITensorAccessorUPtr   _weights_p;
+        BIITensorAccessorUPtr   _bias_p;
+        BIITensorAccessorUPtr   _gamma;
+        PermutationVector       _perm;
+        PermutationVector       _perm2;
+        PermutationVector       _perm_final;
+        unsigned int            _hidden_size{768};
+        unsigned int            _max_sequence_length{16};
+        unsigned int            _batch_size{1};
     };
 
     /** DepthToSpace Layer */
