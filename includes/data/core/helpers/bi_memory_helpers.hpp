@@ -27,7 +27,7 @@ namespace BatmanInfer {
     };
 
     template<typename TensorType>
-    using WorkspaceData = std::vector<WorkspaceDataElement<TensorType>>;
+    using WorkspaceData = std::vector<WorkspaceDataElement<TensorType> >;
 
     template<typename TensorType>
     WorkspaceData<TensorType>
@@ -61,7 +61,7 @@ namespace BatmanInfer {
 
             const auto aux_info = BITensorInfo{BITensorShape(req.size), 1, BIDataType::U8}; // 创建一个张量信息
             workspace_memory.emplace_back(
-                    WorkspaceDataElement<TensorType>{req.slot, req.lifetime, std::make_unique<TensorType>()});
+                WorkspaceDataElement<TensorType>{req.slot, req.lifetime, std::make_unique<TensorType>()});
 
             auto aux_tensor = workspace_memory.back().tensor.get(); // 获取最后的内存的tensor
             BI_COMPUTE_ERROR_ON_NULLPTR(aux_tensor);
@@ -124,6 +124,35 @@ namespace BatmanInfer {
                 if (m.slot == slot && m.lifetime == experimental::MemoryLifetime::Prepare) {
                     auto tensor = ws.tensor.get();
                     tensor->allocator()->free();
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * @brief 根据新的内存需求来重新分配张量的工作内存
+     * @tparam TensorType
+     * @param mem_reqs 根据slot的id适配
+     * @param workspace 生命周期要求前后一致; 只有size和alignment受影响
+     */
+    template<typename TensorType>
+    void reallocate_tensors(const experimental::BIMemoryRequirements &mem_reqs, WorkspaceData<TensorType> &workspace) {
+        for (auto &ws: workspace) {
+            auto tensor = ws.tensor.get();
+            const int slot = ws.slot; // 获取内存识别id
+            for (auto &m: mem_reqs) {
+                if (m.slot == slot) {
+                    BI_COMPUTE_ERROR_ON(ws.lifetime != m.lifetime);
+                    size_t current_size = tensor->info()->total_size();
+                    if (!tensor->allocator()->is_allocated() || current_size < m.size || tensor->allocator()->
+                        alignment() != m.alignment) {
+                        if (tensor->allocator()->is_allocated()) // 如果张量已经初始化就释放掉
+                            tensor->allocator()->free();
+                        const BIITensorInfo &info = tensor->info()->set_tensor_shape(BITensorShape(m.size));
+                        tensor->allocator()->init(info, m.alignment);
+                        tensor->allocator()->allocate();
+                    }
                     break;
                 }
             }

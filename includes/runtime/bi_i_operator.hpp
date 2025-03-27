@@ -43,6 +43,17 @@ namespace BatmanInfer {
              * @return
              */
             virtual BIMemoryRequirements workspace() const = 0;
+
+            /**
+             * @brief 返回动态工作区域的内存管理数组
+             * @param tensors 这个集合的数组会在后面进行执行
+             * @return 返回空的内存MemoryInfo数组
+             */
+            virtual const BIMemoryRequirements &workspace_dynamic(const BIITensorPack &tensors) const {
+                BI_COMPUTE_UNUSED(tensors);
+                static BIMemoryRequirements empty{};
+                return empty;
+            }
         };
     }
 }

@@ -87,7 +87,7 @@ namespace BatmanInfer {
          * @return
          */
         template<typename... Shapes>
-        static BITensorShape broadcast_shape(const Shapes &...shapes) {
+        static BITensorShape broadcast_shape(const Shapes &... shapes) {
             // 初始化广播形状
             BITensorShape bc_shape;
 
@@ -190,31 +190,6 @@ namespace BatmanInfer {
                 apply_dimension_correction();
             }
             return *this;
-        }
-
-        /** Check if the tensor shape is dynamic.
-         *
-         * If any dimension of the tensor shape has size 0, then this dimension
-         * and the whole shape are considered dynamic.
-         *
-         * @return True if the tensor shape is dynamic, else false.
-         */
-        bool is_dynamic() const {
-            return std::any_of(cbegin(), cend(), [](const auto &s) { return s == 0; });
-        }
-
-        /** Check if a given dimension of the tensor shape is dynamic.
-         *
-         * If a dimension of the tensor shape has size 0, then this dimension
-         * and the whole shape are considered dynamic.
-         *
-         * @param[in] dim Dimension index.
-         *
-         * @return True if dimension dim is dynamic, else false.
-         */
-        bool is_dynamic(const size_t dim) const {
-            BI_COMPUTE_ERROR_ON(dim >= BITensorShape::num_max_dimensions);
-            return _id[dim] == 0;
         }
 
     private:

@@ -41,6 +41,19 @@ namespace BatmanInfer {
         bool is_quantized_per_channel{false}; /**< GEMMLowp quantized per-channel flag */
         BIDataType output_data_type{
                 BIDataType::UNKNOWN}; /**< Output tensor data type to use if the output is not initialized */
+
+        bool operator==(const BIGEMMLowpOutputStageInfo &rhs) const {
+            return type == rhs.type && gemmlowp_offset == rhs.gemmlowp_offset &&
+                   gemmlowp_multiplier == rhs.gemmlowp_multiplier && gemmlowp_shift == rhs.gemmlowp_shift &&
+                   gemmlowp_min_bound == rhs.gemmlowp_min_bound && gemmlowp_max_bound == rhs.gemmlowp_max_bound &&
+                   gemmlowp_multipliers == rhs.gemmlowp_multipliers && gemmlowp_shifts == rhs.gemmlowp_shifts &&
+                   gemmlowp_real_multiplier == rhs.gemmlowp_real_multiplier &&
+                   is_quantized_per_channel == rhs.is_quantized_per_channel && output_data_type == rhs.output_data_type;
+        }
+
+        bool operator!=(const BIGEMMLowpOutputStageInfo &rhs) const {
+            return !(*this == rhs);
+        }
     };
 
     /** GEMM information class. This class stores the necessary information to compute GEMM functions

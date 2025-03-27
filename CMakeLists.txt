@@ -5,9 +5,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 # 指定标准库为 libc++
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-endif()
+endif ()
 option(ENABLE_BENCHMARK "For enable benchmark" OFF)
 
 # 检查目标平台
@@ -91,12 +91,15 @@ if (ANDROID)
     # 加载glog路径
     set(GLOG_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/third_party/glog/include")
     set(GLOG_LIBRARIES "${CMAKE_SOURCE_DIR}/third_party/glog/lib/libglog.a")
+    set(KAI_INCLUDES "${CMAKE_SOURCE_DIR}/third_party/kleidiai")
 else ()
     # 查找OpenMP
     set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
     set(OpenMP_C_LIB_NAMES "omp")
     set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
     set(OpenMP_INCLUDE "/opt/homebrew/opt/libomp/include")
+    set(KAI_INCLUDES "${CMAKE_SOURCE_DIR}/third_party/kleidiai")
+    set(KAI_LIBS "${CMAKE_SOURCE_DIR}/third_party/kleidiai/libs/libkleidiai.a")
     message(STATUS "Configuring for non-Android platform")
     # 查找Armadillo库
     find_package(Armadillo REQUIRED)
@@ -174,7 +177,7 @@ link_directories(${GLOG_LIBRARY_DIRS}
 )
 
 # 文件列表拆分
-include (${CMAKE_CURRENT_LIST_DIR}/CMake_files.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/CMake_files.cmake)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer
@@ -188,6 +191,7 @@ target_link_libraries(BatmanInfer
         ${OpenMP_omp_LIBRARY}
         ${ABSEL_LIBARARY}
         ${UTF8RANGE_LIBRARY}
+        ${KAI_LIBS}
 )
 
 if (ANDROID)
@@ -212,6 +216,11 @@ endif ()
 
 # 添加测试
 include(GoogleTest)
+
+target_include_directories(BatmanInfer PUBLIC ${KAI_INCLUDES})
+
+#target_link_directories(BatmanInfer PUBLIC ${KAI_LIBS})
+
 #gtest_discover_tests(BatmanInfer)
 
 # 包含Armadillo头文件路径

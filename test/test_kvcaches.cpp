@@ -190,7 +190,7 @@ TEST(KVCaches, DynamicGemm) {
     // 测试动态输入NEGEMM的过程
     BITensorShape tensor_a_shape(2, sequence_len, batch_size);
     BITensorShape tensor_b_shape(4, 2);
-    BITensorShape tensor_bias_shape(4, sequence_len);
+    BITensorShape tensor_bias_shape(4);
     BITensorShape tensor_d_shape(4, sequence_len, batch_size);
 
     BITensorInfo tensor_a_info(tensor_a_shape, 1, BIDataType::F16);
@@ -248,6 +248,28 @@ TEST(KVCaches, DynamicGemm) {
     tensor_d.allocator()->allocate();
 
     data_a = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    match_info(tensor_a, data_a);
+    gemm.run();
+
+    tensor_d.print(std::cout, format);
+
+    // 动态更新
+    sequence_len = 4;
+    batch_size = 3;
+    tensor_a_shape = BITensorShape(2, sequence_len, batch_size);
+    tensor_d_shape = BITensorShape(4, sequence_len, batch_size);
+
+    tensor_a_info = BITensorInfo(tensor_a_shape, 1, BIDataType::F16);
+    tensor_d_info = BITensorInfo(tensor_d_shape, 1, BIDataType::F16);
+
+    // 初始化
+    tensor_a.allocator()->init(tensor_a_info);
+    tensor_d.allocator()->init(tensor_d_info);
+
+    tensor_a.allocator()->allocate();
+    tensor_d.allocator()->allocate();
+
+    data_a = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     match_info(tensor_a, data_a);
     gemm.run();
 

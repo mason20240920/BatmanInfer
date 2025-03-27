@@ -116,6 +116,10 @@ namespace BatmanInfer {
             return this->_act == l._act && this->_a == l._a && this->_b == l._b && this->_enabled == l._enabled;
         }
 
+        bool operator!=(const BIActivationLayerInfo &l) const {
+            return !(*this == l);
+        }
+
     private:
         ActivationFunction _act = {BIActivationLayerInfo::ActivationFunction::IDENTITY}; // 激活函数
         float _a = {};
