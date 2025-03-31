@@ -48,5 +48,17 @@ namespace BatmanInfer {
 
             return tensor;
         }
+
+        BITensor create_type_tensor(const std::string &file_name,
+                                    const BITensorShape &tensor_shape,
+                                    const BIDataType &type) {
+            BITensor tensor;
+            BITensorInfo tensor_info(tensor_shape, 1, type);
+            tensor.allocator()->init(tensor_info);
+            tensor.allocator()->allocate();
+            utils::read_npy_to_tensor(file_name, tensor);
+
+            return tensor;
+        }
     }
 }

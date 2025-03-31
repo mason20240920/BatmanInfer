@@ -271,7 +271,11 @@ namespace BatmanInfer {
             /**
              * @brief 打印包含填充的张量对象
              */
-            Full
+            Full,
+            /**
+             * @brief 打印最后十个元素
+             */
+            LastTenItems
         };
 
         explicit BIIOFormatInfo(PrintRegion print_region = PrintRegion::ValidRegion,

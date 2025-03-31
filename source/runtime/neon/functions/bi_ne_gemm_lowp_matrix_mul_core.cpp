@@ -38,7 +38,7 @@ namespace BatmanInfer {
 
     BINEGEMMLowpMatrixMultipleCore::BINEGEMMLowpMatrixMultipleCore(std::shared_ptr<BIIMemoryManager> memory_manager,
                                                                    BatmanInfer::BIIWeightsManager *weights_manager)
-        : _impl(std::make_unique<Impl>()) {
+            : _impl(std::make_unique<Impl>()) {
         _impl->weights_manager = weights_manager;
         _impl->memory_group = BIMemoryGroup(memory_manager);
     }
@@ -52,25 +52,25 @@ namespace BatmanInfer {
         BI_COMPUTE_ERROR_ON_NULLPTR(a, b, output);
 
         // Make the B matrix dynamic values.
-        auto b_info_to_use = b->info()->clone();
+        auto b_info_to_use = b->info()->clone(); // 创建b的一个智能指针
         if (!gemm_info.reshape_b_only_on_first_run())
             b_info_to_use->set_are_values_constant(false);
 
         _impl->is_prepared = false;
-        _impl->memory_group.mappings().clear();
+        _impl->memory_group.mappings().clear(); // 清空内存管理
         _impl->b = b;
         _impl->op = std::make_unique<cpu::BICpuGemmLowpMatrixMultiplyCore>();
         _impl->op->configure(a->info(), b_info_to_use.get(), (c != nullptr ? c->info() : nullptr), output->info(),
                              gemm_info);
         _impl->run_pack = {
-            {BITensorType::ACL_SRC_0, a},
-            {BITensorType::ACL_SRC_1, b},
-            {BITensorType::ACL_SRC_2, c},
-            {BITensorType::ACL_DST, output}
+                {BITensorType::ACL_SRC_0, a},
+                {BITensorType::ACL_SRC_1, b},
+                {BITensorType::ACL_SRC_2, c},
+                {BITensorType::ACL_DST,   output}
         };
         _impl->prep_pack = {
-            {BITensorType::ACL_SRC_1, b},
-            {BITensorType::ACL_SRC_2, c}
+                {BITensorType::ACL_SRC_1, b},
+                {BITensorType::ACL_SRC_2, c}
         };
         _impl->aux_mem_req = _impl->op->workspace();
         _impl->act_info = gemm_info.activation_info();
@@ -95,9 +95,9 @@ namespace BatmanInfer {
     void BINEGEMMLowpMatrixMultipleCore::update_quantization_parameters() {
         // Supported activations in GEMM
         const std::set<BIActivationLayerInfo::ActivationFunction> supported_acts = {
-            BIActivationLayerInfo::ActivationFunction::RELU,
-            BIActivationLayerInfo::ActivationFunction::BOUNDED_RELU,
-            BIActivationLayerInfo::ActivationFunction::LU_BOUNDED_RELU
+                BIActivationLayerInfo::ActivationFunction::RELU,
+                BIActivationLayerInfo::ActivationFunction::BOUNDED_RELU,
+                BIActivationLayerInfo::ActivationFunction::LU_BOUNDED_RELU
         };
 
         auto src = _impl->run_pack.get_const_tensor(ACL_SRC_0);

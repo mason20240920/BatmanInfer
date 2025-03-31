@@ -12,11 +12,11 @@ namespace BatmanInfer {
     public:
         /**
          * @brief
-         * @param size 区域大小
+         * @param size 区域大小(张量的元素数量)
          * @param alignment 基指针的字节对齐。默认为0。
          */
-        explicit BIMemoryRegion(size_t size, size_t alignment = 0) : BIIMemoryRegion(size), _mem(nullptr), _ptr(nullptr)
-        {
+        explicit BIMemoryRegion(size_t size, size_t alignment = 0) : BIIMemoryRegion(size), _mem(nullptr),
+                                                                     _ptr(nullptr) {
             if (size != 0) {
                 // 分配后端内存
                 size_t space = size + alignment;
@@ -37,7 +37,7 @@ namespace BatmanInfer {
                  *   删除器会使用 delete[] 操作符来释放动态分配的数组内存。
                  *   使用自定义删除器的原因是，std::shared_ptr 默认使用 delete 来释放内存，但这里分配的是数组，所以需要使用 delete[]。
                  */
-                _mem = std::shared_ptr<uint8_t>(new uint8_t[space](), [](const uint8_t *ptr) {delete []ptr;});
+                _mem = std::shared_ptr<uint8_t>(new uint8_t[space](), [](const uint8_t *ptr) { delete[]ptr; });
                 _ptr = _mem.get();
 
                 // 计算对齐偏移量
@@ -67,8 +67,7 @@ namespace BatmanInfer {
 
 
         // 继承来自接口函数
-        void *buffer() final
-        {
+        void *buffer() final {
             return _ptr;
         }
 
@@ -77,7 +76,7 @@ namespace BatmanInfer {
         }
 
         std::unique_ptr<BIIMemoryRegion> extract_subregion(size_t offset, size_t size) override {
-            if (_ptr != nullptr && (offset < _size) && (_size - offset >= size))
+            if (_ptr != nullptr && (offset < _size) && (_size - offset >= size)) // 保证内存没有溢出
                 return std::make_unique<BIMemoryRegion>(static_cast<uint8_t *>(_ptr) + offset, size);
             else
                 return nullptr;
@@ -89,7 +88,7 @@ namespace BatmanInfer {
          * @brief
          */
         std::shared_ptr<uint8_t> _mem;
-        void                     *_ptr;
+        void *_ptr;
 
     };
 }

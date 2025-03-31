@@ -275,13 +275,13 @@ namespace BatmanGemm {
         /* Quantized support (in addition to 'output stage' above) */
         int32_t *_col_bias = nullptr;
 
-        const unsigned int _Ktotal;
-        const unsigned int _rounded_Ksize;
+        const unsigned int _Ktotal;  // 处理整个计算的所有K段总量
+        const unsigned int _rounded_Ksize; // 处理单个K段内的对齐
 
         /* Blocking info */
         unsigned int _n_block;
         const unsigned int _k_block;
-        unsigned int _Mround;
+        unsigned int _Mround; // 输入矩阵的行的对齐
 
         /* Pretransposed buffer. */
         const Troi *_B_transposed = nullptr;
@@ -464,7 +464,7 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
             profiler prof;
 #endif
-            strategy strat(_args._ci);
+            strategy strat(_args._ci); // CPU核信息初始化策略
 
             std::vector<const To *> in_row_ptrs;
             std::vector<const To *const *> in_row_strings;
@@ -488,7 +488,6 @@ namespace BatmanGemm {
             /* Make sure we've been set up correctly. */
             assert(FixedFormat || _B_transposed);
             static_assert(std::is_same<To, Tloi>::value, "gemm_native: Operand types must be the same.");
-//        static_assert(std::is_same<Tr, Tri>::value, "gemm_native: Result types must be the same.");
 
             /* For now, each work item implies all the K for a given output
              * pixel (so we don't need to synchronize access to the output

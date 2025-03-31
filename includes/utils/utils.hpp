@@ -68,6 +68,8 @@ namespace BatmanInfer {
             const std::string no_endianness("|");
 
             switch (data_type) {
+                case BIDataType::QASYMM8_SIGNED:
+                    return no_endianness + "i" + support::cpp11::to_string(sizeof(int8_t));
                 case BIDataType::U8:
                 case BIDataType::QASYMM8:
                     return no_endianness + "u" + support::cpp11::to_string(sizeof(uint8_t));
@@ -173,7 +175,8 @@ namespace BatmanInfer {
                 BI_COMPUTE_ERROR_ON(!is_open());
                 BI_COMPUTE_ERROR_ON_DATA_TYPE_NOT_IN(&tensor, BIDataType::QASYMM8,
                                                      BIDataType::S32,
-                                                     BIDataType::F32, BIDataType::F16);
+                                                     BIDataType::F32, BIDataType::F16, BIDataType::QASYMM8_SIGNED,
+                                                     BIDataType::QSYMM8_PER_CHANNEL);
                 try {
                     // Map buffer if creating a CLTensor
                     map(tensor, true);
@@ -227,6 +230,8 @@ namespace BatmanInfer {
 
                     switch (tensor.info()->data_type()) {
                         case BIDataType::QASYMM8:
+                        case BIDataType::QASYMM8_SIGNED:
+                        case BIDataType::QSYMM8_PER_CHANNEL:
                         case BIDataType::S32:
                         case BIDataType::F32:
                         case BIDataType::F16: {
@@ -288,6 +293,10 @@ namespace BatmanInfer {
 
         BITensor create_npy_tensor(const std::string &file_name,
                                    const BITensorShape &shape);
+
+        BITensor create_type_tensor(const std::string &file_name,
+                                    const BITensorShape &tensor_shape,
+                                    const BIDataType &type);
     }
 }
 

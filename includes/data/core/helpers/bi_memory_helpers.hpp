@@ -61,21 +61,21 @@ namespace BatmanInfer {
 
             const auto aux_info = BITensorInfo{BITensorShape(req.size), 1, BIDataType::U8}; // 创建一个张量信息
             workspace_memory.emplace_back(
-                WorkspaceDataElement<TensorType>{req.slot, req.lifetime, std::make_unique<TensorType>()});
+                    WorkspaceDataElement<TensorType>{req.slot, req.lifetime, std::make_unique<TensorType>()});
 
             auto aux_tensor = workspace_memory.back().tensor.get(); // 获取最后的内存的tensor
             BI_COMPUTE_ERROR_ON_NULLPTR(aux_tensor);
             aux_tensor->allocator()->init(aux_info, req.alignment); // 根据aux_info进行初始化, req.alignment是初始化信息
 
-            if (req.lifetime == experimental::MemoryLifetime::Temporary) {
+            if (req.lifetime == experimental::MemoryLifetime::Temporary) { // 获取张量进行预管理(如果临时的就是用类的memory group管理)
                 mgroup.manage(aux_tensor);
-            } else {
+            } else { // 如果不是放在预处理的张量里面
                 prep_pack.add_tensor(req.slot, aux_tensor);
             }
             run_pack.add_tensor(req.slot, aux_tensor);
         }
 
-        for (auto &mem: workspace_memory) {
+        for (auto &mem: workspace_memory) { // 如果是临时生命周期和需要立即分配内存，就立即分配
             if (allocate_now || mem.lifetime == experimental::MemoryLifetime::Temporary) {
                 auto tensor = mem.tensor.get();
                 tensor->allocator()->allocate();
@@ -146,7 +146,7 @@ namespace BatmanInfer {
                     BI_COMPUTE_ERROR_ON(ws.lifetime != m.lifetime);
                     size_t current_size = tensor->info()->total_size();
                     if (!tensor->allocator()->is_allocated() || current_size < m.size || tensor->allocator()->
-                        alignment() != m.alignment) {
+                            alignment() != m.alignment) {
                         if (tensor->allocator()->is_allocated()) // 如果张量已经初始化就释放掉
                             tensor->allocator()->free();
                         const BIITensorInfo &info = tensor->info()->set_tensor_shape(BITensorShape(m.size));

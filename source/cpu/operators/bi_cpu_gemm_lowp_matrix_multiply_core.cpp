@@ -35,12 +35,12 @@ namespace BatmanInfer {
         namespace {
             cpu::BIAsmGemmInfo init_assembly_metadata(const GEMMInfo &info) {
                 cpu::BIAsmGemmInfo asm_info;
-                asm_info.method = cpu::BIAsmConvMethod::Im2Col;
+                asm_info.method = cpu::BIAsmConvMethod::Im2Col; // Im2Col的卷积操作
                 asm_info.reinterpret_input_as_3d = info.reinterpret_input_as_3d();
                 asm_info.depth_output_gemm3d = info.depth_output_gemm3d();
-                asm_info.activation_info = info.activation_info();
-                asm_info.output_stage = info.gemmlowp_output_stage();
-                asm_info.fast_mode = info.fast_math();
+                asm_info.activation_info = info.activation_info(); // 激活函数
+                asm_info.output_stage = info.gemmlowp_output_stage(); // 量化输出策略
+                asm_info.fast_mode = info.fast_math(); // 快速计算
                 asm_info.accumulate = info.accumulate();
 
                 return asm_info;
@@ -302,7 +302,7 @@ namespace BatmanInfer {
             }
 
             if (_assembly_path) {
-                const auto asm_mem_req = _asm_glue->workspace();
+                const auto asm_mem_req = _asm_glue->workspace(); // 汇编内存需求
                 for (
                         unsigned int slot = 0;
                         slot < asm_mem_req.
@@ -310,7 +310,7 @@ namespace BatmanInfer {
                                 size();
 
                         ++slot) {
-                    _aux_mem[slot] = asm_mem_req[slot];
+                    _aux_mem[slot] = asm_mem_req[slot]; // 更新汇编需要的内存
                 }
             }
 
@@ -379,11 +379,13 @@ namespace BatmanInfer {
             BITensorInfo tmp_b_info{};
             BITensorInfo mm_result_s32_info{};
 
-            int32_t a_offset = a->quantization_info().uniform().offset;
-            int32_t b_offset = b->quantization_info().uniform().offset;
+            int32_t a_offset = a->quantization_info().uniform().offset; // a 张量的zero_point
+            int32_t b_offset = b->quantization_info().uniform().offset; // b 张量的zero_point
 
-            bool fuse_output_stage = info.gemmlowp_output_stage().type != BIGEMMLowpOutputStageType::NONE;
+            bool fuse_output_stage =
+                    info.gemmlowp_output_stage().type != BIGEMMLowpOutputStageType::NONE; // 融合量化输出策略(比如量化int8)
             if (fuse_output_stage) {
+                // 根据融合策略自动初始化输出张量信息(S32)的输出
                 auto_init_if_empty(mm_result_s32_info,
                                    a->clone()->set_tensor_shape(output->tensor_shape()).set_data_type(BIDataType::S32));
             }
@@ -392,26 +394,27 @@ namespace BatmanInfer {
             const BIAsmGemmInfo asm_info = init_assembly_metadata(info);
 
             // Convert QASYMM8->QASYMM8_SIGNED
-            const int32_t offset_correction = 128;
+            const int32_t offset_correction = 128; // int8计算
             const BIDataType dt = BIDataType::QASYMM8_SIGNED;
-            const BIUniformQuantizationInfo iqinfo = a_to_use->quantization_info().uniform();
+            const BIUniformQuantizationInfo iqinfo = a_to_use->quantization_info().uniform(); // a张量的量化信息(zp和scale)
 
             BITensorInfo signed_a = a_to_use->clone()->set_data_type(dt).set_quantization_info(
-                    BIQuantizationInfo(iqinfo.scale, iqinfo.offset + offset_correction));
+                    BIQuantizationInfo(iqinfo.scale, iqinfo.offset + offset_correction)); // 修改量化信息(zp + 128)
             BITensorInfo signed_output{};
 
+            // 查看张量b是per channel量化且张量a是非对称无符号的int8量化, 且仅在第一个对张量B进行reshape
             bool flip_signedness = is_data_type_quantized_per_channel(b->data_type()) &&
                                    (a->data_type() == BIDataType::QASYMM8) && info.reshape_b_only_on_first_run();
 
             // If inputs are mixed-sign but this machine does not support mixed sign kernels,
-            // flip the sign so matched-sign kernels can be used.
+            // flip the sign so matched-sign kernels can be used. (符号同源)
             if (!flip_signedness && a->data_type() == BIDataType::QASYMM8 &&
                 b->data_type() == BIDataType::QASYMM8_SIGNED &&
                 !bool(BICpuGemmAssemblyDispatch::validate(a_to_use, b, c, output, asm_info))) {
                 flip_signedness = true;
             }
 
-            if (flip_signedness) {
+            if (flip_signedness) { // 进行量化张量A和B符号的对齐
                 BI_COMPUTE_RETURN_ON_ERROR(
                         kernels::BICpuConvertQuantizedSignednessKernel::validate(a_to_use, &signed_a));
                 a_to_use = &signed_a;
@@ -433,15 +436,15 @@ namespace BatmanInfer {
             }
 
             // Offset kernel is need if offset is non-zero or it may change (i.e. dynamic).
-            bool a_offset_kernel_needed = a_offset != 0 || a->quantization_info().is_dynamic();
-            bool b_offset_kernel_needed = b_offset != 0 || b->quantization_info().is_dynamic();
+            bool a_offset_kernel_needed = a_offset != 0 || a->quantization_info().is_dynamic(); // 动态a_zp
+            bool b_offset_kernel_needed = b_offset != 0 || b->quantization_info().is_dynamic(); // 动态b_zp
 
             // Check if we need to run the optimized assembly kernel
             bool run_optimised = false;
             bool run_optimised_requantized = false;
 
             if (!(!b->are_values_constant() &&
-                  b->tensor_shape().z() > 1)) // Disable batch matmul as optimized GeMM handles batching differently.
+                  b->tensor_shape().z() > 1)) // 进行量化内核的确定
             {
                 if (is_data_type_quantized_asymmetric(a_to_use->data_type()) &&
                     info.gemmlowp_output_stage().type == BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT) {
@@ -476,15 +479,15 @@ namespace BatmanInfer {
                     matrix_a_info = &tmp_a_info;
                     matrix_b_info = &tmp_b_info;
 
-                    // The interleaved output matrix will have the following shape: [ a_height * 4, ceil(a_width / 4.0f) ]
+                    // 交错输出矩阵将具有以下形状: [ a_height * 4, ceil(a_width / 4.0f) ]
                     BITensorShape shape_tmp_a = a->tensor_shape();
                     shape_tmp_a.set(0, a->dimension(0) * 4);
                     shape_tmp_a.set(1, std::ceil(a->dimension(1) / 4.f));
 
                     // The transpose1xW output matrix will have the following shape: [ b_height * 16, ceil(b_width / 16.0f) ]
                     BITensorShape shape_tmp_b = b->tensor_shape();
-                    shape_tmp_b.set(0, b->dimension(1) * 16);
-                    shape_tmp_b.set(1, std::ceil(b->dimension(0) / 16.f));
+                    shape_tmp_b.set(0, b->dimension(1) * 16); // [行数量 * 16]
+                    shape_tmp_b.set(1, std::ceil(b->dimension(0) / 16.f)); // [列数量 / 16]
 
                     // Validate interleave kernel
                     auto_init_if_empty(tmp_a_info, a_to_use->clone()->set_tensor_shape(shape_tmp_a));

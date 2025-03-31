@@ -219,9 +219,5 @@ include(GoogleTest)
 
 target_include_directories(BatmanInfer PUBLIC ${KAI_INCLUDES})
 
-#target_link_directories(BatmanInfer PUBLIC ${KAI_LIBS})
-
-#gtest_discover_tests(BatmanInfer)
-
 # 包含Armadillo头文件路径
 target_include_directories(BatmanInfer PRIVATE ${ARMADILLO_INCLUDE_DIRS})

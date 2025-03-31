@@ -43,7 +43,7 @@ namespace BatmanInfer {
 
         BIMemory &operator=(BIMemory &&) noexcept = default;
 
-        // 接口方法的视线
+        // 接口方法的实现
         BIIMemoryRegion *region() final;
 
         BIIMemoryRegion *region() const final;
@@ -57,7 +57,7 @@ namespace BatmanInfer {
         /**
          * @brief 内存区域
          */
-        BIIMemoryRegion                  *_region;
+        BIIMemoryRegion *_region;
         /**
          * @brief 内存区域拥有者
          */

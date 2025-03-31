@@ -736,26 +736,29 @@ namespace BatmanInfer {
                                                            b->info()->quantization_info().uniform().scale);
                 }
 
-                int lda = a->info()->strides_in_bytes().y() / a->info()->element_size();
-                int ldb = 0;
-                const int ldd = d->info()->strides_in_bytes().y() / d->info()->element_size();
+                int lda = a->info()->strides_in_bytes().y() / a->info()->element_size(); // A矩阵的步长
+                int ldb = 0; // B的步长
+                const int ldd = d->info()->strides_in_bytes().y() / d->info()->element_size(); // D矩阵的步长
 
+                // 确定批次和多实例维度的索引
                 const size_t a_batch_idx = _gemm_info.reinterpret_input_as_3d != 0 ? 3 : 2;
                 const size_t a_multi_idx = a_batch_idx + 1;
                 const size_t d_batch_idx = _gemm_info.depth_output_gemm3d != 0 ? 3 : 2;
                 const size_t d_multi_idx = d_batch_idx + 1;
 
+                // 计算批次和多实例的步长
                 int batch_stride_a = a->info()->strides_in_bytes()[a_batch_idx] / a->info()->element_size();
                 const int batch_stride_d = d->info()->strides_in_bytes()[d_batch_idx] / d->info()->element_size();
 
                 int multi_stride_a = a->info()->strides_in_bytes()[a_multi_idx] / a->info()->element_size();
                 int multi_stride_b = 0;
                 const int multi_stride_d = d->info()->strides_in_bytes()[d_multi_idx] / d->info()->element_size();
-
+                // 获取输入、权重和输出的数据指针
                 auto in0_ptr = reinterpret_cast<const TypeInput *>(a->buffer() +
-                                                                   a->info()->offset_first_element_in_bytes());
+                                                                   a->info()->offset_first_element_in_bytes()); // a矩阵的首个指针
                 const TypeWeight *in1_ptr = nullptr;
-                auto out_ptr = reinterpret_cast<TypeOutput *>(d->buffer() + d->info()->offset_first_element_in_bytes());
+                auto out_ptr = reinterpret_cast<TypeOutput *>(d->buffer() +
+                                                              d->info()->offset_first_element_in_bytes()); // d矩阵的数据指针位置
 
                 const BIITensor *b_to_use = b;
 

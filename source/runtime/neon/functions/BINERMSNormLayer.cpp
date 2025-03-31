@@ -2,8 +2,6 @@
 // Created by Mason on 2025/2/12.
 //
 
-#pragma once
-
 #include <runtime/neon/functions/BINERMSNormLayer.hpp>
 
 #include <data/core/bi_error.h>

@@ -93,6 +93,17 @@ namespace BatmanInfer {
                         static_cast<int>(this->info()->offset_first_element_in_bytes()) - padding.top * strides[1] -
                         padding.left * strides[0];
                 break;
+            case BIIOFormatInfo::PrintRegion::LastTenItems: {
+                print_width = this->info()->dimension(0) + padding.right;
+                print_height = std::min(static_cast<size_t>(10),
+                                        padding.top + this->info()->dimension(1) + padding.bottom);
+                // 调整偏移量到最后10行
+                int total_height = padding.top + this->info()->dimension(1) + padding.bottom;
+                start_offset = static_cast<int>(this->info()->offset_first_element_in_bytes()) +
+                               std::max(0, total_height - 10) * strides[1] -
+                               padding.left * strides[0];
+                break;
+            }
             default:
                 break;
         }
