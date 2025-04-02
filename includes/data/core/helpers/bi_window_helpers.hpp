@@ -40,6 +40,15 @@ namespace BatmanInfer {
                                   bool skip_border = false,
                                   BIBorderSize border_size = BIBorderSize());
 
+    /**
+     * @brief Update the maximum window for a given tensor shape and border setting
+     * @warning Only for @ref BINEGather ops now
+     * @param shape Shape of the tensor space
+     * @param steps (Optional) Number of elements processed for each step.
+     * @param update_window
+     */
+    void dynamic_calculate_max_window(const BITensorShape &shape, const BISteps &steps, BIWindow &update_window);
+
     /** Calculate the maximum window for a given tensor shape and border setting
      *
      * @param[in] info        Tensor info object defining the shape of the object for which the window is created.
@@ -54,6 +63,18 @@ namespace BatmanInfer {
                                          bool skip_border = false,
                                          BIBorderSize border_size = BIBorderSize()) {
         return calculate_max_window(info.tensor_shape(), steps, skip_border, border_size);
+    }
+
+    /**
+     * @brief Update the maximum window for a given tensor shape and border setting
+     * @param info
+     * @param update_window
+     * @param steps
+     */
+    inline void dynamic_calculate_max_window(const BIITensorInfo &info,
+                                             BIWindow &update_window,
+                                             const BISteps &steps = BISteps()) {
+        dynamic_calculate_max_window(info.tensor_shape(), steps, update_window);
     }
 
     /**
@@ -87,7 +108,7 @@ namespace BatmanInfer {
       * @return A pair of the shape and window
       */
     template<typename... Shapes>
-    std::pair<BITensorShape, BIWindow> compute_output_shape_and_window(const Shapes &...shapes) {
+    std::pair<BITensorShape, BIWindow> compute_output_shape_and_window(const Shapes &... shapes) {
         const BITensorShape out_shape = BITensorShape::broadcast_shape(shapes...);
         return std::make_pair(out_shape, calculate_max_window(out_shape));
     }

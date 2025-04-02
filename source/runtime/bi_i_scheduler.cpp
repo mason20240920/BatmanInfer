@@ -47,35 +47,35 @@ namespace BatmanInfer {
             const std::size_t m = max_window.num_iterations(BIWindow::DimX);
             const std::size_t n = max_window.num_iterations(BIWindow::DimY);
             //in c++17 this can be swapped for   auto [ m_threads, n_threads ] = split_2d(...
-            unsigned          m_threads, n_threads;
+            unsigned m_threads, n_threads;
             std::tie(m_threads, n_threads) = scheduler_utils::split_2d(this->num_threads(), m, n);
 
             std::vector<BIIScheduler::BIWorkload> workloads;
-            for (unsigned int                     ni = 0; ni != n_threads; ++ni) {
+            for (unsigned int ni = 0; ni != n_threads; ++ni) {
                 for (unsigned int mi = 0; mi != m_threads; ++mi) {
                     workloads.push_back(
-                            [ni, mi, m_threads, n_threads, &max_window, &kernel](const ThreadInfo &info) {
-                                //narrow the window to our mi-ni workload
-                                BIWindow win = max_window.split_window(BIWindow::DimX, mi, m_threads)
-                                        .split_window(BIWindow::DimY, ni, n_threads);
+                        [ni, mi, m_threads, n_threads, &max_window, &kernel](const ThreadInfo &info) {
+                            //narrow the window to our mi-ni workload
+                            BIWindow win = max_window.split_window(BIWindow::DimX, mi, m_threads)
+                                    .split_window(BIWindow::DimY, ni, n_threads);
 
-                                win.validate();
+                            win.validate();
 
-                                BIWindow thread_locator;
-                                thread_locator.set(BIWindow::DimX, BIWindow::BIDimension(mi, m_threads));
-                                thread_locator.set(BIWindow::DimY, BIWindow::BIDimension(ni, n_threads));
+                            BIWindow thread_locator;
+                            thread_locator.set(BIWindow::DimX, BIWindow::BIDimension(mi, m_threads));
+                            thread_locator.set(BIWindow::DimY, BIWindow::BIDimension(ni, n_threads));
 
-                                thread_locator.validate();
+                            thread_locator.validate();
 
-                                kernel->run_nd(win, info, thread_locator);
-                            });
+                            kernel->run_nd(win, info, thread_locator);
+                        });
                 }
             }
             run_workloads(workloads);
         } else {
             // 如果 hints.split_dimension() 指定了某个维度（如 DimX 或 DimY），则仅在该维度上并行化
             const unsigned int num_iterations = max_window.num_iterations(hints.split_dimension());
-            const unsigned int num_threads    = std::min(num_iterations, this->num_threads());
+            const unsigned int num_threads = std::min(num_iterations, this->num_threads());
 
             if (num_iterations == 0)
                 return;
@@ -95,8 +95,9 @@ namespace BatmanInfer {
                         break;
                     case BIStrategyHint::DYNAMIC: {
                         const unsigned int granule_threshold =
-                                                   (hints.threshold() <= 0) ? num_threads
-                                                                            : static_cast<unsigned int>(hints.threshold());
+                                (hints.threshold() <= 0)
+                                    ? num_threads
+                                    : static_cast<unsigned int>(hints.threshold());
                         // Make sure we don't use some windows which are too small as this might create some contention on the ThreadFeeder
                         num_windows = num_iterations > granule_threshold ? granule_threshold : num_iterations;
                         break;
@@ -110,7 +111,7 @@ namespace BatmanInfer {
                                                     cpu_info());
 
                 std::vector<BIIScheduler::BIWorkload> workloads(num_windows);
-                for (unsigned int                     t = 0; t < num_windows; ++t) {
+                for (unsigned int t = 0; t < num_windows; ++t) {
                     //Capture 't' by copy, all the other variables by reference:
                     workloads[t] = [t, &hints, &max_window, &num_windows, &kernel, &tensors](const ThreadInfo &info) {
                         BIWindow win = max_window.split_window(hints.split_dimension(), t, num_windows);
@@ -142,14 +143,14 @@ namespace BatmanInfer {
                                                     const BatmanInfer::CPUInfo &cpu_info) {
         // 缓解狭窄分割问题，该问题发生在分割维度过小而无法分割时（因此称为“狭窄”）。
         if (window.num_iterations(split_dimension) < init_num_windows) {
-            auto             recommended_split_dim = BIWindow::DimX;
-            for (std::size_t dims                  = BIWindow::DimY; dims <= BIWindow::DimW; ++dims) {
+            auto recommended_split_dim = BIWindow::DimX;
+            for (std::size_t dims = BIWindow::DimY; dims <= BIWindow::DimW; ++dims) {
                 if (window.num_iterations(recommended_split_dim) < window.num_iterations(dims))
                     recommended_split_dim = dims;
             }
             BI_COMPUTE_LOG_INFO_MSG_WITH_FORMAT_CORE(
-                    "%zu dimension is not a suitable dimension to split the workload. Recommended: %zu recommended_split_dim",
-                    split_dimension, recommended_split_dim);
+                "%zu dimension is not a suitable dimension to split the workload. Recommended: %zu recommended_split_dim",
+                split_dimension, recommended_split_dim);
         }
 
         for (auto t = init_num_windows; t > 0; --t) // Trying the highest number of windows ,init_num_windows, first
@@ -158,13 +159,13 @@ namespace BatmanInfer {
             if ((window.num_iterations(split_dimension) / kernel.get_mws(cpu_info, t)) >= t) {
                 if (t != init_num_windows) {
                     BI_COMPUTE_LOG_INFO_MSG_CORE(
-                            "The scheduler is using a different thread count than the one assigned by the user.");
+                        "The scheduler is using a different thread count than the one assigned by the user.");
                 }
                 return t;
             }
         }
         BI_COMPUTE_LOG_INFO_MSG_CORE(
-                "The scheduler is using single thread instead of the thread count assigned by the user.");
+            "The scheduler is using single thread instead of the thread count assigned by the user.");
         return 1; //  If the workload is so small that it can't be split, we should run a single thread
     }
 }

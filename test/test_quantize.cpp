@@ -8,6 +8,10 @@
 
 #include "data/core/utils/quantization/asymm_helpers.hpp"
 #include "utils/utils.hpp"
+#include <runtime/bi_scheduler.hpp>
+#include <thread>
+
+#include "function_info/bi_MatMulInfo.h"
 
 using namespace BatmanInfer;
 
@@ -19,7 +23,8 @@ namespace QATTest {
 
     void print_tensor(const BatmanInfer::BITensor &tensor,
                       const std::string &name = "temp",
-                      const BatmanInfer::BIIOFormatInfo::PrintRegion region = BIIOFormatInfo::PrintRegion::ValidRegion) {
+                      const BatmanInfer::BIIOFormatInfo::PrintRegion region =
+                              BIIOFormatInfo::PrintRegion::Full) {
         std::cout << name << std::endl;
         BatmanInfer::BIIOFormatInfo format;
         format.element_delim = ", "; // 元素之间用逗号分隔
@@ -80,7 +85,7 @@ namespace QATTest {
             int32_t multiplier;
             int32_t shift;
             quantization::calculate_quantized_multiplier(
-                    combined_scale, &multiplier, &shift);
+                combined_scale, &multiplier, &shift);
 
             multipliers[i] = multiplier;
             shifts[i] = shift;
@@ -145,7 +150,11 @@ namespace QATTest {
                             BIQuantizationInfo &q_info,
                             const std::string &file_path = "") {
         q_info = BIQuantizationInfo(input_scale, zero_point);
-        BITensorShape input_shape(shapes[2], shapes[1], shapes[0]); // [M, K]
+        BITensorShape input_shape;
+        if (shapes.size() == 3)
+            input_shape = BITensorShape(shapes[2], shapes[1], shapes[0]); // [M, K]
+        else
+            input_shape = BITensorShape(shapes[3], shapes[2], shapes[1], shapes[0]); // [M, K]
         BITensor input = utils::create_type_tensor(file_path, input_shape,
                                                    BIDataType::QASYMM8_SIGNED);
         input.info()->set_quantization_info(q_info);
@@ -179,15 +188,15 @@ namespace QATTest {
      * @param num_channels 通道数
      */
     void gemmlowp_mixed_quantized(
-            const std::string &input_str,
-            const std::string &weight_str,
-            const std::string &bias_str,
-            const std::string &second_i_str,
-            float input_scale,
-            int input_offset,
-            const std::vector<float> &weight_scales,
-            float output_scale,
-            int output_offset) {
+        const std::string &input_str,
+        const std::string &weight_str,
+        const std::string &bias_str,
+        const std::string &second_i_str,
+        float input_scale,
+        int input_offset,
+        const std::vector<float> &weight_scales,
+        float output_scale,
+        int output_offset) {
         // 1. 创建输入tensor (QASYMM8)
         int B = 1;
         int M = 1, K = 768, N = 2304;
@@ -206,7 +215,7 @@ namespace QATTest {
                                          std::vector<int>{K, N},
                                          weights_qinfo,
                                          weight_str);
-//        print_tensor(weight, "weight");
+        //        print_tensor(weight, "weight");
 
         // 3. 创建中间输出tensor (S32)
         BITensorShape output_shape(N, M, B); // [M, N]
@@ -272,14 +281,14 @@ namespace QATTest {
         // 修改输入量化值
 
         // 再次进行反量化
-//        BITensor dq_dst0;
-//        dq_dst0.allocator()->init(BITensorInfo(BITensorShape(N, M), 1, BIDataType::F32));
-//        dq_dst0.allocator()->allocate();
-//        BINEDequantizationLayer dq0;
-//        dq0.configure(&output_s32, &dq_dst0);
-//        dq0.run();
-//        print_tensor(output_s32, "output");
-//        print_tensor(dq_dst0, "dq_dst0");
+        //        BITensor dq_dst0;
+        //        dq_dst0.allocator()->init(BITensorInfo(BITensorShape(N, M), 1, BIDataType::F32));
+        //        dq_dst0.allocator()->allocate();
+        //        BINEDequantizationLayer dq0;
+        //        dq0.configure(&output_s32, &dq_dst0);
+        //        dq0.run();
+        //        print_tensor(output_s32, "output");
+        //        print_tensor(dq_dst0, "dq_dst0");
     }
 
     void print_new_tensor(const BITensor &tensor) {
@@ -300,6 +309,15 @@ namespace QATTest {
         }
     }
 
+    template<typename T>
+    void fill_tensor_val_with_arr(const BITensor &tensor, const std::vector<T> val) {
+        auto tensor_ptr = reinterpret_cast<T *>(tensor.buffer());
+        size_t num_elements = tensor.info()->tensor_shape().total_size(); // 获取元素数量
+        for (size_t i = 0; i < num_elements; ++i) {
+            tensor_ptr[i] = val[i];
+        }
+    }
+
     void create_input_tensor(BIITensor &tensor, const int hidden_size) {
         std::vector<float16_t> input_data(768 * hidden_size);
         // 初始化输入数据（模拟正态分布）
@@ -309,9 +327,20 @@ namespace QATTest {
         auto *src_ptr = reinterpret_cast<float16_t *>(tensor.buffer());
         std::memcpy(src_ptr, input_data.data(), input_data.size() * sizeof(float16_t));
     }
+
+    template<typename T>
+    void print_special_tensor(BITensor &tensor) {
+        auto total_len = tensor.info()->tensor_shape().total_size();
+        auto data_ptr = reinterpret_cast<uint8_t *>(tensor.buffer());
+        for (int i = 0; i < total_len; i++) {
+            std::cout << static_cast<int>(data_ptr[i]) << " ";
+        }
+    }
 }
 
 TEST(GEMMLOWPCOMPARE, BASICGEMMLOWP) {
+    // BIScheduler::set(BIScheduler::Type::OMP);
+    BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
     // 1. 先给出原始值(输入先量化)
     const std::string &input_path = "/Users/mason/Desktop/Desktop/PythonProjects/gemmlowp_compare/input.npy";
     const std::string &weight_path = "/Users/mason/Desktop/Desktop/PythonProjects/gemmlowp_compare/weights.npy";
@@ -470,10 +499,10 @@ TEST(QUANTIZE_TEST, DEQUAN_EXAM) {
     std::vector<int8_t> input_data{-128, -91, -55, 127};
     BITensorShape input_shape(4);
     BITensorInfo input_info{
-            input_shape,
-            1,
-            BIDataType::QASYMM8_SIGNED,
-            BIQuantizationInfo(0.054901960784313725, -55)
+        input_shape,
+        1,
+        BIDataType::QASYMM8_SIGNED,
+        BIQuantizationInfo(0.054901960784313725, -55)
     };
     input.allocator()->init(input_info);
     input.allocator()->allocate();
@@ -496,9 +525,9 @@ TEST(QUANTIZE_TE2ST, QUAN_EXAM) {
     std::vector<float16_t> input_data{-1.0, -0.5, 0.0, 1.2, 1.7, -2.2};
     BITensorShape input_shape(3, 2);
     BITensorInfo input_info{
-            input_shape,
-            1,
-            BIDataType::F16
+        input_shape,
+        1,
+        BIDataType::F16
     };
     input.allocator()->init(input_info);
     input.allocator()->allocate();
@@ -519,21 +548,21 @@ TEST(QUANTIZE_TEST, DEQUANT) {
     // 1. 获取量化的per channel
     const std::vector<int8_t> weights_vec = {-17, -16, 17, 52, 127, -127};
     const std::vector<float> weights_scale = {
-            0.0118, 0.0252
+        0.0118, 0.0252
     };
     BIQuantizationInfo weight_info = BIQuantizationInfo(weights_scale);
     BITensorShape weights_shape(2, 3); // [K, N]
     BITensor weights;
     auto weights_info = BITensorInfo(
-            weights_shape, 1, BIDataType::QSYMM8_PER_CHANNEL, weight_info);
+        weights_shape, 1, BIDataType::QSYMM8_PER_CHANNEL, weight_info);
     weights.allocator()->init(weights_info);
     weights.allocator()->allocate();
     std::memcpy(weights.buffer(), weights_vec.data(), weights.info()->total_size());
     BITensor output;
     BITensorInfo input_info{
-            weights_shape,
-            1,
-            BIDataType::F16
+        weights_shape,
+        1,
+        BIDataType::F16
     };
     output.allocator()->init(input_info);
     output.allocator()->allocate();
@@ -544,3 +573,261 @@ TEST(QUANTIZE_TEST, DEQUANT) {
     QATTest::print_tensor(output, "weights");
 }
 
+TEST(QUANTIZE_MATMUL, MATMULQ) {
+    const std::string &a_path = "/Users/mason/Desktop/Desktop/PythonProjects/gemmlowp_compare/a.npy";
+    const std::string &a_2_path = "/Users/mason/Desktop/Desktop/PythonProjects/gemmlowp_compare/a_2.npy";
+    const std::string &b_path = "/Users/mason/Desktop/Desktop/PythonProjects/gemmlowp_compare/b.npy";
+    const std::string &b_2_path = "/Users/mason/Desktop/Desktop/PythonProjects/gemmlowp_compare/b_2.npy";
+    int B = 1, S = 1, M = 16, K = 64, N = 16;
+    float a_scale = 0.011764705882352941f;
+    int8_t a_zp = -43;
+
+    // 量化的A矩阵
+    BIQuantizationInfo a_qinfo, b_qinfo;
+    auto a_tensor = QATTest::create_qasymm8(a_scale,
+                                            a_zp,
+                                            std::vector<int>{B, S, M, K},
+                                            a_qinfo,
+                                            a_path);
+    auto b_tensor = QATTest::create_qasymm8(a_scale,
+                                            a_zp,
+                                            std::vector<int>{B, S, K, N},
+                                            a_qinfo,
+                                            b_path);
+    a_tensor.info()->set_are_values_constant(false);
+    b_tensor.info()->set_are_values_constant(false);
+    QATTest::print_tensor(a_tensor, "a_tensor");
+
+
+    // 3. 创建中间输出tensor (S32)
+    BITensorShape output_shape(N, M, S, B); // [M, N]
+    BITensor output_s32;
+    float output_scale =
+            0.15568818391538133f;
+    int output_offset = -103;
+    BIQuantizationInfo output_qinfo = BIQuantizationInfo(output_scale, output_offset);
+    auto output_info = BITensorInfo(output_shape, 1, BIDataType::QASYMM8_SIGNED, output_qinfo);
+    output_s32.allocator()->init(output_info);
+    output_s32.allocator()->allocate();
+
+    // 定义 MatMul 配置信息
+    BIMatMulInfo matmul_info; // 不转置左矩阵，转置右矩阵
+    matmul_info.adj_lhs(false).adj_rhs(false);
+    BICpuMatMulSettings settings;
+    settings.fast_math(true); // 启用快速数学模式
+
+    BINEMatMul matmul;
+    matmul.configure(&a_tensor, &b_tensor, &output_s32, matmul_info, settings);
+    matmul.run();
+
+    QATTest::print_tensor(output_s32, "output_s32");
+
+    a_tensor.allocator()->free();
+    b_tensor.allocator()->free();
+    output_s32.allocator()->free();
+
+    B = 10, S = 16;
+    a_tensor = QATTest::create_qasymm8(a_scale,
+                                       a_zp,
+                                       std::vector<int>{B, S, M, K},
+                                       a_qinfo,
+                                       a_2_path);
+    b_tensor = QATTest::create_qasymm8(a_scale,
+                                       a_zp,
+                                       std::vector<int>{B, S, K, N},
+                                       a_qinfo,
+                                       b_2_path);
+    output_shape = BITensorShape(N, M, S, B); // [M, N]
+    output_info = BITensorInfo(output_shape, 1, BIDataType::QASYMM8_SIGNED, output_qinfo);
+    output_s32.allocator()->init(output_info);
+    output_s32.allocator()->allocate();
+    a_tensor.info()->set_are_values_constant(false);
+    b_tensor.info()->set_are_values_constant(false);
+    //    matmul.configure(&a_tensor, &b_tensor, &output_s32, matmul_info, settings);
+    matmul.run();
+
+    QATTest::print_tensor(output_s32, "output_s32");
+    //    matmul.configure(&a_tensor, &b_tensor, &output_s32, matmul_info, settings);
+}
+
+TEST(DYNAMIC_KERNEL, KERNEL_SIZE_PICK) {
+    // 目的查看目前内核的选择的选择图
+    // 范围从[B, S, N, M] 从 B = 1, S = 1到B = 20, S = 16
+    constexpr float input_scale = 0.011764705882352941f;
+    constexpr int input_offset = -43;
+    int B = 1, S = 1, N = 16, K = 64, M = 16;
+    for (int i = 1; i < 20; i++)
+        for (int j = 1; j < 16; j++) {
+            // 1. 初始化A矩阵
+            B = i, S = j;
+            BIQuantizationInfo quantizationInfo = BIQuantizationInfo(input_scale, input_offset);
+            BITensorShape a_shape = BITensorShape(K, N, S, B);
+            BITensorShape b_shape = BITensorShape(M, K, S, B);
+            BITensorShape c_shape = BITensorShape(M, N, S, B);
+            BITensorInfo a_info = BITensorInfo(a_shape, 1, BIDataType::QASYMM8_SIGNED, quantizationInfo);
+            BITensorInfo b_info = BITensorInfo(b_shape, 1, BIDataType::QASYMM8_SIGNED, quantizationInfo);
+            BITensorInfo c_info = BITensorInfo(c_shape, 1, BIDataType::QASYMM8_SIGNED, quantizationInfo);
+            BITensor a, b, c;
+            a.allocator()->init(a_info);
+            b.allocator()->init(b_info);
+            c.allocator()->init(c_info);
+            a.allocator()->allocate();
+            b.allocator()->allocate();
+            c.allocator()->allocate();
+
+            // 定义 MatMul 配置信息
+            BIMatMulInfo matmul_info; // 不转置左矩阵，转置右矩阵
+            matmul_info.adj_lhs(false).adj_rhs(false);
+            BICpuMatMulSettings settings;
+            settings.fast_math(true); // 启用快速数学模式
+            a.info()->set_are_values_constant(false);
+            b.info()->set_are_values_constant(false);
+
+            BINEMatMul matmul;
+            matmul.configure(&a, &b, &c, matmul_info, settings);
+        }
+}
+
+TEST(DYNAMIC_KERNEL, KERNEL_GEMM_SIZE_PICK) {
+    // 目的查看目前内核的选择的GEMM汇编函数
+    // 范围从[B, S, N, M] 从 B = 1, S = 1到B = 20, S = 16
+    constexpr float input_scale = 0.011764705882352941f;
+    constexpr int input_offset = -43;
+    int B = 1, S = 1, K = 768, M = 2304;
+    std::vector<float> weight_scales;
+    BIQuantizationInfo weight_qinfo;
+    //    std::ifstream in_file("/data/local/tmp/onnx_runtime/build/weight_scale.txt");
+    //    const std::string &weight_path = "/data/local/tmp/onnx_runtime/build/weights.npy";
+    std::ifstream in_file("/Users/mason/Desktop/Desktop/PythonProjects/gemmlowp_compare/weight_scale.txt");
+    const std::string &weight_path = "/Users/mason/Desktop/Desktop/PythonProjects/gemmlowp_compare/weights.npy";
+    // 权重矩阵
+    BITensor weight = QATTest::create_per_channel(weight_scales, std::vector<int>{K, M}, weight_qinfo, weight_path);
+    for (int i = 1; i < 20; i++)
+        for (int j = 1; j < 16; j++) {
+            // 1. 初始化A矩阵
+            B = i, S = j;
+            BIQuantizationInfo quantizationInfo = BIQuantizationInfo(input_scale, input_offset);
+            BITensorShape a_shape = BITensorShape(K, S, B);
+            BITensorShape c_shape = BITensorShape(M, S, B);
+            BITensorInfo a_info = BITensorInfo(a_shape, 1, BIDataType::QASYMM8_SIGNED, quantizationInfo);
+            BITensorInfo c_info = BITensorInfo(c_shape, 1, BIDataType::QASYMM8_SIGNED, quantizationInfo);
+            BITensor a, c;
+            a.allocator()->init(a_info);
+            c.allocator()->init(c_info);
+            a.allocator()->allocate();
+            c.allocator()->allocate();
+
+            BIGEMMLowpOutputStageInfo output_stage_info;
+            output_stage_info.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
+            output_stage_info.output_data_type = BIDataType::QASYMM8_SIGNED; // 设置输c出数据类型
+            output_stage_info.is_quantized_per_channel = true; // 因为权重是per-channel量化// 设置输出范围
+            output_stage_info.gemmlowp_offset = input_offset;
+            auto [min_val, max_val] = quantization::get_min_max_values_from_quantized_data_type(
+                BIDataType::QASYMM8_SIGNED);
+            output_stage_info.gemmlowp_min_bound = min_val; // 通常是-128
+            output_stage_info.gemmlowp_max_bound = max_val; // 通常是127// 假设已有输入tensor的量化参数
+            // 使用calculate_quantized_multipliers计算每个通道的multiplier和shift
+            // 这个函数会自动填充gemmlowp_multipliers和gemmlowp_shifts
+            quantization::calculate_quantized_multipliers(quantizationInfo,
+                                                          weight_qinfo,
+                                                          quantizationInfo,
+                                                          output_stage_info);
+            GEMMInfo gemm_info = GEMMInfo(false,
+                                          false,
+                                          true,
+                                          false,
+                                          false,
+                                          false,
+                                          output_stage_info,
+                                          false, false, false,
+                                          BIActivationLayerInfo(), false, BIWeightFormat::UNSPECIFIED, false);
+
+
+            BINEGEMMLowpMatrixMultipleCore gemmlowp_mm_score;
+            std::cout << "B: " << B << "\tS:" << S << std::endl;
+            gemmlowp_mm_score.configure(&a, &weight, nullptr, &c, gemm_info);
+        }
+}
+
+TEST(NEGatherTest, NEGatherStaticTest) {
+    // 1. 先读取numpy的Gather权重
+    BITensorShape weight_shape = BITensorShape(768, 6003);
+    const std::string &weight_path =
+            "/Users/mason/Desktop/Desktop/PythonProjects/dynamic_simple_ops/transformer_wte_weight.npy";
+    BITensor weight = utils::create_type_tensor(
+        weight_path, weight_shape,
+        BIDataType::F16);
+    // QATTest::print_tensor(weight, "weight");
+
+    // 2. 输入一个input的权重
+    BITensorShape input_shape = BITensorShape(3, 1);
+    BITensor indices;
+    indices.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::U32));
+    indices.allocator()->allocate();
+    std::vector<uint32_t> indices_val{0, 2, 3};
+    QATTest::fill_tensor_val_with_arr(indices, indices_val);
+    QATTest::print_tensor(indices);
+
+    // 3. 创建输出tensor
+    BITensorShape o_shape = BITensorShape(768, 3, 1);
+    BITensor o_tensor;
+    o_tensor.allocator()->init(BITensorInfo(o_shape, 1, BIDataType::F16));
+    o_tensor.allocator()->allocate();
+
+    // 3. 创建NEGather
+    BINEGather gather_op;
+    gather_op.configure(&weight, &indices, &o_tensor, 1);
+    gather_op.run();
+
+    // std::cout << o_tensor. << std::endl;
+    QATTest::print_tensor(o_tensor);
+}
+
+TEST(NEGatherTest, NEGatherDynamicTest) {
+    // 1. 先读取numpy的Gather权重
+    BITensorShape weight_shape = BITensorShape(768, 6003);
+    const std::string &weight_path =
+            "/Users/mason/Desktop/Desktop/PythonProjects/dynamic_simple_ops/transformer_wte_weight.npy";
+    BITensor weight = utils::create_type_tensor(
+        weight_path, weight_shape,
+        BIDataType::F16);
+    // QATTest::print_tensor(weight, "weight");
+
+    // 2. 输入一个input的权重
+    BITensorShape input_shape = BITensorShape(3, 1);
+    BITensor indices;
+    indices.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::U32));
+    indices.allocator()->allocate();
+    std::vector<uint32_t> indices_val{0, 2, 3};
+    QATTest::fill_tensor_val_with_arr(indices, indices_val);
+    QATTest::print_tensor(indices);
+
+    // 3. 创建输出tensor
+    BITensorShape o_shape = BITensorShape(768, 3, 1);
+    BITensor o_tensor;
+    o_tensor.allocator()->init(BITensorInfo(o_shape, 1, BIDataType::F16));
+    o_tensor.allocator()->allocate();
+
+    // 3. 创建NEGather
+    BINEGather gather_op;
+    gather_op.configure(&weight, &indices, &o_tensor, 1);
+    gather_op.run();
+
+    // std::cout << o_tensor. << std::endl;
+    QATTest::print_tensor(o_tensor);
+
+    // 创建新的indices
+    indices.allocator()->free();
+    input_shape = BITensorShape(4, 1);
+    indices.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::U32));
+    indices.allocator()->allocate();
+    indices_val.emplace_back(4);
+    QATTest::fill_tensor_val_with_arr(indices, indices_val);
+    o_shape = BITensorShape(768, 4, 1);
+    o_tensor.allocator()->init(BITensorInfo(o_shape, 1, BIDataType::F16));
+    o_tensor.allocator()->allocate();
+
+    gather_op.dynamic_configure(&indices, &o_tensor);
+    gather_op.run();
+    QATTest::print_tensor(o_tensor);
+}

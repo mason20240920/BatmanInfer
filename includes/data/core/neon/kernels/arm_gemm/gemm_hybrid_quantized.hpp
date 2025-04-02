@@ -30,22 +30,22 @@ namespace BatmanGemm {
         /* const properties set by constructor */
         const BICPUInfo *const _ci;
 
-        const unsigned int _Msize;
-        const unsigned int _Nsize;
-        const unsigned int _Ksize;
+        unsigned int _Msize;
+        unsigned int _Nsize;
+        unsigned int _Ksize;
 
-        const unsigned int _nbatches;
-        const unsigned int _nmulti;
+        unsigned int _nbatches;
+        unsigned int _nmulti;
 
         /* Blocking info */
-        const unsigned int _k_block;
-        const unsigned int _n_block;
-        const unsigned int _Mround;
+        unsigned int _k_block;
+        unsigned int _n_block;
+        unsigned int _Mround;
 
         /* Pretransposed buffer. */
         const Toi *_B_transposed = nullptr;
 
-        const BINDRange<4> _window_range;
+        BINDRange<4> _window_range;
 
         Requantize32 _qp;
         int32_t *row_bias = nullptr;
@@ -156,21 +156,30 @@ namespace BatmanGemm {
         }
 
         bool set_dynamic_M_size(int M_size) override {
-            // TODO: fixed for the future
-            return false;
+            if (M_size == _Msize)
+                return false;
+            _Msize = M_size;
+            return true;
         }
 
         bool set_dynamic_batch_size(int batch_size) override {
-            // TODO: fixed for the future
+            if (batch_size == _nbatches)
+                return false;
+            _nbatches = batch_size;
             return false;
         }
 
         void update_parameters() override {
-            // TODO: For future dynamic
+            if (_Mround < _Msize)
+                _Mround = roundup(_Msize, strategy::out_height());
+            _window_range = BINDRange<4>{iceildiv(_Msize, strategy::out_height()), _nbatches,
+                                         iceildiv(_Nsize, _n_block), _nmulti};
         }
 
         bool set_dynamic_nmulti_size(int nmulti) override {
-            // TODO: fixed for the future
+            if (nmulti == _nmulti)
+                return false;
+            _nmulti = nmulti;
             return false;
         }
 

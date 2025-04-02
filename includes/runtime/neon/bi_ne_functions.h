@@ -42,3 +42,4 @@
 #include "runtime/neon/functions/bi_ne_gemm_lowp_output_stage.hpp"
 #include <runtime/neon/functions/BINEAttentionLowpLayer.hpp>
 #include "runtime/neon/functions/BINERMSNormLayer.hpp"
+#include <runtime/neon/functions/BINEGather.hpp>

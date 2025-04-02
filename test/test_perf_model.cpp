@@ -35,13 +35,14 @@ struct PerfStats {
 // 定义成员函数指针类型
 using MemberFunc = void (BIIFunction::*)();
 
-PerfStats measure_performance(BIIFunction *obj,
-                              MemberFunc kernel_func,
-                              size_t warmup = 10,
-                              size_t iterations = 1000,
-                              double outlier_threshold = 3.0) {
-
-}
+//PerfStats measure_performance(BIIFunction *obj,
+//                              MemberFunc kernel_func,
+//                              size_t warmup = 10,
+//                              size_t iterations = 1000,
+//                              double outlier_threshold = 3.0) {
+//
+//
+//}
 
 TEST(ModelPerfTest, GPT2Perf) {
 //    BIScheduler::set(BIScheduler::Type::OMP);
@@ -223,6 +224,8 @@ TEST(ModelPerfTest, GPT2Perf) {
               << "Std Dev:    " << perf_status.std_dev_ms << " ms\n"
               << "Min Time:   " << perf_status.min_ms << " ms\n"
               << "Max Time:   " << perf_status.max_ms << " ms\n";
+
+    return;
 }
 
 TEST(ModelPerfTest, KVCaches) {

@@ -46,5 +46,13 @@ namespace BatmanInfer {
                                  const BIITensorInfo *indices,
                                  const BIITensorInfo *output,
                                  int axis);
+
+        /**
+         * @brief 动态配置信息
+         * @param indices
+         * @param output
+         */
+        void dynamic_configure(const BIITensor *indices,
+                               BIITensor *output) const;
     };
 }

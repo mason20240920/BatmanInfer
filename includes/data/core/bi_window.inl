@@ -4,8 +4,8 @@
 
 namespace BatmanInfer {
     inline BIWindow::BIWindow(const BIWindow &src)
-            : _dims(),
-              _is_broadcasted(misc::utility::generate_array<bool, BICoordinates::num_max_dimensions, false>::value) {
+        : _dims(),
+          _is_broadcasted(misc::utility::generate_array<bool, BICoordinates::num_max_dimensions, false>::value) {
         for (size_t i = 0; i < BICoordinates::num_max_dimensions; ++i) {
             set(i, src[i]);
             _is_broadcasted[i] = src.is_broadcasted(i);
@@ -157,7 +157,7 @@ namespace BatmanInfer {
         for (size_t i = 0; i < BICoordinates::num_max_dimensions; ++i) {
             BI_COMPUTE_ERROR_ON(_dims[i].end() < _dims[i].start());
             BI_COMPUTE_ERROR_ON(
-                    (_dims[i].step() != 0) && (((_dims[i].end() - _dims[i].start()) % _dims[i].step()) != 0));
+                (_dims[i].step() != 0) && (((_dims[i].end() - _dims[i].start()) % _dims[i].step()) != 0));
         }
     }
 
@@ -167,31 +167,43 @@ namespace BatmanInfer {
         return (_dims.at(dimension).end() - _dims.at(dimension).start()) / _dims.at(dimension).step();
     }
 
+    /**
+     * @brief 在指定维度上将窗口分割成多个部分，用于并行处理
+     *
+     * @param dimension 要分割的维度索引
+     * @param id 当前处理部分的ID (0 到 total - 1)
+     * @param total 总共要分成几个部分
+     * @return 分割后的子窗口
+     */
     inline BIWindow BIWindow::split_window(size_t dimension, size_t id, size_t total) const {
         BI_COMPUTE_ERROR_ON(id >= total);
         BI_COMPUTE_ERROR_ON(dimension >= BICoordinates::num_max_dimensions);
 
         BIWindow out;
 
+        // 遍历所有维度
         for (size_t d = 0; d < BICoordinates::num_max_dimensions; ++d) {
             if (d == dimension) {
+                // 处理需要分割的维度
                 int start = _dims[d].start();
                 int end = _dims[d].end();
                 const int step = _dims[d].step();
 
-                const int num_it = num_iterations(d);
-                const int rem = num_it % total;
-                int work = num_it / total;
+                const int num_it = num_iterations(d); // 该维度上的总迭代次数
+                const int rem = num_it % total; // 计算不能整除的余数
+                int work = num_it / total; // 每个部分基础的工作量
 
-                int it_start = work * id;
+                int it_start = work * id; // 计算当前部分的起始迭代位置
 
+                // 处理余数：将余数平均分配给前rem个部分
                 if (int(id) < rem) {
-                    ++work;
-                    it_start += id;
+                    ++work; // 前rem个部分多处理一个单位
+                    it_start += id; // 考虑前面部分多处理的单位
                 } else {
-                    it_start += rem;
+                    it_start += rem; // 后面的部分需要跳过前面多处理的单位
                 }
 
+                // 计算实际的起始和结束位置
                 start += it_start * step;
                 end = std::min(end, start + work * step);
 
@@ -269,7 +281,6 @@ namespace BatmanInfer {
     inline bool operator==(const BIWindow &lhs, const BIWindow &rhs) {
         return (lhs._dims == rhs._dims) && (lhs._is_broadcasted == rhs._is_broadcasted);
     }
-
 }
 
 #endif

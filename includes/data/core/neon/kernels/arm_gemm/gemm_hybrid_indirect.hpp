@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <cpu/kernels/assembly/bi_arm_gemm.hpp>
 #include "bias_adder.hpp"
 #include "convolver.hpp"
@@ -32,9 +33,8 @@
 
 namespace BatmanGemm {
     namespace {
-
-// We need to invoke the kernel differently for quantizing and non-quantizing cases, so here is a shim class to do
-// that.
+        // We need to invoke the kernel differently for quantizing and non-quantizing cases, so here is a shim class to do
+        // that.
 
         template<typename OutputStage, bool SeparateQuantize, bool FixedFormat>
         class run_hybrid_kernel {
@@ -44,11 +44,11 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
                     profiler &prof,
 #endif
-                    const strategy &strat, unsigned int num_strings, const unsigned int *string_ptr,
-                    IndirectInputArg<Tlo> A_arg, unsigned int M, unsigned int N,
-                    unsigned int kern_k, const Tro *b_ptr, size_t b_stride, IndirectOutputArg<Tr> output_arg,
-                    const Tr *bias_ptr, Activation act, bool accumulate,
-                    const OutputStage &os, const int32_t *col_bias, unsigned int n_0);
+                const strategy &strat, unsigned int num_strings, const unsigned int *string_ptr,
+                IndirectInputArg<Tlo> A_arg, unsigned int M, unsigned int N,
+                unsigned int kern_k, const Tro *b_ptr, size_t b_stride, IndirectOutputArg<Tr> output_arg,
+                const Tr *bias_ptr, Activation act, bool accumulate,
+                const OutputStage &os, const int32_t *col_bias, unsigned int n_0);
         };
 
         template<>
@@ -57,11 +57,11 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
                 profiler &prof,
 #endif
-                const strategy &strat, unsigned int num_strings, const unsigned int *string_ptr,
-                IndirectInputArg<Tlo> A_arg, unsigned int M, unsigned int N,
-                unsigned int kern_k, const Tro *b_ptr, size_t, IndirectOutputArg<Tr> output_arg, const Tr *bias_ptr,
-                Activation act, bool accumulate,
-                const Nothing &, const int32_t *, unsigned int) {
+            const strategy &strat, unsigned int num_strings, const unsigned int *string_ptr,
+            IndirectInputArg<Tlo> A_arg, unsigned int M, unsigned int N,
+            unsigned int kern_k, const Tro *b_ptr, size_t, IndirectOutputArg<Tr> output_arg, const Tr *bias_ptr,
+            Activation act, bool accumulate,
+            const Nothing &, const int32_t *, unsigned int) {
 #ifdef CYCLE_PROFILING
             auto p = prof.ScopedProfiler(PROFILE_KERNEL, (unsigned long)M * kern_k * roundup(N, strategy::out_width()));
 #endif
@@ -109,11 +109,11 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
                 profiler &prof,
 #endif
-                const strategy &strat, unsigned int num_strings, const unsigned int *string_ptr,
-                IndirectInputArg<Tlo> A_arg, unsigned int M, unsigned int N,
-                unsigned int kern_k, const Tro *b_ptr, size_t b_stride, IndirectOutputArg<Tr> output_arg,
-                const Tr *bias_ptr, Activation act, bool accumulate,
-                const Nothing &, const int32_t *, unsigned int) {
+            const strategy &strat, unsigned int num_strings, const unsigned int *string_ptr,
+            IndirectInputArg<Tlo> A_arg, unsigned int M, unsigned int N,
+            unsigned int kern_k, const Tro *b_ptr, size_t b_stride, IndirectOutputArg<Tr> output_arg,
+            const Tr *bias_ptr, Activation act, bool accumulate,
+            const Nothing &, const int32_t *, unsigned int) {
 #ifdef CYCLE_PROFILING
             auto p = prof.ScopedProfiler(PROFILE_KERNEL, (unsigned long)M * kern_k * roundup(N, strategy::out_width()));
 #endif
@@ -163,11 +163,11 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
                 profiler &prof,
 #endif
-                const strategy &strat, unsigned int num_strings, const unsigned int *string_ptr,
-                IndirectInputArg<Tlo> A_arg, unsigned int M, unsigned int N,
-                unsigned int kern_k, const Tro *b_ptr, size_t, IndirectOutputArg<Tr> output_arg, const Tr *, Activation,
-                bool,
-                const Requantize32 &os, const int32_t *col_bias, unsigned int n_0) {
+            const strategy &strat, unsigned int num_strings, const unsigned int *string_ptr,
+            IndirectInputArg<Tlo> A_arg, unsigned int M, unsigned int N,
+            unsigned int kern_k, const Tro *b_ptr, size_t, IndirectOutputArg<Tr> output_arg, const Tr *, Activation,
+            bool,
+            const Requantize32 &os, const int32_t *col_bias, unsigned int n_0) {
 #ifdef CYCLE_PROFILING
             auto p = prof.ScopedProfiler(PROFILE_KERNEL, (unsigned long)M * kern_k * roundup(N, strategy::out_width()));
 #endif
@@ -182,11 +182,11 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
                 profiler &prof,
 #endif
-                const strategy &strat, unsigned int num_strings, const unsigned int *string_ptr,
-                IndirectInputArg<Tlo> A_arg, unsigned int M, unsigned int N,
-                unsigned int kern_k, const Tro *b_ptr, size_t, IndirectOutputArg<Tr> output_arg, const Tr *, Activation,
-                bool,
-                const Requantize32 &os, const int32_t *col_bias, unsigned int n_0) {
+            const strategy &strat, unsigned int num_strings, const unsigned int *string_ptr,
+            IndirectInputArg<Tlo> A_arg, unsigned int M, unsigned int N,
+            unsigned int kern_k, const Tro *b_ptr, size_t, IndirectOutputArg<Tr> output_arg, const Tr *, Activation,
+            bool,
+            const Requantize32 &os, const int32_t *col_bias, unsigned int n_0) {
             UNUSED(kern_k);
             // On this route we will only process one kernel height at a time and will make sure this happens in the driver loop.
             assert(M <= strategy::out_height());
@@ -201,9 +201,7 @@ namespace BatmanGemm {
             unsigned int output_width = roundup(N, strategy::out_width());
 
             result_buffer = reinterpret_cast<typename strategy::result_type *>(alloca(
-                    output_width * strategy::out_height() * sizeof(typename strategy::result_type)));
-
-            {
+                output_width * strategy::out_height() * sizeof(typename strategy::result_type))); {
 #ifdef CYCLE_PROFILING
                 auto p = prof.ScopedProfiler(PROFILE_KERNEL, (unsigned long)M * kern_k * roundup(N, strategy::out_width()));
 #endif
@@ -220,9 +218,7 @@ namespace BatmanGemm {
                 row_sums_indirect(num_strings, string_ptr, A_arg, M, row_sums, &os);
             } else {
                 memset(row_sums, 0, sizeof(int32_t) * strategy::out_height());
-            }
-
-            {
+            } {
 #ifdef CYCLE_PROFILING
                 auto p = prof.ScopedProfiler(PROFILE_QUANTIZE, (unsigned long)M * N);
 #endif
@@ -259,11 +255,11 @@ namespace BatmanGemm {
                 return KernelWeightFormat::NON_FIXED;
             }
         };
-
     } // anonymous namespace
 
-// Implementation of the GemmCommon abstract class.
-    template<typename strategy, typename To, typename Tw, typename Tr, typename OutputStage=Nothing, bool SeparateQuantize = false, bool FixedFormat = false>
+    // Implementation of the GemmCommon abstract class.
+    template<typename strategy, typename To, typename Tw, typename Tr, typename OutputStage=Nothing, bool
+        SeparateQuantize = false, bool FixedFormat = false>
     class GemmHybridIndirect : public BIGemmCommon<To, Tw, Tr> {
         typedef typename strategy::lhs_operand_type Tloi;
         typedef typename strategy::rhs_operand_type Troi;
@@ -275,7 +271,7 @@ namespace BatmanGemm {
         /* Quantized support (in addition to 'output stage' above) */
         int32_t *_col_bias = nullptr;
 
-        const unsigned int _Ktotal;  // 处理整个计算的所有K段总量
+        const unsigned int _Ktotal; // 处理整个计算的所有K段总量
         const unsigned int _rounded_Ksize; // 处理单个K段内的对齐
 
         /* Blocking info */
@@ -290,7 +286,7 @@ namespace BatmanGemm {
         const To *const *const *_indirect_buf = nullptr;
 
         /* Convolver - only set up for convolution problems, so also doubles as a flag. */
-        std::unique_ptr<convolver<To>> _convolver = nullptr;
+        std::unique_ptr<convolver<To> > _convolver = nullptr;
 
         // Array of pointers to output rows
         //    Tr * const *        _output_ptrs;
@@ -392,12 +388,12 @@ namespace BatmanGemm {
 
         /* Constructor */
         GemmHybridIndirect(const GemmArgs &args, const OutputStage &os)
-                : _args(args), _os(os), _Ktotal(get_ktotal(args)),
-                  _rounded_Ksize(roundup(args._Ksize, strategy::k_unroll())),
-                  _n_block(compute_n_block(args, os)), _k_block(compute_k_block(args)),
-                  _Mround(roundup(args._Msize, strategy::out_height())),
-                  _window_range(iceildiv(args._Msize, strategy::out_height()), args._nbatches,
-                                iceildiv(args._Nsize, _n_block), args._nmulti) {
+            : _args(args), _os(os), _Ktotal(get_ktotal(args)),
+              _rounded_Ksize(roundup(args._Ksize, strategy::k_unroll())),
+              _n_block(compute_n_block(args, os)), _k_block(compute_k_block(args)),
+              _Mround(roundup(args._Msize, strategy::out_height())),
+              _window_range(iceildiv(args._Msize, strategy::out_height()), args._nbatches,
+                            iceildiv(args._Nsize, _n_block), args._nmulti) {
             // We take a copy of the arguments (not a pointer or reference), but there is no lifetime requirement on the
             // GemmConfig.  Clear out the pointer to avoid accidents.
             _args._cfg = nullptr;
@@ -405,12 +401,12 @@ namespace BatmanGemm {
 
         /* Constructor without OutputStage */
         GemmHybridIndirect(const GemmArgs &args)
-                : _args(args), _Ktotal(get_ktotal(args)),
-                  _rounded_Ksize(roundup(args._Ksize, strategy::k_unroll())),
-                  _n_block(compute_n_block(args)), _k_block(compute_k_block(args)),
-                  _Mround(roundup(args._Msize, strategy::out_height())),
-                  _window_range(iceildiv(args._Msize, strategy::out_height()), args._nbatches,
-                                iceildiv(args._Nsize, _n_block), args._nmulti) {
+            : _args(args), _Ktotal(get_ktotal(args)),
+              _rounded_Ksize(roundup(args._Ksize, strategy::k_unroll())),
+              _n_block(compute_n_block(args)), _k_block(compute_k_block(args)),
+              _Mround(roundup(args._Msize, strategy::out_height())),
+              _window_range(iceildiv(args._Msize, strategy::out_height()), args._nbatches,
+                            iceildiv(args._Nsize, _n_block), args._nmulti) {
             // We take a copy of the arguments (not a pointer or reference), but there is no lifetime requirement on the
             // GemmConfig.  Clear out the pointer to avoid accidents.
             _args._cfg = nullptr;
@@ -426,15 +422,17 @@ namespace BatmanGemm {
         void update_parameters() override {
             if (_Mround < _args._Msize)
                 _Mround = roundup(_args._Msize, strategy::out_height());
-            _window_range = BINDRange<4>{iceildiv(_args._Msize, strategy::out_height()), _args._nbatches,
-                                         iceildiv(_args._Nsize, _n_block), _args._nmulti};
+            _window_range = BINDRange<4>{
+                iceildiv(_args._Msize, strategy::out_height()), _args._nbatches,
+                iceildiv(_args._Nsize, _n_block), _args._nmulti
+            };
         }
 
         /**
          * Dynamic set M size in runtime (fixed for DeepSeek-V3)
          * @param M_size
          */
-        bool set_dynamic_M_size(int M_size) {
+        bool set_dynamic_M_size(int M_size) override {
             if (M_size == _args._Msize)
                 return false;
             _args._Msize = M_size;
@@ -531,10 +529,12 @@ namespace BatmanGemm {
 
                 do {
                     const unsigned int m_start = p.dim(0) * strategy::out_height();
-                    const unsigned int m_end = process_all_rows ? std::min(p.dim0_max() * strategy::out_height(),
-                                                                           _args._Msize) : std::min(
-                            m_start + strategy::out_height(), _args._Msize);
-//                const unsigned int m_end   = std::min(m_start + strategy::out_height(), _args._Msize);
+                    const unsigned int m_end = process_all_rows
+                                                   ? std::min(p.dim0_max() * strategy::out_height(),
+                                                              _args._Msize)
+                                                   : std::min(
+                                                       m_start + strategy::out_height(), _args._Msize);
+                    //                const unsigned int m_end   = std::min(m_start + strategy::out_height(), _args._Msize);
                     const unsigned int batch = p.dim(1);
                     const unsigned int n0 = p.dim(2) * _n_block;
                     const unsigned int nmax = std::min(n0 + _n_block, _args._Nsize);
@@ -554,8 +554,8 @@ namespace BatmanGemm {
                     }
 
                     IndirectOutputArg<Tr> out_arg(
-                            g_array._Cptr + (multi * g_array._C_multi_stride) + (batch * g_array._C_batch_stride) +
-                            (m_start * g_array._ldc) + n0, g_array._ldc);
+                        g_array._Cptr + (multi * g_array._C_multi_stride) + (batch * g_array._C_batch_stride) +
+                        (m_start * g_array._ldc) + n0, g_array._ldc);
 
 #ifdef CYCLE_PROFILING
                     auto p = prof.ScopedProfiler(PROFILE_KERNEL, (unsigned long)(m_end - m_start) * kern_k * roundup(nmax-n0, strategy::out_width()));
@@ -565,20 +565,22 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
                                 prof,
 #endif
-                                strat, sections, string_lengths.data(),
-                                IndirectInputArg<To>(_indirect_buf + (multi * _args._nbatches * _args._Ksections) +
-                                                     (batch * _args._Ksections) + first_section, m_start, first_offset),
-                                (m_end - m_start), (nmax - n0), kern_k, b_panel, g_array._ldb, out_arg,
-                                (g_array._bias && first_pass) ? g_array._bias + (multi * g_array._bias_multi_stride) +
-                                                                n0 : nullptr,
-                                last_pass ? _args._act : Activation(),
-                                !first_pass || _args._accumulate,
-                                // Quantization parameters
-                                _os, _col_bias + (multi * _args._Nsize), n0);
+                            strat, sections, string_lengths.data(),
+                            IndirectInputArg<To>(_indirect_buf + (multi * _args._nbatches * _args._Ksections) +
+                                                 (batch * _args._Ksections) + first_section, m_start, first_offset),
+                            (m_end - m_start), (nmax - n0), kern_k, b_panel, g_array._ldb, out_arg,
+                            (g_array._bias && first_pass)
+                                ? g_array._bias + (multi * g_array._bias_multi_stride) +
+                                  n0
+                                : nullptr,
+                            last_pass ? _args._act : Activation(),
+                            !first_pass || _args._accumulate,
+                            // Quantization parameters
+                            _os, _col_bias + (multi * _args._Nsize), n0);
                     } else if (_convolver) {
                         auto conv_cols = _convolver->process_columns(
-                                g_array._Aptr + (multi * g_array._A_multi_stride) + (batch * g_array._A_batch_stride),
-                                g_array._lda, k0, kmax, _rounded_Ksize);
+                            g_array._Aptr + (multi * g_array._A_multi_stride) + (batch * g_array._A_batch_stride),
+                            g_array._lda, k0, kmax, _rounded_Ksize);
 
                         unsigned int pos = 0;
                         auto conv_rows = conv_cols.process_rows(m_start, m_end - m_start);
@@ -589,7 +591,7 @@ namespace BatmanGemm {
                             assert(pos < sections);
 
                             std::tie(width, conv_offset) = conv_rows.next_block(
-                                    &(in_row_ptrs[pos * strategy::out_height()]));
+                                &(in_row_ptrs[pos * strategy::out_height()]));
 
                             if (pos == 0) {
                                 assert(conv_offset == first_offset);
@@ -603,15 +605,17 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
                                 prof,
 #endif
-                                strat, sections, string_lengths.data(),
-                                IndirectInputArg<To>(in_row_strings.data(), 0, first_offset),
-                                (m_end - m_start), (nmax - n0), kern_k, b_panel, g_array._ldb, out_arg,
-                                (g_array._bias && first_pass) ? g_array._bias + (multi * g_array._bias_multi_stride) +
-                                                                n0 : nullptr,
-                                last_pass ? _args._act : Activation(),
-                                !first_pass || _args._accumulate,
-                                // Quantization parameters
-                                _os, _col_bias + (multi * _args._Nsize), n0);
+                            strat, sections, string_lengths.data(),
+                            IndirectInputArg<To>(in_row_strings.data(), 0, first_offset),
+                            (m_end - m_start), (nmax - n0), kern_k, b_panel, g_array._ldb, out_arg,
+                            (g_array._bias && first_pass)
+                                ? g_array._bias + (multi * g_array._bias_multi_stride) +
+                                  n0
+                                : nullptr,
+                            last_pass ? _args._act : Activation(),
+                            !first_pass || _args._accumulate,
+                            // Quantization parameters
+                            _os, _col_bias + (multi * _args._Nsize), n0);
                     } else {
                         // Length to process.  This needs to exclude padding, but 'kmax' potentially includes it.
                         const unsigned int len = (std::min(_args._Ksize, kmax) - k0);
@@ -620,17 +624,19 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
                                 prof,
 #endif
-                                strat, 1, &len,
-                                IndirectInputArg<To>(g_array._Aptr + (multi * g_array._A_multi_stride) +
-                                                     (batch * g_array._A_batch_stride) + m_start * g_array._lda + k0,
-                                                     g_array._lda),
-                                (m_end - m_start), (nmax - n0), kern_k, b_panel, g_array._ldb, out_arg,
-                                (g_array._bias && first_pass) ? g_array._bias + (multi * g_array._bias_multi_stride) +
-                                                                n0 : nullptr,
-                                last_pass ? _args._act : Activation(),
-                                !first_pass || _args._accumulate,
-                                // Quantization parameters
-                                _os, _col_bias + (multi * _args._Nsize), n0);
+                            strat, 1, &len,
+                            IndirectInputArg<To>(g_array._Aptr + (multi * g_array._A_multi_stride) +
+                                                 (batch * g_array._A_batch_stride) + m_start * g_array._lda + k0,
+                                                 g_array._lda),
+                            (m_end - m_start), (nmax - n0), kern_k, b_panel, g_array._ldb, out_arg,
+                            (g_array._bias && first_pass)
+                                ? g_array._bias + (multi * g_array._bias_multi_stride) +
+                                  n0
+                                : nullptr,
+                            last_pass ? _args._act : Activation(),
+                            !first_pass || _args._accumulate,
+                            // Quantization parameters
+                            _os, _col_bias + (multi * _args._Nsize), n0);
                     }
                 } while (process_all_rows ? p.next_dim1() : p.next_dim0());
             }
@@ -780,9 +786,11 @@ namespace BatmanGemm {
                                 strat.transforms.PrepareB(buffer, B + (multi * B_multi_stride), ldb,
                                                           x0, xmax,
                                                           (k_section_base * _args._Ksize) +
-                                                          k_offset,               // K starting point - compute row to read based on our section and the true section length.
+                                                          k_offset,
+                                                          // K starting point - compute row to read based on our section and the true section length.
                                                           (k_section_base * _args._Ksize) + k_offset +
-                                                          k_length,    // K end point - starting point plus length computed above.
+                                                          k_length,
+                                                          // K end point - starting point plus length computed above.
                                                           transposed);
 
                                 // We need to modify our position based on the ROUNDED version of what we just did.
@@ -883,7 +891,7 @@ namespace BatmanGemm {
 
         void set_convolution_parameters(BIConvolutionParameters parms) override {
             assert(parms.input_channels == _args._Ksize);
-            _convolver = std::unique_ptr<convolver<To>>(new convolver<To>(parms));
+            _convolver = std::unique_ptr<convolver<To> >(new convolver<To>(parms));
         }
 
         GemmConfig get_config() override {

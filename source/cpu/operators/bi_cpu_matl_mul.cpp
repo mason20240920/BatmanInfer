@@ -307,9 +307,12 @@ namespace BatmanInfer {
             // 获取动态的aux结果(但是他会在prepare阶段初始化放在tensors里面
             size_t tensor_b_align;
             auto tensor_size = _asm_glue->dynamic_tensor_b_size(&lhs_to_use, &rhs_to_use, &dst_to_use, tensor_b_align);
+            // 算子的动态的数据格式
+            auto _tmp_data_type = lhs->info()->data_type();
+            
             tensors.remove_tensor(1026);
             BITensor transpose_b_tensor;
-            transpose_b_tensor.allocator()->init(BITensorInfo(BITensorShape(tensor_size), 1, BIDataType::F16),
+            transpose_b_tensor.allocator()->init(BITensorInfo(BITensorShape(tensor_size), 1, _tmp_data_type),
                                                  tensor_b_align);
             transpose_b_tensor.allocator()->allocate();
             tensors.add_tensor(1026, &transpose_b_tensor);
@@ -369,5 +372,21 @@ namespace BatmanInfer {
         experimental::BIMemoryRequirements BICpuMatMul::workspace() const {
             return _aux_mem;
         }
+
+        const experimental::BIMemoryRequirements &BICpuMatMul::workspace_dynamic(const BIITensorPack &tensors) const {
+            BI_COMPUTE_ERROR_ON(tensors.empty());
+            BI_COMPUTE_ERROR_ON(_adj_lhs || _adj_rhs); // 如果需要转置操作就进行报错
+            // Update memory requirements with those from the kernel.
+            _aux_mem.reserve(Count);
+            _aux_mem.resize(Count);
+
+//            for (BIMemoryInfo mi: _kernel->workspace(tensors)) {
+//                _aux_mem.push_back(mi);
+//            }
+
+            return _aux_mem;
+        }
+
+
     } // namespace cpu
 } // namespace BatmanInfer

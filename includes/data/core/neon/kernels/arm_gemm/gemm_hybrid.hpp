@@ -122,7 +122,7 @@ namespace BatmanGemm {
             return true;
         }
 
-        bool set_dynamic_M_size(int M_size) {
+        bool set_dynamic_M_size(int M_size) override {
             // TODO: fixed for future
             return false;
         }

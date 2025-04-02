@@ -13,7 +13,6 @@
 namespace BatmanInfer {
     namespace misc {
         namespace shape_calculator {
-
             /** 计算转置后的矩阵
              *
              * @param input input Input tensor info
@@ -83,7 +82,7 @@ namespace BatmanInfer {
                 const size_t transpose_width = (16 / b.element_size()) * multi_transpose_1xw_width;
                 shape_transposed_1xw_b.set(BIWindow::DimX, b.dimension(1) * transpose_width);
                 shape_transposed_1xw_b.set(BIWindow::DimY, static_cast<size_t>(std::ceil(
-                        b.dimension(0) / static_cast<float>(transpose_width))));
+                                               b.dimension(0) / static_cast<float>(transpose_width))));
 
                 return shape_transposed_1xw_b;
             }
@@ -95,21 +94,24 @@ namespace BatmanInfer {
                 BI_COMPUTE_ERROR_ON_MSG(input0.num_dimensions() > 4,
                                         "The number of dimensions for the matrix A must be <= 4");
                 BI_COMPUTE_ERROR_ON_MSG(
-                        is_interleaved_transposed && reshape_info.reinterpret_input_as_3d(),
-                        "The first input tensor cannot be reinterpreted as 3D if is_interleaved_transposed is true");
+                    is_interleaved_transposed && reshape_info.reinterpret_input_as_3d(),
+                    "The first input tensor cannot be reinterpreted as 3D if is_interleaved_transposed is true");
 
                 const bool reinterpret_input_as_3d = reshape_info.reinterpret_input_as_3d();
                 const bool reinterpret_output_as_3d = reshape_info.depth_output_gemm3d() != 0;
                 const int depth_output_gemm3d = reinterpret_output_as_3d ? reshape_info.depth_output_gemm3d() : 1;
                 const int m =
-                        reshape_info.reinterpret_input_as_3d() ? input0.dimension(1) * input0.dimension(2)
-                                                               : input0.dimension(1);
+                        reshape_info.reinterpret_input_as_3d()
+                            ? input0.dimension(1) * input0.dimension(2)
+                            : input0.dimension(1);
 
                 // If the output of GEMM has to be reinterpreted as 3D, the number of input0 rows (M) is obtained collapsing the second and third
                 // dimension of the output tensor
                 const int dim0 = is_interleaved_transposed ? reshape_info.n() : input1.dimension(0);
-                const int dim1 = is_interleaved_transposed ? reshape_info.m() / depth_output_gemm3d : m /
-                                                                                                      depth_output_gemm3d;
+                const int dim1 = is_interleaved_transposed
+                                     ? reshape_info.m() / depth_output_gemm3d
+                                     : m /
+                                       depth_output_gemm3d;
                 const int dim2 = reinterpret_input_as_3d ? input0.tensor_shape()[3] : input0.tensor_shape()[2];
                 const int dim3 = reinterpret_input_as_3d ? 1 : input0.tensor_shape()[3];
 
@@ -124,14 +126,14 @@ namespace BatmanInfer {
                 return output_shape;
             }
 
-/** Calculate the matrix multiplication output shape of two tensors
- *
- * @param[in] input0    First input tensor info
- * @param[in] input1    Second input tensor info
- * @param[in] gemm_info GEMM reshape info
- *
- * @return the calculated shape
- */
+            /** Calculate the matrix multiplication output shape of two tensors
+             *
+             * @param[in] input0    First input tensor info
+             * @param[in] input1    Second input tensor info
+             * @param[in] gemm_info GEMM reshape info
+             *
+             * @return the calculated shape
+             */
             inline BITensorShape
             compute_mm_shape(const BIITensorInfo &input0,
                              const BIITensorInfo &input1,
@@ -152,8 +154,9 @@ namespace BatmanInfer {
                 } else {
                     // If the output of GEMM has to be reinterpreted as 3D, the number of input0 rows (M) is obtained collapsing the second and third
                     // dimension of the output tensor
-                    const int batch_size = reinterpret_input_as_3d ? input0.tensor_shape()[3]
-                                                                   : input0.tensor_shape()[2];
+                    const int batch_size = reinterpret_input_as_3d
+                                               ? input0.tensor_shape()[3]
+                                               : input0.tensor_shape()[2];
                     output_shape.set(0, gemm_info.n());
                     output_shape.set(1, gemm_info.m() / depth_output_gemm3d);
                     output_shape.set(2, reinterpret_output_as_3d ? depth_output_gemm3d : batch_size);
@@ -191,8 +194,9 @@ namespace BatmanInfer {
                 } else {
                     // If the output of GEMM has to be reinterpreted as 3D, the number of input0 rows (M) is obtained collapsing the second and third
                     // dimension of the output tensor
-                    const unsigned int batch_size = reinterpret_input_as_3d ? input0.tensor_shape()[3]
-                                                                            : input0.tensor_shape()[2];
+                    const unsigned int batch_size = reinterpret_input_as_3d
+                                                        ? input0.tensor_shape()[3]
+                                                        : input0.tensor_shape()[2];
                     output_shape.set(0, gemm_info.n);
                     output_shape.set(1, gemm_info.m / depth_output_gemm3d);
                     output_shape.set(2, reinterpret_output_as_3d ? depth_output_gemm3d : batch_size);
@@ -306,7 +310,7 @@ namespace BatmanInfer {
                 const int idx_width = static_cast<int>(get_data_layout_dimension_index(BIDataLayoutDimension::WIDTH));
                 const int idx_height = static_cast<int>(get_data_layout_dimension_index(BIDataLayoutDimension::HEIGHT));
                 const int idx_channel = static_cast<int>(get_data_layout_dimension_index(
-                        BIDataLayoutDimension::CHANNEL));
+                    BIDataLayoutDimension::CHANNEL));
 
                 BITensorShape output_shape{input_shape};
                 output_shape.set(idx_width, input_shape[idx_width] * block);
@@ -473,6 +477,47 @@ namespace BatmanInfer {
                 return output_shape;
             }
 
+            /** Calculate the gather output shape of a tensor
+            *
+            * @param[in] input_shape   Input tensor shape
+            * @param[in] indices_shape Indices tensor shape. Only supports for 2d and 3d indices
+            * @param[in] actual_axis   Axis to be used in the computation
+            *
+            * @note Let input_shape be (X,Y,Z) and indices shape (W,O,P) and axis 1
+            *       the new shape is computed by replacing the axis in the input shape with
+            *       the indice shape so the output shape will be (X,W,O,P,Z)
+            *
+            * @return the calculated shape
+            */
+            inline BITensorShape
+            compute_gather_shape(const BITensorShape &input_shape, const BITensorShape &indices_shape,
+                                 uint32_t actual_axis) {
+                const auto input_num_dims = input_shape.num_dimensions();
+                const auto indices_num_dims = indices_shape.num_dimensions();
+
+                BI_COMPUTE_ERROR_ON(actual_axis >= input_num_dims);
+                BI_COMPUTE_ERROR_ON(input_num_dims + indices_num_dims - 1 > BICoordinates::num_max_dimensions);
+
+                BITensorShape output_shape;
+                size_t dim_no = 0;
+
+                for (; dim_no < actual_axis; ++dim_no) {
+                    output_shape.set(dim_no, input_shape[dim_no]);
+                }
+
+                for (; dim_no < actual_axis + indices_num_dims; ++dim_no) {
+                    output_shape.set(dim_no, indices_shape[dim_no - actual_axis]);
+                }
+
+                for (; dim_no < input_num_dims + indices_num_dims - 1; ++dim_no) {
+                    output_shape.set(dim_no, input_shape[dim_no + 1 - indices_num_dims]);
+                }
+
+                BI_COMPUTE_ERROR_ON(input_shape.total_size() * indices_shape.total_size() !=
+                    output_shape.total_size() * input_shape[actual_axis]);
+
+                return output_shape;
+            }
         }
     }
 }

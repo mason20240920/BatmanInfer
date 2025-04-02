@@ -64,6 +64,8 @@ namespace BatmanInfer {
 
             experimental::BIMemoryRequirements workspace() const override;
 
+            const experimental::BIMemoryRequirements &workspace_dynamic(const BIITensorPack &tensors) const override;
+
         private:
             enum BIInternalTensorIdx {
                 /* Slots 0 - 2 reserved for CpuGemmAssemblyDispatch */
@@ -91,7 +93,7 @@ namespace BatmanInfer {
             bool _adj_rhs{false};
             bool _fast_math{false};
             BIAsmGemmInfo _gemm_info{};
-            experimental::BIMemoryRequirements _aux_mem{Count};
+            mutable experimental::BIMemoryRequirements _aux_mem{Count};
         };
     }
 }

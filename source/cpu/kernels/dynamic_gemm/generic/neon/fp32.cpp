@@ -6,8 +6,8 @@
 
 #if defined(__aarch64__) && defined(ENABLE_FP32_KERNELS)
 
-#include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
-#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
+//#include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
+//#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
 
 #endif // __aarch64__ && ENABLE_FP32_KERNEL
 
@@ -21,21 +21,21 @@ namespace BatmanInfer {
             const size_t num_groups = 1;
             const size_t n = rhs->info()->tensor_shape().x();
             const size_t k = rhs->info()->tensor_shape().y();
-            const size_t nr = kai_get_nr_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla();
-            const size_t kr = kai_get_kr_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla();
-            const size_t sr = kai_get_sr_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla();
-            const size_t rhs_stride = rhs->info()->strides_in_bytes().y(); // y轴有多少个元素
-            const void *const rhs_ptr = rhs->buffer() + rhs->info()->offset_first_element_in_bytes(); // 右矩阵的首个指针位置
-            const void *const bias_ptr = bias->buffer() + bias->info()->offset_first_element_in_bytes(); // 偏置值矩阵的首个指针位置
-            const void *const scale = nullptr;
-            void *const rhs_packed = pack_b->buffer();
-            const size_t extra_bytes = 0;
-            const void *const params = nullptr;
-            kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(num_groups,
-                                                             n, k, nr,
-                                                             kr, sr, rhs_stride,
-                                                             rhs_ptr, bias_ptr, scale,
-                                                             rhs_packed, extra_bytes, params);
+//            const size_t nr = kai_get_nr_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla();
+//            const size_t kr = kai_get_kr_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla();
+//            const size_t sr = kai_get_sr_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla();
+//            const size_t rhs_stride = rhs->info()->strides_in_bytes().y(); // y轴有多少个元素
+//            const void *const rhs_ptr = rhs->buffer() + rhs->info()->offset_first_element_in_bytes(); // 右矩阵的首个指针位置
+//            const void *const bias_ptr = bias->buffer() + bias->info()->offset_first_element_in_bytes(); // 偏置值矩阵的首个指针位置
+//            const void *const scale = nullptr;
+//            void *const rhs_packed = pack_b->buffer();
+//            const size_t extra_bytes = 0;
+//            const void *const params = nullptr;
+//            kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(num_groups,
+//                                                             n, k, nr,
+//                                                             kr, sr, rhs_stride,
+//                                                             rhs_ptr, bias_ptr, scale,
+//                                                             rhs_packed, extra_bytes, params);
         }
 
         /**
@@ -86,34 +86,37 @@ namespace BatmanInfer {
             const size_t k_len = K;
 
             const size_t lhs_stride = a->info()->strides_in_bytes().y();
-            const uint8_t *const lhs =
-                    lhs_buf +
-                    kai_get_lhs_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla(m_start, lhs_stride);
-
-            const size_t dst_stride_row = d->info()->strides_in_bytes().y();
-            const size_t dst_stride_col = d->info()->strides_in_bytes().x();
-            uint8_t *const dst = dst_buf + kai_get_dst_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla(
-                    m_start, n_start, dst_stride_row);
-
-            const uint8_t *const rhs_packed = pack_b->buffer();
-
-            const float clamp_min = -std::numeric_limits<float>::max();
-            const float clamp_max = std::numeric_limits<float>::max();
-
-            kai_run_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla(m_len, n_len, k_len, lhs, lhs_stride, rhs_packed,
-                                                                       dst,
-                                                                       dst_stride_row, dst_stride_col, clamp_min,
-                                                                       clamp_max);
+//            const uint8_t *const lhs =
+//                    lhs_buf +
+//                    kai_get_lhs_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla(m_start, lhs_stride);
+//
+//            const size_t dst_stride_row = d->info()->strides_in_bytes().y();
+//            const size_t dst_stride_col = d->info()->strides_in_bytes().x();
+//            uint8_t *const dst = dst_buf + kai_get_dst_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla(
+//                    m_start, n_start, dst_stride_row);
+//
+//            const uint8_t *const rhs_packed = pack_b->buffer();
+//
+//            const float clamp_min = -std::numeric_limits<float>::max();
+//            const float clamp_max = std::numeric_limits<float>::max();
+//
+//            kai_run_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla(m_len, n_len, k_len, lhs, lhs_stride, rhs_packed,
+//                                                                       dst,
+//                                                                       dst_stride_row, dst_stride_col, clamp_min,
+//                                                                       clamp_max);
         }
 
         size_t neon_fp32_dynamic_gemm_size_of_packed_rhs(size_t rows, size_t columns) {
             // The 0.5.0 documentation is wrong. In a kxn matrix, k=rows and n=columns.
-            return kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(columns, rows);
+//            return kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(columns, rows);
+            return 0;
         }
 
         BIWindow neon_fp32_dynamic_gemm_window(const BIITensorInfo *dst) {
-            const size_t m_step = kai_get_m_step_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla();
-            const size_t n_step = kai_get_n_step_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla();
+//            const size_t m_step = kai_get_m_step_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla();
+//            const size_t n_step = kai_get_n_step_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla();
+            const size_t n_step = 1;
+            const size_t m_step = 1;
 
             const BISteps steps(n_step, m_step);
 

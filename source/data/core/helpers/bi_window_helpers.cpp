@@ -19,10 +19,10 @@ namespace BatmanInfer {
 
         window.set(0, BIWindow::BIDimension(anchor[0] + border_size.left,
                                             anchor[0] + border_size.left + ceil_to_multiples(std::max(0,
-                                                                                                      static_cast<int>(shape[0]) -
-                                                                                                      static_cast<int>(border_size.left) -
-                                                                                                      static_cast<int>(border_size.right)),
-                                                                                             steps[0]),
+                                                    static_cast<int>(shape[0]) -
+                                                    static_cast<int>(border_size.left) -
+                                                    static_cast<int>(border_size.right)),
+                                                steps[0]),
                                             steps[0]));
 
         size_t n = 1;
@@ -30,15 +30,15 @@ namespace BatmanInfer {
         if (anchor.num_dimensions() > 1) {
             window.set(1,
                        BIWindow::BIDimension(
-                               // Skip the border above the image
-                               anchor[1] + border_size.top,
-                               // Skip the border below the image
-                               anchor[1] + border_size.top +
-                               ceil_to_multiples(
-                                       std::max(0, static_cast<int>(shape[1]) - static_cast<int>(border_size.top) -
-                                                   static_cast<int>(border_size.bottom)),
-                                       steps[1]),
-                               steps[1]));
+                           // Skip the border above the image
+                           anchor[1] + border_size.top,
+                           // Skip the border below the image
+                           anchor[1] + border_size.top +
+                           ceil_to_multiples(
+                               std::max(0, static_cast<int>(shape[1]) - static_cast<int>(border_size.top) -
+                                           static_cast<int>(border_size.bottom)),
+                               steps[1]),
+                           steps[1]));
 
             ++n;
         }
@@ -61,6 +61,25 @@ namespace BatmanInfer {
     }
 
     /**
+     * @brief 专门适配NEGather动态的函数
+     * @param shape
+     * @param steps
+     * @param update_window
+     * @return
+     */
+    void dynamic_calculate_max_window(const BITensorShape &shape, const BISteps &steps, BIWindow &update_window) {
+        if (shape.num_dimensions() > 1) {
+            update_window.set(1, BIWindow::BIDimension(0, ceil_to_multiples(
+                                                           std::max(0, static_cast<int>(shape[1])),
+                                                           steps[1]),
+                                                       steps[1]));
+        }
+        if (shape.num_dimensions() > 2) {
+            update_window.set(2, BIWindow::BIDimension(0, std::max<size_t>(1, shape[2]), steps[2]));
+        }
+    }
+
+    /**
      * 计算一个张量的最大滑动窗口（BIWindow），用于遍历张量时定义窗口的范围和步长
      * @param shape 表示张量的形状（BITensorShape），包含张量每个维度的大小
      * @param steps 每个维度的步长（BISteps），决定窗口在该维度上移动的间隔
@@ -78,28 +97,28 @@ namespace BatmanInfer {
 
         // 设置第 0 维窗口范围
         window.set(0, BIWindow::BIDimension(
-                // Skip the border left of the image
-                border_size.left,
-                // Skip the border right of the image
-                // Make sure the window width is a multiple of the step size
-                border_size.left +
-                ceil_to_multiples(std::max(0, static_cast<int>(shape[0]) - static_cast<int>(border_size.left) -
-                                              static_cast<int>(border_size.right)),
-                                  steps[0]),
-                steps[0]));
+                       // Skip the border left of the image
+                       border_size.left,
+                       // Skip the border right of the image
+                       // Make sure the window width is a multiple of the step size
+                       border_size.left +
+                       ceil_to_multiples(std::max(0, static_cast<int>(shape[0]) - static_cast<int>(border_size.left) -
+                                                     static_cast<int>(border_size.right)),
+                                         steps[0]),
+                       steps[0]));
 
         size_t n = 1;
 
         if (shape.num_dimensions() > 1) {
             window.set(1, BIWindow::BIDimension(
-                    // Skip the border above the image
-                    border_size.top,
-                    // Skip the border below the image
-                    border_size.top + ceil_to_multiples(std::max(0, static_cast<int>(shape[1]) -
-                                                                    static_cast<int>(border_size.top) -
-                                                                    static_cast<int>(border_size.bottom)),
-                                                        steps[1]),
-                    steps[1]));
+                           // Skip the border above the image
+                           border_size.top,
+                           // Skip the border below the image
+                           border_size.top + ceil_to_multiples(std::max(0, static_cast<int>(shape[1]) -
+                                                                           static_cast<int>(border_size.top) -
+                                                                           static_cast<int>(border_size.bottom)),
+                                                               steps[1]),
+                           steps[1]));
 
             ++n;
         }
@@ -216,24 +235,24 @@ namespace BatmanInfer {
         BIWindow window;
 
         window.set(0, BIWindow::BIDimension(
-                // Skip the border left of the image
-                anchor[0] + border_size.left,
-                // Skip the border right of the image
-                // Make sure the window width is a multiple of the step size
-                anchor[0] + border_size.left +
-                ceil_to_multiples(std::max(0, static_cast<int>(shape[0]) - static_cast<int>(border_size.left) -
-                                              static_cast<int>(border_size.right)),
-                                  steps[0]),
-                steps[0]));
+                       // Skip the border left of the image
+                       anchor[0] + border_size.left,
+                       // Skip the border right of the image
+                       // Make sure the window width is a multiple of the step size
+                       anchor[0] + border_size.left +
+                       ceil_to_multiples(std::max(0, static_cast<int>(shape[0]) - static_cast<int>(border_size.left) -
+                                                     static_cast<int>(border_size.right)),
+                                         steps[0]),
+                       steps[0]));
 
         size_t n = 1;
 
         if (anchor.num_dimensions() > 1) {
             window.set(1, BIWindow::BIDimension(
-                    // Skip the border above the image
-                    anchor[1] - border_size.top,
-                    // Skip the border below the image
-                    anchor[1] + shape[1] + border_size.bottom, 1));
+                           // Skip the border above the image
+                           anchor[1] - border_size.top,
+                           // Skip the border below the image
+                           anchor[1] + shape[1] + border_size.bottom, 1));
 
             ++n;
         }

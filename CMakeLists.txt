@@ -94,10 +94,16 @@ if (ANDROID)
     set(KAI_INCLUDES "${CMAKE_SOURCE_DIR}/third_party/kleidiai")
 else ()
     # 查找OpenMP
-    set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
-    set(OpenMP_C_LIB_NAMES "omp")
-    set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
-    set(OpenMP_INCLUDE "/opt/homebrew/opt/libomp/include")
+    # 修改非Android平台的OpenMP配置
+    find_package(OpenMP REQUIRED)
+    if (OpenMP_CXX_FOUND)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    else ()
+        set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
+        set(OpenMP_C_LIB_NAMES "omp")
+        set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
+    endif ()
+    #    set(OpenMP_INCLUDE "/opt/homebrew/opt/libomp/include")
     set(KAI_INCLUDES "${CMAKE_SOURCE_DIR}/third_party/kleidiai")
     set(KAI_LIBS "${CMAKE_SOURCE_DIR}/third_party/kleidiai/libs/libkleidiai.a")
     message(STATUS "Configuring for non-Android platform")
@@ -188,10 +194,11 @@ target_link_libraries(BatmanInfer
         ${Protobuf_LIBRARIES}
         ${OpenCV_LIBS}
         ${ONNX_LIBRARIES}/libonnx.a
-        ${OpenMP_omp_LIBRARY}
+        #        ${OpenMP_omp_LIBRARY}
         ${ABSEL_LIBARARY}
         ${UTF8RANGE_LIBRARY}
-        ${KAI_LIBS}
+        OpenMP::OpenMP_CXX  # 添加这一行，确保所有平台都链接OpenMP
+        #        ${KAI_LIBS}
 )
 
 if (ANDROID)
@@ -210,6 +217,7 @@ if (ENABLE_BENCHMARK)
             ${OpenMP_omp_LIBRARY}
             ${ABSEL_LIBARARY}
             ${UTF8RANGE_LIBRARY}
+            OpenMP::OpenMP_CXX  # 添加这一行，确保所有平台都链接OpenMP
             benchmark::benchmark
     )
 endif ()
@@ -217,7 +225,7 @@ endif ()
 # 添加测试
 include(GoogleTest)
 
-target_include_directories(BatmanInfer PUBLIC ${KAI_INCLUDES})
+#target_include_directories(BatmanInfer PUBLIC ${KAI_INCLUDES})
 
 # 包含Armadillo头文件路径
 target_include_directories(BatmanInfer PRIVATE ${ARMADILLO_INCLUDE_DIRS})

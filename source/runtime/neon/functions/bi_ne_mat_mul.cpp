@@ -47,6 +47,8 @@ namespace BatmanInfer {
         _impl->rhs = rhs;
         _impl->output = output;
 
+        _impl->memory_group.mappings().clear(); // 清空内存管理
+
         BI_COMPUTE_ERROR_ON_NULLPTR(_impl->lhs, _impl->rhs, _impl->output);
         _impl->op = std::make_unique<cpu::BICpuMatMul>();
         _impl->op->configure(lhs->info(), rhs->info(), output->info(), info, settings, act_info);
