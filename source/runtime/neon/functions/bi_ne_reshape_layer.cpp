@@ -16,7 +16,6 @@ namespace BatmanInfer {
     };
 
     BINEReshapeLayer::BINEReshapeLayer() : _impl(std::make_unique<Impl>()) {
-
     }
 
     BINEReshapeLayer::BINEReshapeLayer(BINEReshapeLayer &&) = default;
@@ -34,6 +33,11 @@ namespace BatmanInfer {
         _impl->op->configure(input->info(), output->info());
     }
 
+    void BINEReshapeLayer::dynamic_configure(BIITensor *output) {
+        _impl->op->dynamic_configure(output->info());
+    }
+
+
     BIStatus
     BINEReshapeLayer::validate(const BIITensorInfo *input, const BIITensorInfo *output) {
         BI_COMPUTE_RETURN_ERROR_ON_NULLPTR(input, output);
@@ -48,5 +52,4 @@ namespace BatmanInfer {
         pack.add_tensor(BITensorType::ACL_DST, _impl->dst);
         _impl->op->run(pack);
     }
-
 }

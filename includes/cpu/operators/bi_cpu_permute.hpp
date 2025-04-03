@@ -22,6 +22,8 @@ namespace BatmanInfer {
              */
             void configure(const BIITensorInfo *src, BIITensorInfo *dst, const PermutationVector &perm);
 
+            void dynamic_configure(const BIITensorInfo *src, BIITensorInfo *dst);
+
             /** Static function to check if given info will lead to a valid configuration
              *
              * Similar to @ref CpuPermute::configure()

@@ -16,7 +16,6 @@ namespace BatmanInfer {
     };
 
     BINEPermute::BINEPermute() : _impl(std::make_unique<Impl>()) {
-
     }
 
     BINEPermute::~BINEPermute() = default;
@@ -31,6 +30,11 @@ namespace BatmanInfer {
         _impl->op = std::make_unique<cpu::BICpuPermute>();
         _impl->op->configure(input->info(), output->info(), perm);
     }
+
+    void BINEPermute::dynamic_configure(const BIITensor *input, BIITensor *output) const {
+        _impl->op->dynamic_configure(input->info(), output->info());
+    }
+
 
     BIStatus BINEPermute::validate(const BatmanInfer::BIITensorInfo *input,
                                    const BatmanInfer::BIITensorInfo *output,

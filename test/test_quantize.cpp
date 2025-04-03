@@ -10,12 +10,20 @@
 #include "utils/utils.hpp"
 #include <runtime/bi_scheduler.hpp>
 #include <thread>
-
+#include <limits>
 #include "function_info/bi_MatMulInfo.h"
 
 using namespace BatmanInfer;
 
 namespace QATTest {
+    void print_tensor_shape(const BITensor &tensor) {
+        int dims = tensor.info()->num_dimensions();
+        for (int i = 0; i < dims; i++) {
+            std::cout << tensor.info()->dimension(i) << " ";
+        }
+        std::cout << std::endl;
+    }
+
     void invert_qinfo_offset(BITensor &t) {
         BIQuantizationInfo qinfo = t.info()->quantization_info();
         t.info()->set_quantization_info(BIQuantizationInfo(qinfo.scale()[0], -qinfo.offset()[0], qinfo.is_dynamic()));
@@ -306,6 +314,16 @@ namespace QATTest {
         size_t num_elements = tensor.info()->tensor_shape().total_size(); // 获取元素数量
         for (size_t i = 0; i < num_elements; ++i) {
             tensor_ptr[i] = val;
+        }
+    }
+
+    template<typename T>
+    void fill_from_one(const BITensor &tensor) {
+        auto tensor_ptr = reinterpret_cast<T *>(tensor.buffer());
+        size_t num_elements = tensor.info()->tensor_shape().total_size();
+        // 获取元素数量
+        for (size_t i = 0; i < num_elements; ++i) {
+            tensor_ptr[i] = static_cast<T>(i) * 0.00001;
         }
     }
 
@@ -942,4 +960,170 @@ TEST(NESplitTest, NESplitStaticTest) {
     split_layer.run();
     // QATTest::print_tensor(output_3, "output");
 }
+
+TEST(NEReshapeLayer, NEReshapeStaticTest) {
+    BITensor input, output;
+    BITensorShape input_shape = BITensorShape(768, 1, 1), output_shape =
+            BITensorShape(64, 12, 1, 1);
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+    input.allocator()->allocate();
+    output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F32));
+    output.allocator()->allocate();
+    QATTest::fill_from_one<float>(input);
+
+    BINEReshapeLayer _reshape_f;
+    _reshape_f.configure(&input, &output);
+    _reshape_f.run();
+    QATTest::print_tensor(output, "output");
+
+    input_shape = BITensorShape(768, 20, 16), output_shape =
+            BITensorShape(64, 12, 20, 16);
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+    input.allocator()->allocate();
+    output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F32));
+    output.allocator()->allocate();
+    QATTest::fill_from_one<float>(input);
+    _reshape_f.dynamic_configure(&output);
+    _reshape_f.run();
+    QATTest::print_tensor(output, "output");
+}
+
+TEST(NETransposeLayer, TransposeStaticTest) {
+    BITensor input, output;
+    BITensorShape input_shape = BITensorShape(64, 12, 1, 1), output_shape =
+            BITensorShape(64, 1, 12, 1);
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+    input.allocator()->allocate();
+    output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F32));
+    output.allocator()->allocate();
+    QATTest::fill_from_one<float>(input);
+
+    BINEPermute permute_f;
+    permute_f.configure(&input, &output, PermutationVector{0, 2, 1, 3});
+    permute_f.run();
+    QATTest::print_tensor(output, "output");
+    QATTest::print_tensor_shape(output);
+
+    input_shape = BITensorShape(64, 12, 16, 20), output_shape =
+            BITensorShape(64, 16, 12, 20);
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+    input.allocator()->allocate();
+    output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F32));
+    output.allocator()->allocate();
+    QATTest::fill_from_one<float>(input);
+    permute_f.dynamic_configure(&input, &output);
+    permute_f.run();
+    QATTest::print_tensor(output, "output");
+    QATTest::print_tensor_shape(output);
+}
+
+TEST(NETransposeLayer, TransposeStaticTest2) {
+    BITensor input, output;
+    BITensorShape input_shape = BITensorShape(64, 12, 1, 1), output_shape =
+            BITensorShape(1, 64, 12, 1);
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+    input.allocator()->allocate();
+    output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F32));
+    output.allocator()->allocate();
+    QATTest::fill_from_one<float>(input);
+
+    BINEPermute permute_f;
+    permute_f.configure(&input, &output, PermutationVector{2, 0, 1, 3});
+    permute_f.run();
+    // QATTest::print_tensor(output, "output");
+    QATTest::print_tensor_shape(output);
+
+    input_shape = BITensorShape(64, 12, 16, 20), output_shape =
+            BITensorShape(16, 64, 12, 20);
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+    input.allocator()->allocate();
+    output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F32));
+    output.allocator()->allocate();
+    QATTest::fill_from_one<float>(input);
+    permute_f.dynamic_configure(&input, &output);
+    permute_f.run();
+    // QATTest::print_tensor(output, "output");
+    QATTest::print_tensor_shape(output);
+}
+
+TEST(NEAddLayer, AddLayerOps) {
+    BITensor input, output;
+    BITensorShape input_shape = BITensorShape(16, 16, 2, 1);
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+    input.allocator()->allocate();
+    output.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+    output.allocator()->allocate();
+    QATTest::fill_from_one<float>(input);
+    // 1. 创建条件掩码张量(U8类型)
+    BITensorInfo mask_info(input_shape, 1, BIDataType::U8);
+    BITensor mask;
+    mask.allocator()->init(mask_info);
+    mask.allocator()->allocate();
+    // 2. 生成对角线掩码 - 对角线位置为1,其他为0
+    BIWindow window;
+    window.use_tensor_dimensions(mask.info()->tensor_shape());
+    BIIterator mask_it(&mask, window);
+    execute_window_loop(window, [&](const BICoordinates &id) {
+                            auto x = id[0];
+                            auto y = id[1];
+                            *reinterpret_cast<uint8_t *>(mask_it.ptr()) = (x > y) ? 1 : 0;
+                        },
+                        mask_it);
+
+    // 3. 创建全0张量作为y输入
+    BITensor zeros;
+    zeros.allocator()->init(*input.info());
+    zeros.allocator()->allocate();
+    std::fill_n(zeros.buffer(), zeros.info()->total_size(), 0);
+
+    // 4. 配置NESelect算子
+    BINESelect select;
+    select.configure(&mask, &input, &zeros, &output);
+    // 5. 运行算子
+    select.run();
+    // 清理临时张量
+    mask.allocator()->free();
+    zeros.allocator()->free();
+    QATTest::print_tensor(output, "output");
+}
+
+TEST(DynamicTensor, DynamicTensorTest) {
+    BITensor input, output, weight;
+    BITensorShape input_shape = BITensorShape(16, 16, 2, 1);
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+    input.allocator()->allocate();
+    output.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+    output.allocator()->allocate();
+    QATTest::fill_from_one<float>(input);
+    BITensorShape weight_shape = BITensorShape(16, 16);
+    weight.allocator()->init(BITensorInfo(weight_shape, 1, BIDataType::F32));
+    weight.allocator()->allocate();
+    BIWindow window;
+    window.use_tensor_dimensions(weight.info()->tensor_shape());
+    BIIterator mask_it(&weight, window);
+    execute_window_loop(window, [&](const BICoordinates &id) {
+                            auto x = id[0];
+                            auto y = id[1];
+                            *reinterpret_cast<float *>(mask_it.ptr()) = (x > y)
+                                                                            ? 0
+                                                                            : -std::numeric_limits<float>::infinity();
+                        },
+                        mask_it);
+    BINEArithmeticAddition add_f;
+    add_f.configure(&input, &weight, &output, BIConvertPolicy::SATURATE);
+    add_f.run();
+    QATTest::print_tensor(output, "output"); // 2. 定义要提取的子张量信息
+    BITensorShape sub_shape(4, 4); // 要提取 64x64 的子区域
+    BITensorInfo sub_info(sub_shape, 1, BIDataType::F32);
+    sub_info.set_format(Format::F32);
+
+    // 3. 定义子张量的起始坐标
+    BICoordinates coords(0, 0); // 从(32,32)位置开始提取
+
+    // 4. 创建子张量
+    BITensor sub_tensor;
+    sub_tensor.allocator()->init(*weight.allocator(), coords, sub_info);
+    QATTest::print_tensor(sub_tensor, "sub_tensor");
+}
+
 

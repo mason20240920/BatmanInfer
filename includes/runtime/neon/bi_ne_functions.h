@@ -43,3 +43,4 @@
 #include <runtime/neon/functions/BINEAttentionLowpLayer.hpp>
 #include "runtime/neon/functions/BINERMSNormLayer.hpp"
 #include <runtime/neon/functions/BINEGather.hpp>
+#include <runtime/neon/functions/BINESelect.hpp>

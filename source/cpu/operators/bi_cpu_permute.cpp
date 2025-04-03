@@ -22,31 +22,35 @@ namespace BatmanInfer {
         namespace {
             // Handle "No-op" cases
             bool prefer_copy(const PermutationVector &v) {
-                static const std::array<PermutationVector, 6> permutations = {{
-                                                                                      PermutationVector(0U),
-                                                                                      PermutationVector(0U, 1U),
-                                                                                      PermutationVector(0U, 1U, 2U),
-                                                                                      PermutationVector(0U, 1U, 2U, 3U),
-                                                                                      PermutationVector(0U, 1U, 2U, 3U,
-                                                                                                        4U),
-                                                                                      PermutationVector(0U, 1U, 2U, 3U,
-                                                                                                        4U, 5U),
-                                                                              }};
+                static const std::array<PermutationVector, 6> permutations = {
+                    {
+                        PermutationVector(0U),
+                        PermutationVector(0U, 1U),
+                        PermutationVector(0U, 1U, 2U),
+                        PermutationVector(0U, 1U, 2U, 3U),
+                        PermutationVector(0U, 1U, 2U, 3U,
+                                          4U),
+                        PermutationVector(0U, 1U, 2U, 3U,
+                                          4U, 5U),
+                    }
+                };
 
                 return std::find(permutations.begin(), permutations.end(), v) != permutations.end();
             }
 
             // Transpose kernel is optimized for permuting the first two dimensions of a tensor
             bool prefer_transpose(const PermutationVector &v) {
-                static const std::array<PermutationVector, 5> permutations = {{
-                                                                                      PermutationVector(1U, 0U),
-                                                                                      PermutationVector(1U, 0U, 2U),
-                                                                                      PermutationVector(1U, 0U, 2U, 3U),
-                                                                                      PermutationVector(1U, 0U, 2U, 3U,
-                                                                                                        4U),
-                                                                                      PermutationVector(1U, 0U, 2U, 3U,
-                                                                                                        4U, 5U),
-                                                                              }};
+                static const std::array<PermutationVector, 5> permutations = {
+                    {
+                        PermutationVector(1U, 0U),
+                        PermutationVector(1U, 0U, 2U),
+                        PermutationVector(1U, 0U, 2U, 3U),
+                        PermutationVector(1U, 0U, 2U, 3U,
+                                          4U),
+                        PermutationVector(1U, 0U, 2U, 3U,
+                                          4U, 5U),
+                    }
+                };
 
                 return std::find(permutations.begin(), permutations.end(), v) != permutations.end();
             }
@@ -69,6 +73,21 @@ namespace BatmanInfer {
                 _kernel = std::move(k);
             }
         }
+
+        void BICpuPermute::dynamic_configure(const BIITensorInfo *src, BIITensorInfo *dst) {
+            // 方法1：使用 dynamic_cast
+            if (auto *copy_kernel = dynamic_cast<kernels::BICpuCopyKernel *>(_kernel.get())) {
+                auto k = reinterpret_cast<kernels::BICpuCopyKernel *>(_kernel.get());
+                k->dynamic_configure(dst);
+            } else if (auto *transpose_kernel = dynamic_cast<kernels::BICpuTransposeKernel *>(_kernel.get())) {
+                auto k = reinterpret_cast<kernels::BICpuTransposeKernel *>(_kernel.get());
+                k->dynamic_configure(src, dst);
+            } else if (auto *permute_kernel = dynamic_cast<kernels::BICpuPermuteKernel *>(_kernel.get())) {
+                auto k = reinterpret_cast<kernels::BICpuPermuteKernel *>(_kernel.get());
+                k->dynamic_configure(src);
+            }
+        }
+
 
         BIStatus
         BICpuPermute::validate(const BIITensorInfo *src, const BIITensorInfo *dst, const PermutationVector &perm) {

@@ -17,9 +17,7 @@
 #include "data/core/helpers/bi_window_helpers.hpp"
 
 namespace {
-
 #include "cpu/kernels/convolution/common/shims.hpp"
-
 } // namespace
 
 namespace BatmanInfer {
@@ -27,41 +25,48 @@ namespace BatmanInfer {
         namespace kernels {
             namespace {
                 inline bool is_permutation_supported(const PermutationVector &v) {
-                    static const std::array<PermutationVector, 2> permutations2 = {{
-                                                                                           PermutationVector(0U, 1U),
-                                                                                           PermutationVector(1U, 0U),
-                                                                                   }};
-                    static const std::array<PermutationVector, 6> permutations3 = {{
-                                                                                           PermutationVector(2U, 0U,
-                                                                                                             1U),
-                                                                                           PermutationVector(1U, 2U,
-                                                                                                             0U),
-                                                                                           PermutationVector(0U, 1U,
-                                                                                                             2U),
-                                                                                           PermutationVector(0U, 2U,
-                                                                                                             1U),
-                                                                                           PermutationVector(1U, 0U,
-                                                                                                             2U),
-                                                                                           PermutationVector(2U, 1U,
-                                                                                                             0U),
-                                                                                   }};
+                    static const std::array<PermutationVector, 2> permutations2 = {
+                        {
+                            PermutationVector(0U, 1U),
+                            PermutationVector(1U, 0U),
+                        }
+                    };
+                    static const std::array<PermutationVector, 6> permutations3 = {
+                        {
+                            PermutationVector(2U, 0U,
+                                              1U),
+                            PermutationVector(1U, 2U,
+                                              0U),
+                            PermutationVector(0U, 1U,
+                                              2U),
+                            PermutationVector(0U, 2U,
+                                              1U),
+                            PermutationVector(1U, 0U,
+                                              2U),
+                            PermutationVector(2U, 1U,
+                                              0U),
+                        }
+                    };
                     static const std::array<PermutationVector, 24> permutations4 = {
-                            {PermutationVector(0U, 1U, 2U, 3U), PermutationVector(1U, 0U, 2U, 3U),
-                             PermutationVector(2U, 0U, 1U, 3U),
-                             PermutationVector(0U, 2U, 1U, 3U), PermutationVector(1U, 2U, 0U, 3U),
-                             PermutationVector(2U, 1U, 0U, 3U),
-                             PermutationVector(2U, 1U, 3U, 0U), PermutationVector(1U, 2U, 3U, 0U),
-                             PermutationVector(3U, 2U, 1U, 0U),
-                             PermutationVector(2U, 3U, 1U, 0U), PermutationVector(1U, 3U, 2U, 0U),
-                             PermutationVector(3U, 1U, 2U, 0U),
-                             PermutationVector(3U, 0U, 2U, 1U), PermutationVector(0U, 3U, 2U, 1U),
-                             PermutationVector(2U, 3U, 0U, 1U),
-                             PermutationVector(3U, 2U, 0U, 1U), PermutationVector(0U, 2U, 3U, 1U),
-                             PermutationVector(2U, 0U, 3U, 1U),
-                             PermutationVector(1U, 0U, 3U, 2U), PermutationVector(0U, 1U, 3U, 2U),
-                             PermutationVector(3U, 1U, 0U, 2U),
-                             PermutationVector(1U, 3U, 0U, 2U), PermutationVector(0U, 3U, 1U, 2U),
-                             PermutationVector(3U, 0U, 1U, 2U)}};
+                        {
+                            PermutationVector(0U, 1U, 2U, 3U), PermutationVector(1U, 0U, 2U, 3U),
+                            PermutationVector(2U, 0U, 1U, 3U),
+                            PermutationVector(0U, 2U, 1U, 3U), PermutationVector(1U, 2U, 0U, 3U),
+                            PermutationVector(2U, 1U, 0U, 3U),
+                            PermutationVector(2U, 1U, 3U, 0U), PermutationVector(1U, 2U, 3U, 0U),
+                            PermutationVector(3U, 2U, 1U, 0U),
+                            PermutationVector(2U, 3U, 1U, 0U), PermutationVector(1U, 3U, 2U, 0U),
+                            PermutationVector(3U, 1U, 2U, 0U),
+                            PermutationVector(3U, 0U, 2U, 1U), PermutationVector(0U, 3U, 2U, 1U),
+                            PermutationVector(2U, 3U, 0U, 1U),
+                            PermutationVector(3U, 2U, 0U, 1U), PermutationVector(0U, 2U, 3U, 1U),
+                            PermutationVector(2U, 0U, 3U, 1U),
+                            PermutationVector(1U, 0U, 3U, 2U), PermutationVector(0U, 1U, 3U, 2U),
+                            PermutationVector(3U, 1U, 0U, 2U),
+                            PermutationVector(1U, 3U, 0U, 2U), PermutationVector(0U, 3U, 1U, 2U),
+                            PermutationVector(3U, 0U, 1U, 2U)
+                        }
+                    };
 
                     return (permutations2.end() != std::find(permutations2.begin(), permutations2.end(), v)) ||
                            (permutations3.end() != std::find(permutations3.begin(), permutations3.end(), v)) ||
@@ -75,7 +80,7 @@ namespace BatmanInfer {
                                                    "PermutationVector not supported.");
 
                     const BITensorShape dst_shape = misc::shape_calculator::compute_permutation_output_shape(*src,
-                                                                                                             perm);
+                        perm);
 
                     // Validate configured destination
                     if (dst->total_size() != 0) {
@@ -134,20 +139,20 @@ namespace BatmanInfer {
                         const int out_row_stride = dst->info()->strides_in_bytes().z() / sizeof(T);
                         const int out_batch_stride = dst->info()->strides_in_bytes()[3] / sizeof(T);
                         execute_window_loop(
-                                window_src,
-                                [&](const BICoordinates &id) {
-                                    const int idx = id[0] * out_col_stride + id[1] * out_row_stride +
-                                                    id[2] * out_channel_stride;
-                                    reorder::nchw_to_nhwc(reinterpret_cast<const T *>(src_it.ptr()),
-                                                          reinterpret_cast<T *>(dst_it.ptr()) + idx, n_batches,
-                                                          n_channels, n_rows, n_cols,
-                                                          in_batch_stride, in_channel_stride, in_row_stride,
-                                                          out_batch_stride,
-                                                          out_row_stride, out_col_stride);
-                                },
-                                src_it, dst_it);
+                            window_src,
+                            [&](const BICoordinates &id) {
+                                const int idx = id[0] * out_col_stride + id[1] * out_row_stride +
+                                                id[2] * out_channel_stride;
+                                reorder::nchw_to_nhwc(reinterpret_cast<const T *>(src_it.ptr()),
+                                                      reinterpret_cast<T *>(dst_it.ptr()) + idx, n_batches,
+                                                      n_channels, n_rows, n_cols,
+                                                      in_batch_stride, in_channel_stride, in_row_stride,
+                                                      out_batch_stride,
+                                                      out_row_stride, out_col_stride);
+                            },
+                            src_it, dst_it);
                     }
-                        // HWC -> CHW
+                    // HWC -> CHW
                     else if (perm == PermutationVector{1U, 2U, 0U}) {
                         const int in_col_stride = src->info()->strides_in_bytes().y() / sizeof(T);
                         const int in_row_stride = src->info()->strides_in_bytes().z() / sizeof(T);
@@ -161,18 +166,18 @@ namespace BatmanInfer {
                         const int out_channel_stride = dst->info()->strides_in_bytes().z() / sizeof(T);
                         const int out_batch_stride = dst->info()->strides_in_bytes()[3] / sizeof(T);
                         execute_window_loop(
-                                window_src,
-                                [&](const BICoordinates &id) {
-                                    const int idx = id[0] * out_channel_stride + id[1] * out_col_stride +
-                                                    id[2] * out_row_stride;
-                                    reorder::nhwc_to_nchw(reinterpret_cast<const T *>(src_it.ptr()),
-                                                          reinterpret_cast<T *>(dst_it.ptr()) + idx, n_batches, n_rows,
-                                                          n_cols, n_channels,
-                                                          in_batch_stride, in_row_stride, in_col_stride,
-                                                          out_batch_stride,
-                                                          out_channel_stride, out_row_stride);
-                                },
-                                src_it, dst_it);
+                            window_src,
+                            [&](const BICoordinates &id) {
+                                const int idx = id[0] * out_channel_stride + id[1] * out_col_stride +
+                                                id[2] * out_row_stride;
+                                reorder::nhwc_to_nchw(reinterpret_cast<const T *>(src_it.ptr()),
+                                                      reinterpret_cast<T *>(dst_it.ptr()) + idx, n_batches, n_rows,
+                                                      n_cols, n_channels,
+                                                      in_batch_stride, in_row_stride, in_col_stride,
+                                                      out_batch_stride,
+                                                      out_channel_stride, out_row_stride);
+                            },
+                            src_it, dst_it);
                     } else {
                         // All other cases fall back to C++
                         // Permute strides
@@ -181,15 +186,15 @@ namespace BatmanInfer {
                         permute_strides(perm_strides, perm);
                         const int perm_stride_3 = src->info()->num_dimensions() >= 4 ? perm_strides[3] : 0;
                         execute_window_loop(
-                                window,
-                                [&](const BICoordinates &id) {
-                                    const int idx =
-                                            id[0] * perm_strides[0] + id[1] * perm_strides[1] +
-                                            id[2] * perm_strides[2] + id[3] * perm_stride_3;
-                                    *(reinterpret_cast<T *>(dst_it.ptr() +
-                                                            idx)) = *(reinterpret_cast<const T *>(src_it.ptr()));
-                                },
-                                src_it, dst_it);
+                            window,
+                            [&](const BICoordinates &id) {
+                                const int idx =
+                                        id[0] * perm_strides[0] + id[1] * perm_strides[1] +
+                                        id[2] * perm_strides[2] + id[3] * perm_stride_3;
+                                *(reinterpret_cast<T *>(dst_it.ptr() +
+                                                        idx)) = *(reinterpret_cast<const T *>(src_it.ptr()));
+                            },
+                            src_it, dst_it);
                     }
                 }
             } // namespace
@@ -213,6 +218,13 @@ namespace BatmanInfer {
 
                 BIICpuKernel::configure(win);
             }
+
+            void BICpuPermuteKernel::dynamic_configure(const BIITensorInfo *src) {
+                BIWindow win = BIICpuKernel::window();
+                dynamic_origin_max_window(*src, win);
+                BIICpuKernel::dynamic_configure(win);
+            }
+
 
             BIStatus
             BICpuPermuteKernel::validate(const BIITensorInfo *src, const BIITensorInfo *dst,

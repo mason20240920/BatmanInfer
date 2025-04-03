@@ -68,14 +68,55 @@ namespace BatmanInfer {
      * @return
      */
     void dynamic_calculate_max_window(const BITensorShape &shape, const BISteps &steps, BIWindow &update_window) {
+        size_t n = 1;
         if (shape.num_dimensions() > 1) {
             update_window.set(1, BIWindow::BIDimension(0, ceil_to_multiples(
                                                            std::max(0, static_cast<int>(shape[1])),
                                                            steps[1]),
                                                        steps[1]));
+            ++n;
         }
         if (shape.num_dimensions() > 2) {
             update_window.set(2, BIWindow::BIDimension(0, std::max<size_t>(1, shape[2]), steps[2]));
+            ++n;
+        }
+
+        for (; n < shape.num_dimensions(); ++n) {
+            update_window.set(n, BIWindow::BIDimension(0, std::max<size_t>(1, shape[n])));
+        }
+
+        for (; n < BICoordinates::num_max_dimensions; ++n) {
+            update_window.set(n, BIWindow::BIDimension(0, 1));
+        }
+    }
+
+    void dynamic_origin_max_window(const BITensorShape &shape, const BISteps &steps, BIWindow &update_window) {
+        // 设置第 0 维窗口范围
+        update_window.set(0, BIWindow::BIDimension(0,
+                                                   ceil_to_multiples(
+                                                       std::max(
+                                                           0, static_cast<int>(shape[0])),
+                                                       steps[0]),
+                                                   steps[0]));
+        size_t n = 1;
+        if (shape.num_dimensions() > 1) {
+            update_window.set(1, BIWindow::BIDimension(0, ceil_to_multiples(
+                                                           std::max(0, static_cast<int>(shape[1])),
+                                                           steps[1]),
+                                                       steps[1]));
+            ++n;
+        }
+        if (shape.num_dimensions() > 2) {
+            update_window.set(2, BIWindow::BIDimension(0, std::max<size_t>(1, shape[2]), steps[2]));
+            ++n;
+        }
+
+        for (; n < shape.num_dimensions(); ++n) {
+            update_window.set(n, BIWindow::BIDimension(0, std::max<size_t>(1, shape[n])));
+        }
+
+        for (; n < BICoordinates::num_max_dimensions; ++n) {
+            update_window.set(n, BIWindow::BIDimension(0, 1));
         }
     }
 

@@ -49,6 +49,20 @@ namespace BatmanInfer {
      */
     void dynamic_calculate_max_window(const BITensorShape &shape, const BISteps &steps, BIWindow &update_window);
 
+    /**
+     * @brief 有0维的计算公式
+     * @param shape
+     * @param steps
+     * @param update_window
+     */
+    void dynamic_origin_max_window(const BITensorShape &shape, const BISteps &steps, BIWindow &update_window);
+
+    inline void dynamic_origin_max_window(const BIITensorInfo &info,
+                                          BIWindow &update_window,
+                                          const BISteps &steps = BISteps()) {
+        dynamic_origin_max_window(info.tensor_shape(), steps, update_window);
+    }
+
     /** Calculate the maximum window for a given tensor shape and border setting
      *
      * @param[in] info        Tensor info object defining the shape of the object for which the window is created.

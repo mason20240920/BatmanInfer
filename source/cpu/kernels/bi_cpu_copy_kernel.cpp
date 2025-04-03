@@ -28,8 +28,8 @@ namespace BatmanInfer {
                     // Validate destination if initialized
                     if (dst->total_size() != 0) {
                         BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DIMENSIONS(
-                                misc::shape_calculator::compute_padded_shape(src->tensor_shape(), padding),
-                                dst->tensor_shape());
+                            misc::shape_calculator::compute_padded_shape(src->tensor_shape(), padding),
+                            dst->tensor_shape());
                         BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(src, dst);
                     }
 
@@ -53,7 +53,6 @@ namespace BatmanInfer {
                     const BIWindow win = calculate_max_window(*dst, dst->dimension(0));
                     return std::make_pair(BIStatus{}, win);
                 }
-
             } // namespace
 
             void BICpuCopyKernel::configure(const BIITensorInfo *src, BIITensorInfo *dst, const PaddingList &padding) {
@@ -73,6 +72,13 @@ namespace BatmanInfer {
                 BIICpuKernel::configure(win_config.second);
             }
 
+            void BICpuCopyKernel::dynamic_configure(const BIITensorInfo *dst) {
+                auto win = BIICpuKernel::window();
+                dynamic_origin_max_window(*dst, win, dst->dimension(0));
+                BIICpuKernel::dynamic_configure(win);
+            }
+
+
             BIStatus BICpuCopyKernel::validate(const BatmanInfer::BIITensorInfo *src,
                                                const BatmanInfer::BIITensorInfo *dst,
                                                const PaddingList &padding) {
@@ -80,11 +86,11 @@ namespace BatmanInfer {
 
                 if (padding.empty()) {
                     BI_COMPUTE_RETURN_ON_ERROR(
-                            validate_and_configure_window(src->clone().get(), dst->clone().get()).first);
+                        validate_and_configure_window(src->clone().get(), dst->clone().get()).first);
                 } else {
                     BI_COMPUTE_RETURN_ON_ERROR(
-                            validate_and_configure_window_with_padding(src->clone().get(), dst->clone().get(),
-                                                                       padding).first);
+                        validate_and_configure_window_with_padding(src->clone().get(), dst->clone().get(),
+                            padding).first);
                 }
 
                 return BIStatus{};
@@ -109,13 +115,13 @@ namespace BatmanInfer {
                         BIIterator dst_it(dst, out_slice);
 
                         execute_window_loop(
-                                out_slice,
-                                [&](const BICoordinates &) {
-                                    memcpy(dst_it.ptr(), src_it.ptr(),
-                                           dst->info()->dimension(0) *
-                                           dst->info()->element_size());
-                                },
-                                src_it, dst_it);
+                            out_slice,
+                            [&](const BICoordinates &) {
+                                memcpy(dst_it.ptr(), src_it.ptr(),
+                                       dst->info()->dimension(0) *
+                                       dst->info()->element_size());
+                            },
+                            src_it, dst_it);
                     } while (dst_window.slide_window_slice_1D(out_slice));
                 } else {
                     BIWindow src_window{window};
@@ -127,12 +133,12 @@ namespace BatmanInfer {
                     BIIterator dst_it(dst, window);
                     const size_t row_size_in_bytes = src->info()->dimension(0) * src->info()->element_size();
                     execute_window_loop(
-                            window,
-                            [&](const BICoordinates &) {
-                                auto dst_ptr = dst_it.ptr() + _padding[0].first * dst->info()->element_size();
-                                std::memcpy(dst_ptr, src_it.ptr(), row_size_in_bytes);
-                            },
-                            src_it, dst_it);
+                        window,
+                        [&](const BICoordinates &) {
+                            auto dst_ptr = dst_it.ptr() + _padding[0].first * dst->info()->element_size();
+                            std::memcpy(dst_ptr, src_it.ptr(), row_size_in_bytes);
+                        },
+                        src_it, dst_it);
                 }
             }
 

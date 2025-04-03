@@ -20,6 +20,12 @@ namespace BatmanInfer {
             return kernels::BICpuReshapeKernel::validate(src, dst);
         }
 
+        void BICpuReshape::dynamic_configure(const BIITensorInfo *dst) const {
+            const auto kernel = reinterpret_cast<kernels::BICpuReshapeKernel *>(_kernel.get());
+            kernel->dynamic_configure(dst);
+        }
+
+
         void BICpuReshape::run(BIITensorPack &tensors) {
             BI_COMPUTE_ERROR_ON_MSG(tensors.empty(), "No inputs provided");
             if (!_is_prepared) {

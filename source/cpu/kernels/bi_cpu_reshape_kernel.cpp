@@ -27,7 +27,7 @@ namespace BatmanInfer {
                         BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(src, dst);
                         BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_QUANTIZATION_INFO(src, dst);
                         BI_COMPUTE_RETURN_ERROR_ON(
-                                src->tensor_shape().total_size() != dst->tensor_shape().total_size());
+                            src->tensor_shape().total_size() != dst->tensor_shape().total_size());
                     }
 
                     return BIStatus{};
@@ -105,21 +105,21 @@ namespace BatmanInfer {
 
                     BIIterator dst_it(dst, win);
                     execute_window_loop(
-                            win,
-                            [&](BICoordinates &id) {
-                                dst_coord = id;
+                        win,
+                        [&](BICoordinates &id) {
+                            dst_coord = id;
 
-                                for (int x = window_start_x; x < window_end_x; x += src_row_size) {
-                                    src_coord = index2coords(src_shape, coords2index(dst_shape, dst_coord));
-                                    output_ptr = dst->ptr_to_element(dst_coord);
-                                    input_ptr = src->ptr_to_element(src_coord);
+                            for (int x = window_start_x; x < window_end_x; x += src_row_size) {
+                                src_coord = index2coords(src_shape, coords2index(dst_shape, dst_coord));
+                                output_ptr = dst->ptr_to_element(dst_coord);
+                                input_ptr = src->ptr_to_element(src_coord);
 
-                                    std::memcpy(output_ptr, input_ptr, row_size_in_bytes);
+                                std::memcpy(output_ptr, input_ptr, row_size_in_bytes);
 
-                                    dst_coord.increment(BIWindow::DimX, src_row_size);
-                                }
-                            },
-                            dst_it);
+                                dst_coord.increment(BIWindow::DimX, src_row_size);
+                            }
+                        },
+                        dst_it);
                 }
 
                 void reshape_tensor_per_window(const BIWindow &window, const BIITensor *src, BIITensor *dst) {
@@ -148,6 +148,13 @@ namespace BatmanInfer {
 
                 BIICPPKernel::configure(win);
             }
+
+            void BICpuReshapeKernel::dynamic_configure(const BIITensorInfo *dst) {
+                BIWindow window = BIICPPKernel::window();
+                dynamic_calculate_max_window(*dst, window);
+                BIICPPKernel::dynamic_configure(window);
+            }
+
 
             BIStatus
             BICpuReshapeKernel::validate(const BIITensorInfo *src, const BIITensorInfo *dst) {

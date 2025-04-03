@@ -29,6 +29,14 @@ namespace BatmanInfer {
                                BIITensorInfo *dst);
 
                 /**
+                 * @brief 动态参数进行修改
+                 * @param src
+                 * @param dst
+                 */
+                void dynamic_configure(const BIITensorInfo *src,
+                                       BIITensorInfo *dst);
+
+                /**
                  * @brief 确定是否配置有效
                  * @param src
                  * @param dst

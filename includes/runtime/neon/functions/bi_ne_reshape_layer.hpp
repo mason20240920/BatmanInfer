@@ -45,6 +45,12 @@ namespace BatmanInfer {
         void configure(const BIITensor *input, BIITensor *output);
 
         /**
+         * @brief 运行时动态修改
+         * @param output
+         */
+        void dynamic_configure(BIITensor *output);
+
+        /**
          *
          * @param input
          * @param output
@@ -53,7 +59,6 @@ namespace BatmanInfer {
         static BIStatus validate(const BIITensorInfo *input, const BIITensorInfo *output);
 
         void run() override;
-
 
     private:
         struct Impl;

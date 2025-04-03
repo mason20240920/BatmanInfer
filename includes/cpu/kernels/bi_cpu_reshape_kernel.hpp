@@ -28,6 +28,12 @@ namespace BatmanInfer {
                 void configure(const BIITensorInfo *src, BIITensorInfo *dst);
 
                 /**
+                 * @brief 动态更新Reshape算子结构
+                 * @param dst
+                 */
+                void dynamic_configure(const BIITensorInfo *dst);
+
+                /**
                  * 检查给定信息是否是合法配置
                  * @param src
                  * @param dst

@@ -39,6 +39,8 @@ namespace BatmanInfer {
                 // Inherited methods overridden:
                 void run_op(BIITensorPack &tensors, const BIWindow &window, const ThreadInfo &info) override;
 
+                void dynamic_configure(const BIITensorInfo *src);
+
                 const char *name() const override;
 
             private:
