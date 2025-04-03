@@ -17,7 +17,8 @@ namespace BatmanInfer {
     BINERMSNormLayer::~BINERMSNormLayer() = default;
 
     BINERMSNormLayer::BINERMSNormLayer(std::shared_ptr<BIIMemoryManager> memory_manager) : _memory_group(
-            std::move(memory_manager)), _rms_norm_kernel() {}
+            std::move(memory_manager)), _rms_norm_kernel() {
+    }
 
     void BINERMSNormLayer::configure(const BatmanInfer::BIITensor *input, const BatmanInfer::BIITensor *gamma,
                                      BatmanInfer::BIITensor *output) {
@@ -26,8 +27,8 @@ namespace BatmanInfer {
 
         _rms_norm_kernel = std::make_unique<cpu::BINERMSNormLayerKernel>();
         _rms_norm_kernel->configure(input, gamma, output);
-
     }
+
 
     BIStatus
     BINERMSNormLayer::validate(const BatmanInfer::BIITensorInfo *input, const BatmanInfer::BIITensorInfo *gamma,
@@ -39,6 +40,11 @@ namespace BatmanInfer {
 
         return BIStatus{};
     }
+
+    void BINERMSNormLayer::dynamic_configure(const BIITensor *input) const {
+        _rms_norm_kernel->dynamic_configure(input);
+    }
+
 
     void BINERMSNormLayer::run() {
         BIMemoryGroupResourceScope scope_mg(_memory_group);

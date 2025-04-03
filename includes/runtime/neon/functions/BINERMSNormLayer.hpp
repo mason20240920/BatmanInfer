@@ -32,7 +32,6 @@ namespace BatmanInfer {
         BINERMSNormLayer(std::shared_ptr<BIIMemoryManager> memory_manager);
 
         BINERMSNormLayer() : BINERMSNormLayer(BIMemoryManagerOnDemand::make_default()) {
-
         }
 
         /** Prevent instances of this class from being copied (As this class contains pointers) */
@@ -65,6 +64,8 @@ namespace BatmanInfer {
         * @param[out] output    Destination with the same dimensions, data type, data layout and number of channels of  @p input
         */
         void configure(const BIITensor *input, const BIITensor *gamma, BIITensor *output);
+
+        void dynamic_configure(const BIITensor *input) const;
 
         static BIStatus
         validate(const BIITensorInfo *input, const BIITensorInfo *gamma, const BIITensorInfo *output);

@@ -29,6 +29,12 @@ namespace BatmanInfer {
             _kernel = std::move(k);
         }
 
+        void BINESlice::dynamic_configure(const BIITensorInfo *input) const {
+            const auto splice_kernel = reinterpret_cast<BINEStridedSliceKernel *>(_kernel.get());
+            splice_kernel->dynamic_configure(input);
+        }
+
+
         BIStatus BINESlice::validate(const BIITensorInfo *input,
                                      const BIITensorInfo *output,
                                      const BICoordinates &starts,
@@ -37,8 +43,8 @@ namespace BatmanInfer {
 
             // Check start dimensions for being non-negative
             BI_COMPUTE_RETURN_ERROR_ON(
-                    std::any_of(starts.cbegin(), starts.cbegin() + starts.num_dimensions(),
-                                [](int i) { return i < 0; }));
+                std::any_of(starts.cbegin(), starts.cbegin() + starts.num_dimensions(),
+                    [](int i) { return i < 0; }));
 
             // Get absolute end coordinates
             const int32_t slice_end_mask = BatmanInfer::helpers::tensor_transform::construct_slice_end_mask(ends);
@@ -76,6 +82,11 @@ namespace BatmanInfer {
         _impl->op = std::make_unique<experimental::BINESlice>();
         _impl->op->configure(input->info(), output->info(), starts, ends);
     }
+
+    void BINESlice::dynamic_configure(const BIITensor *input) const {
+        _impl->op->dynamic_configure(input->info());
+    }
+
 
     void BINESlice::run() {
         BIITensorPack pack;

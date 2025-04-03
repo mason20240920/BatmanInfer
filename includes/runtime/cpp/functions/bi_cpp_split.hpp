@@ -20,8 +20,7 @@ namespace BatmanInfer {
     template<typename SliceType, typename TensorInterfaceType = BIITensor>
     class BICPPSplit : public BIIFunction {
     public:
-        BICPPSplit() : _outputs_vector(), _slice_functions(), _num_outputs(0) {
-
+        BICPPSplit() : _outputs_vector(), _slice_functions(), _num_outputs(0), _axis(0) {
         }
 
         /**
@@ -103,6 +102,7 @@ namespace BatmanInfer {
         void configure(const TensorInterfaceType *input,
                        const std::vector<TensorInterfaceType *> &outputs,
                        unsigned int axis) {
+            _axis = axis;
             // 创建切分函数
             _num_outputs = outputs.size();
             _slice_functions.resize(_num_outputs);
@@ -128,9 +128,10 @@ namespace BatmanInfer {
 
             for (const auto &output_info: outputs_info) {
                 // 获取输出形状
-                BITensorShape output_shape = (outputs_have_sizes ? output_info->tensor_shape()
-                                                                 : BatmanInfer::misc::shape_calculator::compute_split_shape(
-                                input->info(), axis, _num_outputs));
+                BITensorShape output_shape = (outputs_have_sizes
+                                                  ? output_info->tensor_shape()
+                                                  : BatmanInfer::misc::shape_calculator::compute_split_shape(
+                                                      input->info(), axis, _num_outputs));
 
                 const size_t axis_split_step = output_shape[axis];
 
@@ -158,6 +159,15 @@ namespace BatmanInfer {
             }
         }
 
+        /**
+         * @brief 我们按照GPT结构确定每次Split的每个元素都是平均的
+         */
+        void dynamic_configure(const TensorInterfaceType *input) {
+            const size_t func_num = _slice_functions.size();
+            for (int i = 0; i < func_num; ++i) {
+                _slice_functions[i].dynamic_configure(input);
+            }
+        }
 
     protected:
         // 输出向量组
@@ -166,5 +176,7 @@ namespace BatmanInfer {
         std::vector<SliceType> _slice_functions;
         // 输出的数量
         unsigned int _num_outputs;
+
+        unsigned int _axis;
     };
 }

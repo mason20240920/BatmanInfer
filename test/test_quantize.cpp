@@ -831,3 +831,115 @@ TEST(NEGatherTest, NEGatherDynamicTest) {
     gather_op.run();
     QATTest::print_tensor(o_tensor);
 }
+
+TEST(NERMSNormTest, RMSNormStaticTest) {
+    // 1. 先确定Gamma数据
+    BITensorShape gamma_shape = BITensorShape(768);
+    const std::string &gamma_path = "/Users/mason/Desktop/Desktop/PythonProjects/dynamic_simple_ops/rms_norm1.npy";
+    BITensor gamma = utils::create_type_tensor(gamma_path, gamma_shape, BIDataType::F16);
+    // QATTest::print_tensor(gamma, "gamma");
+
+    // 2. 确定输入张量信息
+    BITensorShape input_shape = BITensorShape(768, 4);
+    const std::string &input_path =
+            "/Users/mason/Desktop/Desktop/PythonProjects/dynamic_simple_ops/rms_norm1_input.npy";
+    BITensor input = utils::create_type_tensor(input_path, input_shape, BIDataType::F16);
+    // QATTest::print_tensor(input, "input");
+
+    // 3 输出张量
+    BITensorShape o_shape = BITensorShape(768, 4);
+    BITensor o_tensor;
+    o_tensor.allocator()->init(BITensorInfo(o_shape, 1, BIDataType::F16));
+    o_tensor.allocator()->allocate();
+
+    // 4. 配置RMSNorm
+    BINERMSNormLayer rms_layer;
+    rms_layer.configure(&input, &gamma, &o_tensor);
+    rms_layer.run();
+
+    QATTest::print_tensor(o_tensor, "output");
+}
+
+
+TEST(NERMSNormTest, RMSNormDynamicTest) {
+    int seq_len = 3;
+    // 1. 先确定Gamma数据
+    BITensorShape gamma_shape = BITensorShape(768);
+    const std::string &gamma_path = "/Users/mason/Desktop/Desktop/PythonProjects/dynamic_simple_ops/rms_norm1.npy";
+    BITensor gamma = utils::create_type_tensor(gamma_path, gamma_shape, BIDataType::F16);
+    // QATTest::print_tensor(gamma, "gamma");
+
+    // 2. 确定输入张量信息
+    BITensorShape input_shape = BITensorShape(768, seq_len);
+    std::string input_path =
+            "/Users/mason/Desktop/Desktop/PythonProjects/dynamic_simple_ops/rms_norm1_input_sub.npy";
+    BITensor input = utils::create_type_tensor(input_path, input_shape, BIDataType::F16);
+    // QATTest::print_tensor(input, "input");
+
+    // 3 输出张量
+    BITensorShape o_shape = BITensorShape(768, seq_len);
+    BITensor o_tensor;
+    o_tensor.allocator()->init(BITensorInfo(o_shape, 1, BIDataType::F16));
+    o_tensor.allocator()->allocate();
+
+    // 4. 配置RMSNorm
+    BINERMSNormLayer rms_layer;
+    rms_layer.configure(&input, &gamma, &o_tensor);
+    rms_layer.run();
+
+    QATTest::print_tensor(o_tensor, "output");
+
+    seq_len = 4;
+    input.allocator()->free();
+    input_shape = BITensorShape(768, seq_len);
+    input_path =
+            "/Users/mason/Desktop/Desktop/PythonProjects/dynamic_simple_ops/rms_norm1_input.npy";
+    input = utils::create_type_tensor(input_path, input_shape, BIDataType::F16);
+
+    o_tensor.allocator()->free();
+    o_shape = BITensorShape(768, seq_len);
+    o_tensor.allocator()->init(BITensorInfo(o_shape, 1, BIDataType::F16));
+    o_tensor.allocator()->allocate();
+
+    rms_layer.dynamic_configure(&input);
+    rms_layer.run();
+    QATTest::print_tensor(o_tensor, "output");
+}
+
+TEST(NESplitTest, NESplitStaticTest) {
+    // 输入张量
+    BITensor input, output_1, output_2, output_3;
+    BITensorShape input_shape = BITensorShape(2304, 16, 20), output_shape = BITensorShape(768, 16, 20);
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
+    input.allocator()->allocate();
+    output_1.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F16));
+    output_1.allocator()->allocate();
+    output_2.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F16));
+    output_2.allocator()->allocate();
+    output_3.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F16));
+    output_3.allocator()->allocate();
+    std::vector<BIITensor *> outputs = {
+        &output_1, &output_2, &output_3
+    };
+
+    // 配置参数
+    BINESplit split_layer;
+    split_layer.configure(&input, outputs, 0);
+
+    split_layer.run();
+    input_shape = BITensorShape(2304, 17, 30), output_shape = BITensorShape(768, 17, 30);
+    input.allocator()->init(
+        BITensorInfo(input_shape, 1, BIDataType::F16));
+    input.allocator()->allocate();
+    output_1.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F16));
+    output_1.allocator()->allocate();
+    output_2.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F16));
+    output_2.allocator()->allocate();
+    output_3.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F16));
+    output_3.allocator()->allocate();
+    QATTest::fill_new_tensor_val(input, static_cast<float16_t>(1));
+    split_layer.dynamic_configure(&input);
+    split_layer.run();
+    // QATTest::print_tensor(output_3, "output");
+}
+

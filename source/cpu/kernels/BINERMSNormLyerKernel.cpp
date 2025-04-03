@@ -13,6 +13,8 @@
 #include <data/core/helpers/bi_window_helpers.hpp>
 #include <cpu/kernels/rms_norm/generic/neon/list.hpp>
 
+#include "runtime/neon/functions/BINERMSNormLayer.hpp"
+
 namespace BatmanInfer {
     namespace cpu {
         namespace {
@@ -41,7 +43,8 @@ namespace BatmanInfer {
         } // namespace
 
         BINERMSNormLayerKernel::BINERMSNormLayerKernel() : _func(nullptr), _input(nullptr), _gamma(nullptr),
-                                                           _output(nullptr) {}
+                                                           _output(nullptr) {
+        }
 
         void BINERMSNormLayerKernel::configure(const BatmanInfer::BIITensor *input, const BatmanInfer::BIITensor *gamma,
                                                BatmanInfer::BIITensor *output) {
@@ -70,6 +73,14 @@ namespace BatmanInfer {
             BIWindow win = calculate_max_window(*input->info(), BISteps());
             BIINEKernel::configure(win);
         }
+
+        void BINERMSNormLayerKernel::dynamic_configure(const BIITensor *input) {
+            _input = input;
+            BIWindow win = BIINEKernel::window();
+            dynamic_calculate_max_window(*input->info(), win);
+            BIINEKernel::dynamic_configure(win);
+        }
+
 
         BIStatus BINERMSNormLayerKernel::validate(const BatmanInfer::BIITensorInfo *input,
                                                   const BatmanInfer::BIITensorInfo *gamma,

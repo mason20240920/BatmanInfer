@@ -40,6 +40,12 @@ namespace BatmanInfer {
             void
             configure(const BIITensor *input, const BIITensor *gamma, BIITensor *output);
 
+            /**
+             * @brief 动态配置输入张量修改window
+             * @param input
+             */
+            void dynamic_configure(const BIITensor *input);
+
             static BIStatus validate(const BIITensorInfo *input,
                                      const BIITensorInfo *gamma,
                                      const BIITensorInfo *output);

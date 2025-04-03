@@ -80,6 +80,12 @@ namespace BatmanInfer {
                                  int32_t end_mask,
                                  int32_t shrink_axis_mask);
 
+        /**
+         * @brief 内核动态配置
+         * @param input 根据IME-GPT2只需要修改Split后的维度就行
+         */
+        void dynamic_configure(const BatmanInfer::BIITensorInfo *input);
+
         // Inherited methods overridden:
         void run_op(BIITensorPack &tensors,
                     const BIWindow &window,
