@@ -44,3 +44,4 @@
 #include "runtime/neon/functions/BINERMSNormLayer.hpp"
 #include <runtime/neon/functions/BINEGather.hpp>
 #include <runtime/neon/functions/BINESelect.hpp>
+#include <runtime/neon/functions/BINEMLPLayer.hpp>
