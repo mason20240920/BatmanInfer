@@ -16,7 +16,8 @@ namespace BatmanInfer {
         std::unique_ptr<cpu::BICpuAdd> op{nullptr};
     };
 
-    BINEArithmeticAddition::BINEArithmeticAddition() : _impl(std::make_unique<Impl>()) {}
+    BINEArithmeticAddition::BINEArithmeticAddition() : _impl(std::make_unique<Impl>()) {
+    }
 
     BINEArithmeticAddition::BINEArithmeticAddition(BINEArithmeticAddition &&) = default;
 
@@ -44,6 +45,12 @@ namespace BatmanInfer {
         _impl->op = std::make_unique<cpu::BICpuAdd>();
         _impl->op->configure(_impl->src_0->info(), _impl->src_1->info(), _impl->dst->info(), policy, act_info);
     }
+
+    void BINEArithmeticAddition::dynamic_configure(const BIITensor *input1, const BIITensor *input2,
+                                                   bool is_tile_matrix) {
+        _impl->op->dynamic_configure(_impl->src_0->info(), _impl->src_1->info(), is_tile_matrix);
+    }
+
 
     void BINEArithmeticAddition::run() {
         BIITensorPack pack;

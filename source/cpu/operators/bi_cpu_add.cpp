@@ -30,6 +30,13 @@ namespace BatmanInfer {
             return kernels::BICpuAddKernel::validate(src0, src1, dst, policy);
         }
 
+        void BICpuAdd::dynamic_configure(const BatmanInfer::BIITensorInfo *src0, const BatmanInfer::BIITensorInfo *src1,
+                                         bool is_til_mat) const {
+            auto k = reinterpret_cast<kernels::BICpuAddKernel *>(_kernel.get());
+            k->dynamic_configure(src0, src1, is_til_mat);
+        }
+
+
         void BICpuAdd::run(BatmanInfer::BIITensorPack &tensors) {
             const auto split_dimension = static_cast<kernels::BICpuAddKernel *>(_kernel.get())->get_split_dimension();
 

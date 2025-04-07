@@ -8,6 +8,8 @@
 #include <data/core/common/bi_core_common_macros.hpp>
 #include <cpu/bi_i_cpu_kernel.hpp>
 
+#include "data/core/bi_tensor_info.hpp"
+
 namespace BatmanInfer {
     namespace cpu {
         namespace kernels {
@@ -34,6 +36,16 @@ namespace BatmanInfer {
                           const BIITensorInfo *src1,
                           BIITensorInfo *dst,
                           BIConvertPolicy policy);
+
+                /**
+                 * @brief 动态Add函数配置
+                 * @param src0
+                 * @param src1
+                 * @param is_til_mat
+                 */
+                void dynamic_configure(const BatmanInfer::BIITensorInfo *src0,
+                                       const BatmanInfer::BIITensorInfo *src1,
+                                       bool is_til_mat = false);
 
                 /**
                  * 静态函数，用于检查给定信息是否会导致有效的配置。
@@ -74,7 +86,6 @@ namespace BatmanInfer {
                 std::string _name{};
                 size_t _split_dimension{BIWindow::DimY};
             };
-
         }
     }
 }

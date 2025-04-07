@@ -27,50 +27,70 @@ namespace BatmanInfer {
         namespace kernels {
             namespace {
                 static const std::vector<BICpuAddKernel::BIAddKernel> available_kernels = {
-                        {"neon_qu8_add_fixedpoint",
-                                          [](const CpuAddKernelDataTypeISASelectorData &data) {
-                                              return (data.dt == BIDataType::QASYMM8) && data.can_use_fixedpoint;
-                                          },
-                                REGISTER_FP32_NEON(BatmanInfer::cpu::add_q8_neon_fixedpoint<uint8_t>)},
-                        {"neon_qs8_add_fixedpoint",
-                                          [](const CpuAddKernelDataTypeISASelectorData &data) {
-                                              return (data.dt == BIDataType::QASYMM8_SIGNED) && data.can_use_fixedpoint;
-                                          },
-                                REGISTER_FP32_NEON(BatmanInfer::cpu::add_q8_neon_fixedpoint<int8_t>)},
-                        {"neon_fp16_add",
-                                          [](const CpuAddKernelDataTypeISASelectorData &data) {
-                                              return (data.dt == BIDataType::F16) && data.isa.fp16;
-                                          },
-                                REGISTER_FP16_NEON(BatmanInfer::cpu::add_fp16_neon)},
-                        {"neon_u8_add",   [](const CpuAddKernelDataTypeISASelectorData &data) {
+                    {
+                        "neon_qu8_add_fixedpoint",
+                        [](const CpuAddKernelDataTypeISASelectorData &data) {
+                            return (data.dt == BIDataType::QASYMM8) && data.can_use_fixedpoint;
+                        },
+                        REGISTER_FP32_NEON(BatmanInfer::cpu::add_q8_neon_fixedpoint<uint8_t>)
+                    },
+                    {
+                        "neon_qs8_add_fixedpoint",
+                        [](const CpuAddKernelDataTypeISASelectorData &data) {
+                            return (data.dt == BIDataType::QASYMM8_SIGNED) && data.can_use_fixedpoint;
+                        },
+                        REGISTER_FP32_NEON(BatmanInfer::cpu::add_q8_neon_fixedpoint<int8_t>)
+                    },
+                    {
+                        "neon_fp16_add",
+                        [](const CpuAddKernelDataTypeISASelectorData &data) {
+                            return (data.dt == BIDataType::F16) && data.isa.fp16;
+                        },
+                        REGISTER_FP16_NEON(BatmanInfer::cpu::add_fp16_neon)
+                    },
+                    {
+                        "neon_u8_add", [](const CpuAddKernelDataTypeISASelectorData &data) {
                             return (data.dt == BIDataType::U8);
                         },
-                                REGISTER_INTEGER_NEON(BatmanInfer::cpu::add_u8_neon)},
-                        {"neon_s16_add",  [](const CpuAddKernelDataTypeISASelectorData &data) {
+                        REGISTER_INTEGER_NEON(BatmanInfer::cpu::add_u8_neon)
+                    },
+                    {
+                        "neon_s16_add", [](const CpuAddKernelDataTypeISASelectorData &data) {
                             return (data.dt == BIDataType::S16);
                         },
-                                REGISTER_INTEGER_NEON(BatmanInfer::cpu::add_s16_neon)},
-                        {"neon_s32_add",  [](const CpuAddKernelDataTypeISASelectorData &data) {
+                        REGISTER_INTEGER_NEON(BatmanInfer::cpu::add_s16_neon)
+                    },
+                    {
+                        "neon_s32_add", [](const CpuAddKernelDataTypeISASelectorData &data) {
                             return (data.dt == BIDataType::S32);
                         },
-                                REGISTER_INTEGER_NEON(BatmanInfer::cpu::add_s32_neon)},
-                        {"neon_qu8_add",  [](const CpuAddKernelDataTypeISASelectorData &data) {
+                        REGISTER_INTEGER_NEON(BatmanInfer::cpu::add_s32_neon)
+                    },
+                    {
+                        "neon_qu8_add", [](const CpuAddKernelDataTypeISASelectorData &data) {
                             return (data.dt == BIDataType::QASYMM8);
                         },
-                                REGISTER_QASYMM8_NEON(BatmanInfer::cpu::add_qasymm8_neon)},
-                        {"neon_qs8_add",
-                                          [](const CpuAddKernelDataTypeISASelectorData &data) {
-                                              return (data.dt == BIDataType::QASYMM8_SIGNED);
-                                          },
-                                REGISTER_QASYMM8_SIGNED_NEON(BatmanInfer::cpu::add_qasymm8_signed_neon)},
-                        {"neon_qs16_add", [](const CpuAddKernelDataTypeISASelectorData &data) {
+                        REGISTER_QASYMM8_NEON(BatmanInfer::cpu::add_qasymm8_neon)
+                    },
+                    {
+                        "neon_qs8_add",
+                        [](const CpuAddKernelDataTypeISASelectorData &data) {
+                            return (data.dt == BIDataType::QASYMM8_SIGNED);
+                        },
+                        REGISTER_QASYMM8_SIGNED_NEON(BatmanInfer::cpu::add_qasymm8_signed_neon)
+                    },
+                    {
+                        "neon_qs16_add", [](const CpuAddKernelDataTypeISASelectorData &data) {
                             return (data.dt == BIDataType::QSYMM16);
                         },
-                                REGISTER_QSYMM16_NEON(BatmanInfer::cpu::add_qsymm16_neon)},
-                        {"neon_fp32_add", [](const CpuAddKernelDataTypeISASelectorData &data) {
+                        REGISTER_QSYMM16_NEON(BatmanInfer::cpu::add_qsymm16_neon)
+                    },
+                    {
+                        "neon_fp32_add", [](const CpuAddKernelDataTypeISASelectorData &data) {
                             return (data.dt == BIDataType::F32);
                         },
-                                REGISTER_FP32_NEON(BatmanInfer::cpu::add_fp32_neon)}
+                        REGISTER_FP32_NEON(BatmanInfer::cpu::add_fp32_neon)
+                    }
                 };
 
                 BIStatus
@@ -93,21 +113,22 @@ namespace BatmanInfer {
                     BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(&src0, &src1);
 
                     const BITensorShape out_shape = BITensorShape::broadcast_shape(src0.tensor_shape(),
-                                                                                   src1.tensor_shape());
+                        src1.tensor_shape());
 
                     BI_COMPUTE_RETURN_ERROR_ON_MSG(out_shape.total_size() == 0, "Inputs are not broadcast compatible");
                     BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                            (src0.tensor_shape().x() != src1.tensor_shape().x()) &&
-                            ((src0.data_type() != src1.data_type()) || (src0.data_type() != dst.data_type()) ||
-                             (src1.data_type() != dst.data_type())),
-                            "Broadcasting across width is supported on configurations where all tensors have the same data type");
+                        (src0.tensor_shape().x() != src1.tensor_shape().x()) &&
+                        ((src0.data_type() != src1.data_type()) || (src0.data_type() != dst.data_type()) ||
+                            (src1.data_type() != dst.data_type())),
+                        "Broadcasting across width is supported on configurations where all tensors have the same data type")
+                    ;
 
                     // Validate in case of configured dst
                     if (dst.total_size() > 0) {
                         BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(&src0, &dst);
                         BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                                detail::have_different_dimensions(out_shape, dst.tensor_shape(), 0),
-                                "Wrong shape for dst");
+                            detail::have_different_dimensions(out_shape, dst.tensor_shape(), 0),
+                            "Wrong shape for dst");
                     }
 
                     const auto can_use_fixedpoint = add_q8_neon_fixedpoint_possible(&src0, &src1, &dst);
@@ -118,9 +139,10 @@ namespace BatmanInfer {
 #endif /* ARM_COMPUTE_ENABLE_SME2 */
                     const auto uk =
                             BICpuAddKernel::get_implementation<CpuAddKernelDataTypeISASelectorData>(
-                                    CpuAddKernelDataTypeISASelectorData{
-                                            src0.data_type(), CPUInfo::get().get_isa(), can_use_fixedpoint,
-                                            can_use_sme2_impl});
+                                CpuAddKernelDataTypeISASelectorData{
+                                    src0.data_type(), CPUInfo::get().get_isa(), can_use_fixedpoint,
+                                    can_use_sme2_impl
+                                });
 
                     BI_COMPUTE_RETURN_ERROR_ON(uk == nullptr || uk->ukernel == nullptr);
 
@@ -144,9 +166,10 @@ namespace BatmanInfer {
 #endif /* ARM_COMPUTE_ENABLE_SME2 */
                 const auto uk =
                         BICpuAddKernel::get_implementation<CpuAddKernelDataTypeISASelectorData>(
-                                CpuAddKernelDataTypeISASelectorData{
-                                        src0->data_type(), CPUInfo::get().get_isa(), can_use_fixedpoint,
-                                        can_use_sme2_impl});
+                            CpuAddKernelDataTypeISASelectorData{
+                                src0->data_type(), CPUInfo::get().get_isa(), can_use_fixedpoint,
+                                can_use_sme2_impl
+                            });
 
                 BI_COMPUTE_ERROR_ON_NULLPTR(uk);
 
@@ -156,7 +179,7 @@ namespace BatmanInfer {
 
                 // Auto initialize dst if not initialized
                 const BITensorShape &out_shape = BITensorShape::broadcast_shape(src0->tensor_shape(),
-                                                                                src1->tensor_shape());
+                    src1->tensor_shape());
                 set_shape_if_empty(*dst, out_shape);
                 set_data_type_if_unknown(*dst, src0->data_type());
 
@@ -166,6 +189,22 @@ namespace BatmanInfer {
 
                 BIICpuKernel::configure(win);
             }
+
+            void BICpuAddKernel::dynamic_configure(const BatmanInfer::BIITensorInfo *src0,
+                                                   const BatmanInfer::BIITensorInfo *src1,
+                                                   bool is_til_mat) {
+                if (is_til_mat) {
+                    // 进行广播形状映射
+                    BITensorShape::broadcast_shape(src0->tensor_shape(),
+                                                   src1->tensor_shape());
+                } else {
+                    BI_COMPUTE_ERROR_ON_MISMATCHING_SHAPES(src0, src1);
+                }
+                auto win = BIICpuKernel::window();
+                dynamic_squashed_or_max_window(*src0, win, is_til_mat);
+                BIICpuKernel::dynamic_configure(win);
+            }
+
 
             BIStatus
             BICpuAddKernel::validate(const BatmanInfer::BIITensorInfo *src0, const BatmanInfer::BIITensorInfo *src1,

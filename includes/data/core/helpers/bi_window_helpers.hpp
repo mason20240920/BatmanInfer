@@ -115,6 +115,15 @@ namespace BatmanInfer {
      */
     std::pair<BIWindow, size_t> calculate_squashed_or_max_window(const BIITensorInfo &src0, const BIITensorInfo &src1);
 
+    /**
+     * @brief 动态窗口更新Add函数, 但是只确定A, B形状一致
+     * @param src0 输入的张量A
+     * @param unmatch_shape B矩阵是否需要广播
+     * @param update_window 更新的窗口信息
+     */
+    void dynamic_squashed_or_max_window(const BIITensorInfo &src0, BIWindow &update_window,
+                                        const bool unmatch_shape = false);
+
     /** Function to compute the shape of output and window for the given inputs
       *
       * @param[in] infos Input tensor information

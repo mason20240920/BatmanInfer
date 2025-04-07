@@ -216,8 +216,8 @@ namespace BatmanInfer {
     }
 
     std::pair<BIWindow, size_t> calculate_squashed_or_max_window(const BIITensorInfo &src0, const BIITensorInfo &src1) {
-        const auto &shape0 = src0.tensor_shape();
-        const auto &shape1 = src1.tensor_shape();
+        const auto &shape0 = src0.tensor_shape(); // 输入的A矩阵形状
+        const auto &shape1 = src1.tensor_shape(); // 输入的B矩阵形状
         const auto &strides0 = src0.strides_in_bytes();
         const auto &strides1 = src1.strides_in_bytes();
         const auto num_dimensions = std::max(src0.num_dimensions(), src1.num_dimensions());
@@ -226,7 +226,8 @@ namespace BatmanInfer {
         size_t split_dimension = BIWindow::DimY;
         size_t dim = 0;
 
-        size_t squashed_bytes = src0.element_size();
+        // 尝试合并连续的低维度（内存局部性优化）
+        size_t squashed_bytes = src0.element_size(); // 初始合并单元大小（单个元素的字节数）
 
         // Try to squash the low dimensions together.
         for (; dim < num_dimensions; ++dim) {
@@ -256,6 +257,31 @@ namespace BatmanInfer {
         }
 
         return std::make_pair(win, split_dimension);
+    }
+
+    void dynamic_squashed_or_max_window(const BIITensorInfo &src0,
+                                        BIWindow &update_window,
+                                        const bool unmatch_shape) {
+        const auto &shape0 = src0.tensor_shape(); // 输入的A矩阵形状
+        const auto num_dimensions = src0.num_dimensions(); // 尝试合并连续的低维度（内存局部性优化）
+        size_t squashed_bytes = src0.element_size(); // 初始合并单元大小（单个元素的字节数）
+
+        size_t dim = 0;
+        // Try to squash the low dimensions together.
+        for (; dim < num_dimensions; ++dim) {
+            squashed_bytes *= shape0[dim];
+        }
+
+        if (unmatch_shape) {
+            // Generates the max window.
+            for (dim = 0; dim < BICoordinates::num_max_dimensions; ++dim) {
+                update_window.set(dim, BIWindow::BIDimension(0, shape0[dim], 1));
+            }
+        } else {
+            auto squashed_elements = squashed_bytes / src0.element_size();
+            // The input tensors can be interpreted as 1D array.
+            update_window.set(0, BIWindow::BIDimension(0, squashed_elements, 1));
+        }
     }
 
     BIWindow calculate_max_window_horizontal(const BIValidRegion &valid_region,

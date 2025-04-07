@@ -56,6 +56,10 @@ namespace BatmanInfer {
                                      BIConvertPolicy policy,
                                      const BIActivationLayerInfo &act_info = BIActivationLayerInfo());
 
+            void dynamic_configure(const BatmanInfer::BIITensorInfo *src0,
+                                   const BatmanInfer::BIITensorInfo *src1,
+                                   bool is_til_mat = false) const;
+
             // 重写
             void run(BatmanInfer::BIITensorPack &tensors) override;
         };

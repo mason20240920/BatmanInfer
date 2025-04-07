@@ -1089,14 +1089,14 @@ TEST(NEAddLayer, AddLayerOps) {
 
 TEST(DynamicTensor, DynamicTensorTest) {
     BITensor input, output, weight;
-    BITensorShape input_shape = BITensorShape(16, 16, 2, 1);
-    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+    BITensorShape input_shape = BITensorShape(4, 4, 1, 1);
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
     input.allocator()->allocate();
-    output.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F32));
+    output.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
     output.allocator()->allocate();
     QATTest::fill_from_one<float>(input);
     BITensorShape weight_shape = BITensorShape(16, 16);
-    weight.allocator()->init(BITensorInfo(weight_shape, 1, BIDataType::F32));
+    weight.allocator()->init(BITensorInfo(weight_shape, 1, BIDataType::F16));
     weight.allocator()->allocate();
     BIWindow window;
     window.use_tensor_dimensions(weight.info()->tensor_shape());
@@ -1104,18 +1104,15 @@ TEST(DynamicTensor, DynamicTensorTest) {
     execute_window_loop(window, [&](const BICoordinates &id) {
                             auto x = id[0];
                             auto y = id[1];
-                            *reinterpret_cast<float *>(mask_it.ptr()) = (x > y)
-                                                                            ? 0
-                                                                            : -std::numeric_limits<float>::infinity();
+                            *reinterpret_cast<float16_t *>(mask_it.ptr()) = (x > y)
+                                                                                ? 0
+                                                                                : -std::numeric_limits<
+                                                                                    float>::infinity();
                         },
                         mask_it);
-    BINEArithmeticAddition add_f;
-    add_f.configure(&input, &weight, &output, BIConvertPolicy::SATURATE);
-    add_f.run();
-    QATTest::print_tensor(output, "output"); // 2. 定义要提取的子张量信息
     BITensorShape sub_shape(4, 4); // 要提取 64x64 的子区域
-    BITensorInfo sub_info(sub_shape, 1, BIDataType::F32);
-    sub_info.set_format(Format::F32);
+    BITensorInfo sub_info(sub_shape, 1, BIDataType::F16);
+    sub_info.set_format(Format::F16);
 
     // 3. 定义子张量的起始坐标
     BICoordinates coords(0, 0); // 从(32,32)位置开始提取
@@ -1123,7 +1120,27 @@ TEST(DynamicTensor, DynamicTensorTest) {
     // 4. 创建子张量
     BITensor sub_tensor;
     sub_tensor.allocator()->init(*weight.allocator(), coords, sub_info);
+    QATTest::print_tensor(weight, "weight_tensor");
     QATTest::print_tensor(sub_tensor, "sub_tensor");
+
+    BINEArithmeticAddition add_f;
+    add_f.configure(&input, &sub_tensor, &output, BIConvertPolicy::SATURATE);
+    add_f.run();
+    QATTest::print_tensor(output, "output"); // 2. 定义要提取的子张量信息
+
+    input_shape = BITensorShape(16, 16, 19, 10);
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
+    input.allocator()->allocate();
+    output.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
+    output.allocator()->allocate();
+    QATTest::fill_from_one<float>(input);
+    sub_shape = BITensorShape(16, 16);
+    sub_info = BITensorInfo(sub_shape, 1, BIDataType::F16);
+    sub_info.set_format(Format::F16);
+    sub_tensor.allocator()->init(*weight.allocator(), coords, sub_info);
+    add_f.dynamic_configure(&input, &sub_tensor, true);
+    add_f.run();
+    QATTest::print_tensor(output, "output2"); // 2. 定义要提取的子张量信息
 }
 
 
