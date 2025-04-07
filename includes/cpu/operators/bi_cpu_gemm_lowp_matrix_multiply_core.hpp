@@ -124,6 +124,11 @@ namespace BatmanInfer {
                                                 const bool is_prepared,
                                                 const bool negated_offsets);
 
+            /**
+             * @brief 动态配置输入张量
+             * @param a
+             */
+            void dynamic_configure(const BIITensorInfo *a) const;
 
         private:
             enum BIAuxTensorIdx {
@@ -162,7 +167,8 @@ namespace BatmanInfer {
             std::unique_ptr<kernels::BICpuGemmLowpOffsetContributionKernel> _offset_contribution_kernel;
 
             // 负责在添加偏移贡献后执行量化输出阶段（output stage），将结果从 int32 转换为 int8 或 uint8。
-            std::unique_ptr<kernels::BICpuGemmLowpOffsetContributionOutputStageKernel> _offset_contribution_output_stage_kernel;
+            std::unique_ptr<kernels::BICpuGemmLowpOffsetContributionOutputStageKernel>
+            _offset_contribution_output_stage_kernel;
 
             // 可选的激活函数对象（如 ReLU、ReLU6 等），用于在输出阶段对结果应用激活函数。
             std::unique_ptr<BICpuActivation> _activation_func;

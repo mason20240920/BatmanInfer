@@ -48,6 +48,7 @@ namespace BatmanInfer {
                                                               BIITensor *,
                                                               const BIActivationLayerInfo &,
                                                               const BIWindow &)>::type;
+
                     struct BIActivationKernel {
                         const char *name{nullptr};
                         const ActivationDataTypeISASelectorDataPtr is_selected{nullptr};
@@ -57,13 +58,20 @@ namespace BatmanInfer {
                     BI_COMPUTE_DISALLOW_COPY_ALLOW_MOVE(BICpuActivationKernelHeuristics);
 
                     // 默认构造函数和析构
-                    BICpuActivationKernelHeuristics() noexcept {};
+                    BICpuActivationKernelHeuristics() noexcept {
+                    };
 
                     ~BICpuActivationKernelHeuristics() = default;
 
                     BICpuActivationKernelHeuristics(const BIITensorInfo *src,
                                                     const BIITensorInfo *dst,
                                                     const BIActivationLayerInfo &activation_info);
+
+                    /**
+                     * @brief 根据输入张量动态修改window大小
+                     * @param src
+                     */
+                    void dynamic_change_win(const BIITensorInfo *src);
 
                     /**
                      * 最小工作负载
@@ -86,7 +94,6 @@ namespace BatmanInfer {
                     const BIIScheduler::Hints &scheduler_hint() const;
 
                 private:
-
                     /**
                      * 选择一个内核运行并将其保存到_内核数据成员中
                      *

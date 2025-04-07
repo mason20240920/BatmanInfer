@@ -26,6 +26,11 @@ namespace BatmanInfer {
 
     BINEActivationLayer::~BINEActivationLayer() = default;
 
+    void BINEActivationLayer::dynamic_configure(BIITensor *input) {
+        _impl->op->dynamic_change_win(input->info());
+    }
+
+
     void BINEActivationLayer::configure(BatmanInfer::BIITensor *input,
                                         BatmanInfer::BIITensor *output,
                                         BatmanInfer::BIActivationLayerInfo activation_info) {
@@ -51,5 +56,4 @@ namespace BatmanInfer {
         pack.add_tensor(BITensorType::ACL_DST, _impl->dst);
         _impl->op->run(pack);
     }
-
 }

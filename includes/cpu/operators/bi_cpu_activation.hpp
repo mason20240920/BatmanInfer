@@ -40,6 +40,8 @@ namespace BatmanInfer {
 
             // Inherited methods overridden:
             void run(BIITensorPack &tensors) override;
+
+            void dynamic_change_win(const BIITensorInfo *input);
         };
     }
 }

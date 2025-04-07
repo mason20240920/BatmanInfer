@@ -14,7 +14,6 @@
 
 namespace BatmanInfer {
     namespace cpu {
-
         void BICpuActivation::configure(const BIITensorInfo *input,
                                         BIITensorInfo *output,
                                         const BIActivationLayerInfo &activation_info) {
@@ -22,6 +21,11 @@ namespace BatmanInfer {
             auto k = std::make_unique<kernels::BICpuActivationKernel>();
             k->configure(input, output, activation_info);
             _kernel = std::move(k);
+        }
+
+        void BICpuActivation::dynamic_change_win(const BIITensorInfo *input) {
+            auto k = reinterpret_cast<kernels::BICpuActivationKernel *>(_kernel.get());
+            k->dynamic_change_win(input);
         }
 
         BIStatus
@@ -33,7 +37,8 @@ namespace BatmanInfer {
 
         void BICpuActivation::run(BIITensorPack &tensors) {
             BI_COMPUTE_ERROR_ON_MSG(tensors.empty(), "No inputs provided");
-            auto split_dimension = static_cast<kernels::BICpuActivationKernel *>(_kernel.get())->get_split_dimension_hint();
+            auto split_dimension = static_cast<kernels::BICpuActivationKernel *>(_kernel.get())->
+                    get_split_dimension_hint();
             BINEScheduler::get().schedule_op(_kernel.get(), split_dimension, _kernel->window(), tensors);
         }
 

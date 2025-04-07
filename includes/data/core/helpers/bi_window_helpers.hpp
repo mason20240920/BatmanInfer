@@ -41,6 +41,13 @@ namespace BatmanInfer {
                                   BIBorderSize border_size = BIBorderSize());
 
     /**
+     * @brief 动态计算窗口
+     * @param src
+     * @param window
+     */
+    void dynamic_calculate_squashed_or_max_window(const BIITensorInfo &src, BIWindow &window);
+
+    /**
      * @brief Update the maximum window for a given tensor shape and border setting
      * @warning Only for @ref BINEGather ops now
      * @param shape Shape of the tensor space

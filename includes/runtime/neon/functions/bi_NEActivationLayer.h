@@ -12,7 +12,6 @@
 #include <memory>
 
 namespace BatmanInfer {
-
     // Forward declarations
     class BIITensor;
     class BIITensorInfo;
@@ -21,24 +20,29 @@ namespace BatmanInfer {
      *
      * @note The function simulates an activation layer with the specified activation function.
      */
-    class BINEActivationLayer : public BIIFunction
-    {
+    class BINEActivationLayer : public BIIFunction {
     public:
         /** Constructor
          *
          * @param[in] ctx Runtime context to be used by the function
          */
         BINEActivationLayer(BIIRuntimeContext *ctx = nullptr);
+
         /** Prevent instances of this class from being copied (As this class contains pointers) */
         BINEActivationLayer(const BINEActivationLayer &) = delete;
+
         /** Default move constructor */
         BINEActivationLayer(BINEActivationLayer &&);
+
         /** Prevent instances of this class from being copied (As this class contains pointers) */
         BINEActivationLayer &operator=(const BINEActivationLayer &) = delete;
+
         /** Default move assignment operator */
         BINEActivationLayer &operator=(BINEActivationLayer &&);
+
         /** Destructor */
         ~BINEActivationLayer();
+
         /** [NEActivationLayer snippet] **/
         /** Set the input and output tensor.
          *
@@ -62,6 +66,9 @@ namespace BatmanInfer {
          * @param[in]      activation_info Activation layer parameters.
          */
         void configure(BIITensor *input, BIITensor *output, BIActivationLayerInfo activation_info);
+
+        void dynamic_configure(BIITensor *input);
+
         /** [NEActivationLayer snippet] **/
         /** Static function to check if given info will lead to a valid configuration of @ref NEActivationLayer
          *
@@ -72,7 +79,8 @@ namespace BatmanInfer {
          *
          * @return a status
          */
-        static BIStatus validate(const BIITensorInfo *input, const BIITensorInfo *output, const BIActivationLayerInfo &act_info);
+        static BIStatus validate(const BIITensorInfo *input, const BIITensorInfo *output,
+                                 const BIActivationLayerInfo &act_info);
 
         // Inherited methods overridden
         void run() override;
@@ -81,5 +89,4 @@ namespace BatmanInfer {
         struct Impl;
         std::unique_ptr<Impl> _impl;
     };
-
 } // namespace BatmanInfer

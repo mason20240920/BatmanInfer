@@ -48,37 +48,36 @@ namespace BatmanInfer {
         } // namespace
 
         BICpuGemmLowpMatrixMultiplyCore::BICpuGemmLowpMatrixMultiplyCore()
-                : _asm_glue(std::make_unique<BICpuGemmAssemblyDispatch>()),
-                  _mm_kernel(),
-                  _mtx_a_reshape_kernel(),
-                  _mtx_b_reshape_kernel(),
-                  _mtx_a_reduction_kernel(),
-                  _mtx_b_reduction_kernel(),
-                  _offset_contribution_kernel(),
-                  _offset_contribution_output_stage_kernel(),
-                  _activation_func(),
-                  _convert_to_signed_asymm(),
-                  _convert_from_signed_asymm(),
-                  _vector_sum_col(),
-                  _vector_sum_row(),
-                  _tmp_a(),
-                  _tmp_b(),
-                  _mm_result_s32(),
-                  _signed_a(),
-                  _signed_output(),
-                  _a_offset(0),
-                  _b_offset(0),
-                  _run_vector_matrix_multiplication(false),
-                  _assembly_path(false),
-                  _fused_assembly_path(false),
-                  _reshape_b_only_on_first_run(false),
-                  _is_prepared(false),
-                  _fuse_output_stage(false),
-                  _run_activation(false),
-                  _flip_signedness(false),
-                  _gemm_info(),
-                  _aux_mem(Count) {
-
+            : _asm_glue(std::make_unique<BICpuGemmAssemblyDispatch>()),
+              _mm_kernel(),
+              _mtx_a_reshape_kernel(),
+              _mtx_b_reshape_kernel(),
+              _mtx_a_reduction_kernel(),
+              _mtx_b_reduction_kernel(),
+              _offset_contribution_kernel(),
+              _offset_contribution_output_stage_kernel(),
+              _activation_func(),
+              _convert_to_signed_asymm(),
+              _convert_from_signed_asymm(),
+              _vector_sum_col(),
+              _vector_sum_row(),
+              _tmp_a(),
+              _tmp_b(),
+              _mm_result_s32(),
+              _signed_a(),
+              _signed_output(),
+              _a_offset(0),
+              _b_offset(0),
+              _run_vector_matrix_multiplication(false),
+              _assembly_path(false),
+              _fused_assembly_path(false),
+              _reshape_b_only_on_first_run(false),
+              _is_prepared(false),
+              _fuse_output_stage(false),
+              _run_activation(false),
+              _flip_signedness(false),
+              _gemm_info(),
+              _aux_mem(Count) {
         }
 
         BICpuGemmLowpMatrixMultiplyCore::~BICpuGemmLowpMatrixMultiplyCore() = default;
@@ -119,7 +118,7 @@ namespace BatmanInfer {
             const BIUniformQuantizationInfo iqinfo = a_to_use->quantization_info().uniform();
 
             _signed_a = a_to_use->clone()->set_data_type(dt).set_quantization_info(
-                    BIQuantizationInfo(iqinfo.scale, iqinfo.offset + offset_correction));
+                BIQuantizationInfo(iqinfo.scale, iqinfo.offset + offset_correction));
 
             // If inputs are mixed-sign but this machine does not support mixed sign kernels,
             // flip the sign so matched-sign kernels can be used.
@@ -141,7 +140,7 @@ namespace BatmanInfer {
 
                 const BIUniformQuantizationInfo oqinfo = dst->quantization_info().uniform();
                 _signed_output = dst->clone()->set_data_type(dt).set_quantization_info(
-                        BIQuantizationInfo(oqinfo.scale, oqinfo.offset - offset_correction));
+                    BIQuantizationInfo(oqinfo.scale, oqinfo.offset - offset_correction));
 
                 // Output stage correction
                 BIGEMMLowpOutputStageInfo output_stage_corr = info.gemmlowp_output_stage();
@@ -210,7 +209,7 @@ namespace BatmanInfer {
                 _mtx_a_reshape_kernel = std::make_unique<kernels::BICpuGemmInterleave4x4Kernel>();
                 _mtx_a_reshape_kernel->
                         configure(a_to_use, &_tmp_a
-                );
+                        );
 
                 // Configure transpose kernel
                 _mtx_b_reshape_kernel = std::make_unique<kernels::BICpuGemmTranspose1xWKernel>();
@@ -228,7 +227,7 @@ namespace BatmanInfer {
                     _mtx_b_reduction_kernel = std::make_unique<kernels::BICpuGemmLowpMatrixBReductionKernel>();
                     _mtx_b_reduction_kernel->
                             configure(b, &_vector_sum_col, reduction_info
-                    );
+                            );
                 }
 
                 if (b_offset_kernel_needed) {
@@ -238,7 +237,7 @@ namespace BatmanInfer {
                     _mtx_a_reduction_kernel = std::make_unique<kernels::BICpuGemmLowpMatrixAReductionKernel>();
                     _mtx_a_reduction_kernel->
                             configure(a_to_use, &_vector_sum_row, reduction_info
-                    );
+                            );
                 }
 
                 if (_fuse_output_stage) {
@@ -247,16 +246,18 @@ namespace BatmanInfer {
                         _mm_kernel = std::make_unique<kernels::BICpuGemmLowpMatrixMultiplyKernel>();
                         _mm_kernel->
                                 configure(matrix_a, matrix_b, &_mm_result_s32
-                        );
+                                );
                     }
 
                     _offset_contribution_output_stage_kernel =
                             std::make_unique<kernels::BICpuGemmLowpOffsetContributionOutputStageKernel>();
                     _offset_contribution_output_stage_kernel->configure(&_mm_result_s32,
-                                                                        a_offset_kernel_needed ? &_vector_sum_col
-                                                                                               : nullptr,
-                                                                        b_offset_kernel_needed ? &_vector_sum_row
-                                                                                               : nullptr, c,
+                                                                        a_offset_kernel_needed
+                                                                            ? &_vector_sum_col
+                                                                            : nullptr,
+                                                                        b_offset_kernel_needed
+                                                                            ? &_vector_sum_row
+                                                                            : nullptr, c,
                                                                         _flip_signedness ? &_signed_output : dst,
                                                                         a->dimension(0), _a_offset, _b_offset,
                                                                         info.gemmlowp_output_stage());
@@ -265,26 +266,27 @@ namespace BatmanInfer {
                         _convert_from_signed_asymm = std::make_unique<kernels::BICpuConvertQuantizedSignednessKernel>();
                         _convert_from_signed_asymm->
                                 configure(&_signed_output, dst
-                        );
+                                );
                     }
                 } else {
                     // This scale is needed for the s8_f32 kernel where the multiplication output is dequantized to F32.
                     const float dequantize_scale =
                             (dst->data_type() == BIDataType::F32)
-                            ? a->quantization_info().uniform().scale * b->quantization_info().uniform().scale
-                            : 1.0f;
+                                ? a->quantization_info().uniform().scale * b->quantization_info().uniform().scale
+                                : 1.0f;
                     // Configure matrix multiply kernel
                     if (!_assembly_path) {
                         _mm_kernel = std::make_unique<kernels::BICpuGemmLowpMatrixMultiplyKernel>();
                         _mm_kernel->
                                 configure(matrix_a, matrix_b, dst
-                        );
+                                );
                     }
                     // Configure offset contribution kernel
                     _offset_contribution_kernel = std::make_unique<kernels::BICpuGemmLowpOffsetContributionKernel>();
                     _offset_contribution_kernel->
                             configure(dst, a_offset_kernel_needed
-                                           ? &_vector_sum_col : nullptr,
+                                               ? &_vector_sum_col
+                                               : nullptr,
                                       b_offset_kernel_needed ? &_vector_sum_row : nullptr,
                                       a_to_use->dimension(0), _a_offset, _b_offset, dequantize_scale);
                 }
@@ -304,12 +306,12 @@ namespace BatmanInfer {
             if (_assembly_path) {
                 const auto asm_mem_req = _asm_glue->workspace(); // 汇编内存需求
                 for (
-                        unsigned int slot = 0;
-                        slot < asm_mem_req.
+                    unsigned int slot = 0;
+                    slot < asm_mem_req.
 
-                                size();
+                    size();
 
-                        ++slot) {
+                    ++slot) {
                     _aux_mem[slot] = asm_mem_req[slot]; // 更新汇编需要的内存
                 }
             }
@@ -318,15 +320,16 @@ namespace BatmanInfer {
             _aux_mem[VectorSumCol] = BIMemoryInfo(offset_int_vec(VectorSumCol),
                                                   !_fused_assembly_path && a_offset_kernel_needed
                                                   && _reshape_b_only_on_first_run
-                                                  ? MemoryLifetime::Persistent
-                                                  : MemoryLifetime::Temporary,
+                                                      ? MemoryLifetime::Persistent
+                                                      : MemoryLifetime::Temporary,
                                                   _vector_sum_col.total_size());
             _aux_mem[VectorSumRow] = BIMemoryInfo(offset_int_vec(VectorSumRow), MemoryLifetime::Temporary,
                                                   _vector_sum_row.total_size());
             _aux_mem[TmpA] = BIMemoryInfo(offset_int_vec(TmpA), MemoryLifetime::Temporary, _tmp_a.total_size());
             _aux_mem[TmpB] = BIMemoryInfo(offset_int_vec(TmpB),
-                                          _reshape_b_only_on_first_run ? MemoryLifetime::Persistent
-                                                                       : MemoryLifetime::Temporary,
+                                          _reshape_b_only_on_first_run
+                                              ? MemoryLifetime::Persistent
+                                              : MemoryLifetime::Temporary,
                                           _tmp_b.total_size());
             _aux_mem[MMResultS32] = BIMemoryInfo(offset_int_vec(MMResultS32), MemoryLifetime::Temporary,
                                                  _mm_result_s32.total_size());
@@ -348,10 +351,11 @@ namespace BatmanInfer {
                                                                 BIDataType::QASYMM8_SIGNED, BIDataType::F32);
             BI_COMPUTE_RETURN_ERROR_ON_MSG(c != nullptr && output->data_type() != BIDataType::F32 &&
                                            gemm_info.gemmlowp_output_stage().type == BIGEMMLowpOutputStageType::NONE,
-                                           "Bias addition not supported in NEGEMMLowpMatrixMultiplyCore for output S32");
+                                           "Bias addition not supported in NEGEMMLowpMatrixMultiplyCore for output S32")
+            ;
             BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                    (a)->dimension(0) != (b)->dimension(1),
-                    "The product AB is defined only if the number of columns in A is equal to the number of rows in B");
+                (a)->dimension(0) != (b)->dimension(1),
+                "The product AB is defined only if the number of columns in A is equal to the number of rows in B");
             BI_COMPUTE_RETURN_ERROR_ON_MSG(gemm_info.is_a_reshaped(), "Matrix A already reshaped is not supported");
             BI_COMPUTE_RETURN_ERROR_ON_MSG(gemm_info.is_b_reshaped(), "Matrix B already reshaped is not supported");
             BI_COMPUTE_RETURN_ERROR_ON_MSG(gemm_info.pretranspose_A(),
@@ -365,8 +369,8 @@ namespace BatmanInfer {
                 BI_COMPUTE_RETURN_ERROR_MSG("Accumulation is not supported for armv7");
 #endif /* __arm__ */
                 BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                        gemm_info.gemmlowp_output_stage().type != BIGEMMLowpOutputStageType::NONE,
-                        "Accumulation is not supported for output QASYMM8/QASYMM8_SIGNED");
+                    gemm_info.gemmlowp_output_stage().type != BIGEMMLowpOutputStageType::NONE,
+                    "Accumulation is not supported for output QASYMM8/QASYMM8_SIGNED");
             }
 
             GEMMInfo info = gemm_info;
@@ -399,7 +403,7 @@ namespace BatmanInfer {
             const BIUniformQuantizationInfo iqinfo = a_to_use->quantization_info().uniform(); // a张量的量化信息(zp和scale)
 
             BITensorInfo signed_a = a_to_use->clone()->set_data_type(dt).set_quantization_info(
-                    BIQuantizationInfo(iqinfo.scale, iqinfo.offset + offset_correction)); // 修改量化信息(zp + 128)
+                BIQuantizationInfo(iqinfo.scale, iqinfo.offset + offset_correction)); // 修改量化信息(zp + 128)
             BITensorInfo signed_output{};
 
             // 查看张量b是per channel量化且张量a是非对称无符号的int8量化, 且仅在第一个对张量B进行reshape
@@ -414,15 +418,16 @@ namespace BatmanInfer {
                 flip_signedness = true;
             }
 
-            if (flip_signedness) { // 进行量化张量A和B符号的对齐
+            if (flip_signedness) {
+                // 进行量化张量A和B符号的对齐
                 BI_COMPUTE_RETURN_ON_ERROR(
-                        kernels::BICpuConvertQuantizedSignednessKernel::validate(a_to_use, &signed_a));
+                    kernels::BICpuConvertQuantizedSignednessKernel::validate(a_to_use, &signed_a));
                 a_to_use = &signed_a;
                 a_offset = signed_a.quantization_info().uniform().offset;
 
                 const BIUniformQuantizationInfo oqinfo = output->quantization_info().uniform();
                 signed_output = output->clone()->set_data_type(dt).set_quantization_info(
-                        BIQuantizationInfo(oqinfo.scale, oqinfo.offset - offset_correction));
+                    BIQuantizationInfo(oqinfo.scale, oqinfo.offset - offset_correction));
 
                 // Output stage correction
                 BIGEMMLowpOutputStageInfo output_stage_corr = info.gemmlowp_output_stage();
@@ -452,7 +457,7 @@ namespace BatmanInfer {
                     run_optimised_requantized = run_optimised;
                 } else {
                     run_optimised = bool(BICpuGemmAssemblyDispatch::validate(
-                            a_to_use, b, nullptr, fuse_output_stage ? &mm_result_s32_info : output, asm_info));
+                        a_to_use, b, nullptr, fuse_output_stage ? &mm_result_s32_info : output, asm_info));
                 }
             }
 
@@ -510,8 +515,8 @@ namespace BatmanInfer {
 
                     // Configure Matrix B reduction kernel
                     BI_COMPUTE_RETURN_ON_ERROR(
-                            kernels::BICpuGemmLowpMatrixBReductionKernel::validate(b, &info_vector_sum_col,
-                                                                                   reduction_info));
+                        kernels::BICpuGemmLowpMatrixBReductionKernel::validate(b, &info_vector_sum_col,
+                            reduction_info));
                 }
 
                 // Validate Matrix A reduction kernel only if _b_offset is not equal to 0
@@ -520,48 +525,48 @@ namespace BatmanInfer {
 
                     // Configure matrix A reduction kernel
                     BI_COMPUTE_RETURN_ON_ERROR(
-                            kernels::BICpuGemmLowpMatrixAReductionKernel::validate(a_to_use, &info_vector_sum_row,
-                                                                                   reduction_info));
+                        kernels::BICpuGemmLowpMatrixAReductionKernel::validate(a_to_use, &info_vector_sum_row,
+                            reduction_info));
                 }
 
                 if (fuse_output_stage) {
                     if (!run_optimised) {
                         BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                                info.reinterpret_input_as_3d(),
-                                "CpuGemmLowpMatrixMultiplyKernel cannot reinterpret the input tensor as 3D");
+                            info.reinterpret_input_as_3d(),
+                            "CpuGemmLowpMatrixMultiplyKernel cannot reinterpret the input tensor as 3D");
                         BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                                info.depth_output_gemm3d() != 0,
-                                "CpuGemmLowpMatrixMultiplyKernel cannot reinterpret the output tensor as 3D");
+                            info.depth_output_gemm3d() != 0,
+                            "CpuGemmLowpMatrixMultiplyKernel cannot reinterpret the output tensor as 3D");
 
                         BI_COMPUTE_RETURN_ON_ERROR(kernels::BICpuGemmLowpMatrixMultiplyKernel::validate(
-                                matrix_a_info, matrix_b_info, &mm_result_s32_info));
+                            matrix_a_info, matrix_b_info, &mm_result_s32_info));
                     }
 
                     // Validate offset contribution kernel
                     BI_COMPUTE_RETURN_ON_ERROR(kernels::BICpuGemmLowpOffsetContributionOutputStageKernel::validate(
-                            &mm_result_s32_info, a_offset_kernel_needed ? &info_vector_sum_col : nullptr,
-                            b_offset_kernel_needed ? &info_vector_sum_row : nullptr, c,
-                            flip_signedness ? &signed_output : output,
-                            a_offset, b_offset, info.gemmlowp_output_stage()));
+                        &mm_result_s32_info, a_offset_kernel_needed ? &info_vector_sum_col : nullptr,
+                        b_offset_kernel_needed ? &info_vector_sum_row : nullptr, c,
+                        flip_signedness ? &signed_output : output,
+                        a_offset, b_offset, info.gemmlowp_output_stage()));
                 } else {
                     if (!run_optimised) {
                         BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                                info.reinterpret_input_as_3d(),
-                                "CpuGemmLowpMatrixMultiplyKernel cannot reinterpret the input tensor as 3D");
+                            info.reinterpret_input_as_3d(),
+                            "CpuGemmLowpMatrixMultiplyKernel cannot reinterpret the input tensor as 3D");
                         BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                                info.depth_output_gemm3d() != 0,
-                                "CpuGemmLowpMatrixMultiplyKernel cannot reinterpret the output tensor as 3D");
+                            info.depth_output_gemm3d() != 0,
+                            "CpuGemmLowpMatrixMultiplyKernel cannot reinterpret the output tensor as 3D");
 
                         BI_COMPUTE_RETURN_ON_ERROR(
-                                kernels::BICpuGemmLowpMatrixMultiplyKernel::validate(matrix_a_info, matrix_b_info,
-                                                                                     output));
+                            kernels::BICpuGemmLowpMatrixMultiplyKernel::validate(matrix_a_info, matrix_b_info,
+                                output));
                     }
                     // Validate offset contribution kernel
                     if (output->data_type() != BIDataType::QASYMM8 &&
                         output->data_type() != BIDataType::QASYMM8_SIGNED) {
                         BI_COMPUTE_RETURN_ON_ERROR(kernels::BICpuGemmLowpOffsetContributionKernel::validate(
-                                output, a_offset_kernel_needed ? &info_vector_sum_col : nullptr,
-                                b_offset_kernel_needed ? &info_vector_sum_row : nullptr, a_offset, b_offset));
+                            output, a_offset_kernel_needed ? &info_vector_sum_col : nullptr,
+                            b_offset_kernel_needed ? &info_vector_sum_row : nullptr, a_offset, b_offset));
                     }
                 }
             }
@@ -574,6 +579,12 @@ namespace BatmanInfer {
 
             return BIStatus{};
         }
+
+        void BICpuGemmLowpMatrixMultiplyCore::dynamic_configure(const BIITensorInfo *a) const {
+            if (_run_activation)
+                _activation_func->dynamic_change_win(a);
+        }
+
 
         void BICpuGemmLowpMatrixMultiplyCore::run(BIITensorPack &tensors) {
             prepare(tensors);
@@ -604,8 +615,10 @@ namespace BatmanInfer {
 
             // Convert QASYMM8->QASYMM8_SIGNED
             if (_flip_signedness) {
-                BIITensorPack pack = {{BITensorType::ACL_SRC, a},
-                                      {BITensorType::ACL_DST, signed_a.get()}};
+                BIITensorPack pack = {
+                    {BITensorType::ACL_SRC, a},
+                    {BITensorType::ACL_DST, signed_a.get()}
+                };
                 BINEScheduler::get().schedule_op(_convert_to_signed_asymm.get(), BIWindow::DimY,
                                                  _convert_to_signed_asymm->window(),
                                                  pack);
@@ -634,22 +647,28 @@ namespace BatmanInfer {
                     matrix_a = tmp_a.get();
                     matrix_b = tmp_b.get();
                     // Run interleave kernel
-                    BIITensorPack pack_a = {{BITensorType::ACL_SRC, a_to_use},
-                                            {BITensorType::ACL_DST, tmp_a.get()}};
+                    BIITensorPack pack_a = {
+                        {BITensorType::ACL_SRC, a_to_use},
+                        {BITensorType::ACL_DST, tmp_a.get()}
+                    };
                     BINEScheduler::get().schedule_op(_mtx_a_reshape_kernel.get(), BIWindow::DimY,
                                                      _mtx_a_reshape_kernel->window(),
                                                      pack_a);
 
                     if (!_reshape_b_only_on_first_run) {
-                        BIITensorPack pack_b = {{BITensorType::ACL_SRC, b},
-                                                {BITensorType::ACL_DST, tmp_b.get()}};
+                        BIITensorPack pack_b = {
+                            {BITensorType::ACL_SRC, b},
+                            {BITensorType::ACL_DST, tmp_b.get()}
+                        };
                         // Run transpose kernel
                         BINEScheduler::get().schedule_op(_mtx_b_reshape_kernel.get(), BIWindow::DimY,
                                                          _mtx_b_reshape_kernel->window(), pack_b);
                     }
                 }
-                BIITensorPack pack_mm = {{BITensorType::ACL_SRC_0, matrix_a},
-                                         {BITensorType::ACL_SRC_1, matrix_b}};
+                BIITensorPack pack_mm = {
+                    {BITensorType::ACL_SRC_0, matrix_a},
+                    {BITensorType::ACL_SRC_1, matrix_b}
+                };
                 if (_fuse_output_stage) {
                     pack_mm.add_tensor(BITensorType::ACL_DST, mm_result_s32.get());
                 } else {
@@ -661,16 +680,20 @@ namespace BatmanInfer {
             if (!_fused_assembly_path) {
                 // Run matrix A reduction kernel only if _b_offset is not equal to 0
                 if (_b_offset != 0) {
-                    BIITensorPack pack = {{BITensorType::ACL_SRC, a_to_use},
-                                          {BITensorType::ACL_DST, vector_sum_row.get()}};
+                    BIITensorPack pack = {
+                        {BITensorType::ACL_SRC, a_to_use},
+                        {BITensorType::ACL_DST, vector_sum_row.get()}
+                    };
                     BINEScheduler::get().schedule_op(_mtx_a_reduction_kernel.get(), BIWindow::DimX,
                                                      _mtx_a_reduction_kernel->window(), pack);
                 }
 
                 // Run matrix B reduction kernel only if _a_offset is not equal to 0
                 if (_a_offset != 0 && !_reshape_b_only_on_first_run) {
-                    BIITensorPack pack = {{BITensorType::ACL_SRC, b},
-                                          {BITensorType::ACL_DST, vector_sum_col.get()}};
+                    BIITensorPack pack = {
+                        {BITensorType::ACL_SRC, b},
+                        {BITensorType::ACL_DST, vector_sum_col.get()}
+                    };
                     BINEScheduler::get().schedule_op(_mtx_b_reduction_kernel.get(), BIWindow::DimX,
                                                      _mtx_b_reduction_kernel->window(), pack);
                 }
@@ -714,16 +737,20 @@ namespace BatmanInfer {
 
             // Convert QASYMM8_SIGNED->QASYMM8
             if (!_fused_assembly_path && _fuse_output_stage && _flip_signedness) {
-                BIITensorPack pack = {{BITensorType::ACL_SRC, signed_output.get()},
-                                      {BITensorType::ACL_DST, dst}};
+                BIITensorPack pack = {
+                    {BITensorType::ACL_SRC, signed_output.get()},
+                    {BITensorType::ACL_DST, dst}
+                };
                 BINEScheduler::get().schedule_op(_convert_from_signed_asymm.get(), BIWindow::DimY,
                                                  _convert_from_signed_asymm->window(), pack);
             }
 
             // Run fused activation unless already run in the fused assembly
             if (_run_activation) {
-                BIITensorPack pack = {{BITensorType::ACL_SRC, dst},
-                                      {BITensorType::ACL_DST, dst}};
+                BIITensorPack pack = {
+                    {BITensorType::ACL_SRC, dst},
+                    {BITensorType::ACL_DST, dst}
+                };
                 _activation_func->run(pack);
             }
         }
@@ -735,15 +762,17 @@ namespace BatmanInfer {
                 if (_asm_glue->is_configured()) {
                     _asm_glue->prepare(tensors);
                 }
-                    // Run non-assembly reshape
+                // Run non-assembly reshape
                 else if (_reshape_b_only_on_first_run && !_run_vector_matrix_multiplication &&
                          !_asm_glue->is_configured()) {
                     // Run reshape kernel and mark original weights tensor as unused
                     BIITensor *tmp_b_p = utils::cast::polymorphic_downcast<BIITensor *>(
-                            tensors.get_tensor(offset_int_vec(TmpB)));
+                        tensors.get_tensor(offset_int_vec(TmpB)));
                     CpuAuxTensorHandler tmp_b(_tmp_b, *tmp_b_p);
-                    BIITensorPack pack = {{BITensorType::ACL_SRC, original_b},
-                                          {BITensorType::ACL_DST, tmp_b.get()}};
+                    BIITensorPack pack = {
+                        {BITensorType::ACL_SRC, original_b},
+                        {BITensorType::ACL_DST, tmp_b.get()}
+                    };
                     BINEScheduler::get().schedule_op(_mtx_b_reshape_kernel.get(), BIWindow::DimY,
                                                      _mtx_b_reshape_kernel->window(),
                                                      pack);
@@ -753,10 +782,12 @@ namespace BatmanInfer {
                 if (!_fused_assembly_path && _a_offset != 0 && _reshape_b_only_on_first_run) {
                     BIITensor *vector_sum_col_p =
                             utils::cast::polymorphic_downcast<BIITensor *>(
-                                    tensors.get_tensor(offset_int_vec(VectorSumCol)));
+                                tensors.get_tensor(offset_int_vec(VectorSumCol)));
                     CpuAuxTensorHandler vector_sum_col(_vector_sum_col, *vector_sum_col_p);
-                    BIITensorPack pack = {{BITensorType::ACL_SRC, original_b},
-                                          {BITensorType::ACL_DST, vector_sum_col.get()}};
+                    BIITensorPack pack = {
+                        {BITensorType::ACL_SRC, original_b},
+                        {BITensorType::ACL_DST, vector_sum_col.get()}
+                    };
                     BINEScheduler::get().schedule_op(_mtx_b_reduction_kernel.get(), BIWindow::DimX,
                                                      _mtx_b_reduction_kernel->window(), pack);
                 }

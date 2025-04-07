@@ -1143,4 +1143,62 @@ TEST(DynamicTensor, DynamicTensorTest) {
     QATTest::print_tensor(output, "output2"); // 2. 定义要提取的子张量信息
 }
 
+TEST(DynamicTensor, DynamicGeLU) {
+    BITensorShape input_shape = BITensorShape(3072, 3, 1);
+    std::string input_path = "/Users/mason/Desktop/Desktop/PythonProjects/dynamic_simple_ops/q_act_before.npy";
+    BIQuantizationInfo qin_info = BIQuantizationInfo(0.2122f, -9);
+    BITensor input = utils::create_type_tensor(input_path, input_shape, BIDataType::QASYMM8_SIGNED);
+    input.info()->set_quantization_info(qin_info);
+    QATTest::print_new_tensor(input);
+    BIQuantizationInfo qout_info = BIQuantizationInfo(0.1137f, -127);
+    BITensor output;
+    output.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::QASYMM8_SIGNED, qout_info));
+    output.allocator()->allocate();
+
+    BINEActivationLayer activation_layer;
+    BIActivationLayerInfo activation_layer_info(BIActivationFunction::GELU);
+    activation_layer.configure(&input, &output, activation_layer_info);
+    activation_layer.run();
+
+    QATTest::print_tensor(output, "output");
+    BINEDequantizationLayer dequantization_layer;
+
+    // 动态修改input
+    input_shape = BITensorShape(3072, 5, 1);
+    input_path = "/Users/mason/Desktop/Desktop/PythonProjects/dynamic_simple_ops/q_act_before_1.npy";
+    qin_info = BIQuantizationInfo(0.2122f, -9);
+    input = utils::create_type_tensor(input_path, input_shape, BIDataType::QASYMM8_SIGNED);
+    input.info()->set_quantization_info(qin_info);
+
+    qout_info = BIQuantizationInfo(0.1137f, -127);
+    output.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::QASYMM8_SIGNED, qout_info));
+    output.allocator()->allocate();
+    activation_layer.dynamic_configure(&input);
+    activation_layer.run();
+    QATTest::print_tensor(output, "output2");
+    // BITensor deq_output;
+    // deq_output.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
+    // deq_output.allocator()->allocate();
+    // dequantization_layer.configure(&output, &deq_output);
+    // dequantization_layer.run();
+    //
+    // QATTest::print_tensor(deq_output, "output2");
+}
+
+TEST(DynamicTensor, NOquantDynamicGeLU) {
+    BITensorShape input_shape = BITensorShape(3072, 3, 1);
+    const std::string &input_path = "/Users/mason/Desktop/Desktop/PythonProjects/dynamic_simple_ops/act_before.npy";
+    BITensor input = utils::create_type_tensor(input_path, input_shape, BIDataType::F16);
+    QATTest::print_new_tensor(input);
+    BITensor output;
+    output.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
+    output.allocator()->allocate();
+
+    BINEActivationLayer activation_layer;
+    BIActivationLayerInfo activation_layer_info(BIActivationFunction::GELU);
+    activation_layer.configure(&input, &output, activation_layer_info);
+    activation_layer.run();
+
+    QATTest::print_tensor(output, "output");
+}
 

@@ -215,6 +215,34 @@ namespace BatmanInfer {
         return std::make_pair(win, split_dimension);
     }
 
+    void dynamic_calculate_squashed_or_max_window(const BIITensorInfo &src, BIWindow &window) {
+        const auto &shape = src.
+                tensor_shape();
+        const auto &strides = src.strides_in_bytes();
+        const auto num_dimensions = src.num_dimensions();
+
+        size_t dim = 0;
+        size_t squashed_bytes = src.element_size();
+
+        // Try to squash the low dimensions together.
+        for (; dim < num_dimensions; ++dim) {
+            if (strides[dim] != squashed_bytes) {
+                break;
+            }
+            squashed_bytes *= shape[dim];
+        }
+        if (dim == num_dimensions) {
+            const auto squashed_elements = squashed_bytes / src.element_size();
+            // The input tensor can be interpreted as 1D array.
+            window.set(0, BIWindow::BIDimension(0, squashed_elements, 1));
+        } else {
+            // Generate the max window.
+            for (dim = 0; dim < BICoordinates::num_max_dimensions; ++dim) {
+                window.set(dim, BIWindow::BIDimension(0, shape[dim], 1));
+            }
+        }
+    }
+
     std::pair<BIWindow, size_t> calculate_squashed_or_max_window(const BIITensorInfo &src0, const BIITensorInfo &src1) {
         const auto &shape0 = src0.tensor_shape(); // 输入的A矩阵形状
         const auto &shape1 = src1.tensor_shape(); // 输入的B矩阵形状

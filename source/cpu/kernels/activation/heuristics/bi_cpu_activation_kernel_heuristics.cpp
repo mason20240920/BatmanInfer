@@ -30,68 +30,86 @@ namespace BatmanInfer {
                     using KernelMap = std::map<BIDataType, KernelList>;
 
                     static const KernelList fp32_kernels = {
-                            {"neon_fp32_activation",
-                             [](const ActivationDataTypeISASelectorData &data) {
-                                 BI_COMPUTE_UNUSED(data);
-                                 return true;
-                             },
-                             REGISTER_FP32_NEON(BatmanInfer::cpu::neon_fp32_activation)},
+                        {
+                            "neon_fp32_activation",
+                            [](const ActivationDataTypeISASelectorData &data) {
+                                BI_COMPUTE_UNUSED(data);
+                                return true;
+                            },
+                            REGISTER_FP32_NEON(BatmanInfer::cpu::neon_fp32_activation)
+                        },
                     };
 
                     static const KernelList fp16_kernels = {
-                            {"neon_fp16_activation", [](
-                                    const ActivationDataTypeISASelectorData &data) { return data.isa.fp16; },
-                             REGISTER_FP16_NEON(BatmanInfer::cpu::neon_fp16_activation)},
+                        {
+                            "neon_fp16_activation", [](
+                        const ActivationDataTypeISASelectorData &data) {
+                                return data.isa.fp16;
+                            },
+                            REGISTER_FP16_NEON(BatmanInfer::cpu::neon_fp16_activation)
+                        },
                     };
 
                     static const KernelList qasymm8_kernels = {
 #ifdef __aarch64__
-                            {// Neon LUT implementantion takes precedence
-                                    "neon_q8_activation_lut",
-                                    [](const ActivationDataTypeISASelectorData &data) {
-                                        return data.f != BatmanInfer::BIActivationLayerInfo::ActivationFunction::RELU;
-                                    },
-                                    REGISTER_Q8_NEON(BatmanInfer::cpu::neon_q8_activation_lut)},
+                        {
+                            // Neon LUT implementantion takes precedence
+                            "neon_q8_activation_lut",
+                            [](const ActivationDataTypeISASelectorData &data) {
+                                return data.f != BatmanInfer::BIActivationLayerInfo::ActivationFunction::RELU;
+                            },
+                            REGISTER_Q8_NEON(BatmanInfer::cpu::neon_q8_activation_lut)
+                        },
 #endif // __aarch64__
-                            {"neon_qu8_activation",
-                             [](const ActivationDataTypeISASelectorData &data) {
-                                 BI_COMPUTE_UNUSED(data);
-                                 return true;
-                             },
-                             REGISTER_QASYMM8_NEON(BatmanInfer::cpu::neon_qasymm8_activation)},
+                        {
+                            "neon_qu8_activation",
+                            [](const ActivationDataTypeISASelectorData &data) {
+                                BI_COMPUTE_UNUSED(data);
+                                return true;
+                            },
+                            REGISTER_QASYMM8_NEON(BatmanInfer::cpu::neon_qasymm8_activation)
+                        },
                     };
 
                     static const KernelList qasymm8_signed_kernels = {
 #ifdef __aarch64__
-                            {// Neon LUT implementantion takes precedence
-                                    "neon_q8_activation_lut",
-                                    [](const ActivationDataTypeISASelectorData &data) {
-                                        return data.f != BatmanInfer::BIActivationLayerInfo::ActivationFunction::RELU;
-                                    },
-                                    REGISTER_Q8_NEON(BatmanInfer::cpu::neon_q8_activation_lut)},
+                        {
+                            // Neon LUT implementantion takes precedence
+                            "neon_q8_activation_lut",
+                            [](const ActivationDataTypeISASelectorData &data) {
+                                return data.f != BatmanInfer::BIActivationLayerInfo::ActivationFunction::RELU;
+                            },
+                            REGISTER_Q8_NEON(BatmanInfer::cpu::neon_q8_activation_lut)
+                        },
 #endif // __aarch64__
-                            {"neon_qs8_activation",
-                             [](const ActivationDataTypeISASelectorData &data) {
-                                 BI_COMPUTE_UNUSED(data);
-                                 return true;
-                             },
-                             REGISTER_QASYMM8_SIGNED_NEON(BatmanInfer::cpu::neon_qasymm8_signed_activation)},
+                        {
+                            "neon_qs8_activation",
+                            [](const ActivationDataTypeISASelectorData &data) {
+                                BI_COMPUTE_UNUSED(data);
+                                return true;
+                            },
+                            REGISTER_QASYMM8_SIGNED_NEON(BatmanInfer::cpu::neon_qasymm8_signed_activation)
+                        },
                     };
 
                     static const KernelList qsymm16_kernels = {
-                            {"neon_qs16_activation",
-                             [](const ActivationDataTypeISASelectorData &data) {
-                                 BI_COMPUTE_UNUSED(data);
-                                 return true;
-                             },
-                             REGISTER_QSYMM16_NEON(BatmanInfer::cpu::neon_qsymm16_activation)},
+                        {
+                            "neon_qs16_activation",
+                            [](const ActivationDataTypeISASelectorData &data) {
+                                BI_COMPUTE_UNUSED(data);
+                                return true;
+                            },
+                            REGISTER_QSYMM16_NEON(BatmanInfer::cpu::neon_qsymm16_activation)
+                        },
                     };
 
-                    static const KernelMap kernels = {{BIDataType::F32,            fp32_kernels},
-                                                      {BIDataType::F16,            fp16_kernels},
-                                                      {BIDataType::QASYMM8,        qasymm8_kernels},
-                                                      {BIDataType::QASYMM8_SIGNED, qasymm8_signed_kernels},
-                                                      {BIDataType::QSYMM16,        qsymm16_kernels}};
+                    static const KernelMap kernels = {
+                        {BIDataType::F32, fp32_kernels},
+                        {BIDataType::F16, fp16_kernels},
+                        {BIDataType::QASYMM8, qasymm8_kernels},
+                        {BIDataType::QASYMM8_SIGNED, qasymm8_signed_kernels},
+                        {BIDataType::QSYMM16, qsymm16_kernels}
+                    };
 
                     /**
                      * 查找第一个大于输入值的元素的索引
@@ -129,33 +147,61 @@ namespace BatmanInfer {
 
                             constexpr int32_t compute_heavy_arr_fp32_len = 26;
                             static const size_t compute_heavy_arr_fp32[2][compute_heavy_arr_fp32_len] = {
-                                    {2000, 4000, 5000, 6000, 8000, 9000, 10000, 20000, 30000, 40000, 50000, 60000, 70000,
-                                                                                                                       80000, 90000, 100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000, 2000000},
-                                    {1,    2,    3,    4,    5,    6,    7,     9,     12,    14,    15,    18,    20, 22,    25,    29,     36,     43,     48,     53,     57,     58,     59,     60,     62,      max_threads}};
+                                {
+                                    2000, 4000, 5000, 6000, 8000, 9000, 10000, 20000, 30000, 40000, 50000, 60000, 70000,
+                                    80000, 90000, 100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000,
+                                    900000, 1000000, 2000000
+                                },
+                                {
+                                    1, 2, 3, 4, 5, 6, 7, 9, 12, 14, 15, 18, 20, 22, 25, 29, 36, 43, 48, 53, 57, 58, 59,
+                                    60, 62, max_threads
+                                }
+                            };
 
                             constexpr int32_t compute_light_arr_fp32_len = 20;
                             static const size_t compute_light_arr_fp32[2][compute_light_arr_fp32_len] = {
-                                    {30000, 40000, 50000, 70000, 80000, 90000, 100000, 200000, 300000, 400000,
-                                                                                                           500000, 600000, 700000, 900000, 1000000, 2000000, 3000000, 4000000, 5000000, 6000000},
-                                    {1,     2,     3,     4,     6,     8,     10,     13,     15,     18, 21,     23,     24,     25,     30,      38,      45,      53,      60,      max_threads}};
+                                {
+                                    30000, 40000, 50000, 70000, 80000, 90000, 100000, 200000, 300000, 400000,
+                                    500000, 600000, 700000, 900000, 1000000, 2000000, 3000000, 4000000, 5000000, 6000000
+                                },
+                                {1, 2, 3, 4, 6, 8, 10, 13, 15, 18, 21, 23, 24, 25, 30, 38, 45, 53, 60, max_threads}
+                            };
 
                             constexpr int32_t compute_heavy_arr_fp16_len = 24;
                             static const size_t compute_heavy_arr_fp16[2][compute_heavy_arr_fp16_len] = {
-                                    {10000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000, 200000, 300000, 400000,
-                                                                                                                         500000, 800000, 900000, 1000000, 2000000, 3000000, 4000000, 5000000, 6000000, 8000000, 10000000, 20000000},
-                                    {1,     2,     3,     5,     6,     7,     8,     10,    13,     17,     20,     23, 25,     28,     32,     37,      43,      49,      55,      58,      60,      61,      62,       max_threads}};
+                                {
+                                    10000, 30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000, 200000, 300000,
+                                    400000,
+                                    500000, 800000, 900000, 1000000, 2000000, 3000000, 4000000, 5000000, 6000000,
+                                    8000000, 10000000, 20000000
+                                },
+                                {
+                                    1, 2, 3, 5, 6, 7, 8, 10, 13, 17, 20, 23, 25, 28, 32, 37, 43, 49, 55, 58, 60, 61, 62,
+                                    max_threads
+                                }
+                            };
 
                             constexpr int32_t compute_light_arr_fp16_len = 20;
                             static const size_t compute_light_arr_fp16[2][compute_light_arr_fp16_len] = {
-                                    {30000, 40000, 50000, 70000, 80000, 90000, 100000, 200000, 300000, 400000,
-                                                                                                           500000, 600000, 700000, 900000, 1000000, 2000000, 3000000, 4000000, 5000000, 6000000},
-                                    {1,     2,     3,     4,     6,     8,     10,     13,     15,     18, 21,     23,     24,     25,     30,      38,      45,      53,      60,      max_threads}};
+                                {
+                                    30000, 40000, 50000, 70000, 80000, 90000, 100000, 200000, 300000, 400000,
+                                    500000, 600000, 700000, 900000, 1000000, 2000000, 3000000, 4000000, 5000000, 6000000
+                                },
+                                {1, 2, 3, 4, 6, 8, 10, 13, 15, 18, 21, 23, 24, 25, 30, 38, 45, 53, 60, max_threads}
+                            };
 
                             constexpr int32_t s8_arr_len = 24;
                             static const size_t s8_arr[2][s8_arr_len] = {
-                                    {7000, 8000, 9000, 10000, 20000, 30000, 40000, 60000, 70000, 90000, 100000, 200000,
-                                                                                                                    300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000, 2000000, 3000000, 8000000, 9000000},
-                                    {1,    2,    3,    4,     6,     7,     10,    11,    13,    15,    19,     23, 26,     31,     37,     40,     44,     48,     52,     54,      58,      61,      62,      max_threads}};
+                                {
+                                    7000, 8000, 9000, 10000, 20000, 30000, 40000, 60000, 70000, 90000, 100000, 200000,
+                                    300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000, 2000000, 3000000,
+                                    8000000, 9000000
+                                },
+                                {
+                                    1, 2, 3, 4, 6, 7, 10, 11, 13, 15, 19, 23, 26, 31, 37, 40, 44, 48, 52, 54, 58, 61,
+                                    62, max_threads
+                                }
+                            };
 
                             const size_t dtype_len = data_size_from_type(dtype);
 
@@ -220,20 +266,21 @@ namespace BatmanInfer {
 
                         return mws;
                     }
-
                 } // namespace
 
                 BICpuActivationKernelHeuristics::BICpuActivationKernelHeuristics(const BIITensorInfo *src,
-                                                                                 const BIITensorInfo *dst,
-                                                                                 const BIActivationLayerInfo &activation_info) {
+                    const BIITensorInfo *dst,
+                    const BIActivationLayerInfo &activation_info) {
                     BI_COMPUTE_UNUSED(dst);
 
                     // 设置内核
                     const BIDataType dtype = src->data_type();
-                    ActivationDataTypeISASelectorData selector{dtype,
-                                                               CPUInfo::get().get_cpu_model(),
-                                                               CPUInfo::get().get_isa(),
-                                                               activation_info.activation()};
+                    ActivationDataTypeISASelectorData selector{
+                        dtype,
+                        CPUInfo::get().get_cpu_model(),
+                        CPUInfo::get().get_isa(),
+                        activation_info.activation()
+                    };
                     const CPUModel cpu_model = CPUInfo::get().get_cpu_model();
                     choose_kernel(selector);
 
@@ -254,6 +301,18 @@ namespace BatmanInfer {
                                              activation_info.activation(),
                                              src->tensor_shape().x());
                 }
+
+                void BICpuActivationKernelHeuristics::dynamic_change_win(const BIITensorInfo *src) {
+                    dynamic_calculate_squashed_or_max_window(*src, _window);
+
+                    // TODO: 因为目前的GeLU激活函数的x轴坐标不会变，所以src->tensor_shape().x()不会变化
+                    // if (_hint.split_dimension() == BIWindow::DimX)
+                    //     _mws = calculate_mws(cpu_model,
+                    //                          src->data_type(),
+                    //                          activation_info.activation(),
+                    //                          src->tensor_shape().x());
+                }
+
 
                 size_t BICpuActivationKernelHeuristics::mws() const {
                     return _mws;

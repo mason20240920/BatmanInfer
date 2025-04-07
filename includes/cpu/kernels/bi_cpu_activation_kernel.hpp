@@ -44,6 +44,12 @@ namespace BatmanInfer {
                 static BIStatus
                 validate(const BIITensorInfo *src, const BIITensorInfo *dst, const BIActivationLayerInfo &act_info);
 
+                /**
+                 * @brief 动态修改窗口
+                 * @param src
+                 */
+                void dynamic_change_win(const BIITensorInfo *src);
+
                 /** Return minimum workload size of the relevant kernel
                  *
                  * @param[in] platform     The CPU platform used to create the context.
