@@ -47,6 +47,8 @@ namespace BatmanInfer {
             void configure(const BIITensorInfo *src, BIITensorInfo *dst, float beta = 1.0f, int32_t axis = 0,
                            bool is_log = false);
 
+            void dynamic_configure(const BIITensorInfo *src, const BIITensorInfo *dst) const;
+
             /** Static function to check if given info will lead to a valid configuration
              *
              * Similar to @ref CpuSoftmaxGeneric::configure()

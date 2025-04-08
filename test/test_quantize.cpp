@@ -311,7 +311,7 @@ namespace QATTest {
     template<typename T>
     void fill_new_tensor_val(const BITensor &tensor, const T val) {
         auto tensor_ptr = reinterpret_cast<T *>(tensor.buffer());
-        size_t num_elements = tensor.info()->tensor_shape().total_size(); // 获取元素数量
+        size_t num_elements = tensor.info()->tensor_shape().total_size() / tensor.info()->element_size(); // 获取元素数量
         for (size_t i = 0; i < num_elements; ++i) {
             tensor_ptr[i] = val;
         }
@@ -320,7 +320,7 @@ namespace QATTest {
     template<typename T>
     void fill_from_one(const BITensor &tensor) {
         auto tensor_ptr = reinterpret_cast<T *>(tensor.buffer());
-        size_t num_elements = tensor.info()->tensor_shape().total_size();
+        size_t num_elements = tensor.info()->tensor_shape().total_size() / tensor.info()->element_size();
         // 获取元素数量
         for (size_t i = 0; i < num_elements; ++i) {
             tensor_ptr[i] = static_cast<T>(i) * 0.00001;
@@ -1141,6 +1141,32 @@ TEST(DynamicTensor, DynamicTensorTest) {
     add_f.dynamic_configure(&input, &sub_tensor, true);
     add_f.run();
     QATTest::print_tensor(output, "output2"); // 2. 定义要提取的子张量信息
+}
+
+TEST(DynamicTensor, DynamicSoftmax) {
+    BITensor input, output;
+    auto shape1 = BITensorShape(2, 4);
+    input.allocator()->init(BITensorInfo(shape1, 1, BIDataType::F16));
+    input.allocator()->allocate();
+    QATTest::fill_new_tensor_val(input, 1);
+    output.allocator()->init(BITensorInfo(shape1, 1, BIDataType::F16));
+    output.allocator()->allocate();
+
+    BINESoftmaxLayerGeneric<false> softmax_f;
+    softmax_f.configure(&input, &output, 1.0f, 0);
+    softmax_f.run();
+    QATTest::print_tensor(output, "output1");
+
+    auto shape2 = BITensorShape(4, 2);
+    input.allocator()->init(BITensorInfo(shape2, 1, BIDataType::F16));
+    input.allocator()->allocate();
+    QATTest::fill_new_tensor_val(input, 1);
+    output.allocator()->init(BITensorInfo(shape2, 1, BIDataType::F16));
+    output.allocator()->allocate();
+
+    softmax_f.dynamic_configure();
+    softmax_f.run();
+    QATTest::print_tensor(output, "output2");
 }
 
 TEST(DynamicTensor, DynamicGeLU) {

@@ -63,6 +63,11 @@ namespace BatmanInfer {
             }
         }
 
+        void BICpuSoftmaxGeneric::dynamic_configure(const BIITensorInfo *src, const BIITensorInfo *dst) const {
+            auto sm = dynamic_cast<kernels::BICpuSoftmaxKernel *>(_softmax_kernel.get());
+            sm->dynamic_configure(src, dst);
+        }
+
         BIStatus
         BICpuSoftmaxGeneric::validate(const BIITensorInfo *src, const BIITensorInfo *dst, float beta, int32_t axis,
                                       bool is_log) {

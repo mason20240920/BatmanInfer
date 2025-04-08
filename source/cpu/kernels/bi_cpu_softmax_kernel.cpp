@@ -109,6 +109,15 @@ namespace BatmanInfer {
 
                     return BIStatus{};
                 }
+
+                BIStatus simple_validate_arguments_softmax(const BIITensorInfo *src, const BIITensorInfo *dst) {
+                    if (dst->total_size() != 0) {
+                        BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(src, dst);
+                        BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_SHAPES(src, dst);
+                    }
+
+                    return BIStatus{};
+                }
             } // namespace
 
             const std::vector<typename BICpuSoftmaxKernel::BISoftmaxKernel> &
@@ -193,6 +202,29 @@ namespace BatmanInfer {
                 }
 #endif // __aarch64__
             }
+
+            void BICpuSoftmaxKernel::dynamic_configure(const BIITensorInfo *src, const BIITensorInfo *dst) {
+                BI_COMPUTE_ERROR_THROW_ON(simple_validate_arguments_softmax(src, dst));
+
+                BIWindow win;
+                int vec_size = static_cast<int>(16 / dst->element_size());
+
+                if (_axis == 0) {
+                    win = calculate_max_window(*dst, BISteps());
+                    if (!has_holes(*dst, dst->num_dimensions() - 1)) {
+                        win = win.collapse(win, BIWindow::DimY);
+                    }
+                } else if (_axis > 0 && _axis <= 3) {
+                    win = calculate_max_window(*dst, BISteps(vec_size));
+                } else {
+                    BI_COMPUTE_ERROR("Invalid axis");
+                }
+
+                win.set(_axis, BIWindow::BIDimension(0, 1, 1));
+
+                BIICpuKernel<BICpuSoftmaxKernel>::dynamic_configure(win);
+            }
+
 
             BIStatus BICpuSoftmaxKernel::validate(
                     const BIITensorInfo *src, const BIITensorInfo *dst, float beta, int axis, bool is_log,

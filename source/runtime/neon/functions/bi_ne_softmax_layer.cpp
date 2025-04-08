@@ -54,6 +54,11 @@ namespace BatmanInfer {
     }
 
     template<bool IS_LOG>
+    void BINESoftmaxLayerGeneric<IS_LOG>::dynamic_configure() {
+        _impl->op->dynamic_configure(_impl->src->info(), _impl->dst->info());
+    }
+
+    template<bool IS_LOG>
     BIStatus
     BINESoftmaxLayerGeneric<IS_LOG>::validate(const BIITensorInfo *input, const BIITensorInfo *output, float beta,
                                               int32_t axis) {

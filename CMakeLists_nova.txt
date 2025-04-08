@@ -5,9 +5,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 # 指定标准库为 libc++
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-endif()
+endif ()
 option(ENABLE_BENCHMARK "For enable benchmark" OFF)
 
 add_definitions(-DONNX_ML)
@@ -94,14 +94,20 @@ if (ANDROID)
     set(GLOG_LIBRARIES "${CMAKE_SOURCE_DIR}/third_party/glog/lib/libglog.a")
 else ()
     # 查找OpenMP
-    # set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
-    # set(OpenMP_C_LIB_NAMES "omp")
-    # set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
-    # set(OpenMP_INCLUDE "/opt/homebrew/opt/libomp/include")
-    set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/Cellar/libomp/19.1.7/include")
-    set(OpenMP_C_LIB_NAMES "omp")
-    set(OpenMP_omp_LIBRARY "/opt/homebrew/Cellar/libomp/19.1.7/lib/libomp.dylib")
-    set(OpenMP_INCLUDE "/opt/homebrew/Cellar/libomp/19.1.7/include")
+    find_package(OpenMP)
+    if (OpenMP_CXX_FOUND)
+        message("OpenMP(first find): " "${OpenMP_C_LIB_NAMES}")
+        set(CMAKE_CXX_FLAGES "${CMAKE_CXX_FLAGES} ${OpenMP_CXX_FLAGES}")
+    else ()
+        set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/Cellar/libomp/19.1.7/include")
+        set(OpenMP_C_LIB_NAMES "omp")
+        set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/Cellar/libomp/19.1.7/include")
+        set(OpenMP_CXX_LIB_NAMES "omp")
+        set(OpenMP_omp_LIBRARY "/opt/homebrew/Cellar/libomp/19.1.7/lib/libomp.dylib")
+        set(OpenMP_INCLUDE "/opt/homebrew/Cellar/libomp/19.1.7/include")
+        find_package(OpenMP REQUIRED)
+        message("OpenMP(second find): " "${OpenMP_CXX_LIB_NAMES}")
+    endif ()
 
     message(STATUS "Configuring for non-Android platform")
     # 查找Armadillo库
@@ -184,7 +190,7 @@ link_directories(${GLOG_LIBRARY_DIRS}
 )
 
 # 文件列表拆分
-include (${CMAKE_CURRENT_LIST_DIR}/CMake_files.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/CMake_files.cmake)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer
@@ -195,9 +201,10 @@ target_link_libraries(BatmanInfer
         ${Protobuf_LIBRARIES}
         ${OpenCV_LIBS}
         ${ONNX_LIBRARIES}/libonnx.a
-        ${OpenMP_omp_LIBRARY}
+        # ${OpenMP_omp_LIBRARY}
         ${ABSEL_LIBARARY}
         ${UTF8RANGE_LIBRARY}
+        OpenMP::OpenMP_CXX
 )
 
 if (ANDROID)
@@ -218,6 +225,7 @@ if (ENABLE_BENCHMARK)
             ${OpenMP_omp_LIBRARY}
             ${ABSEL_LIBARARY}
             ${UTF8RANGE_LIBRARY}
+            OpenMP::OpenMP_CXX
             benchmark::benchmark
     )
 endif ()

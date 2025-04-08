@@ -64,6 +64,11 @@ namespace BatmanInfer {
          */
         void configure(BIITensor *input, BIITensor *output, float beta = 1.0f, int32_t axis = 0);
 
+        /**
+         * 用于在动态改变 input 与 output 的 shape 后调整算子内部信息
+         */
+        void dynamic_configure();
+
         /** Static function to check if given info will lead to a valid configuration of @ref BINESoftmaxLayer
          *
          * @param[in] input  Source tensor info. Data types supported: QASYMM8/QASYMM8_SIGNED/F16/F32.

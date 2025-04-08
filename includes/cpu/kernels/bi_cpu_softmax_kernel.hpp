@@ -41,6 +41,14 @@ namespace BatmanInfer {
                                int axis,
                                BIITensorInfo *tmp);
 
+                /**
+                 * 在正式 run 之前再次对 softmax 算子进行设置，适配动态输入
+                 * @param src 输入张量
+                 * @param dst 输出张量
+                 */
+                void dynamic_configure(const BIITensorInfo *src,
+                                       const BIITensorInfo *dst);
+
                 /** Static function to check if given info will lead to a valid configuration
                 *
                 * Similar to CpuSoftmaxKernel::configure()
