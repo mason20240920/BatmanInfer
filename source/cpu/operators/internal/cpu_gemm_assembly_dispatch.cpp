@@ -101,13 +101,15 @@ namespace BatmanInfer {
                                       const BIITensorInfo *d,
                                       const BIAsmGemmInfo &info) {
                 BI_COMPUTE_ERROR_ON_NULLPTR(a, b, d);
-                Params p{/* M */ static_cast<unsigned int>(d->tensor_shape().y()),
-                        /* N */ static_cast<unsigned int>(d->tensor_shape().x()),
-                        /* K */ static_cast<unsigned int>(a->tensor_shape().x()),
-                        /* batches */ 1,
-                        /* multis */ 1,
-                        /* sections */ 1,
-                        /* indirect */ false}; // 默认的是[M: 输出张量的y轴, 输出张量的x轴, 输入张量的x轴]
+                Params p{
+                    /* M */ static_cast<unsigned int>(d->tensor_shape().y()),
+                    /* N */ static_cast<unsigned int>(d->tensor_shape().x()),
+                    /* K */ static_cast<unsigned int>(a->tensor_shape().x()),
+                    /* batches */ 1,
+                    /* multis */ 1,
+                    /* sections */ 1,
+                    /* indirect */ false
+                }; // 默认的是[M: 输出张量的y轴, 输出张量的x轴, 输入张量的x轴]
 
                 if (info.method == BIAsmConvMethod::Conv || info.method == BIAsmConvMethod::Indirect) {
                     p.indirect = true;
@@ -135,13 +137,15 @@ namespace BatmanInfer {
             Params extract_simplify_parameters(const BIITensorInfo *a,
                                                const BIITensorInfo *b,
                                                const BIITensorInfo *d) {
-                Params p{/* M */ static_cast<unsigned int>(d->tensor_shape().y()),
-                        /* N */ static_cast<unsigned int>(d->tensor_shape().x()),
-                        /* K */ static_cast<unsigned int>(a->tensor_shape().x()),
-                        /* batches */ 1,
-                        /* multis */ 1,
-                        /* sections */ 1,
-                        /* indirect */ false}; // 默认的是[M: 输出张量的y轴, 输出张量的x轴, 输入张量的x轴]
+                Params p{
+                    /* M */ static_cast<unsigned int>(d->tensor_shape().y()),
+                    /* N */ static_cast<unsigned int>(d->tensor_shape().x()),
+                    /* K */ static_cast<unsigned int>(a->tensor_shape().x()),
+                    /* batches */ 1,
+                    /* multis */ 1,
+                    /* sections */ 1,
+                    /* indirect */ false
+                }; // 默认的是[M: 输出张量的y轴, 输出张量的x轴, 输入张量的x轴]
                 p.multis = b->tensor_shape().z(); // b张量的三维的z轴(并行模块)
                 p.batches = d->tensor_shape().total_size_upper(2) / p.multis; // d张量大于维度2, z轴以上的所有进行并行
                 return p;
@@ -176,15 +180,15 @@ namespace BatmanInfer {
                                                           BIIScheduler::BIStrategyHint::DYNAMIC,
                                                           granule_threshold);
                 else if (method == BatmanGemm::GemmMethod::GEMM_INTERLEAVED_2D && (data_type == BIDataType::F32 ||
-                                                                                   data_type == BIDataType::F16 ||
-                                                                                   data_type == BIDataType::U8 ||
-                                                                                   data_type == BIDataType::S8))
+                             data_type == BIDataType::F16 ||
+                             data_type == BIDataType::U8 ||
+                             data_type == BIDataType::S8))
                     scheduling_hint = BIIScheduler::Hints(BIIScheduler::split_dimensions_all,
                                                           BIIScheduler::BIStrategyHint::STATIC,
                                                           granule_threshold);
                 else if (method == BatmanGemm::GemmMethod::QUANTIZE_WRAPPER_2D && (data_type == BIDataType::QASYMM8 ||
-                                                                                   data_type ==
-                                                                                   BIDataType::QASYMM8_SIGNED))
+                             data_type ==
+                             BIDataType::QASYMM8_SIGNED))
                     scheduling_hint = BIIScheduler::Hints(BIIScheduler::split_dimensions_all,
                                                           BIIScheduler::BIStrategyHint::STATIC,
                                                           granule_threshold);
@@ -199,7 +203,8 @@ namespace BatmanInfer {
              * @tparam TypeOutput
              * @tparam OutputStage
              */
-            template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage = BatmanGemm::Nothing>
+            template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage =
+                BatmanGemm::Nothing>
             class Fallback : public BICpuGemmAssemblyDispatch::IFallback {
             public:
                 /**
@@ -252,7 +257,7 @@ namespace BatmanInfer {
                     }
                     const BatmanInfer::BIWeightFormat wf =
                             assembly_utils::map_to_batman_compute_weight_format(
-                                    _gemm_kernel_asm->get_config().weight_format);
+                                _gemm_kernel_asm->get_config().weight_format);
                     return wf != BatmanInfer::BIWeightFormat::UNSPECIFIED && wf != BatmanInfer::BIWeightFormat::ANY;
                 }
 
@@ -271,11 +276,11 @@ namespace BatmanInfer {
                                 this->set_requantize_data(output_info.gemmlowp_multipliers,
                                                           output_info.gemmlowp_shifts);
                         gemm_re_quant_info = BatmanGemm::Requantize32(
-                                nullptr, 0, a_offset, b_offset, output_info.gemmlowp_offset,
-                                (std::get<0>(re_quantize_data)) ? std::get<1>(re_quantize_data) : nullptr,
-                                std::get<2>(re_quantize_data),
-                                std::get<3>(re_quantize_data), output_info.gemmlowp_min_bound,
-                                output_info.gemmlowp_max_bound);
+                            nullptr, 0, a_offset, b_offset, output_info.gemmlowp_offset,
+                            (std::get<0>(re_quantize_data)) ? std::get<1>(re_quantize_data) : nullptr,
+                            std::get<2>(re_quantize_data),
+                            std::get<3>(re_quantize_data), output_info.gemmlowp_min_bound,
+                            output_info.gemmlowp_max_bound);
                     } else {
                         gemm_re_quant_info = BatmanGemm::Requantize32(nullptr, 0, a_offset, b_offset,
                                                                       output_info.gemmlowp_offset,
@@ -288,8 +293,9 @@ namespace BatmanInfer {
                     _gemm_kernel_asm->update_quantization_parameters(gemm_re_quant_info);
 
                     // After update_quantization_parameters(), window may change, reconfigure it.
-                    auto *opt = reinterpret_cast<kernel::BICpuGemmAssemblyWrapperKernel<TypeInput, TypeWeight, TypeOutput> *>(
-                            _optimised_kernel.get());
+                    auto *opt = reinterpret_cast<kernel::BICpuGemmAssemblyWrapperKernel<TypeInput, TypeWeight,
+                        TypeOutput> *>(
+                        _optimised_kernel.get());
                     const BIWindow win = to_window(_gemm_kernel_asm->get_window_size());
                     opt->configure_window(win);
 
@@ -332,7 +338,7 @@ namespace BatmanInfer {
                 /** Operator to transpose B before gemm or pretranspose_B_array*/
                 std::unique_ptr<BICpuTranspose> _pre_pretranspose_b{nullptr};
                 /** 汇编GEMM内核 */
-                std::shared_ptr<BatmanGemm::BIGemmCommon<TypeInput, TypeWeight, TypeOutput>> _gemm_kernel_asm{nullptr};
+                std::shared_ptr<BatmanGemm::BIGemmCommon<TypeInput, TypeWeight, TypeOutput> > _gemm_kernel_asm{nullptr};
                 /** Optimised Arm® Neon™ kernel */
                 std::unique_ptr<BIINEKernel> _optimised_kernel{nullptr};
                 /** Assembly GEMM workspace tensor info */
@@ -377,7 +383,7 @@ namespace BatmanInfer {
             template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage>
             size_t
             BatmanInfer::cpu::Fallback<TypeInput, TypeWeight, TypeOutput, OutputStage>::dynamic_tensor_b(
-                    size_t &align) const {
+                size_t &align) const {
                 align = 128;
                 return _gemm_kernel_asm->get_B_pretransposed_array_size();
             }
@@ -385,8 +391,8 @@ namespace BatmanInfer {
             template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage>
             void
             BatmanInfer::cpu::Fallback<TypeInput, TypeWeight, TypeOutput, OutputStage>::update_configure_parameters(
-                    const BatmanInfer::BIITensorInfo *a, const BatmanInfer::BIITensorInfo *b,
-                    const BatmanInfer::BIITensorInfo *d) {
+                const BatmanInfer::BIITensorInfo *a, const BatmanInfer::BIITensorInfo *b,
+                const BatmanInfer::BIITensorInfo *d) {
                 Params p = extract_simplify_parameters(a, b, d);
                 _gemm_kernel_asm->set_dynamic_M_size(p.M);
                 _gemm_kernel_asm->set_dynamic_batch_size(p.batches);
@@ -396,8 +402,8 @@ namespace BatmanInfer {
             template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage>
             std::tuple<bool, const int32_t *, const int32_t *, const int32_t *>
             Fallback<TypeInput, TypeWeight, TypeOutput, OutputStage>::set_requantize_data(
-                    const std::vector<int32_t> &shifts,
-                    const std::vector<int32_t> &multipliers) {
+                const std::vector<int32_t> &shifts,
+                const std::vector<int32_t> &multipliers) {
                 _multipliers = multipliers;
                 _shifts = shifts;
                 bool need_left = false;
@@ -413,7 +419,7 @@ namespace BatmanInfer {
 
             template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage>
             void Fallback<TypeInput, TypeWeight, TypeOutput, OutputStage>::prepare_indirect_buffer(
-                    BatmanInfer::BIITensorPack &tensors) {
+                BatmanInfer::BIITensorPack &tensors) {
                 auto a = tensors.get_const_tensor(BITensorType::ACL_SRC_0);
                 const TypeInput *A_ptr = reinterpret_cast<TypeInput *>(a->buffer());
                 const int multis = 1;
@@ -463,11 +469,11 @@ namespace BatmanInfer {
 
             template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage>
             void Fallback<TypeInput, TypeWeight, TypeOutput, OutputStage>::configure_indirect(const BIITensorInfo *a,
-                                                                                              const BIITensorInfo *b,
-                                                                                              const BIITensorInfo *d,
-                                                                                              const BIAsmGemmInfo &info) {
+                const BIITensorInfo *b,
+                const BIITensorInfo *d,
+                const BIAsmGemmInfo &info) {
                 BI_COMPUTE_ERROR_ON(
-                        !(info.method == BIAsmConvMethod::Conv || info.method == BIAsmConvMethod::Indirect));
+                    !(info.method == BIAsmConvMethod::Conv || info.method == BIAsmConvMethod::Indirect));
 
                 float zeropad = 0.f;
                 if (is_data_type_quantized(a->data_type())) {
@@ -482,20 +488,22 @@ namespace BatmanInfer {
                 const auto output_width = static_cast<int64_t>(d->tensor_shape()[1]);
                 const auto output_height = static_cast<int64_t>(d->tensor_shape()[2]);
 
-                _cp = {input_width,
-                       input_height,
-                       input_channels,
-                       kernel_width,
-                       kernel_height,
-                       output_width,
-                       output_height,
-                       info.ps_info.stride().first,
-                       info.ps_info.stride().second,
-                       1,
-                       1,
-                       info.padding_top,
-                       info.padding_left,
-                       zeropad};
+                _cp = {
+                    input_width,
+                    input_height,
+                    input_channels,
+                    kernel_width,
+                    kernel_height,
+                    output_width,
+                    output_height,
+                    info.ps_info.stride().first,
+                    info.ps_info.stride().second,
+                    1,
+                    1,
+                    info.padding_top,
+                    info.padding_left,
+                    zeropad
+                };
 
                 if (info.method == BIAsmConvMethod::Conv) {
                     _gemm_kernel_asm->set_convolution_parameters(_cp);
@@ -515,7 +523,7 @@ namespace BatmanInfer {
 
                     _indirect_buf = std::vector<const TypeInput *>(multi_size * multis);
                     _indirect_arg = std::vector<const TypeInput *const *>(
-                            sizeof(TypeInput **) * kernel_hw * multis * batches);
+                        sizeof(TypeInput **) * kernel_hw * multis * batches);
                     _indirect_pad = std::vector<TypeInput>(_cp.input_channels, TypeInput(zeropad));
 
                     // Set indirect argument
@@ -535,12 +543,12 @@ namespace BatmanInfer {
 
             template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage>
             void Fallback<TypeInput, TypeWeight, TypeOutput, OutputStage>::configure(const BIITensorInfo *a,
-                                                                                     const BIITensorInfo *b,
-                                                                                     const BIITensorInfo *c,
-                                                                                     BIITensorInfo *d,
-                                                                                     BatmanGemm::GemmArgs args,
-                                                                                     const BIAsmGemmInfo &gemm_info,
-                                                                                     const OutputStage &os) {
+                const BIITensorInfo *b,
+                const BIITensorInfo *c,
+                BIITensorInfo *d,
+                BatmanGemm::GemmArgs args,
+                const BIAsmGemmInfo &gemm_info,
+                const OutputStage &os) {
                 _is_b_constant = b->are_values_constant();
                 _is_c_constant = c ? c->are_values_constant() : true;
 
@@ -553,7 +561,8 @@ namespace BatmanInfer {
                 BatmanGemm::GemmConfig gemm_cfg = _gemm_kernel_asm->get_config();
 
                 // batman infer wrapper for the Gemm object (see above)
-                auto acl_gemm_wrapper = std::make_unique<kernel::BICpuGemmAssemblyWrapperKernel<TypeInput, TypeWeight, TypeOutput>>();
+                auto acl_gemm_wrapper = std::make_unique<kernel::BICpuGemmAssemblyWrapperKernel<TypeInput, TypeWeight,
+                    TypeOutput> >();
                 BI_COMPUTE_ERROR_ON(acl_gemm_wrapper == nullptr);
                 acl_gemm_wrapper->configure(_gemm_kernel_asm.get(), gemm_cfg.filter);
                 const size_t workspace_size = _gemm_kernel_asm->get_working_size();
@@ -613,8 +622,8 @@ namespace BatmanInfer {
                 if (_B_pretranspose_required) {
                     // Fixed format kernels need no pretranspose.
                     BI_COMPUTE_ERROR_ON(BatmanInfer::is_fixed_format(
-                            assembly_utils::map_to_batman_compute_weight_format(
-                                    _gemm_kernel_asm->get_config().weight_format)));
+                        assembly_utils::map_to_batman_compute_weight_format(
+                            _gemm_kernel_asm->get_config().weight_format)));
                     // Forcing 128-byte alignment (required by 32-bit kernels)
                     const unsigned int alignment = 128;
                     const size_t B_pretranspose_size = _gemm_kernel_asm->get_B_pretransposed_array_size();
@@ -648,24 +657,26 @@ namespace BatmanInfer {
                     // Setup up matrix bias in the assembly kernel, it's just a pointer to matrix C.
                     if (c && c->info()->data_type() == BIDataType::S32) {
                         _gemm_kernel_asm->set_quantized_bias(
-                                reinterpret_cast<const int32_t *>(c->buffer() +
-                                                                  c->info()->offset_first_element_in_bytes()),
-                                0);
+                            reinterpret_cast<const int32_t *>(c->buffer() +
+                                                              c->info()->offset_first_element_in_bytes()),
+                            0);
                     }
                     const BIITensor *b_to_use = b;
 
                     // Pre-pretranspose B if required
                     CpuAuxTensorHandler pre_pretransposed_b(
-                            offset_int_vec(PrePretransposedB), _pre_pretransposed_b_info, tensors,
-                            /*pack_inject: no need to inject into tensors*/
-                            false,
-                            /*bypass_alloc: no need to allocate if pre-pretranspose B is not required as this handle will not be used*/
-                            !_run_pre_pretranspose_b);
+                        offset_int_vec(PrePretransposedB), _pre_pretransposed_b_info, tensors,
+                        /*pack_inject: no need to inject into tensors*/
+                        false,
+                        /*bypass_alloc: no need to allocate if pre-pretranspose B is not required as this handle will not be used*/
+                        !_run_pre_pretranspose_b);
 
                     if (_run_pre_pretranspose_b) {
                         BI_COMPUTE_ERROR_ON(_pre_pretranspose_b == nullptr);
-                        BIITensorPack pre_pretranspose_pack{{ACL_SRC, b_to_use},
-                                                            {ACL_DST, pre_pretransposed_b.get()}};
+                        BIITensorPack pre_pretranspose_pack{
+                            {ACL_SRC, b_to_use},
+                            {ACL_DST, pre_pretransposed_b.get()}
+                        };
                         _pre_pretranspose_b->run(pre_pretranspose_pack);
                         b_to_use = pre_pretransposed_b.get();
                     }
@@ -674,11 +685,11 @@ namespace BatmanInfer {
                     if (_B_pretranspose_required) {
                         // Fixed format kernels need no pretranspose.
                         BI_COMPUTE_ERROR_ON(BatmanInfer::is_fixed_format(
-                                assembly_utils::map_to_batman_compute_weight_format(
-                                        _gemm_kernel_asm->get_config().weight_format)));
+                            assembly_utils::map_to_batman_compute_weight_format(
+                                _gemm_kernel_asm->get_config().weight_format)));
                         const int ldb = b_to_use->info()->strides_in_bytes().y() / b_to_use->info()->element_size();
                         const auto in1_ptr = reinterpret_cast<const TypeWeight *>(
-                                b_to_use->buffer() + b_to_use->info()->offset_first_element_in_bytes());
+                            b_to_use->buffer() + b_to_use->info()->offset_first_element_in_bytes());
                         const int multi_stride_b =
                                 b_to_use->info()->strides_in_bytes().z() / b_to_use->info()->element_size();
 
@@ -689,9 +700,9 @@ namespace BatmanInfer {
 
                         const bool kernel_supports_transpose = _gemm_kernel_asm->B_pretranspose_supports_transpose();
                         run_parallel_pre_transpose_b_array<TypeInput, TypeWeight, TypeOutput>(
-                                _gemm_kernel_asm.get(), pretranspose.get(), in1_ptr, ldb, multi_stride_b,
-                                BINEScheduler::get().num_threads(),
-                                _B_pre_pretranspose_required && kernel_supports_transpose);
+                            _gemm_kernel_asm.get(), pretranspose.get(), in1_ptr, ldb, multi_stride_b,
+                            BINEScheduler::get().num_threads(),
+                            _B_pre_pretranspose_required && kernel_supports_transpose);
 
                         b->mark_as_unused();
                         // Note that we don't need to mark b_to_use as unused, as if it's been assigned to pre_pretransposed_b,
@@ -755,7 +766,8 @@ namespace BatmanInfer {
                 const int multi_stride_d = d->info()->strides_in_bytes()[d_multi_idx] / d->info()->element_size();
                 // 获取输入、权重和输出的数据指针
                 auto in0_ptr = reinterpret_cast<const TypeInput *>(a->buffer() +
-                                                                   a->info()->offset_first_element_in_bytes()); // a矩阵的首个指针
+                                                                   a->info()->offset_first_element_in_bytes());
+                // a矩阵的首个指针
                 const TypeWeight *in1_ptr = nullptr;
                 auto out_ptr = reinterpret_cast<TypeOutput *>(d->buffer() +
                                                               d->info()->offset_first_element_in_bytes()); // d矩阵的数据指针位置
@@ -764,13 +776,16 @@ namespace BatmanInfer {
 
                 // Pre-pretranspose B if required
                 CpuAuxTensorHandler pre_pretransposed_b(
-                        offset_int_vec(PrePretransposedB), _pre_pretransposed_b_info, tensors,
-                        false /*pack_inject: no need to inject into tensors*/,
-                        !_run_pre_pretranspose_b /*bypass_alloc: no need to allocate if pre-pretranspose B is not required as this handle will not be used*/);
+                    offset_int_vec(PrePretransposedB), _pre_pretransposed_b_info, tensors,
+                    false /*pack_inject: no need to inject into tensors*/,
+                    !_run_pre_pretranspose_b
+                    /*bypass_alloc: no need to allocate if pre-pretranspose B is not required as this handle will not be used*/);
                 if (b_to_use && !_is_b_constant && _run_pre_pretranspose_b) {
                     BI_COMPUTE_ERROR_ON(_pre_pretranspose_b == nullptr);
-                    BIITensorPack pre_pretranspose_pack{{ACL_SRC, b_to_use},
-                                                        {ACL_DST, pre_pretransposed_b.get()}};
+                    BIITensorPack pre_pretranspose_pack{
+                        {ACL_SRC, b_to_use},
+                        {ACL_DST, pre_pretransposed_b.get()}
+                    };
                     _pre_pretranspose_b->run(pre_pretranspose_pack);
                     b_to_use = pre_pretransposed_b.get();
                 }
@@ -788,20 +803,20 @@ namespace BatmanInfer {
                     (c && !_is_c_constant && c->info()->data_type() == BIDataType::S32)) {
                     if (c && c->info()->data_type() == BIDataType::S32) {
                         _gemm_kernel_asm->set_quantized_bias(
-                                reinterpret_cast<const int32_t *>(c->buffer() +
-                                                                  c->info()->offset_first_element_in_bytes()),
-                                0);
+                            reinterpret_cast<const int32_t *>(c->buffer() +
+                                                              c->info()->offset_first_element_in_bytes()),
+                            0);
                     }
 
                     // Pretranspose B if required
                     if (b_to_use && _B_pretranspose_required) {
                         // Fixed format kernels need no pretranspose.
                         BI_COMPUTE_ERROR_ON(BatmanInfer::is_fixed_format(
-                                assembly_utils::map_to_batman_compute_weight_format(
-                                        _gemm_kernel_asm->get_config().weight_format)));
+                            assembly_utils::map_to_batman_compute_weight_format(
+                                _gemm_kernel_asm->get_config().weight_format)));
                         const int ldb = b_to_use->info()->strides_in_bytes().y() / b_to_use->info()->element_size();
                         const auto b_ptr = reinterpret_cast<const TypeWeight *>(b_to_use->buffer() +
-                                                                                b_to_use->info()->offset_first_element_in_bytes());
+                            b_to_use->info()->offset_first_element_in_bytes());
                         const int multi_stride_b =
                                 b_to_use->info()->strides_in_bytes().z() / b_to_use->info()->element_size();
 
@@ -812,11 +827,12 @@ namespace BatmanInfer {
                         if (_is_b_constant) {
                             _gemm_kernel_asm->requantize_bias(pretranspose.get()->buffer(), b_ptr, ldb, multi_stride_b);
                         } else {
-                            const bool kernel_supports_transpose = _gemm_kernel_asm->B_pretranspose_supports_transpose();
+                            const bool kernel_supports_transpose = _gemm_kernel_asm->
+                                    B_pretranspose_supports_transpose();
                             run_parallel_pre_transpose_b_array<TypeInput, TypeWeight, TypeOutput>(
-                                    _gemm_kernel_asm.get(), pretranspose.get(), b_ptr, ldb, multi_stride_b,
-                                    BINEScheduler::get().num_threads(),
-                                    _B_pre_pretranspose_required && kernel_supports_transpose);
+                                _gemm_kernel_asm.get(), pretranspose.get(), b_ptr, ldb, multi_stride_b,
+                                BINEScheduler::get().num_threads(),
+                                _B_pre_pretranspose_required && kernel_supports_transpose);
                         }
                     }
                 }
@@ -878,10 +894,11 @@ namespace BatmanInfer {
                 out_tensor.allocator()->import_memory(out_ptr);
 
                 BIITensorPack gemm_pack{
-                        {ACL_SRC_0, &in0_tensor},
-                        {ACL_SRC_1, &in1_tensor},
-                        {ACL_SRC_2, &bias_tensor},
-                        {ACL_DST,   &out_tensor}};
+                    {ACL_SRC_0, &in0_tensor},
+                    {ACL_SRC_1, &in1_tensor},
+                    {ACL_SRC_2, &bias_tensor},
+                    {ACL_DST, &out_tensor}
+                };
 
                 // Set gemm parameters
                 _gemm_kernel_asm->set_arrays(in0_ptr, lda, batch_stride_a, multi_stride_a, in1_ptr, ldb, multi_stride_b,
@@ -891,15 +908,15 @@ namespace BatmanInfer {
                 // configure the window, if window is change, just dynamic change the window
                 auto is_dynamic_m = _gemm_kernel_asm->set_dynamic_M_size(in0_tensor.info()->tensor_shape().y());
                 auto is_dynamic_batch = _gemm_kernel_asm->set_dynamic_batch_size(
-                        in0_tensor.info()->tensor_shape().z());
+                    in0_tensor.info()->tensor_shape().z());
                 auto is_dynamic_multi = _gemm_kernel_asm->set_dynamic_nmulti_size(
-                        in0_tensor.info()->tensor_shape()[3]);
-//
-//                if (is_dynamic_m || is_dynamic_batch || is_dynamic_multi) {
-//                    _gemm_kernel_asm->update_parameters();
-//                    BIWindow win = to_window(_gemm_kernel_asm->get_window_size());
-//                    _optimised_kernel->dynamic_configure(win);
-//                }
+                    in0_tensor.info()->tensor_shape()[3]);
+                //
+                //                if (is_dynamic_m || is_dynamic_batch || is_dynamic_multi) {
+                //                    _gemm_kernel_asm->update_parameters();
+                //                    BIWindow win = to_window(_gemm_kernel_asm->get_window_size());
+                //                    _optimised_kernel->dynamic_configure(win);
+                //                }
                 _gemm_kernel_asm->update_parameters();
                 BIWindow win = to_window(_gemm_kernel_asm->get_window_size());
                 _optimised_kernel->dynamic_configure(win);
@@ -929,7 +946,7 @@ namespace BatmanInfer {
                                           info.fixed_format, info.fast_mode, info.accumulate, &cfg);
 
                 // Create arm_gemm fallback
-                auto fallback = std::make_unique<Fallback<TypeInput, TypeWeight, TypeOutput>>();
+                auto fallback = std::make_unique<Fallback<TypeInput, TypeWeight, TypeOutput> >();
                 fallback->configure(a, b, c, d, args, info);
                 arm_gemm = std::move(fallback);
             }
@@ -955,7 +972,8 @@ namespace BatmanInfer {
                                           info.fixed_format, info.fast_mode, info.accumulate, &cfg);
 
                 // Create arm_gemm fallback
-                auto fallback = std::make_unique<Fallback<TypeInput, TypeWeight, TypeOutput, BatmanGemm::DequantizeFloat>>();
+                auto fallback = std::make_unique<Fallback<TypeInput, TypeWeight, TypeOutput,
+                    BatmanGemm::DequantizeFloat> >();
 
                 // Configure requantization info
                 const BIGEMMLowpOutputStageInfo os_info = info.output_stage;
@@ -987,7 +1005,8 @@ namespace BatmanInfer {
                                           info.fixed_format, info.fast_mode, info.accumulate, &cfg);
 
                 // Create arm_gemm fallback
-                auto fallback = std::make_unique<Fallback<TypeInput, TypeWeight, TypeOutput, BatmanGemm::Requantize32>>();
+                auto fallback = std::make_unique<Fallback<TypeInput, TypeWeight, TypeOutput,
+                    BatmanGemm::Requantize32> >();
 
                 // Configure requantization info
                 const int32_t negation = info.negated_offsets ? 1 : -1;
@@ -1000,10 +1019,10 @@ namespace BatmanInfer {
                     const auto requantize_data =
                             fallback->set_requantize_data(os_info.gemmlowp_shifts, os_info.gemmlowp_multipliers);
                     gemm_requant_info = BatmanGemm::Requantize32(
-                            nullptr, 0, a_offset, b_offset, os_info.gemmlowp_offset,
-                            (std::get<0>(requantize_data)) ? std::get<1>(requantize_data) : nullptr,
-                            std::get<2>(requantize_data),
-                            std::get<3>(requantize_data), os_info.gemmlowp_min_bound, os_info.gemmlowp_max_bound);
+                        nullptr, 0, a_offset, b_offset, os_info.gemmlowp_offset,
+                        (std::get<0>(requantize_data)) ? std::get<1>(requantize_data) : nullptr,
+                        std::get<2>(requantize_data),
+                        std::get<3>(requantize_data), os_info.gemmlowp_min_bound, os_info.gemmlowp_max_bound);
                 } else {
                     gemm_requant_info =
                             BatmanGemm::Requantize32(nullptr, 0, a_offset, b_offset, os_info.gemmlowp_offset,
@@ -1019,7 +1038,6 @@ namespace BatmanInfer {
         } // namespace
 
         BICpuGemmAssemblyDispatch::BICpuGemmAssemblyDispatch() : _batman_gemm(nullptr) {
-
         }
 
         /**
@@ -1039,16 +1057,16 @@ namespace BatmanInfer {
                                                          const BatmanInfer::BIITensorInfo *d,
                                                          const BatmanInfer::cpu::BIAsmGemmInfo &info) {
             // 验证合理性
-            BI_COMPUTE_ERROR_ON_NULLPTR(a, b, d);  // 验证a, b, d是否为空
+            BI_COMPUTE_ERROR_ON_NULLPTR(a, b, d); // 验证a, b, d是否为空
             BI_COMPUTE_UNUSED(c); // c 不使用
-            BatmanGemm::Activation act = assembly_utils::map_to_batman_gemm_activation(info.activation_info);  // 映射激活函数
+            BatmanGemm::Activation act = assembly_utils::map_to_batman_gemm_activation(info.activation_info); // 映射激活函数
             Params p = extract_parameters(a, b, d, info); // 提取优化参数信息
             const CPUInfo &ci = BINEScheduler::get().cpu_info(); // 获取CPU信息(L1 Caches, L2 Caches, CPU核心数量)
             unsigned int num_threads = BINEScheduler::get().num_threads(); // 当前线程数量: Mac 10个
             BatmanGemm::GemmConfig cfg;
             cfg.weight_format = assembly_utils::map_to_batman_gemm_weight_format(info.weight_format); // 映射Gemm的权重数据格式
             BatmanGemm::WeightFormat arm_gemm_expected_wf = assembly_utils::map_to_batman_gemm_weight_format(
-                    expected_weight_format);
+                expected_weight_format);
             BatmanGemm::GemmArgs args(&ci, p.M, p.N, p.K,
                                       p.sections,
                                       p.batches,
@@ -1060,48 +1078,48 @@ namespace BatmanInfer {
             switch (a->data_type()) {
                 case BIDataType::F32:
                     BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                            !(BatmanGemm::has_opt_gemm<float, float, float, BatmanGemm::Nothing>(arm_gemm_expected_wf,
-                                                                                                 args,
-                                                                                                 {})),
-                            "We could not find an optimized kernel for F32 input");
+                        !(BatmanGemm::has_opt_gemm<float, float, float, BatmanGemm::Nothing>(arm_gemm_expected_wf,
+                            args,
+                            {})),
+                        "We could not find an optimized kernel for F32 input");
                     break;
 #ifdef __aarch64__
                 case BIDataType::U8:
                 case BIDataType::QASYMM8:
                     if (d->data_type() == BIDataType::S32) {
                         BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                                !(BatmanGemm::has_opt_gemm<uint8_t, uint8_t, uint32_t, BatmanGemm::Nothing>(
-                                        arm_gemm_expected_wf, args,
-                                        {})),
-                                "We could not find an optimized kernel for U8/QASYMM8 input and U32 output");
+                            !(BatmanGemm::has_opt_gemm<uint8_t, uint8_t, uint32_t, BatmanGemm::Nothing>(
+                                arm_gemm_expected_wf, args,
+                                {})),
+                            "We could not find an optimized kernel for U8/QASYMM8 input and U32 output");
                     } else if (b->data_type() == BIDataType::QASYMM8_SIGNED) {
                         BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                                !(BatmanGemm::has_opt_gemm<uint8_t, int8_t, uint8_t, BatmanGemm::Requantize32>(
-                                        arm_gemm_expected_wf,
-                                        args, {})),
-                                "We could not find an optimized kernel for U8 input with S8 weights and U8 output");
+                            !(BatmanGemm::has_opt_gemm<uint8_t, int8_t, uint8_t, BatmanGemm::Requantize32>(
+                                arm_gemm_expected_wf,
+                                args, {})),
+                            "We could not find an optimized kernel for U8 input with S8 weights and U8 output");
                     } else {
                         BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                                !(BatmanGemm::has_opt_gemm<uint8_t, uint8_t, uint8_t, BatmanGemm::Requantize32>(
-                                        arm_gemm_expected_wf,
-                                        args, {})),
-                                "We could not find an optimized kernel for U8 input and U8 output");
+                            !(BatmanGemm::has_opt_gemm<uint8_t, uint8_t, uint8_t, BatmanGemm::Requantize32>(
+                                arm_gemm_expected_wf,
+                                args, {})),
+                            "We could not find an optimized kernel for U8 input and U8 output");
                     }
                     break;
                 case BIDataType::S8:
                 case BIDataType::QASYMM8_SIGNED:
                     if (d->data_type() == BIDataType::S32) {
                         BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                                !(BatmanGemm::has_opt_gemm<int8_t, int8_t, int32_t, BatmanGemm::Nothing>(
-                                        arm_gemm_expected_wf, args,
-                                        {})),
-                                "We could not find an optimized kernel for S8/QASYMM8_SIGNED input and S32 output");
+                            !(BatmanGemm::has_opt_gemm<int8_t, int8_t, int32_t, BatmanGemm::Nothing>(
+                                arm_gemm_expected_wf, args,
+                                {})),
+                            "We could not find an optimized kernel for S8/QASYMM8_SIGNED input and S32 output");
                     } else {
                         BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                                !(BatmanGemm::has_opt_gemm<int8_t, int8_t, int8_t, BatmanGemm::Requantize32>(
-                                        arm_gemm_expected_wf, args,
-                                        {})),
-                                "We could not find an optimized kernel for S8 input and S8 output");
+                            !(BatmanGemm::has_opt_gemm<int8_t, int8_t, int8_t, BatmanGemm::Requantize32>(
+                                arm_gemm_expected_wf, args,
+                                {})),
+                            "We could not find an optimized kernel for S8 input and S8 output");
                     }
                     break;
 #endif /* __aarch64__ */
@@ -1110,16 +1128,16 @@ namespace BatmanInfer {
                 case BIDataType::BFLOAT16: {
                     if (d->data_type() == BIDataType::BFLOAT16) {
                         BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                                !(BatmanGemm::has_opt_gemm<bfloat16, bfloat16, bfloat16, BatmanGemm::Nothing>(
-                                        arm_gemm_expected_wf,
-                                        args, {})),
-                                "We could not find an optimized kernel for BFLOAT16 input and BFLOAT16 output");
+                            !(BatmanGemm::has_opt_gemm<bfloat16, bfloat16, bfloat16, BatmanGemm::Nothing>(
+                                arm_gemm_expected_wf,
+                                args, {})),
+                            "We could not find an optimized kernel for BFLOAT16 input and BFLOAT16 output");
                     } else {
                         BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                                !(BatmanGemm::has_opt_gemm<bfloat16, bfloat16, float, BatmanGemm::Nothing>(
-                                        arm_gemm_expected_wf, args,
-                                        {})),
-                                "We could not find an optimized kernel for BFLOAT16 input and F32 output");
+                            !(BatmanGemm::has_opt_gemm<bfloat16, bfloat16, float, BatmanGemm::Nothing>(
+                                arm_gemm_expected_wf, args,
+                                {})),
+                            "We could not find an optimized kernel for BFLOAT16 input and F32 output");
                     }
                     break;
                 }
@@ -1128,10 +1146,10 @@ namespace BatmanInfer {
 #if defined(ENABLE_FP16_KERNELS)
                 case BIDataType::F16:
                     BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                            !(BatmanGemm::has_opt_gemm<float16_t, float16_t, float16_t, BatmanGemm::Nothing>(
-                                    arm_gemm_expected_wf,
-                                    args, {})),
-                            "We could not find an optimized kernel for F16 input and F16 output");
+                        !(BatmanGemm::has_opt_gemm<float16_t, float16_t, float16_t, BatmanGemm::Nothing>(
+                            arm_gemm_expected_wf,
+                            args, {})),
+                        "We could not find an optimized kernel for F16 input and F16 output");
                     break;
 #endif /* ENABLE_FP16_KERNELS */
                 default:
@@ -1168,7 +1186,8 @@ namespace BatmanInfer {
             BI_COMPUTE_RETURN_ERROR_ON_CPU_F16_UNSUPPORTED(a);
             BI_COMPUTE_RETURN_ERROR_ON_CPU_BF16_UNSUPPORTED(a);
             BI_COMPUTE_RETURN_ERROR_ON_MSG(!(info.reshape_b_only_on_first_run),
-                                           "Assembly kernel will not be executed when reshape_b_only_on_first_run is false");
+                                           "Assembly kernel will not be executed when reshape_b_only_on_first_run is false")
+            ;
 
 #ifndef __aarch64__
             BI_COMPUTE_RETURN_ERROR_ON_MSG(a->element_size() == 1, "8bit integer types only supported for aarch64");
@@ -1182,10 +1201,10 @@ namespace BatmanInfer {
                                                                 BIDataType::BFLOAT16,
                                                                 BIDataType::F16, BIDataType::F32);
             BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_CHANNEL_NOT_IN(
-                    b, 1, BIDataType::U8, BIDataType::QASYMM8, BIDataType::QASYMM8_SIGNED,
-                    BIDataType::QSYMM8_PER_CHANNEL,
-                    BIDataType::S8,
-                    BIDataType::BFLOAT16, BIDataType::F16, BIDataType::F32);
+                b, 1, BIDataType::U8, BIDataType::QASYMM8, BIDataType::QASYMM8_SIGNED,
+                BIDataType::QSYMM8_PER_CHANNEL,
+                BIDataType::S8,
+                BIDataType::BFLOAT16, BIDataType::F16, BIDataType::F32);
             if (is_data_type_quantized_per_channel(b->data_type())) {
                 BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_CHANNEL_NOT_IN(a, 1, BIDataType::QASYMM8_SIGNED, BIDataType::S8);
             } else if (is_fixed_format_fast_math(info.weight_format)) {
@@ -1200,17 +1219,17 @@ namespace BatmanInfer {
                                            "Only F16 output supported for F16 input");
             BI_COMPUTE_RETURN_ERROR_ON_MSG(a->data_type() == BIDataType::BFLOAT16 &&
                                            (d->data_type() != BIDataType::F32 &&
-                                            d->data_type() != BIDataType::BFLOAT16),
+                                               d->data_type() != BIDataType::BFLOAT16),
                                            "Only F32/BFLOAT16 output supported for BFLOAT16 input");
             BI_COMPUTE_RETURN_ERROR_ON_MSG(a->data_type() == BIDataType::U8 && d->data_type() != BIDataType::U32,
                                            "Only U32 output supported for U8 input");
             BI_COMPUTE_RETURN_ERROR_ON_MSG(a->data_type() == BIDataType::S8 && d->data_type() != BIDataType::S32,
                                            "Only S32 output supported for S8 input");
             BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                    a->data_type() == BIDataType::QASYMM8 &&
-                    (d->data_type() != BIDataType::QASYMM8 && d->data_type() != BIDataType::S32 &&
-                     d->data_type() != BIDataType::F32),
-                    "Only QASYMM8/S32/F32 output supported for QASYMM8 input");
+                a->data_type() == BIDataType::QASYMM8 &&
+                (d->data_type() != BIDataType::QASYMM8 && d->data_type() != BIDataType::S32 &&
+                    d->data_type() != BIDataType::F32),
+                "Only QASYMM8/S32/F32 output supported for QASYMM8 input");
             BatmanInfer::BIWeightFormat expected_weight_format = BatmanInfer::BIWeightFormat::UNSPECIFIED;
             const BIStatus ret = BICpuGemmAssemblyDispatch::has_opt_impl(expected_weight_format, a, b, c, d, info);
             if (bool(ret) && expected_weight_format != BatmanInfer::BIWeightFormat::ANY) {
@@ -1218,8 +1237,8 @@ namespace BatmanInfer {
                 // not "any", make sure that the one found matches the format
                 // intended by the caller.
                 BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                        (expected_weight_format != info.weight_format),
-                        "The format expected by the kernel does not correspond with the one requested by the user.");
+                    (expected_weight_format != info.weight_format),
+                    "The format expected by the kernel does not correspond with the one requested by the user.");
             }
             return ret;
         }
@@ -1230,11 +1249,11 @@ namespace BatmanInfer {
         }
 
         void BICpuGemmAssemblyDispatch::configure(
-                const BIITensorInfo *a, const BIITensorInfo *b, const BIITensorInfo *c, BIITensorInfo *d,
-                const BIAsmGemmInfo &info) {
+            const BIITensorInfo *a, const BIITensorInfo *b, const BIITensorInfo *c, BIITensorInfo *d,
+            const BIAsmGemmInfo &info) {
             BI_COMPUTE_ERROR_ON_NULLPTR(a, b, d);
             BatmanGemm::Activation act = assembly_utils::map_to_batman_gemm_activation(
-                    info.activation_info); // 映射激活函数(从info到GEMM激活函数)
+                info.activation_info); // 映射激活函数(从info到GEMM激活函数)
 
             //If we don't support a combination of data types, silently return: it is the caller's responsibility
             // to check if configure() was successful via is_configured()

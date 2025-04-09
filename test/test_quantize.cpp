@@ -70,20 +70,22 @@ namespace QATTest {
         }
     }
 
-    void configure_gemm_output_stage(BIITensor *input, BIITensor *output,
-                                     float input_scale,
-                                     const std::vector<float> &weight_scales,
-                                     float output_scale,
-                                     int32_t output_offset) {
+    BIGEMMLowpOutputStageInfo configure_gemm_output_stage(float input_scale,
+                                                          const std::vector<float> &weight_scales,
+                                                          float output_scale,
+                                                          int32_t output_offset) {
         // 1. 创建output stage配置
         BIGEMMLowpOutputStageInfo output_stage;
         output_stage.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
         output_stage.output_data_type = BIDataType::QASYMM8_SIGNED;
 
         // 2. 计算每个通道的combined scale
-        const int N = input->info()->dimension(1);
+        const int N = weight_scales.size();
         std::vector<int32_t> multipliers(N);
         std::vector<int32_t> shifts(N);
+        auto [min_val, max_val] = quantization::get_min_max_values_from_quantized_data_type(BIDataType::QASYMM8_SIGNED);
+        output_stage.gemmlowp_min_bound = min_val; // 通常是-128
+        output_stage.gemmlowp_max_bound = max_val; // 通常是127// 假设已有输入tensor的量化参数
 
         for (int i = 0; i < N; ++i) {
             // 计算combined scale: (input_scale * weight_scale) / output_scale
@@ -106,8 +108,9 @@ namespace QATTest {
         // output_stage.is_per_channel = true; // 使用per-channel量化
 
         // 4. 创建并配置NEGEMMLowpOutputStage
-        BINEGEMMLowpOutputStage output_stage_kernel;
-        output_stage_kernel.configure(input, nullptr, output, output_stage);
+        // BINEGEMMLowpOutputStage output_stage_kernel;
+        // output_stage_kernel.configure(input, nullptr, output, output_stage);
+        return output_stage;
     }
 
     // 假设我们有以下输入：
@@ -150,6 +153,30 @@ namespace QATTest {
                 output_ptr[m * N + n] = static_cast<float>(value) * combined_scales[n];
             }
         }
+    }
+
+    BITensor create_norm_input(std::vector<int> shapes, const std::string &file_path = "") {
+        BITensorShape input_shape;
+        if (shapes.size() == 3)
+            input_shape = BITensorShape(shapes[2], shapes[1], shapes[0]); // [M, K]
+        else if (shapes.size() == 2)
+            input_shape = BITensorShape(shapes[1], shapes[0]);
+        else if (shapes.size() == 1)
+            input_shape = BITensorShape(shapes[0]);
+        else
+            input_shape = BITensorShape(shapes[3], shapes[2], shapes[1], shapes[0]); // [M, K]
+        BITensor input = utils::create_type_tensor(file_path,
+                                                   input_shape,
+                                                   BIDataType::F16);
+        return input;
+    }
+
+    BITensor create_norm_bias(const int &bias_dim, const std::string &file_path = "") {
+        BITensorShape input_shape = BITensorShape(bias_dim);
+        BITensor input = utils::create_type_tensor(file_path,
+                                                   input_shape,
+                                                   BIDataType::S32);
+        return input;
     }
 
     BITensor create_qasymm8(float input_scale,
@@ -215,7 +242,7 @@ namespace QATTest {
                                     input_qinfo,
                                     input_str);
 
-        print_tensor(input, "input");
+        // print_tensor(input, "input");
 
 
         // 2. 创建权重tensor (QSYMM8_PER_CHANNEL)
@@ -227,12 +254,21 @@ namespace QATTest {
 
         // 3. 创建中间输出tensor (S32)
         BITensorShape output_shape(N, M, B); // [M, N]
-        BITensor output_s32;
+        BITensor s32_output;
+        s32_output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::S32));
+        s32_output.allocator()->allocate();
+        // // 9. 创建并配置输出stage
+        // output_stage.configure(&output_s32, nullptr, &final_output, output_stage_info); // 10. 执行计算
+        // 6. 创建输出GEMMLowp核心计算
+        BINEGEMMLowpMatrixMultipleCore gemmlowp_mm_score;
+        gemmlowp_mm_score.configure(&input, &weight, nullptr, &s32_output);
+        gemmlowp_mm_score.run();
+
+        BITensor int8_output;
         BIQuantizationInfo output_qinfo = BIQuantizationInfo(output_scale, output_offset);
         auto output_info = BITensorInfo(output_shape, 1, BIDataType::QASYMM8_SIGNED, output_qinfo);
-        output_s32.allocator()->init(output_info);
-        output_s32.allocator()->allocate();
-
+        int8_output.allocator()->init(output_info);
+        int8_output.allocator()->allocate();
         BIGEMMLowpOutputStageInfo output_stage_info;
         output_stage_info.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
         output_stage_info.output_data_type = BIDataType::QASYMM8_SIGNED; // 设置输c出数据类型
@@ -243,48 +279,47 @@ namespace QATTest {
         output_stage_info.gemmlowp_max_bound = max_val; // 通常是127// 假设已有输入tensor的量化参数
         // 使用calculate_quantized_multipliers计算每个通道的multiplier和shift
         // 这个函数会自动填充gemmlowp_multipliers和gemmlowp_shifts
+        // output_stage_info = configure_gemm_output_stage(input_scale, weight_scales, output_scale, output_offset);
         quantization::calculate_quantized_multipliers(input_qinfo,
                                                       weights_qinfo,
                                                       output_qinfo,
                                                       output_stage_info);
-        GEMMInfo gemm_info = GEMMInfo(false,
-                                      false,
-                                      true,
-                                      false,
-                                      false,
-                                      false,
-                                      output_stage_info,
-                                      false, false, false,
-                                      BIActivationLayerInfo(), false, BIWeightFormat::UNSPECIFIED, false);
-        // // 9. 创建并配置输出stage
-        // output_stage.configure(&output_s32, nullptr, &final_output, output_stage_info); // 10. 执行计算
-        // 6. 创建输出GEMMLowp核心计算
-        BINEGEMMLowpMatrixMultipleCore gemmlowp_mm_score;
-        gemmlowp_mm_score.configure(&input, &weight, nullptr, &output_s32, gemm_info);
-        gemmlowp_mm_score.run();
 
-        print_tensor(output_s32, "output_1");
 
-        input.allocator()->free();
+        BINEGEMMLowpOutputStage output_stage;
+        output_stage.configure(&s32_output, nullptr, &int8_output, output_stage_info);
+        output_stage.run();
 
-        B = 10;
-        M = 16;
+        BITensor fp16_output;
+        auto fp16_info = BITensorInfo(output_shape, 1, BIDataType::F16);
+        fp16_output.allocator()->init(fp16_info);
+        fp16_output.allocator()->allocate();
+        BINEDequantizationLayer dequantization_layer;
+        dequantization_layer.configure(&int8_output, &fp16_output);
+        dequantization_layer.run();
 
-        input = create_qasymm8(input_scale,
-                               input_offset,
-                               std::vector<int>{B, M, K},
-                               input_qinfo,
-                               second_i_str);
-        output_s32.allocator()->free();
+        print_tensor(fp16_output, "output");
 
-        output_shape = BITensorShape(N, M, B);
-        output_info = BITensorInfo(output_shape, 1, BIDataType::QASYMM8_SIGNED, output_qinfo);
-        output_s32.allocator()->init(output_info);
-        output_s32.allocator()->allocate();
-
-        gemmlowp_mm_score.run();
-
-        print_tensor(output_s32, "output_2");
+        // input.allocator()->free();
+        //
+        // B = 10;
+        // M = 16;
+        //
+        // input = create_qasymm8(input_scale,
+        //                        input_offset,
+        //                        std::vector<int>{B, M, K},
+        //                        input_qinfo,
+        //                        second_i_str);
+        // output_s32.allocator()->free();
+        //
+        // output_shape = BITensorShape(N, M, B);
+        // output_info = BITensorInfo(output_shape, 1, BIDataType::QASYMM8_SIGNED, output_qinfo);
+        // output_s32.allocator()->init(output_info);
+        // output_s32.allocator()->allocate();
+        //
+        // gemmlowp_mm_score.run();
+        //
+        // print_tensor(output_s32, "output_2");
 
         // 修改输入量化值
 
@@ -374,8 +409,8 @@ TEST(GEMMLOWPCOMPARE, BASICGEMMLOWP) {
     while (in_file >> value) {
         weight_scales.push_back(value);
     }
-    constexpr int output_offset = -4;
-    constexpr float output_scale = 0.20848421582988663f;
+    constexpr int output_offset = -14;
+    constexpr float output_scale = 0.1388270322014304f;
     QATTest::gemmlowp_mixed_quantized(input_path,
                                       weight_path,
                                       bias_path,
@@ -1227,4 +1262,76 @@ TEST(DynamicTensor, NOquantDynamicGeLU) {
 
     QATTest::print_tensor(output, "output");
 }
+
+TEST(INT8GPT_2, INT8GPT2Dynamic) {
+    const int batch_size = 1;
+    const int seq_len = 4;
+    // 1. 先初始化输入矩阵
+    const std::string &input_path = "/Users/mason/Desktop/Desktop/PythonProjects/quantize_gpt_qat/mlp_input.npy";
+    BITensor input = QATTest::create_norm_input(std::vector<int>{1, 4, 768}, input_path);
+    QATTest::print_tensor(input, "input");
+    // 2. 初始化gamma张量
+    const std::string &gamma_path = "/Users/mason/Desktop/Desktop/PythonProjects/quantize_gpt_qat/mlp_rms_gamma.npy";
+    BITensor gamma = QATTest::create_norm_input(std::vector<int>{768}, gamma_path);
+    // 3. 初始化fc_weights的权重
+    const std::string &c_fc_weights_path =
+            "/Users/mason/Desktop/Desktop/PythonProjects/quantize_gpt_qat/reordered_c_fc_weights.npy";
+    std::vector<float> c_fc_weights_scales;
+    // 量化信息
+    BIQuantizationInfo c_fc_weight_qinfo;
+    std::ifstream c_fc_weights_scale_file(
+        "/Users/mason/Desktop/Desktop/PythonProjects/quantize_gpt_qat/c_fc_scales.txt");
+    float value;
+
+    while (c_fc_weights_scale_file >> value) {
+        c_fc_weights_scales.push_back(value);
+    }
+    BITensor c_fc_weights = QATTest::create_per_channel(c_fc_weights_scales, std::vector{768, 3072},
+                                                        c_fc_weight_qinfo, c_fc_weights_path);
+    // QATTest::print_tensor(c_fc_weights, "c_fc_weights");
+    // 4. 初始化fc_bias
+    const std::string &c_fc_bias_path = "/Users/mason/Desktop/Desktop/PythonProjects/quantize_gpt_qat/c_fc_bias.npy";
+    BITensor c_fc_bias = QATTest::create_norm_bias(3072, c_fc_bias_path);
+    QATTest::print_tensor(c_fc_bias, "c_fc_bias");
+    // 5. 输出张量
+    BITensor output;
+    output.allocator()->init(BITensorInfo(BITensorShape(768, seq_len, batch_size), 1, BIDataType::F16));
+    output.allocator()->allocate();
+
+    // 6. proj的权重
+    const std::string &c_proj_path = "/Users/mason/Desktop/Desktop/PythonProjects/quantize_gpt_qat/c_proj_weights.npy";
+    BITensor c_proj_weight = QATTest::create_norm_input(std::vector<int>{3072, 768}, c_proj_path);
+    // QATTest::print_tensor(c_proj, "c_proj");
+
+    const std::string &c_proj_bias_path =
+            "/Users/mason/Desktop/Desktop/PythonProjects/quantize_gpt_qat/c_proj_bias.npy";
+    BITensor c_proj_bias = QATTest::create_norm_input(std::vector<int>{768}, c_proj_bias_path);
+    // QATTest::print_tensor(c_proj_bias, "c_proj_bias");
+
+    BINEMLPLayer _mlp_layer;
+    float fc1_input_scale = 0.006902442025203331f;
+    int fc1_input_zero_point = -9;
+    float fc1_output_scale = 0.1969725440530216f;
+    int fc1_output_zero_point = -19;
+    float gelu_output_scale = 0.11368115240452337f;
+    int gelu_output_zero_point = -127;
+    _mlp_layer.configure(&input, fc1_input_scale,
+                         fc1_input_zero_point,
+                         &c_fc_weights,
+                         &c_fc_bias,
+                         &c_fc_weight_qinfo,
+                         fc1_output_scale,
+                         fc1_output_zero_point,
+                         gelu_output_scale,
+                         gelu_output_zero_point,
+                         &c_proj_weight,
+                         &c_proj_bias,
+                         &gamma,
+                         &output,
+                         batch_size,
+                         seq_len);
+    _mlp_layer.run();
+    QATTest::print_tensor(output, "output");
+}
+
 

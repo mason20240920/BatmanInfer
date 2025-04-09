@@ -13,42 +13,42 @@ using namespace BatmanInfer;
 
 TEST(BatmanInferLayer, RNNLayerTest) {
     // 输入张量
-    const BITensorShape input_shape(64,     // input_size (width)
-                                    32);     // batch_size (height)
+    const BITensorShape input_shape(64, // input_size (width)
+                                    32); // batch_size (height)
     const BITensorInfo input_info(input_shape, 1, BIDataType::F32);
     BITensor input;
     input.allocator()->init(input_info);
 
     // 权重张量
-    const BITensorShape weights_shape(64,     // input_size (width, 匹配input宽度)
-                                      128);    // hidden_units (height)
+    const BITensorShape weights_shape(64, // input_size (width, 匹配input宽度)
+                                      128); // hidden_units (height)
     const BITensorInfo weights_info(weights_shape, 1, BIDataType::F32);
     BITensor weights;
     weights.allocator()->init(weights_info);
 
     // 循环权重张量
-    const BITensorShape recurrent_weights_shape(128,    // hidden_units (width)
-                                                128);    // hidden_units (height)
+    const BITensorShape recurrent_weights_shape(128, // hidden_units (width)
+                                                128); // hidden_units (height)
     const BITensorInfo recurrent_weights_info(recurrent_weights_shape, 1, BIDataType::F32);
     BITensor recurrent_weights;
     recurrent_weights.allocator()->init(recurrent_weights_info);
 
     // 偏置矩阵
-    const BITensorShape bias_shape(128);    // hidden_units
+    const BITensorShape bias_shape(128); // hidden_units
     const BITensorInfo bias_info(bias_shape, 1, BIDataType::F32);
     BITensor bias;
     bias.allocator()->init(bias_info);
 
     // 隐藏层张量
-    const BITensorShape hidden_state_shape(128,    // hidden_units (width)
-                                           32);     // batch_size (height, 匹配input高度)
+    const BITensorShape hidden_state_shape(128, // hidden_units (width)
+                                           32); // batch_size (height, 匹配input高度)
     const BITensorInfo hidden_state_info(hidden_state_shape, 1, BIDataType::F32);
     BITensor hidden_state;
     hidden_state.allocator()->init(hidden_state_info);
 
     // 输出张量
-    const BITensorShape output_shape(128,    // hidden_units (width)
-                                     32);     // batch_size (height)
+    const BITensorShape output_shape(128, // hidden_units (width)
+                                     32); // batch_size (height)
     const BITensorInfo output_info(output_shape, 1, BIDataType::F32);
     BITensor output;
     output.allocator()->init(output_info);
@@ -85,9 +85,9 @@ TEST(BatmanInferLayer, RNNLayerTest) {
 
 void print_new_tensor(const BITensor &tensor) {
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
 
     tensor.print(std::cout, format);
 }
@@ -155,7 +155,7 @@ void create_input_tensor(BIITensor &tensor, const int hidden_size) {
 
 TEST(BatmanInferLayer, CPUAttentionTest) {
     // 输入张量
-    const BITensorShape input_shape(768,  // sequence
+    const BITensorShape input_shape(768, // sequence
                                     16,
                                     5); // hidden dimension
     const BITensorInfo input_info(input_shape, 1, BIDataType::F16);
@@ -169,35 +169,35 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     gamma.allocator()->init(gamma_info);
 
     // 权重张量
-    const BITensorShape weights_shape(2304,     // input_size (width, 匹配input宽度)
-                                      768);    // hidden_units (height)
+    const BITensorShape weights_shape(2304, // input_size (width, 匹配input宽度)
+                                      768); // hidden_units (height)
     const BITensorInfo weights_info(weights_shape, 1, BIDataType::F16);
     BITensor weights;
     weights.allocator()->init(weights_info);
 
     // 偏置矩阵
-    const BITensorShape bias_shape(2304);    // hidden_units
+    const BITensorShape bias_shape(2304); // hidden_units
     const BITensorInfo bias_info(bias_shape, 1, BIDataType::F16);
     BITensor bias;
     bias.allocator()->init(bias_info);
 
     // 权重张量
-    const BITensorShape weights_shape2(768,     // input_size (width, 匹配input宽度)
-                                       768);    // hidden_units (height)
+    const BITensorShape weights_shape2(768, // input_size (width, 匹配input宽度)
+                                       768); // hidden_units (height)
     const BITensorInfo weights_info2(weights_shape2, 1, BIDataType::F16);
     BITensor weights2;
     weights2.allocator()->init(weights_info2);
 
     // 偏置矩阵
-    const BITensorShape bias_shape2(768);    // hidden_units
+    const BITensorShape bias_shape2(768); // hidden_units
     const BITensorInfo bias_info2(bias_shape2, 1, BIDataType::F16);
     BITensor bias2;
     bias2.allocator()->init(bias_info2);
 
     // 输出张量
-    const BITensorShape output_shape(768,    // hidden_units (width)
+    const BITensorShape output_shape(768, // hidden_units (width)
                                      16,
-                                     5);     // batch_size (height)
+                                     5); // batch_size (height)
     const BITensorInfo output_info(output_shape, 1, BIDataType::F16);
     BITensor output;
     output.allocator()->init(output_info);
@@ -260,7 +260,7 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
                               16,
                               5,
                               &output);
-//    print_new_tensor(input);
+    //    print_new_tensor(input);
     // 获取开始时间点
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -276,14 +276,14 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     // 输出运行时间
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
-//    print_new_tensor(output);
+    //    print_new_tensor(output);
 }
 
 TEST(BatmanInferLayer, FeedForwardLayerTest) {
     // 输入张量
-    const BITensorShape input_shape(768,  // hidden size
-                                    16,  // sequence length
-                                    5);  // batch size
+    const BITensorShape input_shape(768, // hidden size
+                                    16, // sequence length
+                                    5); // batch size
     const BITensorInfo input_info(input_shape, 1, BIDataType::F16);
     BITensor input;
     input.allocator()->init(input_info);
@@ -294,35 +294,35 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
     gamma.allocator()->init(gamma_info);
 
     // 权重张量
-    const BITensorShape fc_weights_shape(3072,     // input_size (width, 匹配input宽度)
-                                         768);    // hidden_units (height)
+    const BITensorShape fc_weights_shape(3072, // input_size (width, 匹配input宽度)
+                                         768); // hidden_units (height)
     const BITensorInfo fc_weights_info(fc_weights_shape, 1, BIDataType::F16);
     BITensor fc_weights;
     fc_weights.allocator()->init(fc_weights_info);
 
     // 偏置矩阵
-    const BITensorShape fc_bias_shape(3072);    // hidden_units
+    const BITensorShape fc_bias_shape(3072); // hidden_units
     const BITensorInfo fc_bias_info(fc_bias_shape, 1, BIDataType::F16);
     BITensor fc_bias;
     fc_bias.allocator()->init(fc_bias_info);
 
     // 权重张量
-    const BITensorShape proj_weights_shape2(768,     // input_size (width, 匹配input宽度)
-                                            3072);    // hidden_units (height)
+    const BITensorShape proj_weights_shape2(768, // input_size (width, 匹配input宽度)
+                                            3072); // hidden_units (height)
     const BITensorInfo proj_weights_info2(proj_weights_shape2, 1, BIDataType::F16);
     BITensor proj_weights;
     proj_weights.allocator()->init(proj_weights_info2);
 
     // 偏置矩阵
-    const BITensorShape proj_bias_shape2(768);    // hidden_units
+    const BITensorShape proj_bias_shape2(768); // hidden_units
     const BITensorInfo proj_bias_info2(proj_bias_shape2, 1, BIDataType::F16);
     BITensor proj_bias;
     proj_bias.allocator()->init(proj_bias_info2);
 
     // 输出张量
-    const BITensorShape output_shape(768,    // hidden_units (width)
+    const BITensorShape output_shape(768, // hidden_units (width)
                                      16,
-                                     5);     // batch_size (height)
+                                     5); // batch_size (height)
     const BITensorInfo output_info(output_shape, 1, BIDataType::F16);
     BITensor output;
     output.allocator()->init(output_info);
@@ -337,9 +337,9 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
     output.allocator()->allocate();
     gamma.allocator()->allocate();
     input.allocator()->allocate();
-//    // 模拟数据填充 (实际中应加载量化后的数据)
-//    // 注意：这里的填充需要符合量化格式
-//    fill_new_tensor_val(input, static_cast<float16_t>(1 / 768));
+    //    // 模拟数据填充 (实际中应加载量化后的数据)
+    //    // 注意：这里的填充需要符合量化格式
+    //    fill_new_tensor_val(input, static_cast<float16_t>(1 / 768));
     fill_new_tensor_val(fc_weights, static_cast<float16_t>(1));
     fill_new_tensor_val(fc_bias, static_cast<float16_t>(1));
     fill_new_tensor_val(proj_weights, static_cast<float16_t>(1));
@@ -374,13 +374,13 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
     // 输出运行时间
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
-//    print_new_tensor(output);
+    //    print_new_tensor(output);
 }
 
 TEST(BatmanInferLayer, RMSNormTest) {
     // 输入张量
     const BITensorShape input_shape(768,
-                                    2,  // hidden size
+                                    2, // hidden size
                                     2); // sequence length
     const BITensorInfo input_info(input_shape, 1, BIDataType::F16);
     BITensor input;
@@ -394,8 +394,8 @@ TEST(BatmanInferLayer, RMSNormTest) {
 
     // 输出张量
     const BITensorShape output_shape(768,
-                                     2,    // hidden_units (width)
-                                     2);     // batch_size (height)
+                                     2, // hidden_units (width)
+                                     2); // batch_size (height)
     const BITensorInfo output_info(output_shape, 1, BIDataType::F16);
     BITensor output;
     output.allocator()->init(output_info);
@@ -439,7 +439,7 @@ TEST(BatmanInferLayer, RMSNormTest) {
 TEST(BatmanInferLayer, GEMMLayerTest) {
     // 输入张量
     const BITensorShape input_shape(768,
-                                    10,  // hidden size
+                                    10, // hidden size
                                     5); // sequence length
     const BITensorShape weight_shape(2304, 768);
     const BITensorShape output_shape(2304, 10, 5);
@@ -471,7 +471,7 @@ TEST(BatmanInferLayer, GEMMLayerTest) {
     // 输出运行时间
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
-//    print_new_tensor(output);
+    //    print_new_tensor(output);
 }
 
 TEST(BatmanInferLayer, GPT2OneLayerTest) {
@@ -482,36 +482,36 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
     BINEArithmeticAddition add_2_f;
 
     // 输入张量
-    const BITensorShape input_shape(768,  // hidden size
-                                    16,  // sequence length
-                                    1);  // batch size
+    const BITensorShape input_shape(768, // hidden size
+                                    16, // sequence length
+                                    1); // batch size
     const BITensorShape gamma_shape(768);
-    const BITensorShape fc_weights_shape(3072,     // input_size (width, 匹配input宽度)
-                                         768);    // hidden_units (height)
-    const BITensorShape fc_bias_shape(3072);    // hidden_units
+    const BITensorShape fc_weights_shape(3072, // input_size (width, 匹配input宽度)
+                                         768); // hidden_units (height)
+    const BITensorShape fc_bias_shape(3072); // hidden_units
     // 权重张量
-    const BITensorShape proj_weights_shape2(768,     // input_size (width, 匹配input宽度)
-                                            3072);    // hidden_units (height)
-    const BITensorShape proj_bias_shape2(768);    // hidden_units
+    const BITensorShape proj_weights_shape2(768, // input_size (width, 匹配input宽度)
+                                            3072); // hidden_units (height)
+    const BITensorShape proj_bias_shape2(768); // hidden_units
 
-    const BITensorShape output_shape(768,    // hidden_units (width)
+    const BITensorShape output_shape(768, // hidden_units (width)
                                      16,
-                                     1);     // batch_size (height)
+                                     1); // batch_size (height)
     const BIActivationLayerInfo act_info(BIActivationFunction::GELU);
 
     // 权重张量
-    const BITensorShape weights_shape(2304,     // input_size (width, 匹配input宽度)
-                                      768);    // hidden_units (height)
+    const BITensorShape weights_shape(2304, // input_size (width, 匹配input宽度)
+                                      768); // hidden_units (height)
 
     // 偏置矩阵
-    const BITensorShape bias_shape(2304);    // hidden_units
+    const BITensorShape bias_shape(2304); // hidden_units
 
     // 权重张量
-    const BITensorShape weights_shape2(768,     // input_size (width, 匹配input宽度)
-                                       768);    // hidden_units (height)
+    const BITensorShape weights_shape2(768, // input_size (width, 匹配input宽度)
+                                       768); // hidden_units (height)
 
     // 偏置矩阵
-    const BITensorShape bias_shape2(768);    // hidden_units
+    const BITensorShape bias_shape2(768); // hidden_units
 
     // 标量
     const BITensorShape scalar_shape(1);
