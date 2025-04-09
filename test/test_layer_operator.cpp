@@ -604,6 +604,3 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
     // 输出运行时间
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 }
-
-TEST(INT8GPT_2, INT8GPT2Dynamic) {
-}

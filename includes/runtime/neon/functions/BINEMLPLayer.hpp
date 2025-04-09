@@ -7,10 +7,13 @@
 #include <runtime/bi_i_function.hpp>
 
 #include "BINERMSNormLayer.hpp"
+#include "bi_NEActivationLayer.h"
 #include "bi_NEDequantizationLayer.h"
 #include "bi_NEQuantizationLayer.h"
 #include "bi_ne_copy.hpp"
+#include "bi_ne_gemm.hpp"
 #include "bi_ne_gemm_lowp_matrix_mul_core.hpp"
+#include "bi_ne_gemm_lowp_output_stage.hpp"
 #include "runtime/bi_memory_group.hpp"
 
 namespace BatmanInfer {
@@ -43,15 +46,22 @@ namespace BatmanInfer {
          * @param output
          */
         void configure(const BIITensor *input,
+                       const float fc1_input_scale,
+                       const int fc1_input_zero_point,
                        const BIITensor *fc_weights,
                        const BIITensor *fc_bias,
+                       const BIQuantizationInfo *c_fc_weight_qinfo,
+                       const float fc1_output_scale,
+                       const int fc1_output_zero_point,
+                       const float gelu_output_scale,
+                       const int gelu_output_zero_point,
                        const BIITensor *proj_weights,
                        const BIITensor *proj_bias,
                        const BIITensor *gamma,
-                       const BIActivationLayerInfo &act_info,
                        BIITensor *output,
                        const size_t &batch_size,
-                       const size_t &seq_len);
+                       const size_t &seq_len
+        );
 
         static BIStatus validate(const BIITensorInfo *input,
                                  const BIITensorInfo *fc_weights,
@@ -64,26 +74,35 @@ namespace BatmanInfer {
         void run() override;
 
     private:
+        // 将量化信息取反
+        void invert_qinfo_offset(BITensor &t);
+
+    private:
         // 算子操作
         BINERMSNormLayer _rms_layer; // 用于执行归一操作的层
 
-        // BINEQuantizationLayer _quantization_layer; // 量化操作, 将数据量化为int8
-        //
-        // BINEGEMMLowpMatrixMultipleCore _matrix_mul_core; // 量化的Core操作
-        //
-        // BINEGEMMLowpMatrixMultipleCore _c_proj; // 扩展维度
-        //
-        // BINEDequantizationLayer _dequantization_layer; // 反量化
-        //
-        // BINECopy _copy_f; // 拷贝张量操作
+        BINEQuantizationLayer _quantization_layer; // 量化操作, 将数据量化为int8
+
+        BINEGEMMLowpMatrixMultipleCore _matrix_mul_core; // 量化的Core操作
+
+        BINEGEMMLowpOutputStage _gemm_lowp_output_stage; // 进行S32转为量化int8
+
+        BINEActivationLayer _activation_layer; // 激活函数
+
+        BINEGEMM _c_proj; // 扩展维度
+
+        BINEDequantizationLayer _dequantization_layer; // 反量化
+
+        BINECopy _copy_f; // 拷贝张量操作
 
     private:
         // 张量信息
         BIMemoryGroup _memory_group; // 内存管理
 
         BITensor _norm_output, _norm_q_output;
-        // BITensor _fuse_output;
-        // BITensor _proj_output, _proj_q_output;
+        BITensor _fc_q_output, _fc_s32_output;
+        BITensor _act_output;
+        BITensor _proj_input, _proj_output;
 
         // 参数长度
         size_t _max_batch;

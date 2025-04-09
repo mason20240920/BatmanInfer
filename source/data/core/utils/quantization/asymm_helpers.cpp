@@ -113,7 +113,8 @@ namespace BatmanInfer {
             BI_COMPUTE_RETURN_ERROR_ON(iq_info.scale().empty());
             BI_COMPUTE_RETURN_ERROR_ON(wq_info.scale().empty());
             BI_COMPUTE_RETURN_ERROR_ON(oq_info.scale().empty());
-            constexpr unsigned int padding_elems = 32; // assembly kernels assume the shifts and multipliers buffers are padded
+            constexpr unsigned int padding_elems = 32;
+            // assembly kernels assume the shifts and multipliers buffers are padded
             const unsigned int size = wq_info.scale().size();
             const size_t padded_size = (size == 1) ? 1 : size + padding_elems;
             auto &quant_multipliers = stage_info.gemmlowp_multipliers;
@@ -130,7 +131,7 @@ namespace BatmanInfer {
                 int32_t quant_multiplier = 0;
                 int32_t quant_shift = 0;
                 BI_COMPUTE_RETURN_ON_ERROR(
-                        calculate_quantized_multiplier(multiplier, &quant_multiplier, &quant_shift));
+                    calculate_quantized_multiplier(multiplier, &quant_multiplier, &quant_shift));
                 quant_multipliers[i] = quant_multiplier;
                 quant_shifts[i] = quant_shift;
             }
@@ -188,14 +189,17 @@ namespace BatmanInfer {
                         break;
                     case BIActivationLayerInfo::ActivationFunction::BOUNDED_RELU:
                         type_min = q_unif.offset;
-                        type_max = (data_type == BIDataType::QASYMM8) ? quantize_qasymm8(act_info.a(), q_info)
-                                                                      : quantize_qasymm8_signed(act_info.a(), q_info);
+                        type_max = (data_type == BIDataType::QASYMM8)
+                                       ? quantize_qasymm8(act_info.a(), q_info)
+                                       : quantize_qasymm8_signed(act_info.a(), q_info);
                         break;
                     case BIActivationLayerInfo::ActivationFunction::LU_BOUNDED_RELU:
-                        type_min = (data_type == BIDataType::QASYMM8) ? quantize_qasymm8(act_info.b(), q_info)
-                                                                      : quantize_qasymm8_signed(act_info.b(), q_info);
-                        type_max = (data_type == BIDataType::QASYMM8) ? quantize_qasymm8(act_info.a(), q_info)
-                                                                      : quantize_qasymm8_signed(act_info.a(), q_info);
+                        type_min = (data_type == BIDataType::QASYMM8)
+                                       ? quantize_qasymm8(act_info.b(), q_info)
+                                       : quantize_qasymm8_signed(act_info.b(), q_info);
+                        type_max = (data_type == BIDataType::QASYMM8)
+                                       ? quantize_qasymm8(act_info.a(), q_info)
+                                       : quantize_qasymm8_signed(act_info.a(), q_info);
                         break;
                     default:
                         BI_COMPUTE_ERROR("Activation function not supported.");
@@ -326,8 +330,8 @@ namespace BatmanInfer {
             for (int32_t i = 0; i < num_iteration; ++i) {
                 const auto x3 = fixed_point_rescale(fixed_point_mul(fixed_point_mul(x, x), x), 9, fixedpoint_position);
                 x = fixed_point_rescale(
-                        fixed_point_mul(fixedpoint_half_three, x) - fixed_point_mul(fixedpoint_half_input, x3),
-                        6, fixedpoint_position);
+                    fixed_point_mul(fixedpoint_half_three, x) - fixed_point_mul(fixedpoint_half_input, x3),
+                    6, fixedpoint_position);
             }
 
             // fixed point representation of sqrt(1/2)
