@@ -142,10 +142,17 @@ namespace BatmanInfer {
         _gemm_lowp_output_stage.configure(&_fc_s32_output, fc_bias, &_fc_q_output, c_fc_stage_info);
         _activation_layer.configure(&_fc_q_output, &_act_output, BIActivationLayerInfo(BIActivationFunction::GELU));
         // 配置Gemm操作
-        GEMMInfo proj_gemm_info;
-        proj_gemm_info.set_fast_math(true);
+        GEMMInfo gemm_info = GEMMInfo(false,
+                                      false,
+                                      true,
+                                      false,
+                                      false,
+                                      false,
+                                      BIGEMMLowpOutputStageInfo(),
+                                      false, true, false,
+                                      BIActivationLayerInfo(), false, BIWeightFormat::UNSPECIFIED, false);
         _dequantization_layer.configure(&_act_output, &_proj_input);
-        _c_proj.configure(&_proj_input, proj_weights, proj_bias, &_proj_output, 1.0f, 1.0f, proj_gemm_info);
+        _c_proj.configure(&_proj_input, proj_weights, proj_bias, &_proj_output, 1.0f, 1.0f, gemm_info);
         _copy_f.configure(&_proj_output, output);
     }
 

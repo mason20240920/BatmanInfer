@@ -15,17 +15,16 @@
 namespace BatmanInfer {
     BINEFeedForwardLayer::~BINEFeedForwardLayer() = default;
 
-    BINEFeedForwardLayer::BINEFeedForwardLayer(std::shared_ptr<BIIMemoryManager> memory_manager) :
-            _memory_group(std::move(memory_manager)),
-            _rms_layer(),
-            _c_fc_fuse_act(),
-            _c_proj(),
-            _copy_f(),
-            _norm_output(),
-            _fuse_output(),
-            _proj_output(),
-            _is_prepared(false) {
-
+    BINEFeedForwardLayer::BINEFeedForwardLayer(std::shared_ptr<BIIMemoryManager> memory_manager) : _memory_group(
+            std::move(memory_manager)),
+        _rms_layer(),
+        _c_fc_fuse_act(),
+        _c_proj(),
+        _copy_f(),
+        _norm_output(),
+        _fuse_output(),
+        _proj_output(),
+        _is_prepared(false) {
     }
 
     BIStatus
@@ -36,14 +35,12 @@ namespace BatmanInfer {
                                    const BatmanInfer::BIITensorInfo *proj_bias,
                                    const BatmanInfer::BIITensorInfo *gamma,
                                    const BatmanInfer::BIITensorInfo *output) {
-
         BI_COMPUTE_ERROR_ON_NULLPTR(input, fc_weights, fc_bias, proj_weights, proj_bias, output, gamma);
         BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_NOT_IN(input, BIDataType::F16, BIDataType::F32);
 
         BI_COMPUTE_RETURN_ERROR_ON(input->tensor_shape() != output->tensor_shape());
 
         return BIStatus{};
-
     }
 
     void BINEFeedForwardLayer::configure(const BatmanInfer::BIITensor *input,
@@ -59,13 +56,13 @@ namespace BatmanInfer {
         BI_COMPUTE_ERROR_ON_NULLPTR(input, fc_weights, fc_bias, proj_weights, proj_bias, output); // 输入的参数是否为空
 
         BI_COMPUTE_ERROR_THROW_ON(
-                BINEFeedForwardLayer::validate(input->info(),
-                                               fc_weights->info(),
-                                               fc_bias->info(),
-                                               proj_weights->info(),
-                                               proj_bias->info(),
-                                               gamma->info(),
-                                               output->info()));
+            BINEFeedForwardLayer::validate(input->info(),
+                fc_weights->info(),
+                fc_bias->info(),
+                proj_weights->info(),
+                proj_bias->info(),
+                gamma->info(),
+                output->info()));
 
         BI_COMPUTE_LOG_PARAMS(input, fc_weights, fc_bias, proj_weights, proj_bias, gamma, act_info, output); // 获取log的参数
 
@@ -115,8 +112,8 @@ namespace BatmanInfer {
 
     void BINEFeedForwardLayer::prepare() {
         if (!_is_prepared) {
-//            _reshape.prepare();
-//            _gemm_state_f.prepare();
+            //            _reshape.prepare();
+            //            _gemm_state_f.prepare();
 
             _is_prepared = true;
         }
