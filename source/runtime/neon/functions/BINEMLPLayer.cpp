@@ -124,24 +124,6 @@ namespace BatmanInfer {
         _rms_layer.configure(input, gamma, &_norm_output);
         _quantization_layer.configure(&_norm_output, &_norm_q_output);
         invert_qinfo_offset(_norm_q_output);
-        _matrix_mul_core.configure(&_norm_q_output, fc_weights, nullptr, &_fc_s32_output);
-        BIGEMMLowpOutputStageInfo c_fc_stage_info;
-        c_fc_stage_info.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
-        c_fc_stage_info.output_data_type = BIDataType::QASYMM8_SIGNED; // 设置输c出数据类型
-        c_fc_stage_info.is_quantized_per_channel = true; // 因为权重是per-channel量化// 设置输出范围
-        c_fc_stage_info.gemmlowp_offset = fc1_output_zero_point;
-        auto [min_val, max_val] = quantization::get_min_max_values_from_quantized_data_type(BIDataType::QASYMM8_SIGNED);
-        c_fc_stage_info.gemmlowp_min_bound = min_val; // 通常是-128
-        c_fc_stage_info.gemmlowp_max_bound = max_val; // 通常是127// 假设已有输入tensor的量化参数
-        // 使用calculate_quantized_multipliers计算每个通道的multiplier和shift
-        // 这个函数会自动填充gemmlowp_multipliers和gemmlowp_shifts
-        quantization::calculate_quantized_multipliers(_fc_q_input_info,
-                                                      *c_fc_weight_qinfo,
-                                                      _c_fc_q_info,
-                                                      c_fc_stage_info);
-        _gemm_lowp_output_stage.configure(&_fc_s32_output, fc_bias, &_fc_q_output, c_fc_stage_info);
-        _activation_layer.configure(&_fc_q_output, &_act_output, BIActivationLayerInfo(BIActivationFunction::GELU));
-        // 配置Gemm操作
         GEMMInfo gemm_info = GEMMInfo(false,
                                       false,
                                       true,
@@ -151,6 +133,22 @@ namespace BatmanInfer {
                                       BIGEMMLowpOutputStageInfo(),
                                       false, true, false,
                                       BIActivationLayerInfo(), false, BIWeightFormat::UNSPECIFIED, false);
+        _matrix_mul_core.configure(&_norm_q_output, fc_weights, nullptr, &_fc_s32_output, gemm_info);
+        BIGEMMLowpOutputStageInfo c_fc_stage_info;
+        c_fc_stage_info.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
+        c_fc_stage_info.output_data_type = BIDataType::QASYMM8_SIGNED; // 设置输c出数据类型
+        c_fc_stage_info.is_quantized_per_channel = true; // 因为权重是per-channel量化// 设置输出范围
+        c_fc_stage_info.gemmlowp_offset = fc1_output_zero_point;
+        c_fc_stage_info.gemmlowp_min_bound = -128; // 通常是-128
+        c_fc_stage_info.gemmlowp_max_bound = 127; // 通常是127// 假设已有输入tensor的量化参数
+        // 使用calculate_quantized_multipliers计算每个通道的multiplier和shift
+        // 这个函数会自动填充gemmlowp_multipliers和gemmlowp_shifts
+        quantization::calculate_quantized_multipliers(_fc_q_input_info,
+                                                      *c_fc_weight_qinfo,
+                                                      _c_fc_q_info,
+                                                      c_fc_stage_info);
+        _gemm_lowp_output_stage.configure(&_fc_s32_output, fc_bias, &_fc_q_output, c_fc_stage_info);
+        _activation_layer.configure(&_fc_q_output, &_act_output, BIActivationLayerInfo(BIActivationFunction::GELU));
         _dequantization_layer.configure(&_act_output, &_proj_input);
         _c_proj.configure(&_proj_input, proj_weights, proj_bias, &_proj_output, 1.0f, 1.0f, gemm_info);
         _copy_f.configure(&_proj_output, output);

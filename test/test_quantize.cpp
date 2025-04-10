@@ -1288,11 +1288,10 @@ TEST(INT8GPT_2, INT8GPT2Dynamic) {
     }
     BITensor c_fc_weights = QATTest::create_per_channel(c_fc_weights_scales, std::vector{768, 3072},
                                                         c_fc_weight_qinfo, c_fc_weights_path);
-    // QATTest::print_tensor(c_fc_weights, "c_fc_weights");
     // 4. 初始化fc_bias
     const std::string &c_fc_bias_path = "/Users/mason/Desktop/Desktop/PythonProjects/quantize_gpt_qat/c_fc_bias.npy";
     BITensor c_fc_bias = QATTest::create_norm_bias(3072, c_fc_bias_path);
-    QATTest::print_tensor(c_fc_bias, "c_fc_bias");
+    // QATTest::print_tensor(c_fc_bias, "c_fc_bias");
     // 5. 输出张量
     BITensor output;
     output.allocator()->init(BITensorInfo(BITensorShape(768, seq_len, batch_size), 1, BIDataType::F16));
@@ -1301,7 +1300,7 @@ TEST(INT8GPT_2, INT8GPT2Dynamic) {
     // 6. proj的权重
     const std::string &c_proj_path = "/Users/mason/Desktop/Desktop/PythonProjects/quantize_gpt_qat/c_proj_weights.npy";
     BITensor c_proj_weight = QATTest::create_norm_input(std::vector<int>{3072, 768}, c_proj_path);
-    // QATTest::print_tensor(c_proj, "c_proj");
+    // QATTest::print_tensor(c_proj_weight, "c_proj");
 
     const std::string &c_proj_bias_path =
             "/Users/mason/Desktop/Desktop/PythonProjects/quantize_gpt_qat/c_proj_bias.npy";
@@ -1331,7 +1330,51 @@ TEST(INT8GPT_2, INT8GPT2Dynamic) {
                          batch_size,
                          seq_len);
     _mlp_layer.run();
-    QATTest::print_tensor(output, "output");
+
+    // 1. 先用输出结果进行相加
+    BITensorShape add_output_shape(input.info()->tensor_shape());
+    BITensor add_output;
+    add_output.allocator()->init(BITensorInfo(add_output_shape, 1, BIDataType::F16));
+    add_output.allocator()->allocate();
+    BINEArithmeticAddition add_f;
+    add_f.configure(&output, &input, &add_output, BIConvertPolicy::SATURATE);
+    add_f.run();
+
+    // 2. 对结果再进行一次归一化
+    BITensor mlp_after_gamma = QATTest::create_norm_input(std::vector{768},
+                                                          "/Users/mason/Desktop/Desktop/PythonProjects/quantize_gpt_qat/mlp_after_rms_gamma.npy");
+
+    BITensor mlp_rms_output;
+    mlp_rms_output.allocator()->init(BITensorInfo(input.info()->tensor_shape(), 1, BIDataType::F16));
+    mlp_rms_output.allocator()->allocate();
+
+    BINERMSNormLayer rms_norm_layer;
+    rms_norm_layer.configure(&add_output, &mlp_after_gamma, &mlp_rms_output);
+    rms_norm_layer.run();
+
+    // 3. 对输出结果进行LMHead操作
+    BITensor lm_head_weights = QATTest::create_norm_input(std::vector{768, 6003},
+                                                          "/Users/mason/Desktop/Desktop/PythonProjects/quantize_gpt_qat/lm_head_weights.npy");
+
+    BITensor lm_head_output;
+    lm_head_output.allocator()->init(BITensorInfo(BITensorShape(6003, seq_len, batch_size), 1, BIDataType::F16));
+    lm_head_output.allocator()->allocate();
+
+    GEMMInfo gemm_info = GEMMInfo(false,
+                                  false,
+                                  true,
+                                  false,
+                                  false,
+                                  false,
+                                  BIGEMMLowpOutputStageInfo(),
+                                  false, true, false,
+                                  BIActivationLayerInfo(), false, BIWeightFormat::UNSPECIFIED, false);
+    BINEGEMM lm_head_layer;
+    lm_head_layer.configure(&mlp_rms_output, &lm_head_weights, nullptr, &lm_head_output, 1.0f, 1.0f, gemm_info);
+    lm_head_layer.run();
+    QATTest::print_tensor(lm_head_output);
+
+    // QATTest::print_tensor(mlp_rms_output, "mlp_rms_output");
 }
 
 

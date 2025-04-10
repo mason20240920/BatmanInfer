@@ -29,11 +29,14 @@ namespace BatmanInfer {
          * @return
          */
         inline bool is_dynamic(
-                const BIITensorInfo *a,
-                const BIITensorInfo *b,
-                const BIITensorInfo *c,
-                const BIITensorInfo *d
+            const BIITensorInfo *a,
+            const BIITensorInfo *b,
+            const BIITensorInfo *c,
+            const BIITensorInfo *d
         ) {
+            if (!c) {
+                return a->is_dynamic() || b->is_dynamic() || d->is_dynamic();
+            }
             return a->is_dynamic() || b->is_dynamic() || c->is_dynamic() || d->is_dynamic();
         }
 
@@ -46,10 +49,13 @@ namespace BatmanInfer {
          * @return
          */
         inline bool is_dynamic(
-                const BIITensor *a,
-                const BIITensor *b,
-                const BIITensor *c,
-                const BIITensor *d) {
+            const BIITensor *a,
+            const BIITensor *b,
+            const BIITensor *c,
+            const BIITensor *d) {
+            if (!c) {
+                return is_dynamic(a->info(), b->info(), nullptr, d->info());
+            }
             return is_dynamic(a->info(), b->info(), c->info(), d->info());
         }
 
@@ -112,11 +118,11 @@ namespace BatmanInfer {
 
         if (_impl->is_dynamic)
             BI_COMPUTE_ERROR_THROW_ON(cpu::BICpuDynamicGemm::validate(
-                    a->info(), b->info(), (c != nullptr) ? c->info() : nullptr, d->info(), alpha, beta, gemm_info));
+            a->info(), b->info(), (c != nullptr) ? c->info() : nullptr, d->info(), alpha, beta, gemm_info));
         else
             BI_COMPUTE_ERROR_THROW_ON(
-                    cpu::BICpuGemm::validate(a->info(), b->info(), (c != nullptr) ? c->info() : nullptr,
-                                             d->info(), alpha, beta, gemm_info));
+            cpu::BICpuGemm::validate(a->info(), b->info(), (c != nullptr) ? c->info() : nullptr,
+                d->info(), alpha, beta, gemm_info));
 
         // Check if we need to reshape the matrix B only on the first run
         _impl->is_prepared = false;
@@ -127,14 +133,14 @@ namespace BatmanInfer {
                                        beta, gemm_info);
 
         _impl->run_pack = {
-                {ACL_SRC_0, a},
-                {ACL_SRC_1, b},
-                {ACL_SRC_2, c},
-                {ACL_DST,   d}
+            {ACL_SRC_0, a},
+            {ACL_SRC_1, b},
+            {ACL_SRC_2, c},
+            {ACL_DST, d}
         };
         _impl->prep_pack = {
-                {ACL_SRC_1, b},
-                {ACL_SRC_2, c}
+            {ACL_SRC_1, b},
+            {ACL_SRC_2, c}
         };
 
         if (_impl->is_dynamic)
