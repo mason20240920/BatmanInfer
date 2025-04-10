@@ -1374,7 +1374,18 @@ TEST(INT8GPT_2, INT8GPT2Dynamic) {
     lm_head_layer.run();
     QATTest::print_tensor(lm_head_output);
 
-    // QATTest::print_tensor(mlp_rms_output, "mlp_rms_output");
+    BITensor ids;
+    ids.allocator()->init(BITensorInfo(BITensorShape(seq_len, batch_size), 1, BIDataType::S32));
+    ids.allocator()->allocate();
+
+    BINEArgMinMaxLayer arg_minmax_layer;
+    arg_minmax_layer.configure(&lm_head_output, 0, &ids, BIReductionOperation::ARG_IDX_MAX);
+    arg_minmax_layer.run();
+
+    QATTest::print_tensor(lm_head_output, "lm_head_output");
+
+
+    QATTest::print_tensor(ids, "ids");
 }
 
 

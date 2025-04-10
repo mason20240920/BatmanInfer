@@ -13,7 +13,6 @@
 #include "runtime/neon/functions/bi_ne_transpose.hpp"
 #include "runtime/neon/functions/bi_ne_reverse.h"
 #include "runtime/neon/functions/bi_NEActivationLayer.h"
-#include "runtime/neon/functions/bi_NEArgMinMaxLayer.h"
 #include "runtime/neon/functions/bi_NEBatchNormalizationLayer.h"
 #include "runtime/neon/functions/bi_NEChannelShuffleLayer.h"
 #include "runtime/neon/functions/bi_NEConvolutionLayer.h"
@@ -45,3 +44,4 @@
 #include <runtime/neon/functions/BINEGather.hpp>
 #include <runtime/neon/functions/BINESelect.hpp>
 #include <runtime/neon/functions/BINEMLPLayer.hpp>
+#include <runtime/neon/functions/BINEArgMinMaxLayer.hpp>

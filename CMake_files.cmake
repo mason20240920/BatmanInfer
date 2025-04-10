@@ -21,6 +21,7 @@ add_executable(BatmanInfer main.cpp
         test/test_neon_operator.cpp
         test/test_dynamic_gemmlowp.cpp
         test/test_quantize.cpp
+        test/test_mem_alloc.cpp
         source/utils/utils.cpp
         test/test_perf_model.cpp
         ${BENCHMARK_SOURCES}
