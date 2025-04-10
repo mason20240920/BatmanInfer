@@ -8,11 +8,11 @@
 namespace BatmanInfer {
     namespace cpu {
         void neon_rms_norm_fp16_8_impl(
-                const BIWindow &win,
-                const BIITensor *in,
-                const BIITensor *scale,
-                BIITensor *out) {
-            rms_norm_fp16(win, in, out, scale);
+            const BIWindow &window,
+            const BIITensor *in,
+            const BIITensor *scale,
+            const BIITensor *out) {
+            rms_norm_fp16(window, in, out, scale);
         }
     }
 }

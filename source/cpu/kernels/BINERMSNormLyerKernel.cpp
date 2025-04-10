@@ -69,7 +69,7 @@ namespace BatmanInfer {
                     BI_COMPUTE_ERROR("NOT SUPPORTED");
             }
 
-            // Configure kernel window
+            // Configure kernel window(计算成一维度的)
             BIWindow win = calculate_max_window(*input->info(), BISteps());
             BIINEKernel::configure(win);
         }
@@ -100,7 +100,7 @@ namespace BatmanInfer {
         }
 
         bool BINERMSNormLayerKernel::is_parallelisable() const {
-            return false;
+            return true;
         }
     }
 }

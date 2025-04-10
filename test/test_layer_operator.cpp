@@ -2,13 +2,34 @@
 // Created by Mason on 2025/1/23.
 //
 
+#include <thread>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <runtime/bi_tensor.hpp>
 #include <runtime/neon/bi_ne_functions.h>
 #include <utils/utils.hpp>
 
+#include "runtime/bi_scheduler.hpp"
+
 using namespace BatmanInfer;
+
+namespace LayerTest {
+    BITensor create_norm_input(std::vector<int> shapes, const std::string &file_path = "") {
+        BITensorShape input_shape;
+        if (shapes.size() == 3)
+            input_shape = BITensorShape(shapes[2], shapes[1], shapes[0]); // [M, K]
+        else if (shapes.size() == 2)
+            input_shape = BITensorShape(shapes[1], shapes[0]);
+        else if (shapes.size() == 1)
+            input_shape = BITensorShape(shapes[0]);
+        else
+            input_shape = BITensorShape(shapes[3], shapes[2], shapes[1], shapes[0]); // [M, K]
+        BITensor input = utils::create_type_tensor(file_path,
+                                                   input_shape,
+                                                   BIDataType::F16);
+        return input;
+    }
+}
 
 
 TEST(BatmanInferLayer, RNNLayerTest) {
@@ -378,44 +399,40 @@ TEST(BatmanInferLayer, FeedForwardLayerTest) {
 }
 
 TEST(BatmanInferLayer, RMSNormTest) {
+    BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
+    BIMemoryGroup group{BIMemoryManagerOnDemand::make_default()};
     // 输入张量
     const BITensorShape input_shape(768,
-                                    2, // hidden size
-                                    2); // sequence length
+                                    16, // hidden size
+                                    20); // sequence length
     const BITensorInfo input_info(input_shape, 1, BIDataType::F16);
     BITensor input;
     input.allocator()->init(input_info);
 
     // gamma张量
-    const BITensorShape gamma_shape(768); // hidden size
-    const BITensorInfo gamma_info(gamma_shape, 1, BIDataType::F16);
-    BITensor gamma;
-    gamma.allocator()->init(gamma_info);
+    const std::string &gamma_path = "/Users/mason/Desktop/Desktop/PythonProjects/quantize_gpt_qat/mlp_rms_gamma.npy";
+    BITensor gamma = LayerTest::create_norm_input(std::vector<int>{768}, gamma_path);
+    print_new_tensor(gamma);
 
     // 输出张量
     const BITensorShape output_shape(768,
-                                     2, // hidden_units (width)
-                                     2); // batch_size (height)
+                                     16, // hidden_units (width)
+                                     20); // batch_size (height)
     const BITensorInfo output_info(output_shape, 1, BIDataType::F16);
     BITensor output;
     output.allocator()->init(output_info);
-
     input.allocator()->allocate();
-    gamma.allocator()->allocate();
     output.allocator()->allocate();
 
-    fill_new_tensor_val(gamma, static_cast<float16_t>(1));
-
-    std::vector<float16_t> input_data(768 * 4);
+    std::vector<float16_t> input_data(768 * 320);
     // 初始化输入数据（模拟正态分布）
-    for (int i = 0; i < (768 * 4); ++i)
-        input_data[i] = static_cast<float16_t>(((i % 32 - 16.0f) / 8.0f) + (i / 100.0f));
+    for (int i = 0; i < (768 * 320); ++i)
+        input_data[i] = static_cast<float16_t>(((i % 32 - 16.0f) / 8.0f) + (i / 100000.0f));
 
     auto *src_ptr = reinterpret_cast<float16_t *>(input.buffer());
     std::memcpy(src_ptr, input_data.data(), input_data.size() * sizeof(float16_t));
 
-    print_new_tensor(input);
-
+    // print_new_tensor(input);
 
     BINERMSNormLayer rms_norm;
     rms_norm.configure(&input, &gamma, &output);
@@ -425,15 +442,12 @@ TEST(BatmanInferLayer, RMSNormTest) {
     rms_norm.run();
     // 结束时间节点
     auto end = std::chrono::high_resolution_clock::now();
-
     // 计算耗时（以微秒为单位）
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-
     // 输出运行时间
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
-
-    print_new_tensor(output);
+    // print_new_tensor(output);
 }
 
 TEST(BatmanInferLayer, GEMMLayerTest) {

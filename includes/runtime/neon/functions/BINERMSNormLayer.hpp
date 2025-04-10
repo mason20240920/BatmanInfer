@@ -29,10 +29,7 @@ namespace BatmanInfer {
     class BINERMSNormLayer : public BIIFunction {
     public:
         /** Default constructor */
-        BINERMSNormLayer(std::shared_ptr<BIIMemoryManager> memory_manager);
-
-        BINERMSNormLayer() : BINERMSNormLayer(BIMemoryManagerOnDemand::make_default()) {
-        }
+        BINERMSNormLayer();
 
         /** Prevent instances of this class from being copied (As this class contains pointers) */
         BINERMSNormLayer(const BINERMSNormLayer &) = delete;
@@ -73,7 +70,6 @@ namespace BatmanInfer {
         void run() override;
 
     private:
-        BIMemoryGroup _memory_group; /**< Function memory group */
         std::unique_ptr<cpu::BINERMSNormLayerKernel> _rms_norm_kernel; /**<RMS Normalization layer kernel */
         BITensor _input;
         BITensor _gamma;

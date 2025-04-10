@@ -12,15 +12,16 @@ namespace BatmanInfer {
     namespace cpu {
         /**
          * float16x8_t 方式对维度进行归一化
+         * @param window
          * @param in
          * @param scale
          * @param out
          */
         void neon_rms_norm_fp16_8_impl(
-                const BIWindow &window,
-                const BIITensor *in,
-                const BIITensor *scale,
-                BIITensor *out);
+            const BIWindow &window,
+            const BIITensor *in,
+            const BIITensor *scale,
+            const BIITensor *out);
     }
 }
 

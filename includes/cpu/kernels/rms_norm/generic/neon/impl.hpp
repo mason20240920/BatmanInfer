@@ -27,14 +27,14 @@ namespace BatmanInfer {
     * @param window
     * @param input Layout: [H, S]
     * @param output
-    * @param gemma 可选的缩放参数 [H]
+    * @param gamma 可选的缩放参数 [H]
     * @param epsilon  防止除零的小量
     */
     void rms_norm_fp16(const BIWindow &window,
                        const BIITensor *input,
-                       BIITensor *output,
+                       const BIITensor *output,
                        const BIITensor *gamma,
-                       float epsilon = 1e-5) {
+                       const float epsilon = 1e-5) {
         // 创建窗口
         BIWindow win(window);
         win.set(BIWindow::DimX, BIWindow::BIDimension(0, 1, 1));
@@ -101,8 +101,8 @@ namespace BatmanInfer {
             sum_sq_v0 = vaddq_f32(sum_sq_v0, sum_sq_v1);
 
             // 阶段2: 归约计算 (保持高精度) -------------------------------------
-            float32x2_t sum_half = vadd_f32(vget_low_f32(sum_sq_v0), vget_high_f32(sum_sq_v0));
-            float sum_sq = vget_lane_f32(vpadd_f32(sum_half, sum_half), 0);
+            const float32x2_t sum_half = vadd_f32(vget_low_f32(sum_sq_v0), vget_high_f32(sum_sq_v0));
+            const float sum_sq = vget_lane_f32(vpadd_f32(sum_half, sum_half), 0);
 
 
             // 阶段3: 计算缩放因子 ---------------------------------------------
@@ -111,7 +111,6 @@ namespace BatmanInfer {
 
             const float16_t rms_inv_f16 = vduph_lane_f16(vcvt_f16_f32(vdupq_n_f32(rms_inv)), 0);
             const float16x8_t rms_inv_v = vdupq_n_f16(rms_inv_f16); // 向量化的rms_inv
-
 
 
             auto gamma_ptr = reinterpret_cast<const float16_t *>(gamma->buffer());
@@ -133,7 +132,6 @@ namespace BatmanInfer {
                 vst1q_f16(out_ptr + i + 16, vmulq_f16(vmulq_f16(x2, g2), rms_inv_v));
                 vst1q_f16(out_ptr + i + 24, vmulq_f16(vmulq_f16(x3, g3), rms_inv_v));
             }
-
         }, input_it, output_it);
     }
 }

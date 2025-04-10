@@ -26,16 +26,15 @@ namespace BatmanInfer {
 
             BINERMSNormLayerKernel &operator=(BINERMSNormLayerKernel &&) = default;
 
-            ~BINERMSNormLayerKernel() = default;
+            ~BINERMSNormLayerKernel() override = default;
 
-            bool is_parallelisable() const override;
+            [[nodiscard]] bool is_parallelisable() const override;
 
             /** Set the input and output tensors.
              *
              * @param[in]  input         Source tensor. 2 lower dims represent a single input with dimensions [hidden size ,sequence size]
              * @param[in]  gamma
              * @param[out] output        Destination tensor. Output will have the same number of dimensions as input. Data type and layout supported: same as @p input.
-             * @param[in]  norm_info     Normalization layer information like the normalization type, normalization size and other parameters.
              */
             void
             configure(const BIITensor *input, const BIITensor *gamma, BIITensor *output);
@@ -59,7 +58,7 @@ namespace BatmanInfer {
             * @param[in] window Region on which to execute the kernel.
             */
             using RMSNormalizationFunction = void (*)(const BIWindow &win, const BIITensor *in, const BIITensor *gamma,
-                                                      BIITensor *out);
+                                                      const BIITensor *out);
 
         private:
             RMSNormalizationFunction _func;
