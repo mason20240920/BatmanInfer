@@ -31,27 +31,27 @@ namespace BatmanInfer {
         }
     }
 
-/** Fallback method: try to use std::to_string:
- *
- * @param[in] val Value to convert to string
- *
- * @return String representing val.
- */
+    /** Fallback method: try to use std::to_string:
+     *
+     * @param[in] val Value to convert to string
+     *
+     * @return String representing val.
+     */
     template<typename T>
     inline std::string to_string(const T &val) {
         return support::cpp11::to_string(val);
     }
 
-/** Formatted output of a vector of objects.
- *
- * @note: Using the overloaded to_string() instead of overloaded operator<<(), because to_string() functions are
- *        overloaded for all types, where two or more of them can use the same operator<<(), ITensor is an example.
- *
- * @param[out] os   Output stream
- * @param[in]  args Vector of objects to print
- *
- * @return Modified output stream.
- */
+    /** Formatted output of a vector of objects.
+     *
+     * @note: Using the overloaded to_string() instead of overloaded operator<<(), because to_string() functions are
+     *        overloaded for all types, where two or more of them can use the same operator<<(), ITensor is an example.
+     *
+     * @param[out] os   Output stream
+     * @param[in]  args Vector of objects to print
+     *
+     * @return Modified output stream.
+     */
     template<typename T>
     ::std::ostream &operator<<(::std::ostream &os, const std::vector<T> &args) {
         const size_t max_print_size = 5U;
@@ -77,12 +77,12 @@ namespace BatmanInfer {
         return os;
     }
 
-/** Formatted output of a vector of objects.
- *
- * @param[in] args Vector of objects to print
- *
- * @return String representing args.
- */
+    /** Formatted output of a vector of objects.
+     *
+     * @param[in] args Vector of objects to print
+     *
+     * @return String representing args.
+     */
     template<typename T>
     std::string to_string(const std::vector<T> &args) {
         std::stringstream str;
@@ -90,13 +90,13 @@ namespace BatmanInfer {
         return str.str();
     }
 
-/** Formatted output of the Dimensions type.
- *
- * @param[out] os         Output stream.
- * @param[in]  dimensions Type to output.
- *
- * @return Modified output stream.
- */
+    /** Formatted output of the Dimensions type.
+     *
+     * @param[out] os         Output stream.
+     * @param[in]  dimensions Type to output.
+     *
+     * @return Modified output stream.
+     */
     template<typename T>
     inline ::std::ostream &operator<<(::std::ostream &os, const BIDimensions<T> &dimensions) {
         if (dimensions.num_dimensions() > 0) {
@@ -110,13 +110,13 @@ namespace BatmanInfer {
         return os;
     }
 
-/** Formatted output of the RoundingPolicy type.
- *
- * @param[out] os              Output stream.
- * @param[in]  rounding_policy Type to output.
- *
- * @return Modified output stream.
- */
+    /** Formatted output of the RoundingPolicy type.
+     *
+     * @param[out] os              Output stream.
+     * @param[in]  rounding_policy Type to output.
+     *
+     * @return Modified output stream.
+     */
     inline ::std::ostream &operator<<(::std::ostream &os, const BIRoundingPolicy &rounding_policy) {
         switch (rounding_policy) {
             case BIRoundingPolicy::TO_ZERO:
@@ -140,6 +140,59 @@ namespace BatmanInfer {
         str << rounding_policy;
         return str.str();
     }
+
+    /** Formatted output of the Reduction Operations.
+     *
+     * @param[out] os Output stream.
+     * @param[in]  op Type to output.
+     *
+     * @return Modified output stream.
+     */
+    inline ::std::ostream &operator<<(::std::ostream &os, const BIReductionOperation &op) {
+        switch (op) {
+            case BIReductionOperation::SUM:
+                os << "SUM";
+                break;
+            case BIReductionOperation::SUM_SQUARE:
+                os << "SUM_SQUARE";
+                break;
+            case BIReductionOperation::MEAN_SUM:
+                os << "MEAN_SUM";
+                break;
+            case BIReductionOperation::ARG_IDX_MAX:
+                os << "ARG_IDX_MAX";
+                break;
+            case BIReductionOperation::ARG_IDX_MIN:
+                os << "ARG_IDX_MIN";
+                break;
+            case BIReductionOperation::PROD:
+                os << "PROD";
+                break;
+            case BIReductionOperation::MIN:
+                os << "MIN";
+                break;
+            case BIReductionOperation::MAX:
+                os << "MAX";
+                break;
+            default:
+                BI_COMPUTE_ERROR("NOT_SUPPORTED!");
+        }
+
+        return os;
+    }
+
+    /** Formatted output of the Reduction Operations.
+     *
+     * @param[in] op Type to output.
+     *
+     * @return Formatted string.
+     */
+    inline std::string to_string(const BIReductionOperation &op) {
+        std::stringstream str;
+        str << op;
+        return str.str();
+    }
+
 
     /** Formatted output of the GEMMLowpOutputStageType type.
      *
@@ -265,16 +318,16 @@ namespace BatmanInfer {
      */
     inline ::std::ostream &operator<<(::std::ostream &os, const BIGEMMLowpOutputStageInfo &gemm_info) {
         os << "{type=" << gemm_info.type << ", "
-           << "gemlowp_offset=" << gemm_info.gemmlowp_offset << ", "
-           << "gemmlowp_multiplier=" << gemm_info.gemmlowp_multiplier << ", "
-           << "gemmlowp_shift=" << gemm_info.gemmlowp_shift << ", "
-           << "gemmlowp_min_bound=" << gemm_info.gemmlowp_min_bound << ", "
-           << "gemmlowp_max_bound=" << gemm_info.gemmlowp_max_bound << ", "
-           << "gemmlowp_multipliers=" << gemm_info.gemmlowp_multiplier << ", "
-           << "gemmlowp_shifts=" << gemm_info.gemmlowp_shift << ", "
-           << "gemmlowp_real_multiplier=" << gemm_info.gemmlowp_real_multiplier << ", "
-           << "is_quantized_per_channel=" << gemm_info.is_quantized_per_channel << ", "
-           << "output_data_type=" << gemm_info.output_data_type << "}";
+                << "gemlowp_offset=" << gemm_info.gemmlowp_offset << ", "
+                << "gemmlowp_multiplier=" << gemm_info.gemmlowp_multiplier << ", "
+                << "gemmlowp_shift=" << gemm_info.gemmlowp_shift << ", "
+                << "gemmlowp_min_bound=" << gemm_info.gemmlowp_min_bound << ", "
+                << "gemmlowp_max_bound=" << gemm_info.gemmlowp_max_bound << ", "
+                << "gemmlowp_multipliers=" << gemm_info.gemmlowp_multiplier << ", "
+                << "gemmlowp_shifts=" << gemm_info.gemmlowp_shift << ", "
+                << "gemmlowp_real_multiplier=" << gemm_info.gemmlowp_real_multiplier << ", "
+                << "is_quantized_per_channel=" << gemm_info.is_quantized_per_channel << ", "
+                << "output_data_type=" << gemm_info.output_data_type << "}";
         return os;
     }
 
@@ -301,29 +354,29 @@ namespace BatmanInfer {
     inline ::std::ostream &operator<<(::std::ostream &os, const BIWeightsInfo &weights_info) {
         os << weights_info.are_reshaped() << ";";
         os << weights_info.num_kernels() << ";" << weights_info.kernel_size().first << ","
-           << weights_info.kernel_size().second;
+                << weights_info.kernel_size().second;
 
         return os;
     }
 
-/** Formatted output of the ROIPoolingInfo type.
- *
- * @param[out] os        Output stream.
- * @param[in]  pool_info Type to output.
- *
- * @return Modified output stream.
- */
+    /** Formatted output of the ROIPoolingInfo type.
+     *
+     * @param[out] os        Output stream.
+     * @param[in]  pool_info Type to output.
+     *
+     * @return Modified output stream.
+     */
     inline ::std::ostream &operator<<(::std::ostream &os, const BIROIPoolingLayerInfo &pool_info) {
         os << pool_info.pooled_width() << "x" << pool_info.pooled_height() << "~" << pool_info.spatial_scale();
         return os;
     }
 
-/** Formatted output of the ROIPoolingInfo type.
- *
- * @param[in] pool_info Type to output.
- *
- * @return Formatted string.
- */
+    /** Formatted output of the ROIPoolingInfo type.
+     *
+     * @param[in] pool_info Type to output.
+     *
+     * @return Formatted string.
+     */
     inline std::string to_string(const BIROIPoolingLayerInfo &pool_info) {
         std::stringstream str;
         str << pool_info;
@@ -339,11 +392,11 @@ namespace BatmanInfer {
  */
     inline ::std::ostream &operator<<(std::ostream &os, const BIITensorInfo *info) {
         const BIDataType data_type = info->data_type();
-//        const BIDataLayout data_layout = info->data_layout();
+        //        const BIDataLayout data_layout = info->data_layout();
 
         os << "Shape=" << info->tensor_shape() << ","
-           //           << "DataLayout=" << string_from_data_layout(data_layout) << ","
-           << "DataType=" << string_from_data_type(data_type);
+                //           << "DataLayout=" << string_from_data_layout(data_layout) << ","
+                << "DataType=" << string_from_data_type(data_type);
 
         if (is_data_type_quantized(data_type)) {
             const BIQuantizationInfo qinfo = info->quantization_info();
@@ -351,55 +404,55 @@ namespace BatmanInfer {
             const auto offsets = qinfo.offset();
 
             os << ", QuantizationInfo={"
-               << "scales.size=" << scales.size() << ", scale(s)=" << scales << ", ";
+                    << "scales.size=" << scales.size() << ", scale(s)=" << scales << ", ";
 
             os << "offsets.size=" << offsets.size() << ", offset(s)=" << offsets << "}";
         }
         return os;
     }
 
-/** Formatted output of the const TensorInfo& type.
- *
- * @param[out] os   Output stream.
- * @param[in]  info Type to output.
- *
- * @return Modified output stream.
- */
+    /** Formatted output of the const TensorInfo& type.
+     *
+     * @param[out] os   Output stream.
+     * @param[in]  info Type to output.
+     *
+     * @return Modified output stream.
+     */
     inline ::std::ostream &operator<<(::std::ostream &os, const BITensorInfo &info) {
         os << &info;
         return os;
     }
 
-/** Formatted output of the const TensorInfo& type.
- *
- * @param[in] info Type to output.
- *
- * @return Formatted string.
- */
+    /** Formatted output of the const TensorInfo& type.
+     *
+     * @param[in] info Type to output.
+     *
+     * @return Formatted string.
+     */
     inline std::string to_string(const BITensorInfo &info) {
         std::stringstream str;
         str << &info;
         return str.str();
     }
 
-/** Formatted output of the const ITensorInfo& type.
- *
- * @param[in] info Type to output.
- *
- * @return Formatted string.
- */
+    /** Formatted output of the const ITensorInfo& type.
+     *
+     * @param[in] info Type to output.
+     *
+     * @return Formatted string.
+     */
     inline std::string to_string(const BIITensorInfo &info) {
         std::stringstream str;
         str << &info;
         return str.str();
     }
 
-/** Formatted output of the const ITensorInfo* type.
- *
- * @param[in] info Type to output.
- *
- * @return Formatted string.
- */
+    /** Formatted output of the const ITensorInfo* type.
+     *
+     * @param[in] info Type to output.
+     *
+     * @return Formatted string.
+     */
     inline std::string to_string(const BIITensorInfo *info) {
         std::string ret_str = "nullptr";
         if (info != nullptr) {
@@ -410,22 +463,22 @@ namespace BatmanInfer {
         return ret_str;
     }
 
-/** Formatted output of the ITensorInfo* type.
- *
- * @param[in] info Type to output.
- *
- * @return Formatted string.
- */
+    /** Formatted output of the ITensorInfo* type.
+     *
+     * @param[in] info Type to output.
+     *
+     * @return Formatted string.
+     */
     inline std::string to_string(BIITensorInfo *info) {
         return to_string(static_cast<const BIITensorInfo *>(info));
     }
 
-/** Formatted output of the ITensorInfo type obtained from const ITensor* type.
- *
- * @param[in] tensor Type to output.
- *
- * @return Formatted string.
- */
+    /** Formatted output of the ITensorInfo type obtained from const ITensor* type.
+     *
+     * @param[in] tensor Type to output.
+     *
+     * @return Formatted string.
+     */
     inline std::string to_string(const BIITensor *tensor) {
         std::string ret_str = "nullptr";
         if (tensor != nullptr) {
@@ -446,12 +499,12 @@ namespace BatmanInfer {
         return to_string(static_cast<const BIITensor *>(tensor));
     }
 
-/** Formatted output of the ITensorInfo type obtained from the ITensor& type.
- *
- * @param[in] tensor Type to output.
- *
- * @return Formatted string.
- */
+    /** Formatted output of the ITensorInfo type obtained from the ITensor& type.
+     *
+     * @param[in] tensor Type to output.
+     *
+     * @return Formatted string.
+     */
     inline std::string to_string(BIITensor &tensor) {
         std::stringstream str;
         str << "ITensor.info(): " << tensor.info();
@@ -565,12 +618,12 @@ namespace BatmanInfer {
         return os;
     }
 
-/** Formatted output of the activation function info type.
- *
- * @param[in] info ActivationLayerInfo to output.
- *
- * @return Formatted string.
- */
+    /** Formatted output of the activation function info type.
+     *
+     * @param[in] info ActivationLayerInfo to output.
+     *
+     * @return Formatted string.
+     */
     inline std::string to_string(const BatmanInfer::BIActivationLayerInfo &info) {
         std::stringstream str;
         if (info.enabled()) {
@@ -621,9 +674,9 @@ namespace BatmanInfer {
      */
     inline ::std::ostream &operator<<(::std::ostream &os, const BatmanInfer::BIMatMulInfo &matmul_info) {
         os << "MatMulKernelInfo="
-           << "["
-           << "adj_lhs=" << matmul_info.adj_lhs() << ", "
-           << "adj_rhs=" << matmul_info.adj_rhs() << "] ";
+                << "["
+                << "adj_lhs=" << matmul_info.adj_lhs() << ", "
+                << "adj_rhs=" << matmul_info.adj_rhs() << "] ";
         return os;
     }
 
@@ -648,8 +701,8 @@ namespace BatmanInfer {
      */
     inline ::std::ostream &operator<<(::std::ostream &os, const BatmanInfer::BICpuMatMulSettings &settings) {
         os << "CpuMatMulSettings="
-           << "["
-           << "fast_math=" << settings.fast_math() << ",fixed_format=" << settings.fixed_format() << "]";
+                << "["
+                << "fast_math=" << settings.fast_math() << ",fixed_format=" << settings.fixed_format() << "]";
 
         return os;
     }
@@ -710,12 +763,12 @@ namespace BatmanInfer {
         return os;
     }
 
-/** Formatted output of the DataLayout type.
- *
- * @param[in] data_layout Type to output.
- *
- * @return Formatted string.
- */
+    /** Formatted output of the DataLayout type.
+     *
+     * @param[in] data_layout Type to output.
+     *
+     * @return Formatted string.
+     */
     inline std::string to_string(const BatmanInfer::BIDataLayout &data_layout) {
         std::stringstream str;
         str << data_layout;
@@ -735,11 +788,11 @@ namespace BatmanInfer {
 
     inline ::std::ostream &operator<<(::std::ostream &os, const BIFullyConnectedLayerInfo &layer_info) {
         os << "{activation_info=" << to_string(layer_info.activation_info) << ", "
-           << "weights_trained_layout=" << layer_info.weights_trained_layout << ", "
-           << "transpose_weights=" << layer_info.transpose_weights << ", "
-           << "are_weights_reshaped=" << layer_info.are_weights_reshaped << ", "
-           << "retain_internal_weights=" << layer_info.retain_internal_weights << ", "
-           << "fp_mixed_precision=" << layer_info.fp_mixed_precision << "}";
+                << "weights_trained_layout=" << layer_info.weights_trained_layout << ", "
+                << "transpose_weights=" << layer_info.transpose_weights << ", "
+                << "are_weights_reshaped=" << layer_info.are_weights_reshaped << ", "
+                << "retain_internal_weights=" << layer_info.retain_internal_weights << ", "
+                << "fp_mixed_precision=" << layer_info.fp_mixed_precision << "}";
         return os;
     }
 
@@ -808,7 +861,6 @@ namespace BatmanInfer {
         os << info.type() << ":NormSize=" << info.norm_size();
         return os;
     }
-
 }
 
 #endif //BATMANINFER_BI_TYPE_PRINTER_HPP
