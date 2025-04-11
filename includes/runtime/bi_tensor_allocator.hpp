@@ -56,6 +56,16 @@ namespace BatmanInfer {
                   BITensorInfo &sub_info);
 
         /**
+         * @brief 与另一个张量分配器共享相同的底层内存，但张量信息可能不同
+         *        换句话说，这可以用来从另一个张量创建一个子张量，同时共享相同的内存
+         * @warning 但是与上面的init不同的是，这个内存是连续的，不需要修改BIStrides为父向量的BIStrides
+         * @param allocator 拥有待共享后备内存的分配器。所有权随后变为共享
+         * @param sub_info 新的张量信息（例如：形状等）
+         */
+        void init(const BITensorAllocator &allocator,
+                  BITensorInfo &sub_info);
+
+        /**
          * @brief 返回指向已分配数据的指针。
          *
          * @return 指针指向分配的数据
@@ -100,13 +110,12 @@ namespace BatmanInfer {
         void set_associated_memory_group(BIIMemoryGroup *associated_memory_group);
 
     protected:
-
         /**
          * @brief 对 CPU 内存无操作
          *
          * @return 一个指向张量分配起始位置的指针。
          */
-        uint8_t * lock() override;
+        uint8_t *lock() override;
 
         /**
          * @brief 对CPU内存无操作

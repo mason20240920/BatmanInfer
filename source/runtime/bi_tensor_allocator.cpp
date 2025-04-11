@@ -26,11 +26,11 @@ namespace {
 
         // 获取父张量和子张量的形状
         const BITensorShape &parent_shape = parent_info.tensor_shape();
-        const BITensorShape &child_shape  = child_info.tensor_shape();
+        const BITensorShape &child_shape = child_info.tensor_shape();
 
         // 获取父张量和子张量的维度数
         const size_t parent_dims = parent_info.num_dimensions();
-        const size_t child_dims  = child_info.num_dimensions();
+        const size_t child_dims = child_info.num_dimensions();
 
         // 如果子张量的维度数小于或等于父张量的维度数
         if (child_dims <= parent_dims) {
@@ -48,7 +48,7 @@ namespace {
                 }
             }
         } else
-            // 如果子张量的维度数大于父张量的维度数，直接认为无效
+        // 如果子张量的维度数大于父张量的维度数，直接认为无效
             is_valid = false;
 
         return is_valid;
@@ -57,7 +57,6 @@ namespace {
 
 BITensorAllocator::BITensorAllocator(BIIMemoryManageable *owner) : _owner(owner), _associated_memory_group(nullptr),
                                                                    _memory() {
-
 }
 
 BITensorAllocator::~BITensorAllocator() {
@@ -67,12 +66,12 @@ BITensorAllocator::~BITensorAllocator() {
 BITensorAllocator::BITensorAllocator(BITensorAllocator &&o) noexcept: BIITensorAllocator(std::move(o)),
                                                                       _owner(o._owner),
                                                                       _associated_memory_group(
-                                                                              o._associated_memory_group),
+                                                                          o._associated_memory_group),
                                                                       _memory(std::move(o._memory)) {
     // 转移之后把所有的值进行清空
-    o._owner                   = nullptr;
+    o._owner = nullptr;
     o._associated_memory_group = nullptr;
-    o._memory                  = BIMemory();
+    o._memory = BIMemory();
 }
 
 BITensorAllocator &BITensorAllocator::operator=(BatmanInfer::BITensorAllocator &&o) noexcept {
@@ -95,7 +94,7 @@ void BITensorAllocator::init(const BITensorAllocator &allocator,
                              const BICoordinates &coords,
                              BITensorInfo &sub_info) {
     // 获取父分配器的信息
-    const BITensorInfo& parent_info = allocator.info();
+    const BITensorInfo &parent_info = allocator.info();
 
     // 检查坐标和新形状是否在父张量内。
     BI_COMPUTE_ERROR_ON(!validate_sub_tensor_shape(parent_info, sub_info, coords));
@@ -106,7 +105,8 @@ void BITensorAllocator::init(const BITensorAllocator &allocator,
     _memory = BIMemory(allocator._memory.region());
 
     // 用新维度初始化张量信息
-    size_t total_size =  parent_info.offset_element_in_bytes(coords) + sub_info.total_size() - sub_info.offset_first_element_in_bytes();
+    size_t total_size = parent_info.offset_element_in_bytes(coords) + sub_info.total_size() - sub_info.
+                        offset_first_element_in_bytes();
 
     sub_info.init(sub_info.tensor_shape(), sub_info.format(), parent_info.strides_in_bytes(),
                   parent_info.offset_element_in_bytes(coords), total_size);
@@ -114,6 +114,24 @@ void BITensorAllocator::init(const BITensorAllocator &allocator,
     // 设置张量信息
     init(sub_info);
 }
+
+void BITensorAllocator::init(const BITensorAllocator &allocator,
+                             BITensorInfo &sub_info) {
+    // 获取父分配器的信息
+    const BITensorInfo &parent_info = allocator.info(); // 检查坐标和新形状是否在父张量内。
+
+    // 拷贝指针到缓存
+    _memory = BIMemory(allocator._memory.region());
+
+    // 用新维度信息初始化
+    size_t total_size = sub_info.total_size() - sub_info.offset_first_element_in_bytes();
+
+    sub_info.init(sub_info.tensor_shape(), sub_info.format(), sub_info.strides_in_bytes(),
+                  parent_info.offset_first_element_in_bytes(), total_size);
+
+    init(sub_info);
+}
+
 
 uint8_t *BITensorAllocator::data() const {
     return (_memory.region() == nullptr) ? nullptr : reinterpret_cast<uint8_t *>(_memory.region()->buffer());
@@ -163,5 +181,4 @@ uint8_t *BITensorAllocator::lock() {
 }
 
 void BITensorAllocator::unlock() {
-
 }
