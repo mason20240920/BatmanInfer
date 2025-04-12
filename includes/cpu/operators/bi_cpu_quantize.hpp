@@ -8,6 +8,7 @@
 
 namespace BatmanInfer {
     class BIITensorInfo;
+
     namespace cpu {
         /** Basic function to run @ref kernels::CpuQuantizeKernel that dequantizes an input tensor */
         class BICpuQuantize : public BIICpuOperator {
@@ -18,6 +19,8 @@ namespace BatmanInfer {
              * @param[out] dst Destination tensor info with the same dimensions of input. Data types supported: QASYMM8/QASYMM8_SIGNED/QASYMM16
              */
             void configure(const BIITensorInfo *src, BIITensorInfo *dst);
+
+            void dynamic_configure(const BIITensorInfo *src) const;
 
             /** Static function to check if given info will lead to a valid configuration
              *

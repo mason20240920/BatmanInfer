@@ -30,9 +30,9 @@ namespace BatmanInfer {
         // Perform validate step
         BI_COMPUTE_ERROR_ON_NULLPTR(input, output);
         BI_COMPUTE_ERROR_THROW_ON(
-                BINEGEMMLowpOutputStage::validate(input->info(), bias != nullptr ? bias->info() : nullptr,
-                                                  output->info(),
-                                                  info));
+            BINEGEMMLowpOutputStage::validate(input->info(), bias != nullptr ? bias->info() : nullptr,
+                output->info(),
+                info));
         _impl->src = input;
         _impl->bias = bias;
         _impl->dst = output;
@@ -40,10 +40,16 @@ namespace BatmanInfer {
         _impl->op->configure(input->info(), (bias == nullptr) ? nullptr : bias->info(), output->info(), info);
 
         _impl->run_pack = {
-                {BITensorType::ACL_SRC,  _impl->src},
-                {BITensorType::ACL_BIAS, _impl->bias},
-                {BITensorType::ACL_DST,  _impl->dst}};
+            {BITensorType::ACL_SRC, _impl->src},
+            {BITensorType::ACL_BIAS, _impl->bias},
+            {BITensorType::ACL_DST, _impl->dst}
+        };
     }
+
+    void BINEGEMMLowpOutputStage::dynamic_configure(const BIITensor *src) const {
+        _impl->op->dynamic_configure(src->info());
+    }
+
 
     BIStatus BINEGEMMLowpOutputStage::validate(const BIITensorInfo *input,
                                                const BIITensorInfo *bias,

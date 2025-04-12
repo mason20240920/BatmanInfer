@@ -26,6 +26,11 @@ namespace BatmanInfer {
         _impl->op->configure(input->info(), output->info());
     }
 
+    void BINEDequantizationLayer::dynamic_configure(const BIITensor *input) const {
+        _impl->op->dynamic_configure(input->info());
+    }
+
+
     BIStatus BINEDequantizationLayer::validate(const BIITensorInfo *input, const BIITensorInfo *output) {
         return cpu::BICpuDequantize::validate(input, output);
     }

@@ -13,10 +13,8 @@ namespace BatmanInfer {
      * @param format
      * @return
      */
-    inline size_t num_channels_from_format(Format format)
-    {
-        switch (format)
-        {
+    inline size_t num_channels_from_format(Format format) {
+        switch (format) {
             case Format::U8:
             case Format::U16:
             case Format::S16:
@@ -25,9 +23,10 @@ namespace BatmanInfer {
             case Format::BFLOAT16:
             case Format::F16:
             case Format::F32:
+            case Format::S8:
                 return 1;
-                // Because the U and V channels are subsampled
-                // these formats appear like having only 2 channels:
+            // Because the U and V channels are subsampled
+            // these formats appear like having only 2 channels:
             case Format::YUYV422:
             case Format::UYVY422:
                 return 2;
@@ -37,7 +36,7 @@ namespace BatmanInfer {
                 return 3;
             case Format::RGBA8888:
                 return 4;
-                //Doesn't make sense for planar formats:
+            //Doesn't make sense for planar formats:
             case Format::NV12:
             case Format::NV21:
             case Format::IYUV:

@@ -8,6 +8,7 @@
 
 namespace BatmanInfer {
     class BIITensorInfo;
+
     namespace cpu {
         /** Basic function to run @ref kernels::BICpuDequantizeKernel that dequantizes an input tensor */
         class BICpuDequantize : public BIICpuOperator {
@@ -18,6 +19,8 @@ namespace BatmanInfer {
              * @param[out] dst Destination tensor info with the same dimensions of input. Data type supported: F16/F32.
              */
             void configure(const BIITensorInfo *src, BIITensorInfo *dst);
+
+            void dynamic_configure(const BIITensorInfo *src) const;
 
             /** Static function to check if given info will lead to a valid configuration
              *

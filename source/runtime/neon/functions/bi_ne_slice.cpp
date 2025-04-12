@@ -29,9 +29,12 @@ namespace BatmanInfer {
             _kernel = std::move(k);
         }
 
-        void BINESlice::dynamic_configure(const BIITensorInfo *input) const {
+        void BINESlice::dynamic_configure(const BIITensorInfo *input,
+                                          const BIITensorInfo *output,
+                                          const BICoordinates &starts,
+                                          const BICoordinates &ends) const {
             const auto splice_kernel = reinterpret_cast<BINEStridedSliceKernel *>(_kernel.get());
-            splice_kernel->dynamic_configure(input);
+            splice_kernel->dynamic_configure(input, output, starts, ends, BiStrides());
         }
 
 
@@ -83,8 +86,11 @@ namespace BatmanInfer {
         _impl->op->configure(input->info(), output->info(), starts, ends);
     }
 
-    void BINESlice::dynamic_configure(const BIITensor *input) const {
-        _impl->op->dynamic_configure(input->info());
+
+    void BINESlice::dynamic_configure(const BIITensor *input,
+                                      BIITensor *output, const BICoordinates &starts,
+                                      const BICoordinates &ends) const {
+        _impl->op->dynamic_configure(input->info(), output->info(), starts, ends);
     }
 
 

@@ -99,15 +99,22 @@ namespace BatmanInfer {
         BIINEKernel::configure(win_config.second);
     }
 
-    void BINEStridedSliceKernel::dynamic_configure(const BatmanInfer::BIITensorInfo *input) {
+    void BINEStridedSliceKernel::dynamic_configure(const BIITensorInfo *input,
+                                                   const BIITensorInfo *output,
+                                                   const BICoordinates &starts,
+                                                   const BICoordinates &ends,
+                                                   const BiStrides &strides) {
         // 因为仅仅修改的是Batch和Sequence，因此只需要修改window对于单个tensor的修改
-        const BITensorShape &input_shape = input->tensor_shape();
-        const auto dim_size = input_shape.num_dimensions();
+        BICoordinates ends_abs;
+        std::tie(_starts_abs, ends_abs, _final_strides) =
+                helpers::tensor_transform::calculate_strided_slice_coords(
+                    input->tensor_shape(), starts, ends,
+                    strides,
+                    0, 0,
+                    0);
         auto win = BIINEKernel::window();
-        for (int i = 1; i < dim_size; ++i) {
-            win.set(i, BIWindow::BIDimension(0, input_shape[i], 1));
-        }
-        BIICPPKernel::configure(win);
+        dynamic_calculate_max_window(*output, win);
+        BIICPPKernel::dynamic_configure(win);
     }
 
     BIStatus BINEStridedSliceKernel::validate(const BIITensorInfo *input,

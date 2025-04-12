@@ -62,6 +62,13 @@ namespace BatmanInfer {
                 }
             }
 
+            void BICpuDequantizeKernel::dynamic_configure(const BIITensorInfo *src) {
+                auto win = BIICpuKernel::window();
+                dynamic_calculate_max_window(*src, win);
+                BIICpuKernel::dynamic_configure(win);
+            }
+
+
             BIStatus BICpuDequantizeKernel::validate(const BIITensorInfo *src, const BIITensorInfo *dst) {
                 BI_COMPUTE_RETURN_ON_ERROR(validate_arguments(src, dst));
                 return BIStatus{};

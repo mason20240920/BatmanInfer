@@ -10,7 +10,6 @@
 #include <data/core/bi_pixel_value.h>
 
 namespace BatmanInfer {
-
     const std::string &string_from_data_type(BIDataType dt);
 
     /**
@@ -28,7 +27,7 @@ namespace BatmanInfer {
             case BIDataType::QASYMM8_SIGNED:
             case BIDataType::QSYMM8_PER_CHANNEL:
                 return 1;
-                // 2 字节（16 位）数据类型
+            // 2 字节（16 位）数据类型
             case BIDataType::U16:
             case BIDataType::S16:
             case BIDataType::QSYMM16:
@@ -36,17 +35,17 @@ namespace BatmanInfer {
             case BIDataType::BFLOAT16:
             case BIDataType::F16:
                 return 2;
-                // 4 字节（32 位）数据类型:
+            // 4 字节（32 位）数据类型:
             case BIDataType::F32:
             case BIDataType::U32:
             case BIDataType::S32:
                 return 4;
-                // 8 字节（64 位）数据类型
+            // 8 字节（64 位）数据类型
             case BIDataType::F64:
             case BIDataType::U64:
             case BIDataType::S64:
                 return 8;
-                // 平台相关的类型
+            // 平台相关的类型
             case BIDataType::SIZET:
                 return sizeof(size_t);
             default:
@@ -78,7 +77,9 @@ namespace BatmanInfer {
                 return BIDataType::F16;
             case Format::F32:
                 return BIDataType::F32;
-                //Doesn't make sense for planar formats:
+            case Format::S8:
+                return BIDataType::QASYMM8_SIGNED;
+            //Doesn't make sense for planar formats:
             case Format::NV12:
             case Format::NV21:
             case Format::IYUV:
@@ -251,7 +252,6 @@ namespace BatmanInfer {
                 return false;
         }
     }
-
 }
 
 #endif //BATMANINFER_DATA_TYPE_UTILS_HPP

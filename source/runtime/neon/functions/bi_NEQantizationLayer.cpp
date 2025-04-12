@@ -31,6 +31,11 @@ namespace BatmanInfer {
         _impl->op->configure(input->info(), output->info());
     }
 
+    void BINEQuantizationLayer::dynamic_configure(const BIITensor *input) const {
+        _impl->op->dynamic_configure(input->info());
+    }
+
+
     void BINEQuantizationLayer::run() {
         BIITensorPack pack;
         pack.add_tensor(BITensorType::ACL_SRC, _impl->src);

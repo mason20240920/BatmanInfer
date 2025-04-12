@@ -14,26 +14,34 @@
 
 #include <common/utils/bi_log.hpp>
 
+#include "data/core/utils/quantization/asymm_helpers.hpp"
+
 namespace BatmanInfer {
+    inline void invert_qinfo_offset(BITensor &t) {
+        BIQuantizationInfo qinfo = t.info()->quantization_info();
+        t.info()->set_quantization_info(BIQuantizationInfo(qinfo.scale()[0], -qinfo.offset()[0], qinfo.is_dynamic()));
+    }
+
     BINEAttentionLowpLayer::~BINEAttentionLowpLayer() = default;
 
     BINEAttentionLowpLayer::BINEAttentionLowpLayer(std::shared_ptr<BIIMemoryManager> memory_manager) : _memory_group(
             std::move(memory_manager)),
         _rms_norm_layer(),
         _quantization_layer(),
-        _dequantization_layer(),
-        _copy_f(),
+        _c_attn_layer(),
+        _c_attn_o_stage(),
         _norm_output(),
-        _quantization_output(),
-        _dequantization_output(),
+        _q_norm_output(),
+        _c_attn_s32_output(),
+        _c_attn_q8_output(),
         _is_prepared(false) {
     }
 
     BIStatus
-    BINEAttentionLowpLayer::validate(const BatmanInfer::BIITensorInfo *input,
-                                     const BatmanInfer::BIITensorInfo *weights,
-                                     const BatmanInfer::BIITensorInfo *bias,
-                                     const BatmanInfer::BIITensorInfo *output) {
+    BINEAttentionLowpLayer::validate(const BIITensorInfo *input,
+                                     const BIITensorInfo *weights,
+                                     const BIITensorInfo *bias,
+                                     const BIITensorInfo *output) {
         BI_COMPUTE_ERROR_ON_NULLPTR(input, weights, bias, output);
         BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_NOT_IN(input, BIDataType::F32, BIDataType::F16);
 
@@ -42,80 +50,271 @@ namespace BatmanInfer {
         return BIStatus{};
     }
 
-    void BINEAttentionLowpLayer::configure(const BatmanInfer::BIITensor *input,
-                                           const BatmanInfer::BIITensor *weights,
-                                           const BatmanInfer::BIITensor *bias,
-                                           const BIITensor *scalar,
-                                           const BIITensor *add_weights,
-                                           const BIITensor *weights_second,
-                                           const BIITensor *bias_second,
-                                           const BIITensor *gamma,
-                                           const PermutationVector &perm,
-                                           const PermutationVector &perm2,
-                                           const PermutationVector &final_perm,
+    void BINEAttentionLowpLayer::dynamic_configure(const BIITensor *input,
+                                                   const size_t &seq_len,
+                                                   const size_t &batch_size) {
+        _batch_size = batch_size;
+        _seq_len = seq_len;
+
+        _sub_norm_info.set_tensor_shape(BITensorShape(_hidden_size, seq_len, batch_size));
+        _sub_norm_tensor.allocator()->init(*_norm_output.allocator(), _sub_norm_info);
+
+        _sub_norm_q_info.set_tensor_shape(BITensorShape(_hidden_size, seq_len, batch_size));
+        _sub_norm_q_tensor.allocator()->init(*_q_norm_output.allocator(), _sub_norm_q_info);
+
+        _sub_c_attn_s32_tensor_info.set_tensor_shape(BITensorShape(_hidden_size * 3, seq_len, batch_size));
+        _sub_c_attn_s32_tensor.allocator()->init(*_c_attn_s32_output.allocator(), _sub_c_attn_s32_tensor_info);
+
+        _sub_c_attn_q_info.set_tensor_shape(BITensorShape(_hidden_size * 3, seq_len, batch_size));
+        _sub_c_attn_q8_tensor.allocator()->init(*_c_attn_q8_output.allocator(), _sub_c_attn_q_info);
+
+        _sub_split_q_info.set_tensor_shape(BITensorShape(_hidden_size, seq_len, batch_size));
+        _sub_split_q_result_0.allocator()->init(*_split_q_result_0.allocator(), _sub_split_q_info);
+        _sub_split_q_result_1.allocator()->init(*_split_q_result_1.allocator(), _sub_split_q_info);
+        _sub_split_q_result_2.allocator()->init(*_split_q_result_2.allocator(), _sub_split_q_info);
+
+        _sub_query_info.set_tensor_shape(BITensorShape(_hidden_size, seq_len, batch_size));
+        _sub_query_states.allocator()->init(*_query_states.allocator(), _sub_query_info);
+        _sub_key_states.allocator()->init(*_key_states.allocator(), _sub_query_info);
+        _sub_value_states.allocator()->init(*_value_states.allocator(), _sub_query_info);
+
+        _sub_q_query_info.set_tensor_shape(BITensorShape(_hidden_size, seq_len, batch_size));
+        _sub_q_query_states.allocator()->init(*_q_query_states.allocator(), _sub_q_query_info);
+
+        std::vector<BIITensor *> outputs = {
+            &_sub_split_q_result_0,
+            &_sub_split_q_result_1,
+            &_sub_split_q_result_2
+        };
+
+        _rms_norm_layer.dynamic_configure(input);
+        _quantization_layer.dynamic_configure(&_sub_norm_tensor);
+        _c_attn_o_stage.dynamic_configure(&_sub_c_attn_s32_tensor);
+        _split_layer.dynamic_configure(&_sub_c_attn_q8_tensor, outputs);
+        _deq_q_layer.dynamic_configure(&_sub_split_q_result_0);
+        _quant_q_layer.dynamic_configure(&_sub_query_states);
+    }
+
+
+    void BINEAttentionLowpLayer::configure(const BIITensor *input,
+                                           const BIITensor *gamma_weights,
+                                           const BIITensor *c_attn_weights,
+                                           const BIITensor *c_attn_bias,
+                                           const float &gemm_i_scale,
+                                           const int &gemm_i_zp,
+                                           const float &attn_gemm_o_scale,
+                                           const int &attn_gemm_o_zp,
+                                           const float &query_q_scale,
+                                           const int &query_q_zp,
+                                           const float &value_q_scale,
+                                           const int &value_q_zp,
+                                           const float &key_q_scale,
+                                           const int &key_q_zp,
+                                           // const BIITensor *bias,
+                                           // const BIITensor *scalar,
+                                           // const BIITensor *add_weights,
+                                           // const BIITensor *weights_second,
+                                           // const BIITensor *bias_second,
+                                           // const BIITensor *gamma,
+                                           // const PermutationVector &perm,
+                                           // const PermutationVector &perm2,
+                                           // const PermutationVector &final_perm,
                                            const size_t &hidden_size,
                                            const size_t &max_seq_len,
                                            const size_t &batch_size,
-                                           BatmanInfer::BIITensor *output) {
-        // 结果判断
-        BI_COMPUTE_ERROR_ON_NULLPTR(input, weights, bias, gamma, output); // 输入的参数是否为空
-        BI_COMPUTE_ERROR_THROW_ON(BINEAttentionLayer::validate(input->info(), weights->info(),
-            bias->info(), output->info())); // 验证输入, 权重，偏置和输出信息
-        BI_COMPUTE_LOG_PARAMS(input, weights, bias, output); // 获取log的参数
+                                           BIITensor *output
+    ) {
+        // // 结果判断
+        // BI_COMPUTE_ERROR_ON_NULLPTR(input, weights, bias, gamma, output); // 输入的参数是否为空
+        // BI_COMPUTE_ERROR_THROW_ON(BINEAttentionLowpLayer::validate(input->info(), weights->info(),
+        //     bias->info(), output->info())); // 验证输入, 权重，偏置和输出信息
+        // BI_COMPUTE_LOG_PARAMS(input, weights, bias, output); // 获取log的参数
 
         // 配置私有参数
         _max_seq_len = max_seq_len; // 最大的值
         _hidden_size = hidden_size; // 隐藏层长度
-        _batch_size = batch_size; // 最大块
+        _max_batch_size = batch_size; // 最大块
         _is_prepared = false; // 初始化标志，标识尚未准备好
 
         // 配置中间张量输出
-        BITensorShape normal_shape = BITensorShape(_hidden_size, _max_seq_len, _batch_size); // 默认输入和输出
-        BITensorShape gemm_1_shape = BITensorShape(weights->info()->tensor_shape()[0], _max_seq_len,
-                                                   _batch_size); // 第一个gemm的输出
+        BITensorShape normal_shape = BITensorShape(_hidden_size, _max_seq_len, _max_batch_size); // 默认输入和输出
+        BITensorShape c_attn_shape = BITensorShape(_hidden_size * 3, _max_seq_len, _max_batch_size); // c_attn计算的输出
+        // BITensorShape gemm_1_shape = BITensorShape(weights->info()->tensor_shape()[0], _max_seq_len,
+        //                                            _batch_size); // 第一个gemm的输出
 
 
+        const auto _norm_q_info = BIQuantizationInfo(gemm_i_scale, gemm_i_zp);
         _norm_output.allocator()->init(BITensorInfo(normal_shape, 1, input->info()->data_type()));
-        _quantization_output.allocator()->
-                init(BITensorInfo(normal_shape, 1, BIDataType::QASYMM8_SIGNED, BIQuantizationInfo(0.5)));
-        _dequantization_output.allocator()->
-                init(BITensorInfo(normal_shape, 1, input->info()->data_type()));
+        _q_norm_output.allocator()->
+                init(BITensorInfo(normal_shape, 1, BIDataType::QASYMM8_SIGNED, _norm_q_info));
+        _c_attn_s32_output.allocator()->init(BITensorInfo(c_attn_shape, 1, BIDataType::S32));
+        const auto _c_attn_q_info = BIQuantizationInfo(attn_gemm_o_scale, attn_gemm_o_zp);
+        _c_attn_q8_output.allocator()->init(BITensorInfo(normal_shape,
+                                                         1,
+                                                         BIDataType::QASYMM8_SIGNED,
+                                                         _c_attn_q_info));
+        _split_q_result_0.allocator()->init(BITensorInfo(normal_shape,
+                                                         1,
+                                                         BIDataType::QASYMM8_SIGNED,
+                                                         _c_attn_q_info));
+        _split_q_result_1.allocator()->init(BITensorInfo(normal_shape,
+                                                         1,
+                                                         BIDataType::QASYMM8_SIGNED,
+                                                         _c_attn_q_info));
+        _split_q_result_2.allocator()->init(BITensorInfo(normal_shape,
+                                                         1,
+                                                         BIDataType::QASYMM8_SIGNED,
+                                                         _c_attn_q_info));
+        _query_states.allocator()->init(BITensorInfo(normal_shape, 1, BIDataType::F16));
+        _key_states.allocator()->init(BITensorInfo(normal_shape, 1, BIDataType::F16));
+        _value_states.allocator()->init(BITensorInfo(normal_shape, 1, BIDataType::F16));
+        const auto _q_query_info = BIQuantizationInfo(query_q_scale, query_q_zp);
+        _q_query_states.allocator()->init(BITensorInfo(normal_shape, 1, BIDataType::QASYMM8_SIGNED, _q_query_info));
+        // _dequantization_output.allocator()->
+        //         init(BITensorInfo(normal_shape, 1, input->info()->data_type()));
         // 内存管理
         _memory_group.manage(&_norm_output);
-        _memory_group.manage(&_quantization_output);
-        _memory_group.manage(&_dequantization_output);
+        _memory_group.manage(&_q_norm_output);
+        _memory_group.manage(&_c_attn_s32_output);
+        _memory_group.manage(&_c_attn_q8_output);
+        _memory_group.manage(&_split_q_result_0);
+        _memory_group.manage(&_split_q_result_1);
+        _memory_group.manage(&_split_q_result_2);
+        _memory_group.manage(&_query_states);
+        _memory_group.manage(&_key_states);
+        _memory_group.manage(&_value_states);
+        _memory_group.manage(&_q_query_states);
+        // _memory_group.manage(&_quantization_output);
+        // _memory_group.manage(&_dequantization_output);
 
         _norm_output.allocator()->allocate();
-        _quantization_output.allocator()->allocate();
-        _dequantization_output.allocator()->allocate();
+        _q_norm_output.allocator()->allocate();
+        _c_attn_s32_output.allocator()->allocate();
+        _c_attn_q8_output.allocator()->allocate();
+        _split_q_result_0.allocator()->allocate();
+        _split_q_result_1.allocator()->allocate();
+        _split_q_result_2.allocator()->allocate();
+        _query_states.allocator()->allocate();
+        _key_states.allocator()->allocate();
+        _value_states.allocator()->allocate();
+        _q_query_states.allocator()->allocate();
+        // _quantization_output.allocator()->allocate();
+        // _dequantization_output.allocator()->allocate();
+
+        // 首次初始化
+        const auto _sub_norm_shape = BITensorShape(_hidden_size, _seq_len, _batch_size);
+        _sub_norm_info = BITensorInfo(_sub_norm_shape, 1, BIDataType::F16);
+        _sub_norm_info.set_format(Format::F16);
+        _sub_norm_tensor.allocator()->init(_sub_norm_info);
+
+        _sub_norm_q_info = BITensorInfo(_sub_norm_shape, 1, BIDataType::QASYMM8_SIGNED, _norm_q_info);
+        _sub_norm_q_info.set_format(Format::S8);
+        _sub_norm_q_tensor.allocator()->init(_sub_norm_q_info);
+
+        const auto _sub_c_attn_shape = BITensorShape(_hidden_size * 3, _seq_len, _batch_size);
+        _sub_c_attn_s32_tensor_info = BITensorInfo(_sub_c_attn_shape, 1, BIDataType::S32);
+        _sub_c_attn_s32_tensor_info.set_format(Format::S32);
+        _sub_c_attn_s32_tensor.allocator()->init(_sub_c_attn_s32_tensor_info);
+
+        _sub_c_attn_q_info = BITensorInfo(_sub_c_attn_shape, 1, BIDataType::QASYMM8_SIGNED, _c_attn_q_info);
+        _sub_c_attn_q_info.set_format(Format::S8);
+        _sub_c_attn_q8_tensor.allocator()->init(_sub_c_attn_q_info);
+
+        _sub_split_q_info = BITensorInfo(_sub_norm_shape, 1, BIDataType::QASYMM8_SIGNED, _c_attn_q_info);
+        _sub_split_q_info.set_format(Format::S8);
+        _sub_split_q_result_0.allocator()->init(_sub_split_q_info);
+        _sub_split_q_result_1.allocator()->init(_sub_split_q_info);
+        _sub_split_q_result_2.allocator()->init(_sub_split_q_info);
+
+        _sub_query_info = BITensorInfo(_sub_norm_shape, 1, BIDataType::F16);
+        _sub_query_info.set_format(Format::F16);
+        _sub_query_states.allocator()->init(_sub_query_info);
+        _sub_key_states.allocator()->init(_sub_query_info);
+        _sub_value_states.allocator()->init(_sub_query_info);
+
+        _sub_q_query_info = BITensorInfo(_sub_norm_shape, 1, BIDataType::QASYMM8_SIGNED, _q_query_info);
+        _sub_q_query_info.set_format(Format::S8);
+        _sub_q_query_states.allocator()->init(_sub_q_query_info);
 
 
         // 配置量化信息
-        _rms_norm_layer.configure(input, gamma, &_norm_output);
-        _quantization_layer.configure(&_norm_output, &_quantization_output);
-        _dequantization_layer.configure(&_quantization_output, &_dequantization_output);
-        _copy_f.configure(&_dequantization_output, output);
+        _rms_norm_layer.configure(input, gamma_weights, &_sub_norm_tensor);
+        _quantization_layer.configure(&_sub_norm_tensor, &_sub_norm_q_tensor);
+        invert_qinfo_offset(_sub_norm_q_tensor);
+        const auto gemm_info = GEMMInfo(false,
+                                        false,
+                                        true,
+                                        false,
+                                        false,
+                                        false,
+                                        BIGEMMLowpOutputStageInfo(),
+                                        false, true, false,
+                                        BIActivationLayerInfo(), false, BIWeightFormat::UNSPECIFIED, false);
+        _c_attn_layer.configure(&_sub_norm_q_tensor, c_attn_weights, nullptr, &_sub_c_attn_s32_tensor, gemm_info);
+        BIGEMMLowpOutputStageInfo attn_qkv_o_stage;
+        attn_qkv_o_stage.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
+        attn_qkv_o_stage.output_data_type = BIDataType::QASYMM8_SIGNED; // 设置输c出数据类型
+        attn_qkv_o_stage.is_quantized_per_channel = true; // 因为权重是per-channel量化// 设置输出范围
+        attn_qkv_o_stage.gemmlowp_offset = static_cast<int32_t>(attn_gemm_o_zp);
+        attn_qkv_o_stage.gemmlowp_min_bound = -128; // 通常是-128
+        attn_qkv_o_stage.gemmlowp_max_bound = 127; // 通常是127// 假设已有输入tensor的量化参数
+        quantization::calculate_quantized_multipliers(_sub_norm_q_tensor.info()->quantization_info(),
+                                                      c_attn_weights->info()->quantization_info(),
+                                                      _sub_c_attn_q8_tensor.info()->quantization_info(),
+                                                      attn_qkv_o_stage);
+        _c_attn_o_stage.configure(&_sub_c_attn_s32_tensor, c_attn_bias, &_sub_c_attn_q8_tensor, attn_qkv_o_stage);
+        std::vector<BIITensor *> outputs = {
+            &_sub_split_q_result_0,
+            &_sub_split_q_result_1,
+            &_sub_split_q_result_2
+        };
+        _split_layer.configure(&_sub_c_attn_q8_tensor, outputs, 0);
+        _deq_q_layer.configure(&_sub_split_q_result_0, &_sub_query_states);
+        _quant_q_layer.configure(&_sub_query_states, &_sub_q_query_states);
+        // _dequantization_layer.configure(&_quantization_output, &_dequantization_output);
+        // _copy_f.configure(&_dequantization_output, output);
     }
 
     void BINEAttentionLowpLayer::run() {
-        prepare();
-
-        BIMemoryGroupResourceScope scope_mg(_memory_group);
+        prepare(); // 内存分配管理
 
         // 运行计算
         _rms_norm_layer.run(); // 归一化计算
-        _quantization_layer.run(); // 量化计算
-        _dequantization_layer.run(); // 反量化计算
-
-        // 拷贝隐藏层到输出
-        _copy_f.run();
+        invert_qinfo_offset(_sub_norm_q_tensor);
+        _quantization_layer.run();
+        invert_qinfo_offset(_sub_norm_q_tensor);
+        _c_attn_layer.run();
+        _c_attn_o_stage.run();
+        _split_layer.run();
+        _deq_q_layer.run();
+        _quant_q_layer.run();
+        // BIIOFormatInfo format;
+        // format.element_delim = ", "; // 元素之间用逗号分隔
+        // format.row_delim = "\n"; // 每行换行
+        // format.align_columns = true; // 对齐列
+        // _sub_q_query_states.print(std::cout, format);
+        // _quantization_layer.run(); // 量化计算
+        // _dequantization_layer.run(); // 反量化计算
+        //
+        // // 拷贝隐藏层到输出
+        // _copy_f.run();
     }
 
     void BINEAttentionLowpLayer::prepare() {
         if (!_is_prepared) {
-            //            _reshape.prepare();
-            //            _gemm_state_f.prepare();
-
+            // 1. 先调用内存管理组(再进行子向量的内存分布，因为之前没有申请开辟连续内存)
+            _scope_mg = std::make_unique<BIMemoryGroupResourceScope>(_memory_group);
+            _sub_norm_tensor.allocator()->init(*_norm_output.allocator(), _sub_norm_info);
+            _sub_norm_q_tensor.allocator()->init(*_q_norm_output.allocator(), _sub_norm_q_info);
+            _sub_c_attn_s32_tensor.allocator()->init(*_c_attn_s32_output.allocator(), _sub_c_attn_s32_tensor_info);
+            _sub_c_attn_q8_tensor.allocator()->init(*_c_attn_q8_output.allocator(), _sub_c_attn_q_info);
+            _sub_split_q_result_0.allocator()->init(*_split_q_result_0.allocator(), _sub_split_q_info);
+            _sub_split_q_result_1.allocator()->init(*_split_q_result_1.allocator(), _sub_split_q_info);
+            _sub_split_q_result_2.allocator()->init(*_split_q_result_2.allocator(), _sub_split_q_info);
+            _sub_query_states.allocator()->init(*_query_states.allocator(), _sub_query_info);
+            _sub_key_states.allocator()->init(*_key_states.allocator(), _sub_query_info);
+            _sub_value_states.allocator()->init(*_value_states.allocator(), _sub_query_info);
+            _sub_q_query_states.allocator()->init(*_q_query_states.allocator(), _sub_q_query_info);
             _is_prepared = true;
         }
     }

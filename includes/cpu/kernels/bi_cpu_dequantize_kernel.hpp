@@ -24,6 +24,8 @@ namespace BatmanInfer {
                  */
                 void configure(const BIITensorInfo *src, BIITensorInfo *dst);
 
+                void dynamic_configure(const BIITensorInfo *src);
+
                 /** Static function to check if given info will lead to a valid configuration
                  *
                  * Similar to @ref CpuDequantizeKernel::configure()

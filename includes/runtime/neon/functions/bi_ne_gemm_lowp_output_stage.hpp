@@ -61,6 +61,12 @@ namespace BatmanInfer {
         void configure(const BIITensor *input, const BIITensor *bias, BIITensor *output,
                        const BIGEMMLowpOutputStageInfo &info);
 
+        /**
+         * @brief 动态配置
+         * @param src
+         */
+        void dynamic_configure(const BIITensor *src) const;
+
         /** Static function to check if given info will lead to a valid configuration of @ref NEGEMMLowpOutputStage
          *
          * @param[in] input  Input tensor info. It is the output of @ref NEGEMMLowpMatrixMultiplyCore function. Data type supported: S32
@@ -83,5 +89,4 @@ namespace BatmanInfer {
         struct Impl;
         std::unique_ptr<Impl> _impl;
     };
-
 } // namespace BatmanInfer

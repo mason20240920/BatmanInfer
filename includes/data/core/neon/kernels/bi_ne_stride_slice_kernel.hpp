@@ -84,7 +84,11 @@ namespace BatmanInfer {
          * @brief 内核动态配置
          * @param input 根据IME-GPT2只需要修改Split后的维度就行
          */
-        void dynamic_configure(const BatmanInfer::BIITensorInfo *input);
+        void dynamic_configure(const BIITensorInfo *input,
+                               const BIITensorInfo *output,
+                               const BICoordinates &starts,
+                               const BICoordinates &ends,
+                               const BiStrides &strides);
 
         // Inherited methods overridden:
         void run_op(BIITensorPack &tensors,

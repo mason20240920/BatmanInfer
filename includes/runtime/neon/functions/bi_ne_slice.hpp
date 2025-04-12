@@ -84,7 +84,8 @@ namespace BatmanInfer {
          * @brief 动态配置初始化input
          * @param input
          */
-        void dynamic_configure(const BIITensor *input) const;
+        void dynamic_configure(const BIITensor *input, BIITensor *output, const BICoordinates &starts,
+                               const BICoordinates &ends) const;
 
     private:
         struct Impl;
@@ -128,7 +129,10 @@ namespace BatmanInfer {
             validate(const BIITensorInfo *input, const BIITensorInfo *output, const BICoordinates &starts,
                      const BICoordinates &ends);
 
-            void dynamic_configure(const BIITensorInfo *input) const;
+            void dynamic_configure(const BIITensorInfo *input,
+                                   const BIITensorInfo *output,
+                                   const BICoordinates &starts,
+                                   const BICoordinates &ends) const;
         };
     }
 }

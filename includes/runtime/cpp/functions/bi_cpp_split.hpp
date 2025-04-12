@@ -162,10 +162,27 @@ namespace BatmanInfer {
         /**
          * @brief 我们按照GPT结构确定每次Split的每个元素都是平均的
          */
-        void dynamic_configure(const TensorInterfaceType *input) {
+        void dynamic_configure(const TensorInterfaceType *input,
+                               const std::vector<TensorInterfaceType *> &outputs) {
             const size_t func_num = _slice_functions.size();
+            unsigned int axis_offset = 0;
             for (int i = 0; i < func_num; ++i) {
-                _slice_functions[i].dynamic_configure(input);
+                BITensorShape output_shape = outputs[i]->info()->tensor_shape();
+                const size_t axis_split_step = output_shape[_axis];
+                // Update coordinate on axis
+                // 开始/结束的 坐标
+                BICoordinates start_coords;
+                BICoordinates end_coords;
+
+                for (unsigned int d = 0; d < output_shape.num_dimensions(); ++d) {
+                    end_coords.set(d, -1);
+                }
+                start_coords.set(_axis, axis_offset);
+                end_coords.set(_axis, axis_offset + axis_split_step);
+                _slice_functions[i].dynamic_configure(input, outputs[i], start_coords, end_coords);
+                outputs[i]->info()->set_valid_region(
+                    BIValidRegion(BICoordinates(), output_shape)); // Update axis offset
+                axis_offset += axis_split_step;
             }
         }
 

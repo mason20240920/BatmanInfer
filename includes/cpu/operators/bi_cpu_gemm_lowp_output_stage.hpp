@@ -17,7 +17,6 @@
  */
 namespace BatmanInfer {
     namespace cpu {
-
         /** Basic function to execute GEMMLowpQuantizeDown kernels.
         *
         *  This function calls the following kernels:
@@ -49,6 +48,8 @@ namespace BatmanInfer {
              */
             void configure(BIITensorInfo *src, BIITensorInfo *bias, BIITensorInfo *dst,
                            const BIGEMMLowpOutputStageInfo &info);
+
+            void dynamic_configure(BIITensorInfo *src) const;
 
             /** Static function to check if given info will lead to a valid configuration
              *

@@ -28,7 +28,8 @@ namespace BatmanInfer {
                 case BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT: {
                     switch (info.output_data_type) {
                         case BIDataType::QASYMM8: {
-                            auto k = std::make_unique<kernels::BICpuGemmLowpQuantizeDownInt32ToUint8ScaleByFixedPointKernel>();
+                            auto k = std::make_unique<
+                                kernels::BICpuGemmLowpQuantizeDownInt32ToUint8ScaleByFixedPointKernel>();
                             k->configure(src, bias, dst, info.gemmlowp_multiplier, info.gemmlowp_shift,
                                          info.gemmlowp_offset,
                                          info.gemmlowp_min_bound, info.gemmlowp_max_bound);
@@ -36,7 +37,8 @@ namespace BatmanInfer {
                             break;
                         }
                         case BIDataType::QASYMM8_SIGNED: {
-                            auto k = std::make_unique<kernels::BICpuGemmLowpQuantizeDownInt32ToInt8ScaleByFixedPointKernel>();
+                            auto k = std::make_unique<
+                                kernels::BICpuGemmLowpQuantizeDownInt32ToInt8ScaleByFixedPointKernel>();
                             k->configure(src, bias, dst, info.gemmlowp_multiplier, info.gemmlowp_shift,
                                          info.gemmlowp_offset,
                                          info.gemmlowp_min_bound, info.gemmlowp_max_bound);
@@ -44,7 +46,8 @@ namespace BatmanInfer {
                             break;
                         }
                         case BIDataType::QSYMM16: {
-                            auto k = std::make_unique<kernels::BICpuGemmLowpQuantizeDownInt32ToInt16ScaleByFixedPointKernel>();
+                            auto k = std::make_unique<
+                                kernels::BICpuGemmLowpQuantizeDownInt32ToInt16ScaleByFixedPointKernel>();
                             k->configure(src, bias, dst, info.gemmlowp_multiplier, info.gemmlowp_shift,
                                          info.gemmlowp_min_bound,
                                          info.gemmlowp_max_bound);
@@ -79,45 +82,62 @@ namespace BatmanInfer {
             }
         }
 
+        void BICpuGemmLowpOutputStage::dynamic_configure(BIITensorInfo *src) const {
+            if (const auto p = dynamic_cast<
+                kernels::BICpuGemmLowpQuantizeDownInt32ToInt8ScaleByFixedPointKernel *>(
+                _kernel.get())) {
+                p->dynamic_configure(src);
+                return;
+            }
+            BI_COMPUTE_ERROR_ON(true);
+        }
+
+
         BIStatus BICpuGemmLowpOutputStage::validate(const BIITensorInfo *src,
                                                     const BIITensorInfo *bias,
                                                     const BIITensorInfo *dst,
                                                     const BIGEMMLowpOutputStageInfo &info) {
             BI_COMPUTE_RETURN_ERROR_ON_NULLPTR(src, dst);
             BI_COMPUTE_RETURN_ERROR_ON_MSG(dst->data_type() == BIDataType::UNKNOWN,
-                                           "BICpuGemmLowpOutputStage cannot be used with UNKNOWN output data type.");
-            BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_CHANNEL_NOT_IN(dst, 1, BIDataType::QASYMM8, BIDataType::QASYMM8_SIGNED,
+                                           "BICpuGemmLowpOutputStage cannot be used with UNKNOWN output data type.")
+            ;
+            BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_CHANNEL_NOT_IN(dst, 1, BIDataType::QASYMM8,
+                                                                BIDataType::QASYMM8_SIGNED,
                                                                 BIDataType::QSYMM16);
             BI_COMPUTE_RETURN_ERROR_ON((info.type != BIGEMMLowpOutputStageType::QUANTIZE_DOWN) &&
-                                       (info.type != BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT));
+                (info.type != BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT));
 
             switch (info.type) {
                 case BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT: {
                     switch (dst->data_type()) {
                         case BIDataType::QASYMM8:
                             return kernels::BICpuGemmLowpQuantizeDownInt32ToUint8ScaleByFixedPointKernel::validate(
-                                    src, bias, dst, info.gemmlowp_min_bound, info.gemmlowp_max_bound);
+                                src, bias, dst, info.gemmlowp_min_bound, info.gemmlowp_max_bound);
                         case BIDataType::QASYMM8_SIGNED:
                             return kernels::BICpuGemmLowpQuantizeDownInt32ToInt8ScaleByFixedPointKernel::validate(
-                                    src, bias, dst, info.gemmlowp_min_bound, info.gemmlowp_max_bound);
+                                src, bias, dst, info.gemmlowp_min_bound, info.gemmlowp_max_bound);
                         case BIDataType::QSYMM16:
                             return kernels::BICpuGemmLowpQuantizeDownInt32ToInt16ScaleByFixedPointKernel::validate(
-                                    src, bias, dst, info.gemmlowp_min_bound, info.gemmlowp_max_bound);
+                                src, bias, dst, info.gemmlowp_min_bound, info.gemmlowp_max_bound);
                         default:
-                            return BI_COMPUTE_CREATE_ERROR(BIErrorCode::RUNTIME_ERROR, "Unsupported output data type.");
+                            return BI_COMPUTE_CREATE_ERROR(BIErrorCode::RUNTIME_ERROR,
+                                                           "Unsupported output data type.");
                     }
                 }
                 case BIGEMMLowpOutputStageType::QUANTIZE_DOWN: {
                     switch (dst->data_type()) {
                         case BIDataType::QASYMM8:
                         case BIDataType::QASYMM8_SIGNED:
-                            return kernels::BICpuGemmLowpQuantizeDownInt32ScaleKernel::validate(src, bias, dst, &info);
+                            return kernels::BICpuGemmLowpQuantizeDownInt32ScaleKernel::validate(
+                                src, bias, dst, &info);
                         default:
-                            return BI_COMPUTE_CREATE_ERROR(BIErrorCode::RUNTIME_ERROR, "Unsupported output data type.");
+                            return BI_COMPUTE_CREATE_ERROR(BIErrorCode::RUNTIME_ERROR,
+                                                           "Unsupported output data type.");
                     }
                 }
                 default:
-                    return BI_COMPUTE_CREATE_ERROR(BIErrorCode::RUNTIME_ERROR, "Unsupported GEMMLowpOutputStage type.");
+                    return BI_COMPUTE_CREATE_ERROR(BIErrorCode::RUNTIME_ERROR,
+                                                   "Unsupported GEMMLowpOutputStage type.");
             }
         }
 

@@ -23,6 +23,12 @@ namespace BatmanInfer {
             return kernels::BICpuDequantizeKernel::validate(src, dst);
         }
 
+        void BICpuDequantize::dynamic_configure(const BIITensorInfo *src) const {
+            const auto k = reinterpret_cast<kernels::BICpuDequantizeKernel *>(_kernel.get());
+            k->dynamic_configure(src);
+        }
+
+
         void BICpuDequantize::run(BatmanInfer::BIITensorPack &tensors) {
             BI_COMPUTE_ERROR_ON_MSG(tensors.empty(), "No inputs provided");
             prepare(tensors);

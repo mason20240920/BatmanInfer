@@ -13,9 +13,9 @@
 namespace BatmanInfer {
     // Forward declaration
     class BIITensor;
+
     namespace cpu {
         namespace kernels {
-
             /** Kernel used to quantize down the int32 accumulator values of GEMMLowp to QASYMM8_SIGNED
              *
              * This kernel takes a final int32 accumulator value (the output of @ref CpuGemmLowpMatrixMultiplyKernel), and processes it to obtain the final QASYMM8_SIGNED value.
@@ -58,6 +58,8 @@ namespace BatmanInfer {
                                int min = 0,
                                int max = 0);
 
+                void dynamic_configure(BIITensorInfo *src);
+
                 /** Static function to check if given info will lead to a valid configuration
                  *
                  * Similar to CpuGemmLowpQuantizeDownInt32ToInt8ScaleByFixedPointKernel::configure()
@@ -92,7 +94,7 @@ namespace BatmanInfer {
                  * @param[in]  window Region on which to execute the kernel.
                  */
                 using QuantizeDownFunctionPtr = void (BICpuGemmLowpQuantizeDownInt32ToInt8ScaleByFixedPointKernel::*)(
-                        const BIITensor *src, const BIITensor *bias, BIITensor *dst, const BIWindow &window);
+                    const BIITensor *src, const BIITensor *bias, BIITensor *dst, const BIWindow &window);
 
                 QuantizeDownFunctionPtr _func{nullptr};
                 int _result_fixedpoint_multiplier{0};

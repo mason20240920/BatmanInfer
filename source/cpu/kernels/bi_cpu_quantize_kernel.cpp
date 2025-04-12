@@ -23,7 +23,6 @@ namespace BatmanInfer {
     namespace cpu {
         namespace kernels {
             namespace {
-
                 BIStatus validate_arguments(const BIITensorInfo *src, const BIITensorInfo *dst) {
                     BI_COMPUTE_RETURN_ERROR_ON_NULLPTR(src, dst);
                     BI_COMPUTE_RETURN_ERROR_ON_CPU_F16_UNSUPPORTED(src);
@@ -38,7 +37,6 @@ namespace BatmanInfer {
 
                     return BIStatus{};
                 }
-
             } // namespace
 
             void BICpuQuantizeKernel::configure(const BIITensorInfo *src, BIITensorInfo *dst) {
@@ -46,38 +44,48 @@ namespace BatmanInfer {
                 BI_COMPUTE_ERROR_THROW_ON(validate_arguments(src, dst));
 
                 static const std::map<std::string, QuantizeFunctionExecutorPtr> quant_map = {
-                        {"op_QASYMM8_QASYMM8", REGISTER_INTEGER_NEON(u8_u8_run_quantize_qasymm8)},
-                        {"op_QASYMM8_QASYMM8_SIGNED", REGISTER_INTEGER_NEON(u8_i8_run_quantize_qasymm8)},
-                        {"op_QASYMM8_QASYMM16", REGISTER_INTEGER_NEON(u8_run_quantize_qasymm16)},
+                    {"op_QASYMM8_QASYMM8", REGISTER_INTEGER_NEON(u8_u8_run_quantize_qasymm8)},
+                    {"op_QASYMM8_QASYMM8_SIGNED", REGISTER_INTEGER_NEON(u8_i8_run_quantize_qasymm8)},
+                    {"op_QASYMM8_QASYMM16", REGISTER_INTEGER_NEON(u8_run_quantize_qasymm16)},
 
-                        {"op_QASYMM8_SIGNED_QASYMM8", REGISTER_INTEGER_NEON(i8_u8_run_quantize_qasymm8)},
-                        {"op_QASYMM8_SIGNED_QASYMM8_SIGNED", REGISTER_INTEGER_NEON(i8_i8_run_quantize_qasymm8)},
-                        {"op_QASYMM8_SIGNED_QASYMM16", REGISTER_INTEGER_NEON(i8_run_quantize_qasymm16)},
+                    {"op_QASYMM8_SIGNED_QASYMM8", REGISTER_INTEGER_NEON(i8_u8_run_quantize_qasymm8)},
+                    {"op_QASYMM8_SIGNED_QASYMM8_SIGNED", REGISTER_INTEGER_NEON(i8_i8_run_quantize_qasymm8)},
+                    {"op_QASYMM8_SIGNED_QASYMM16", REGISTER_INTEGER_NEON(i8_run_quantize_qasymm16)},
 
-                        // Functions for offset only requantization
-                        {"op_OFFSET_ONLY_QASYMM8_QASYMM8", REGISTER_INTEGER_NEON(u8_u8_run_requantize_offset_only)},
-                        {"op_OFFSET_ONLY_QASYMM8_QASYMM8_SIGNED",
-                         REGISTER_INTEGER_NEON(u8_i8_run_requantize_offset_only)},
-                        {"op_OFFSET_ONLY_QASYMM8_SIGNED_QASYMM8",
-                         REGISTER_INTEGER_NEON(i8_u8_run_requantize_offset_only)},
-                        {"op_OFFSET_ONLY_QASYMM8_SIGNED_QASYMM8_SIGNED",
-                         REGISTER_INTEGER_NEON(i8_i8_run_requantize_offset_only)},
+                    // Functions for offset only requantization
+                    {"op_OFFSET_ONLY_QASYMM8_QASYMM8", REGISTER_INTEGER_NEON(u8_u8_run_requantize_offset_only)},
+                    {
+                        "op_OFFSET_ONLY_QASYMM8_QASYMM8_SIGNED",
+                        REGISTER_INTEGER_NEON(u8_i8_run_requantize_offset_only)
+                    },
+                    {
+                        "op_OFFSET_ONLY_QASYMM8_SIGNED_QASYMM8",
+                        REGISTER_INTEGER_NEON(i8_u8_run_requantize_offset_only)
+                    },
+                    {
+                        "op_OFFSET_ONLY_QASYMM8_SIGNED_QASYMM8_SIGNED",
+                        REGISTER_INTEGER_NEON(i8_i8_run_requantize_offset_only)
+                    },
 
-                        // Functions for offset uint8 to int8 and vice versa quantization (no scale changes)
-                        {"op_OFFSET_ONLY_CONVERT_QASYMM8_SIGNED_QASYMM8",
-                         REGISTER_INTEGER_NEON(i8_u8_run_requantize_offset_only_convert)},
-                        {"op_OFFSET_ONLY_CONVERT_QASYMM8_QASYMM8_SIGNED",
-                         REGISTER_INTEGER_NEON(u8_i8_run_requantize_offset_only_convert)},
+                    // Functions for offset uint8 to int8 and vice versa quantization (no scale changes)
+                    {
+                        "op_OFFSET_ONLY_CONVERT_QASYMM8_SIGNED_QASYMM8",
+                        REGISTER_INTEGER_NEON(i8_u8_run_requantize_offset_only_convert)
+                    },
+                    {
+                        "op_OFFSET_ONLY_CONVERT_QASYMM8_QASYMM8_SIGNED",
+                        REGISTER_INTEGER_NEON(u8_i8_run_requantize_offset_only_convert)
+                    },
 
-                        {"op_F32_QSYMM8", REGISTER_FP32_NEON(fp32_i8_run_quantize_qsymm8)},
-                        {"op_F32_QASYMM8", REGISTER_FP32_NEON(fp32_u8_run_quantize_qasymm8)},
-                        {"op_F32_QASYMM8_SIGNED", REGISTER_FP32_NEON(fp32_i8_run_quantize_qasymm8)},
-                        {"op_F32_QASYMM16", REGISTER_FP32_NEON(fp32_run_quantize_qasymm16)},
+                    {"op_F32_QSYMM8", REGISTER_FP32_NEON(fp32_i8_run_quantize_qsymm8)},
+                    {"op_F32_QASYMM8", REGISTER_FP32_NEON(fp32_u8_run_quantize_qasymm8)},
+                    {"op_F32_QASYMM8_SIGNED", REGISTER_FP32_NEON(fp32_i8_run_quantize_qasymm8)},
+                    {"op_F32_QASYMM16", REGISTER_FP32_NEON(fp32_run_quantize_qasymm16)},
 
 #ifdef BI_COMPUTE_ENABLE_FP16
-                        {"op_F16_QASYMM8", REGISTER_FP16_NEON(fp16_u8_run_quantize_qasymm8)},
-                        {"op_F16_QASYMM8_SIGNED", REGISTER_FP16_NEON(fp16_i8_run_quantize_qasymm8)},
-                        {"op_F16_QASYMM16", REGISTER_FP16_NEON(fp16_run_quantize_qasymm16)},
+                    {"op_F16_QASYMM8", REGISTER_FP16_NEON(fp16_u8_run_quantize_qasymm8)},
+                    {"op_F16_QASYMM8_SIGNED", REGISTER_FP16_NEON(fp16_i8_run_quantize_qasymm8)},
+                    {"op_F16_QASYMM16", REGISTER_FP16_NEON(fp16_run_quantize_qasymm16)},
 #endif /* ARM_COMPUTE_ENABLE_FP16 */
                 };
 
@@ -119,6 +127,13 @@ namespace BatmanInfer {
                 BIICpuKernel::configure(win);
             }
 
+            void BICpuQuantizeKernel::dynamic_configure(const BIITensorInfo *src) {
+                auto win = BIICpuKernel::window();
+                dynamic_calculate_squashed_or_max_window(*src, win);
+                BIICpuKernel::configure(win);
+            }
+
+
             BIStatus BICpuQuantizeKernel::validate(const BIITensorInfo *src, const BIITensorInfo *dst) {
                 BI_COMPUTE_RETURN_ON_ERROR(validate_arguments(src, dst));
                 return BIStatus{};
@@ -138,7 +153,6 @@ namespace BatmanInfer {
             const char *BICpuQuantizeKernel::name() const {
                 return "BICpuQuantizeKernel";
             }
-
         } // namespace kernels
     } // namespace cpu
 } // namespace BatmanInfer
