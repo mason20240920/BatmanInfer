@@ -40,7 +40,6 @@ namespace BatmanInfer {
             return *this;
         }
 
-
     private:
         bool _fast_math{false};
         bool _fixed_format{false};
@@ -61,7 +60,6 @@ namespace BatmanInfer {
         BINEMatMul(std::shared_ptr<BIIMemoryManager> memory_manager);
 
         BINEMatMul() : BINEMatMul(BIMemoryManagerOnDemand::make_default()) {
-
         }
 
         ~BINEMatMul();
@@ -102,6 +100,10 @@ namespace BatmanInfer {
                        const BICpuMatMulSettings &settings,
                        const BIActivationLayerInfo &act_info = BIActivationLayerInfo());
 
+        void dynamic_configure(BIITensor *lhs,
+                               BIITensor *rhs,
+                               BIITensor *dst) const;
+
         static BIStatus validate(const BIITensorInfo *lhs,
                                  const BIITensorInfo *rhs,
                                  const BIITensorInfo *dst,
@@ -110,7 +112,6 @@ namespace BatmanInfer {
                                  const BIActivationLayerInfo &act_info = BIActivationLayerInfo());
 
         void run() override;
-
 
     private:
         struct Impl;

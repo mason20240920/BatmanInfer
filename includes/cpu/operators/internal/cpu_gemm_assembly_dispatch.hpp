@@ -83,7 +83,7 @@ namespace BatmanInfer {
                                                             const bool,
                                                             const bool) = 0;
 
-                virtual size_t dynamic_tensor_b(size_t &align) const = 0;
+                // virtual size_t dynamic_tensor_b(size_t &align) const = 0;
 
                 virtual ~IFallback() = default;
 
@@ -133,11 +133,11 @@ namespace BatmanInfer {
              * @param info
              */
             void configure(
-                    const BIITensorInfo *a,
-                    const BIITensorInfo *b,
-                    const BIITensorInfo *c,
-                    BIITensorInfo *d,
-                    const BIAsmGemmInfo &info);
+                const BIITensorInfo *a,
+                const BIITensorInfo *b,
+                const BIITensorInfo *c,
+                BIITensorInfo *d,
+                const BIAsmGemmInfo &info);
 
             /** 指示此函数是否可以用于处理给定的参数。
              *
@@ -170,10 +170,9 @@ namespace BatmanInfer {
                                          const BIITensorInfo *d,
                                          const BIAsmGemmInfo &info);
 
-            size_t dynamic_tensor_b_size(const BIITensorInfo *a,
-                                         const BIITensorInfo *b,
-                                         const BIITensorInfo *c,
-                                         size_t &align);
+            void dynamic_tensor_b_size(const BIITensorInfo *a,
+                                       const BIITensorInfo *b,
+                                       const BIITensorInfo *c);
 
 
             /** 检查是否支持无状态实现

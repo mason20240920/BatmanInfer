@@ -32,7 +32,7 @@ namespace BatmanInfer {
     };
 
     BINEMatMul::BINEMatMul(std::shared_ptr<BIIMemoryManager> memory_manager) : _impl(
-            std::make_unique<Impl>(memory_manager)) {
+        std::make_unique<Impl>(memory_manager)) {
     }
 
     BINEMatMul::~BINEMatMul() = default;
@@ -52,12 +52,24 @@ namespace BatmanInfer {
         BI_COMPUTE_ERROR_ON_NULLPTR(_impl->lhs, _impl->rhs, _impl->output);
         _impl->op = std::make_unique<cpu::BICpuMatMul>();
         _impl->op->configure(lhs->info(), rhs->info(), output->info(), info, settings, act_info);
-        _impl->run_pack = {{ACL_SRC_0, lhs},
-                           {ACL_SRC_1, rhs},
-                           {ACL_DST,   output}};
+        _impl->run_pack = {
+            {ACL_SRC_0, lhs},
+            {ACL_SRC_1, rhs},
+            {ACL_DST, output}
+        };
         _impl->workspace_tensors = manage_workspace<BITensor>(_impl->op->workspace(), _impl->memory_group,
                                                               _impl->run_pack);
     }
+
+    void BINEMatMul::dynamic_configure(BIITensor *lhs, BIITensor *rhs, BIITensor *dst) const {
+        _impl->memory_group.mappings().clear(); // 清空内存管理
+        _impl->op->dynamic_configure(lhs->info(), rhs->info(), dst->info());
+        _impl->workspace_tensors = manage_workspace<
+            BITensor>(_impl->op->workspace(),
+                      _impl->memory_group,
+                      _impl->run_pack);
+    }
+
 
     BIStatus BINEMatMul::validate(const BIITensorInfo *lhs,
                                   const BIITensorInfo *rhs,

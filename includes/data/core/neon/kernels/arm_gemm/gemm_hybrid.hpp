@@ -104,13 +104,14 @@ namespace BatmanGemm {
 
         /* Constructor */
         GemmHybrid(const GemmArgs &args)
-                : _ci(args._ci), _Msize(args._Msize), _Nsize(args._Nsize), _Ksize(args._Ksize),
-                  _nbatches(args._nbatches), _nmulti(args._nmulti),
-                  _act(args._act),
-                  _k_block(compute_k_block(args)), _n_block(compute_n_block(args)),
-                  _Mround(roundup(args._Msize, strategy::out_height())),
-                  _window_range(iceildiv(args._Msize, strategy::out_height()), _nbatches, iceildiv(_Nsize, _n_block),
-                                _nmulti) {}
+            : _ci(args._ci), _Msize(args._Msize), _Nsize(args._Nsize), _Ksize(args._Ksize),
+              _nbatches(args._nbatches), _nmulti(args._nmulti),
+              _act(args._act),
+              _k_block(compute_k_block(args)), _n_block(compute_n_block(args)),
+              _Mround(roundup(args._Msize, strategy::out_height())),
+              _window_range(iceildiv(args._Msize, strategy::out_height()), _nbatches, iceildiv(_Nsize, _n_block),
+                            _nmulti) {
+        }
 
         // Interface implementation - Compulsory functions
         ndrange_t get_window_size() const override {
@@ -129,6 +130,10 @@ namespace BatmanGemm {
 
         bool set_dynamic_batch_size(int batch_size) override {
             // TODO: fixed for the future
+            return false;
+        }
+
+        bool set_dynamic_N_size(int N_size) override {
             return false;
         }
 
@@ -194,20 +199,21 @@ namespace BatmanGemm {
                                  g_array._Cptr + (multi * g_array._C_multi_stride) + (batch * g_array._C_batch_stride) +
                                  (m_start * g_array._ldc) + n0, g_array._ldc,
                                  (m_end - m_start), (nmax - n0), kmax - k0,
-                                 (strategy::supports_bias() && first_pass && g_array._bias) ? g_array._bias + (multi *
-                                                                                                               g_array._bias_multi_stride) +
-                                                                                              n0 : nullptr,
+                                 (strategy::supports_bias() && first_pass && g_array._bias)
+                                     ? g_array._bias + (multi *
+                                                        g_array._bias_multi_stride) +
+                                       n0
+                                     : nullptr,
                                  last_pass ? _act : Activation(), !first_pass);
 
                     // Add bias externally if needed
                     if (!strategy::supports_bias() && g_array._bias && first_pass) {
                         bias_adder(
-                                g_array._Cptr + (multi * g_array._C_multi_stride) + (batch * g_array._C_batch_stride) +
-                                (m_start * g_array._ldc) + n0, g_array._ldc,
-                                g_array._bias + (multi * g_array._bias_multi_stride) + n0,
-                                (m_end - m_start), (nmax - n0));
+                            g_array._Cptr + (multi * g_array._C_multi_stride) + (batch * g_array._C_batch_stride) +
+                            (m_start * g_array._ldc) + n0, g_array._ldc,
+                            g_array._bias + (multi * g_array._bias_multi_stride) + n0,
+                            (m_end - m_start), (nmax - n0));
                     }
-
                 } while (p.next_dim1());
             }
         }

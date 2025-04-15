@@ -106,6 +106,10 @@ namespace BatmanInfer {
                            BIITensorInfo *dst,
                            const GEMMInfo &gemm_info = GEMMInfo());
 
+            void dynamic_configure(const BIITensorInfo *a,
+                                   const BIITensorInfo *b,
+                                   BIITensorInfo *dst) const;
+
             static BIStatus validate(const BIITensorInfo *a,
                                      const BIITensorInfo *b,
                                      const BIITensorInfo *c,

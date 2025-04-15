@@ -53,6 +53,8 @@ namespace BatmanInfer {
                                int32_t b_offset,
                                float scale = 1.0f);
 
+                void dynamic_configure(BIITensorInfo *mm_result);
+
                 /** Static function to check if given info will lead to a valid configuration
                  *
                  * Similar to CpuGemmLowpOffsetContributionKernel::configure()

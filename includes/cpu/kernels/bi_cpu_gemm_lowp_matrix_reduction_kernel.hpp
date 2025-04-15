@@ -10,6 +10,7 @@
 namespace BatmanInfer {
     // 前向声明
     struct GEMMLowpReductionKernelInfo;
+
     namespace cpu {
         namespace kernels {
             /**
@@ -64,9 +65,9 @@ namespace BatmanInfer {
                                   const BIWindow &window);
 
                 using BICpuGemmLowpMatrixAReductionKernelPtr = void (BICpuGemmLowpMatrixAReductionKernel::*)(
-                        const BIITensor *src,
-                        BIITensor *dst,
-                        const BIWindow &window);
+                    const BIITensor *src,
+                    BIITensor *dst,
+                    const BIWindow &window);
 
                 BICpuGemmLowpMatrixAReductionKernelPtr _func{nullptr};
                 int32_t _k{0};
@@ -122,10 +123,10 @@ namespace BatmanInfer {
                                   const ThreadInfo &info);
 
                 using BICpuGemmLowpMatrixBReductionKernelPtr = void (BICpuGemmLowpMatrixBReductionKernel::*)(
-                        const BIITensor *src,
-                        BIITensor *dst,
-                        const BIWindow &window,
-                        const ThreadInfo &info);
+                    const BIITensor *src,
+                    BIITensor *dst,
+                    const BIWindow &window,
+                    const ThreadInfo &info);
 
                 BICpuGemmLowpMatrixBReductionKernelPtr _func{nullptr};
                 int32_t _k{0};

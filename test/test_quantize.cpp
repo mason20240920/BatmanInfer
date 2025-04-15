@@ -233,8 +233,8 @@ namespace QATTest {
         float output_scale,
         int output_offset) {
         // 1. 创建输入tensor (QASYMM8)
-        int B = 1;
-        int M = 1, K = 768, N = 2304;
+        int B = 2;
+        int M = 2, K = 768, N = 2304;
         BIQuantizationInfo input_qinfo, weights_qinfo;
         auto input = create_qasymm8(input_scale,
                                     input_offset,
@@ -289,16 +289,17 @@ namespace QATTest {
         BINEGEMMLowpOutputStage output_stage;
         output_stage.configure(&s32_output, nullptr, &int8_output, output_stage_info);
         output_stage.run();
+        print_tensor(s32_output, "output");
 
-        BITensor fp16_output;
-        auto fp16_info = BITensorInfo(output_shape, 1, BIDataType::F16);
-        fp16_output.allocator()->init(fp16_info);
-        fp16_output.allocator()->allocate();
-        BINEDequantizationLayer dequantization_layer;
-        dequantization_layer.configure(&int8_output, &fp16_output);
-        dequantization_layer.run();
-
-        print_tensor(fp16_output, "output");
+        // BITensor fp16_output;
+        // auto fp16_info = BITensorInfo(output_shape, 1, BIDataType::F16);
+        // fp16_output.allocator()->init(fp16_info);
+        // fp16_output.allocator()->allocate();
+        // BINEDequantizationLayer dequantization_layer;
+        // dequantization_layer.configure(&int8_output, &fp16_output);
+        // dequantization_layer.run();
+        //
+        // print_tensor(fp16_output, "output");
 
         // input.allocator()->free();
         //
@@ -409,8 +410,8 @@ TEST(GEMMLOWPCOMPARE, BASICGEMMLOWP) {
     while (in_file >> value) {
         weight_scales.push_back(value);
     }
-    constexpr int output_offset = -14;
-    constexpr float output_scale = 0.1388270322014304f;
+    constexpr int output_offset = -6;
+    constexpr float output_scale = 0.14801221361347272f;
     QATTest::gemmlowp_mixed_quantized(input_path,
                                       weight_path,
                                       bias_path,
@@ -649,7 +650,7 @@ TEST(QUANTIZE_MATMUL, MATMULQ) {
                                             b_path);
     a_tensor.info()->set_are_values_constant(false);
     b_tensor.info()->set_are_values_constant(false);
-    QATTest::print_tensor(a_tensor, "a_tensor");
+    // QATTest::print_tensor(a_tensor, "a_tensor");
 
 
     // 3. 创建中间输出tensor (S32)
@@ -696,11 +697,12 @@ TEST(QUANTIZE_MATMUL, MATMULQ) {
     output_s32.allocator()->allocate();
     a_tensor.info()->set_are_values_constant(false);
     b_tensor.info()->set_are_values_constant(false);
+    matmul.dynamic_configure(&a_tensor, &b_tensor, &output_s32);
     //    matmul.configure(&a_tensor, &b_tensor, &output_s32, matmul_info, settings);
     matmul.run();
 
     QATTest::print_tensor(output_s32, "output_s32");
-    //    matmul.configure(&a_tensor, &b_tensor, &output_s32, matmul_info, settings);
+    // matmul.configure(&a_tensor, &b_tensor, &output_s32, matmul_info, settings);
 }
 
 TEST(DYNAMIC_KERNEL, KERNEL_SIZE_PICK) {

@@ -276,7 +276,7 @@ namespace BatmanGemm {
 
         /* Blocking info */
         unsigned int _n_block;
-        const unsigned int _k_block;
+        unsigned int _k_block;
         unsigned int _Mround; // 输入矩阵的行的对齐
 
         /* Pretransposed buffer. */
@@ -419,9 +419,13 @@ namespace BatmanGemm {
             return true;
         }
 
+        // bool
+
         void update_parameters() override {
-            if (_Mround < _args._Msize)
+            if (_Mround != _args._Msize)
                 _Mround = roundup(_args._Msize, strategy::out_height());
+            _n_block = compute_n_block(_args, _os);
+            _k_block = compute_k_block(_args);
             _window_range = BINDRange<4>{
                 iceildiv(_args._Msize, strategy::out_height()), _args._nbatches,
                 iceildiv(_args._Nsize, _n_block), _args._nmulti
@@ -443,6 +447,13 @@ namespace BatmanGemm {
             if (nmulti == _args._nmulti)
                 return false;
             _args._nmulti = nmulti;
+            return true;
+        }
+
+        bool set_dynamic_N_size(int N_size) override {
+            if (N_size == _args._Nsize)
+                return false;
+            _args._Nsize = N_size;
             return true;
         }
 

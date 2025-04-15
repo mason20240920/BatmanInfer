@@ -16,6 +16,8 @@
 #include "bi_NEQuantizationLayer.h"
 #include "bi_ne_gemm_lowp_matrix_mul_core.hpp"
 #include "bi_ne_gemm_lowp_output_stage.hpp"
+#include "bi_ne_mat_mul.hpp"
+#include "bi_ne_permute.h"
 #include "bi_ne_split.hpp"
 
 namespace BatmanInfer {
@@ -63,6 +65,7 @@ namespace BatmanInfer {
         * @param value_q_zp
         * @param key_q_scale
         * @param key_q_zp
+        * @param q_perm
         * @param hidden_size
         * @param max_seq_len
         * @param batch_size
@@ -82,6 +85,8 @@ namespace BatmanInfer {
                        const int &value_q_zp,
                        const float &key_q_scale,
                        const int &key_q_zp,
+                       const PermutationVector &q_perm,
+                       const PermutationVector &k_perm,
                        const size_t &hidden_size,
                        const size_t &max_seq_len,
                        const size_t &batch_size,
@@ -119,8 +124,12 @@ namespace BatmanInfer {
         BINEGEMMLowpMatrixMultipleCore _c_attn_layer; // 进行channel-wise计算
         BINEGEMMLowpOutputStage _c_attn_o_stage; // 进行计算出来的output stage结果
         BINESplit _split_layer; // 切分层
-        BINEDequantizationLayer _deq_q_layer;
-        BINEQuantizationLayer _quant_q_layer;
+        BINEDequantizationLayer _deq_q_layer, _deq_k_layer, _deq_v_layer;
+        // BINEQuantizationLayer _quant_q_layer, _quant_k_layer;
+        BINEQuantizationLayer _quant_v_layer;
+        BINEReshapeLayer _reshape_q_layer, _reshape_k_layer, _reshape_v_layer;
+        BINEPermute _transpose_q_layer, _transpose_k_layer, _transpose_v_layer;
+        BINEMatMul _qk_bmm_layer;
 
     private:
         BITensor _sub_norm_tensor;
@@ -133,7 +142,16 @@ namespace BatmanInfer {
         BITensor _sub_query_states;
         BITensor _sub_key_states;
         BITensor _sub_value_states;
-        BITensor _sub_q_query_states;
+        // BITensor _sub_q_query_states;
+        BITensor _sub_q_value_states;
+        // BITensor _sub_q_key_states;
+        BITensor _sub_reshape_q_states;
+        BITensor _sub_reshape_k_states;
+        BITensor _sub_reshape_v_states;
+        BITensor _sub_transpose_q_result;
+        BITensor _sub_transpose_k_result;
+        BITensor _sub_transpose_v_result;
+        BITensor _sub_qk_bmm_output;
         BITensorInfo _sub_norm_info;
         BITensorInfo _sub_norm_q_info;
         BITensorInfo _sub_c_attn_s32_tensor_info;
@@ -142,6 +160,15 @@ namespace BatmanInfer {
         BITensorInfo _sub_d_qkv_info;
         BITensorInfo _sub_query_info;
         BITensorInfo _sub_q_query_info;
+        BITensorInfo _sub_q_key_info;
+        BITensorInfo _sub_q_value_info;
+        BITensorInfo _sub_reshape_q_info;
+        BITensorInfo _sub_reshape_k_info;
+        BITensorInfo _sub_reshape_v_info;
+        BITensorInfo _sub_transpose_q_info;
+        BITensorInfo _sub_transpose_k_info;
+        BITensorInfo _sub_qk_bmm_output_info;
+
         BITensor _norm_output;
         BITensor _q_norm_output;
         BITensor _c_attn_s32_output;
@@ -152,7 +179,16 @@ namespace BatmanInfer {
         BITensor _query_states;
         BITensor _key_states;
         BITensor _value_states;
-        BITensor _q_query_states;
+        // BITensor _q_query_states;
+        // BITensor _q_key_states;
+        BITensor _q_value_states;
+        BITensor _reshape_q_states;
+        BITensor _reshape_k_states;
+        BITensor _reshape_v_states;
+        BITensor _transpose_q_result;
+        BITensor _transpose_k_result;
+        BITensor _transpose_v_result;
+        BITensor _qk_bmm_output;
 
     private:
         // 是否已经完全初始化

@@ -153,8 +153,8 @@ namespace BatmanInfer {
                 matrix_a = &_signed_a;
             }
 
-            // Offset kernel is need if offset is non-zero or it may change (i.e. dynamic).
-            // It is not needed if the datatype is symmetric, because there is no offset
+            // 如果偏移量非零或可能变化（即动态），则需要偏移内核。
+            // 如果数据类型是对称的，则不需要，因为没有偏移量
             bool a_offset_kernel_needed = _a_offset != 0 || a->quantization_info().is_dynamic();
             bool b_offset_kernel_needed = _b_offset != 0 || b->quantization_info().is_dynamic();
 
@@ -338,6 +338,15 @@ namespace BatmanInfer {
             _aux_mem[SignedOutput] = BIMemoryInfo(offset_int_vec(SignedOutput), MemoryLifetime::Temporary,
                                                   _signed_output.total_size());
         }
+
+        void BICpuGemmLowpMatrixMultiplyCore::dynamic_configure(const BIITensorInfo *a,
+                                                                const BIITensorInfo *b,
+                                                                BIITensorInfo *dst) const {
+            _asm_glue->dynamic_tensor_b_size(a, b, dst);
+            if (_offset_contribution_kernel)
+                _offset_contribution_kernel->dynamic_configure(dst);
+        }
+
 
         BIStatus BICpuGemmLowpMatrixMultiplyCore::validate(const BIITensorInfo *a,
                                                            const BIITensorInfo *b,

@@ -7,8 +7,6 @@
 #include <cpu/kernels/assembly/bi_arm_gemm.hpp>
 
 namespace BatmanGemm {
-
-
     /* "Batched GEMV" (where M=1 and nbatches>1) can be executed much more
      * efficiently as a GEMM (with M'=nbatches and nbatches'=1).  This wrapper
      * implements this.  */
@@ -65,6 +63,10 @@ namespace BatmanGemm {
             // TODO: For future dynamic
         }
 
+        bool set_dynamic_N_size(int N_size) override {
+            return false;
+        }
+
         // TODO: Make this actually stateless. This still uses the stateful
         // execution data because it requires a workspace which would also need to
         // be handled statelessly.
@@ -118,5 +120,4 @@ namespace BatmanGemm {
             return c;
         }
     };
-
 } // namespace BatmanGemm

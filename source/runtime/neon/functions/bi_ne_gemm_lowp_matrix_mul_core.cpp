@@ -14,7 +14,6 @@
 #include <runtime/bi_tensor.hpp>
 
 #include <data/core/helpers/bi_memory_helpers.hpp>
-#include <data/core/utils/quantization/asymm_helpers.hpp>
 #include <cpu/operators/bi_cpu_gemm_lowp_matrix_multiply_core.hpp>
 
 #include <set>
@@ -38,7 +37,7 @@ namespace BatmanInfer {
 
     BINEGEMMLowpMatrixMultipleCore::BINEGEMMLowpMatrixMultipleCore(std::shared_ptr<BIIMemoryManager> memory_manager,
                                                                    BatmanInfer::BIIWeightsManager *weights_manager)
-            : _impl(std::make_unique<Impl>()) {
+        : _impl(std::make_unique<Impl>()) {
         _impl->weights_manager = weights_manager;
         _impl->memory_group = BIMemoryGroup(memory_manager);
     }
@@ -63,20 +62,26 @@ namespace BatmanInfer {
         _impl->op->configure(a->info(), b_info_to_use.get(), (c != nullptr ? c->info() : nullptr), output->info(),
                              gemm_info);
         _impl->run_pack = {
-                {BITensorType::ACL_SRC_0, a},
-                {BITensorType::ACL_SRC_1, b},
-                {BITensorType::ACL_SRC_2, c},
-                {BITensorType::ACL_DST,   output}
+            {BITensorType::ACL_SRC_0, a},
+            {BITensorType::ACL_SRC_1, b},
+            {BITensorType::ACL_SRC_2, c},
+            {BITensorType::ACL_DST, output}
         };
         _impl->prep_pack = {
-                {BITensorType::ACL_SRC_1, b},
-                {BITensorType::ACL_SRC_2, c}
+            {BITensorType::ACL_SRC_1, b},
+            {BITensorType::ACL_SRC_2, c}
         };
         _impl->aux_mem_req = _impl->op->workspace();
         _impl->act_info = gemm_info.activation_info();
         _impl->workspace_tensors = manage_workspace<BITensor>(_impl->aux_mem_req, _impl->memory_group, _impl->run_pack,
                                                               _impl->prep_pack, /* allocate_now */ false);
     }
+
+    void BINEGEMMLowpMatrixMultipleCore::dynamic_configure(const BIITensor *input, const BIITensor *output) const {
+        auto b = _impl->run_pack.get_const_tensor(BITensorType::ACL_SRC_1);
+        _impl->op->dynamic_configure(input->info(), b->info(), output->info());
+    }
+
 
     BIStatus
     BINEGEMMLowpMatrixMultipleCore::validate(const BatmanInfer::BIITensorInfo *a, const BatmanInfer::BIITensorInfo *b,
@@ -95,9 +100,9 @@ namespace BatmanInfer {
     void BINEGEMMLowpMatrixMultipleCore::update_quantization_parameters() {
         // Supported activations in GEMM
         const std::set<BIActivationLayerInfo::ActivationFunction> supported_acts = {
-                BIActivationLayerInfo::ActivationFunction::RELU,
-                BIActivationLayerInfo::ActivationFunction::BOUNDED_RELU,
-                BIActivationLayerInfo::ActivationFunction::LU_BOUNDED_RELU
+            BIActivationLayerInfo::ActivationFunction::RELU,
+            BIActivationLayerInfo::ActivationFunction::BOUNDED_RELU,
+            BIActivationLayerInfo::ActivationFunction::LU_BOUNDED_RELU
         };
 
         auto src = _impl->run_pack.get_const_tensor(ACL_SRC_0);

@@ -25,7 +25,6 @@ namespace BatmanInfer {
                                        BIIWeightsManager *weights_manager = nullptr);
 
         BINEGEMMLowpMatrixMultipleCore() : BINEGEMMLowpMatrixMultipleCore(BIMemoryManagerOnDemand::make_default()) {
-
         }
 
         BINEGEMMLowpMatrixMultipleCore(const BINEGEMMLowpMatrixMultipleCore &) = delete;
@@ -78,6 +77,8 @@ namespace BatmanInfer {
                        const BIITensor *c,
                        BIITensor *output,
                        const GEMMInfo &gemm_info = GEMMInfo());
+
+        void dynamic_configure(const BIITensor *input, const BIITensor *output) const;
 
         /**
          * @brief 静态函数检查给定的信息是否会导致有效的配置 @ref NEGEMMLowpMatrixMultiplyCore。

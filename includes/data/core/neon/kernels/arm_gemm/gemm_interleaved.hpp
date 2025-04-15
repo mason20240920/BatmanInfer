@@ -33,9 +33,7 @@
 // larger matrices.
 
 namespace BatmanGemm {
-
     namespace {
-
         // Some kernels output to a linear buffer and require a separate merge step.
         // Others output directly to the matrix result.  This helper class calls the
         // appropriate functions, using templating to avoid calling non-existent
@@ -48,11 +46,11 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
                     profiler &prof,
 #endif
-                    strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t b_stride, Tri *c_panel,
-                    Tr *c_ptr, int ldc, int kern_k, unsigned int m_0,
-                    unsigned int m_max, unsigned int n_0, unsigned int n_max, const Tr *biasptr,
-                    const Activation &act, bool accumulate, const OutputStage &os, const int32_t *col_bias,
-                    Tab *acc_buff);
+                strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t b_stride, Tri *c_panel,
+                Tr *c_ptr, int ldc, int kern_k, unsigned int m_0,
+                unsigned int m_max, unsigned int n_0, unsigned int n_max, const Tr *biasptr,
+                const Activation &act, bool accumulate, const OutputStage &os, const int32_t *col_bias,
+                Tab *acc_buff);
         };
 
         // Run a kernel and call the separate merge step
@@ -62,21 +60,17 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
                 profiler &prof,
 #endif
-                strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t, Tri *c_panel,
-                Tr *c_ptr, int ldc, int kern_k, unsigned int m_0,
-                unsigned int m_max, unsigned int n_0, unsigned int n_max, const Tr *biasptr,
-                const Activation &act, bool accumulate, const Nothing &, const int32_t *, Tab *) {
-            const int bblocks = iceildiv(n_max - n_0, strategy::out_width());
-
-            {
+            strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t, Tri *c_panel,
+            Tr *c_ptr, int ldc, int kern_k, unsigned int m_0,
+            unsigned int m_max, unsigned int n_0, unsigned int n_max, const Tr *biasptr,
+            const Activation &act, bool accumulate, const Nothing &, const int32_t *, Tab *) {
+            const int bblocks = iceildiv(n_max - n_0, strategy::out_width()); {
 #ifdef CYCLE_PROFILING
                 auto p=prof.ScopedProfiler(PROFILE_KERNEL, (strategy::out_height() * bblocks * strategy::out_width() * kern_k));
 #endif
 
                 strat.kernel(a_ptr, b_panel, c_panel, 1, bblocks, kern_k);
-            }
-
-            {
+            } {
 #ifdef CYCLE_PROFILING
                 auto p=prof.ScopedProfiler(PROFILE_MERGE, (strategy::out_height() * bblocks * strategy::out_width() * sizeof(Tr)));
 #endif
@@ -84,27 +78,24 @@ namespace BatmanGemm {
             }
         }
 
-// Run a fixed-format kernel and call the separate merge step
+        // Run a fixed-format kernel and call the separate merge step
         template<>
         template<typename strategy, typename Tlo, typename Tro, typename Tr, typename Tri, typename Tab>
         void kernel_and_merge<true, true, Nothing>::run(
 #ifdef CYCLE_PROFILING
                 profiler &prof,
 #endif
-                strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t b_stride, Tri *c_panel,
-                Tr *c_ptr, int ldc, int kern_k, unsigned int m_0,
-                unsigned int m_max, unsigned int n_0, unsigned int n_max, const Tr *biasptr,
-                const Activation &act, bool accumulate, const Nothing &, const int32_t *, Tab *) {
-            {
+            strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t b_stride, Tri *c_panel,
+            Tr *c_ptr, int ldc, int kern_k, unsigned int m_0,
+            unsigned int m_max, unsigned int n_0, unsigned int n_max, const Tr *biasptr,
+            const Activation &act, bool accumulate, const Nothing &, const int32_t *, Tab *) { {
 #ifdef CYCLE_PROFILING
                 const int bblocks = iceildiv(n_max - n_0, strategy::out_width());
         auto p=prof.ScopedProfiler(PROFILE_KERNEL, (strategy::out_height() * bblocks * strategy::out_width() * kern_k));
 #endif
 
                 strat.kernel(a_ptr, b_panel, b_stride, c_panel, 1, (n_max - n_0), kern_k);
-            }
-
-            {
+            } {
 #ifdef CYCLE_PROFILING
                 const int bblocks = iceildiv(n_max - n_0, strategy::out_width());
         auto p=prof.ScopedProfiler(PROFILE_MERGE, (strategy::out_height() * bblocks * strategy::out_width() * sizeof(Tr)));
@@ -113,18 +104,18 @@ namespace BatmanGemm {
             }
         }
 
-// Run a kernel with integrated merge
+        // Run a kernel with integrated merge
         template<>
         template<typename strategy, typename Tlo, typename Tro, typename Tr, typename Tri, typename Tab>
         void kernel_and_merge<false, false, Nothing>::run(
 #ifdef CYCLE_PROFILING
                 profiler &prof,
 #endif
-                strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t, Tri *,
-                Tr *c_ptr, int ldc, int kern_k, unsigned int m_0, unsigned int m_max,
-                unsigned int n_0, unsigned int n_max, const Tr *biasptr,
-                const Activation &act, bool accumulate, const Nothing &, const int32_t *,
-                Tab *acc_buff) {
+            strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t, Tri *,
+            Tr *c_ptr, int ldc, int kern_k, unsigned int m_0, unsigned int m_max,
+            unsigned int n_0, unsigned int n_max, const Tr *biasptr,
+            const Activation &act, bool accumulate, const Nothing &, const int32_t *,
+            Tab *acc_buff) {
 #ifdef CYCLE_PROFILING
             auto p=prof.ScopedProfiler(PROFILE_KERNEL, (m_max - m_0) * (n_max - n_0) * kern_k);
 #endif
@@ -139,30 +130,30 @@ namespace BatmanGemm {
                 offset_c_ptr = c_ptr + m_0 * ldc + n_0;
             }
 
-            strat.kernel(// A and B pointers are just the packed panels.
-                    a_ptr, b_panel,
-                    // Provide relevant part of output array and row stride.
-                    offset_c_ptr, ldc,
-                    // M, N, K sizes
-                    m_max - m_0, n_max - n_0, kern_k,
-                    // Bias, activation, accumulation.  Need to offset the bias as needed.
-                    biasptr ? biasptr + n_0 : nullptr, act, accumulate,
-                    // Accumulation buffer.
-                    acc_buff);
+            strat.kernel( // A and B pointers are just the packed panels.
+                a_ptr, b_panel,
+                // Provide relevant part of output array and row stride.
+                offset_c_ptr, ldc,
+                // M, N, K sizes
+                m_max - m_0, n_max - n_0, kern_k,
+                // Bias, activation, accumulation.  Need to offset the bias as needed.
+                biasptr ? biasptr + n_0 : nullptr, act, accumulate,
+                // Accumulation buffer.
+                acc_buff);
         }
 
-// Run a kernel with integrated merge, quantizing
+        // Run a kernel with integrated merge, quantizing
         template<>
         template<typename strategy, typename Tlo, typename Tro, typename Tr, typename Tri, typename Tab>
         void kernel_and_merge<false, false, Requantize32>::run(
 #ifdef CYCLE_PROFILING
                 profiler &prof,
 #endif
-                strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t, Tri *,
-                Tr *c_ptr, int ldc, int kern_k, unsigned int m_0, unsigned int m_max,
-                unsigned int n_0, unsigned int n_max, const Tr *,
-                const Activation &, bool accumulate, const Requantize32 &qp, const int32_t *col_bias,
-                Tab *acc_buff) {
+            strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t, Tri *,
+            Tr *c_ptr, int ldc, int kern_k, unsigned int m_0, unsigned int m_max,
+            unsigned int n_0, unsigned int n_max, const Tr *,
+            const Activation &, bool accumulate, const Requantize32 &qp, const int32_t *col_bias,
+            Tab *acc_buff) {
 #ifdef CYCLE_PROFILING
             auto p=prof.ScopedProfiler(PROFILE_KERNEL, (m_max - m_0) * (n_max - n_0) * kern_k);
 #endif
@@ -176,39 +167,35 @@ namespace BatmanGemm {
                 offset_c_ptr = c_ptr + m_0 * ldc + n_0;
             }
 
-            strat.kernel(// A and B pointers are just the packed panels.
-                    a_ptr, b_panel,
-                    // Provide relevant part of output array and row stride.
-                    offset_c_ptr, ldc,
-                    // M, N, K sizes
-                    m_max - m_0, n_max - n_0, kern_k,
-                    // Bias, activation, accumulation.  Need to offset the bias as needed.
-                    col_bias + n_0, qp, n_0, accumulate, acc_buff);
+            strat.kernel( // A and B pointers are just the packed panels.
+                a_ptr, b_panel,
+                // Provide relevant part of output array and row stride.
+                offset_c_ptr, ldc,
+                // M, N, K sizes
+                m_max - m_0, n_max - n_0, kern_k,
+                // Bias, activation, accumulation.  Need to offset the bias as needed.
+                col_bias + n_0, qp, n_0, accumulate, acc_buff);
         }
 
-// Run a kernel and call the separate quantize step
+        // Run a kernel and call the separate quantize step
         template<>
         template<typename strategy, typename Tlo, typename Tro, typename Tr, typename Tri, typename Tab>
         void kernel_and_merge<true, false, Requantize32>::run(
 #ifdef CYCLE_PROFILING
                 profiler &prof,
 #endif
-                strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t, Tri *c_panel,
-                Tr *c_ptr, int ldc, int kern_k, unsigned int m_0,
-                unsigned int m_max, unsigned int n_0, unsigned int n_max, const Tr *,
-                const Activation &, bool, const Requantize32 &qp, const int32_t *col_bias,
-                Tab *) {
-            const int bblocks = iceildiv(n_max - n_0, strategy::out_width());
-
-            {
+            strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t, Tri *c_panel,
+            Tr *c_ptr, int ldc, int kern_k, unsigned int m_0,
+            unsigned int m_max, unsigned int n_0, unsigned int n_max, const Tr *,
+            const Activation &, bool, const Requantize32 &qp, const int32_t *col_bias,
+            Tab *) {
+            const int bblocks = iceildiv(n_max - n_0, strategy::out_width()); {
 #ifdef CYCLE_PROFILING
                 auto p=prof.ScopedProfiler(PROFILE_KERNEL, (strategy::out_height() * bblocks * strategy::out_width() * kern_k));
 #endif
 
                 strat.kernel(a_ptr, b_panel, c_panel, 1, bblocks, kern_k);
-            }
-
-            {
+            } {
 #ifdef CYCLE_PROFILING
                 auto p=prof.ScopedProfiler(PROFILE_QUANTIZE, ((m_max-m_0) * bblocks * strategy::out_width() * sizeof(Tr)));
 #endif
@@ -222,7 +209,7 @@ namespace BatmanGemm {
 
                     // The row bias is interleaved with the transposed A data, get a pointer to it here.
                     const int32_t *row_bias = reinterpret_cast<const int32_t *>(a_ptr +
-                                                                                strategy::out_height() * kern_k);
+                        strategy::out_height() * kern_k);
 
                     requantize_block_32(qp, (n_end - n_start), (m_max - m_0),
                                         c_panel + (i * strategy::out_width() * strategy::out_height()),
@@ -233,18 +220,18 @@ namespace BatmanGemm {
             }
         }
 
-// Run a kernel with integrated merge, dequantizing to FP32
+        // Run a kernel with integrated merge, dequantizing to FP32
         template<>
         template<typename strategy, typename Tlo, typename Tro, typename Tr, typename Tri, typename Tab>
         void kernel_and_merge<false, false, DequantizeFloat>::run(
 #ifdef CYCLE_PROFILING
                 profiler &prof,
 #endif
-                strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t, Tri *,
-                Tr *c_ptr, int ldc, int kern_k, unsigned int m_0, unsigned int m_max,
-                unsigned int n_0, unsigned int n_max, const Tr *bias,
-                const Activation &act, bool accumulate, const DequantizeFloat &dq, const int32_t *col_bias,
-                Tab *acc_buff) {
+            strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t, Tri *,
+            Tr *c_ptr, int ldc, int kern_k, unsigned int m_0, unsigned int m_max,
+            unsigned int n_0, unsigned int n_max, const Tr *bias,
+            const Activation &act, bool accumulate, const DequantizeFloat &dq, const int32_t *col_bias,
+            Tab *acc_buff) {
 #ifdef CYCLE_PROFILING
             auto p=prof.ScopedProfiler(PROFILE_KERNEL, (m_max - m_0) * (n_max - n_0) * kern_k);
 #endif
@@ -260,14 +247,14 @@ namespace BatmanGemm {
                 offset_bias = bias + n_0;
             }
 
-            strat.kernel(// A and B pointers are just the packed panels.
-                    a_ptr, b_panel,
-                    // Provide relevant part of output array and row stride.
-                    c_ptr ? (c_ptr + m_0 * ldc + n_0) : nullptr, ldc,
-                    // M, N, K sizes
-                    m_max - m_0, n_max - n_0, kern_k,
-                    // Bias, activation, accumulation.  Need to offset the bias as needed.
-                    offset_col_bias, dq, offset_bias, act, accumulate, acc_buff);
+            strat.kernel( // A and B pointers are just the packed panels.
+                a_ptr, b_panel,
+                // Provide relevant part of output array and row stride.
+                c_ptr ? (c_ptr + m_0 * ldc + n_0) : nullptr, ldc,
+                // M, N, K sizes
+                m_max - m_0, n_max - n_0, kern_k,
+                // Bias, activation, accumulation.  Need to offset the bias as needed.
+                offset_col_bias, dq, offset_bias, act, accumulate, acc_buff);
         }
 
         template<>
@@ -276,22 +263,18 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
                 profiler &prof,
 #endif
-                strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t, Tri *c_panel,
-                Tr *c_ptr, int ldc, int kern_k, unsigned int m_0,
-                unsigned int m_max, unsigned int n_0, unsigned int n_max, const Tr *bias,
-                const Activation &act, bool accumulate, const DequantizeFloat &qp, const int32_t *,
-                Tab *) {
-            const int bblocks = iceildiv(n_max - n_0, strategy::out_width());
-
-            {
+            strategy &strat, const Tlo *a_ptr, const Tro *b_panel, size_t, Tri *c_panel,
+            Tr *c_ptr, int ldc, int kern_k, unsigned int m_0,
+            unsigned int m_max, unsigned int n_0, unsigned int n_max, const Tr *bias,
+            const Activation &act, bool accumulate, const DequantizeFloat &qp, const int32_t *,
+            Tab *) {
+            const int bblocks = iceildiv(n_max - n_0, strategy::out_width()); {
 #ifdef CYCLE_PROFILING
                 auto p=prof.ScopedProfiler(PROFILE_KERNEL, (strategy::out_height() * bblocks * strategy::out_width() * kern_k));
 #endif
 
                 strat.kernel(a_ptr, b_panel, c_panel, 1, bblocks, kern_k);
-            }
-
-            {
+            } {
 #ifdef CYCLE_PROFILING
                 auto p=prof.ScopedProfiler(PROFILE_QUANTIZE, ((m_max-m_0) * bblocks * strategy::out_width() * sizeof(Tr)));
 #endif
@@ -304,19 +287,18 @@ namespace BatmanGemm {
                                         c_panel + (i * out_area), strategy::out_width(),
                                         c_ptr + m_0 * ldc + n_start, ldc,
                                         bias != nullptr ? bias + n_start : nullptr, accumulate, act);
-
                 }
             }
         }
 
-// Integer GEMMs can be used in two contexts - "normal" where the full 32-bit output is required, or in
-// "requantizing" context where the output will be requantized.
-//
-// These require different input transforms, as if we are requantizing we want to sum the rows of the A input, and
-// if we are not we don't.
-//
-// This helper class allows the appropriate transforms to be found, without requiring kernels that don't support
-// quantization to define useless "quantized" transforms.
+        // Integer GEMMs can be used in two contexts - "normal" where the full 32-bit output is required, or in
+        // "requantizing" context where the output will be requantized.
+        //
+        // These require different input transforms, as if we are requantizing we want to sum the rows of the A input, and
+        // if we are not we don't.
+        //
+        // This helper class allows the appropriate transforms to be found, without requiring kernels that don't support
+        // quantization to define useless "quantized" transforms.
         template<typename strategy, bool quantized>
         class transform_type {
         public:
@@ -329,7 +311,7 @@ namespace BatmanGemm {
             typedef decltype(strategy::transforms_quantized) type;
         };
 
-// We need a similar trick here to figure out what type the accumulator buffer should be.
+        // We need a similar trick here to figure out what type the accumulator buffer should be.
         template<typename strategy, typename OutputStage, bool ForceFloat>
         class accumulate_buffer_type {
         public:
@@ -354,7 +336,7 @@ namespace BatmanGemm {
             typedef float type;
         };
 
-// Stripe width is a concept only needed for FixedFormat kernels.  Use an accessor to avoid issues in other scenarios.
+        // Stripe width is a concept only needed for FixedFormat kernels.  Use an accessor to avoid issues in other scenarios.
         template<typename strategy, bool FixedFormat>
         struct get_stripe_width {
             static unsigned int get() {
@@ -369,7 +351,7 @@ namespace BatmanGemm {
             }
         };
 
-// KernelWeightFormat is a similar story.
+        // KernelWeightFormat is a similar story.
         template<typename strategy, bool FixedFormat, typename Tro>
         struct get_kernel_weight_format {
             static KernelWeightFormat get() {
@@ -394,10 +376,10 @@ namespace BatmanGemm {
                 return kwf;
             }
         };
-
     } // anonymous namespace
 
-    template<typename strategy, typename Tlo, typename Tro, typename Tr, typename OutputStage=Nothing, bool MergeStep = true, bool FixedFormat = false, bool ForceThreadColumns = false, bool ForceFloatAccumulate = false>
+    template<typename strategy, typename Tlo, typename Tro, typename Tr, typename OutputStage=Nothing, bool MergeStep =
+            true, bool FixedFormat = false, bool ForceThreadColumns = false, bool ForceFloatAccumulate = false>
     class GemmInterleaved : public BIGemmCommon<Tlo, Tro, Tr> {
         typedef typename strategy::lhs_operand_type Tloi;
         typedef typename strategy::rhs_operand_type Troi;
@@ -446,7 +428,7 @@ namespace BatmanGemm {
         const Tlo *const *const *_indirect_buf = nullptr;
 
         /* Convolver - only set up for convolution problems, so also doubles as a flag. */
-        std::unique_ptr<convolver<Tlo>> _convolver = nullptr;
+        std::unique_ptr<convolver<Tlo> > _convolver = nullptr;
 
         unsigned int get_col_sum_size() const {
             if (std::is_same<OutputStage, Requantize32>::value) {
@@ -461,7 +443,8 @@ namespace BatmanGemm {
         class blockwalker {
         private:
             /* Size loops, etc. based on our parent's configuration */
-            const GemmInterleaved<strategy, Tlo, Tro, Tr, OutputStage, MergeStep, FixedFormat, ForceThreadColumns, ForceFloatAccumulate> &_parent;
+            const GemmInterleaved<strategy, Tlo, Tro, Tr, OutputStage, MergeStep, FixedFormat, ForceThreadColumns,
+                ForceFloatAccumulate> &_parent;
 
             /* K, X and multi parameters for current iteration. */
             unsigned int _k0 = 0, _x0 = 0, _multi = 0;
@@ -477,13 +460,17 @@ namespace BatmanGemm {
 
         public:
             blockwalker(
-                    const GemmInterleaved<strategy, Tlo, Tro, Tr, OutputStage, MergeStep, FixedFormat, ForceThreadColumns, ForceFloatAccumulate> &parent)
-                    : _parent(parent) {}
+                const GemmInterleaved<strategy, Tlo, Tro, Tr, OutputStage, MergeStep, FixedFormat, ForceThreadColumns,
+                    ForceFloatAccumulate> &parent)
+                : _parent(parent) {
+            }
 
             blockwalker(
-                    const GemmInterleaved<strategy, Tlo, Tro, Tr, OutputStage, MergeStep, FixedFormat, ForceThreadColumns, ForceFloatAccumulate> &parent,
-                    unsigned int x_start, unsigned int x_end) : _parent(parent), _x0(_x_start), _x_start(x_start),
-                                                                _x_end(x_end) {}
+                const GemmInterleaved<strategy, Tlo, Tro, Tr, OutputStage, MergeStep, FixedFormat, ForceThreadColumns,
+                    ForceFloatAccumulate> &parent,
+                unsigned int x_start, unsigned int x_end) : _parent(parent), _x0(_x_start), _x_start(x_start),
+                                                            _x_end(x_end) {
+            }
 
             unsigned int xmax() {
                 return std::min(_x0 + _parent._x_block, _x_end);
@@ -574,6 +561,10 @@ namespace BatmanGemm {
 
         bool set_dynamic_batch_size(int batch_size) override {
             // TODO: For future dynamic
+            return false;
+        }
+
+        bool set_dynamic_N_size(int N_size) override {
             return false;
         }
 
@@ -818,27 +809,29 @@ namespace BatmanGemm {
 
         /* Constructor */
         GemmInterleaved(const GemmArgs &args, const OutputStage &os)
-                : _ci(args._ci), _Msize(args._Msize), _Nsize(args._Nsize), _Ksize(args._Ksize),
-                  _Ksections(args._Ksections), _Ktotal(get_ktotal(args)),
-                  _rounded_Ksize(roundup(_Ksize, strategy::k_unroll())),
-                  _nbatches(args._nbatches), _nmulti(args._nmulti), _thread_columns(is_thread_columns(args)),
-                  _act(args._act), _accumulate(args._accumulate), _maxthreads(args._maxthreads),
-                  _nthreads(args._maxthreads),
-                  _k_block(get_k_block_size(args)), _x_block(get_x_block_size(args)),
-                  _Mround(roundup(args._Msize, strategy::out_height())),
-                  _os(os) {}
+            : _ci(args._ci), _Msize(args._Msize), _Nsize(args._Nsize), _Ksize(args._Ksize),
+              _Ksections(args._Ksections), _Ktotal(get_ktotal(args)),
+              _rounded_Ksize(roundup(_Ksize, strategy::k_unroll())),
+              _nbatches(args._nbatches), _nmulti(args._nmulti), _thread_columns(is_thread_columns(args)),
+              _act(args._act), _accumulate(args._accumulate), _maxthreads(args._maxthreads),
+              _nthreads(args._maxthreads),
+              _k_block(get_k_block_size(args)), _x_block(get_x_block_size(args)),
+              _Mround(roundup(args._Msize, strategy::out_height())),
+              _os(os) {
+        }
 
         /* Constructor without OutputStage */
         GemmInterleaved(const GemmArgs &args)
-                : _ci(args._ci), _Msize(args._Msize), _Nsize(args._Nsize), _Ksize(args._Ksize),
-                  _Ksections(args._Ksections), _Ktotal(get_ktotal(args)),
-                  _rounded_Ksize(roundup(_Ksize, strategy::k_unroll())),
-                  _nbatches(args._nbatches), _nmulti(args._nmulti), _thread_columns(is_thread_columns(args)),
-                  _act(args._act), _accumulate(args._accumulate), _maxthreads(args._maxthreads),
-                  _nthreads(args._maxthreads),
-                  _k_block(get_k_block_size(args)), _x_block(get_x_block_size(args)),
-                  _Mround(roundup(args._Msize, strategy::out_height())),
-                  _os() {}
+            : _ci(args._ci), _Msize(args._Msize), _Nsize(args._Nsize), _Ksize(args._Ksize),
+              _Ksections(args._Ksections), _Ktotal(get_ktotal(args)),
+              _rounded_Ksize(roundup(_Ksize, strategy::k_unroll())),
+              _nbatches(args._nbatches), _nmulti(args._nmulti), _thread_columns(is_thread_columns(args)),
+              _act(args._act), _accumulate(args._accumulate), _maxthreads(args._maxthreads),
+              _nthreads(args._maxthreads),
+              _k_block(get_k_block_size(args)), _x_block(get_x_block_size(args)),
+              _Mround(roundup(args._Msize, strategy::out_height())),
+              _os() {
+        }
 
         // Interface implementation - Compulsory functions
 
@@ -918,19 +911,21 @@ namespace BatmanGemm {
 
                         // Bias is passed for the first pass only, except for dequantizefloat nomerge cases where it's the last pass.
                         const bool bias_pass = (std::is_same<OutputStage, DequantizeFloat>::value && !MergeStep)
-                                               ? last_pass : first_pass;
+                                                   ? last_pass
+                                                   : first_pass;
 
                         // Figure out how many "K" the kernel will actually process.
                         unsigned int kern_k = roundup(kmax - k0, strategy::k_unroll());
 
-                        const Troi *b_ptr = FixedFormat ?
-                                            reinterpret_cast<const Troi *>(g_array._Bptr) +
-                                            (multi * g_array._B_multi_stride) +
-                                            ((start_x / get_stripe_width<strategy, FixedFormat>::get()) *
-                                             g_array._ldb) +
-                                            (k0 * get_stripe_width<strategy, FixedFormat>::get()) :
-                                            _B_transposed + (rounded_width * _Ktotal * multi) + (k0 * rounded_width) +
-                                            (start_x * kern_k);
+                        const Troi *b_ptr = FixedFormat
+                                                ? reinterpret_cast<const Troi *>(g_array._Bptr) +
+                                                  (multi * g_array._B_multi_stride) +
+                                                  ((start_x / get_stripe_width<strategy, FixedFormat>::get()) *
+                                                   g_array._ldb) +
+                                                  (k0 * get_stripe_width<strategy, FixedFormat>::get())
+                                                : _B_transposed + (rounded_width * _Ktotal * multi) + (
+                                                      k0 * rounded_width) +
+                                                  (start_x * kern_k);
 
                         unsigned int batch = batch_0;
                         unsigned int start_row = (start - (batch_0 * window_per_batch)) * strategy::out_height();
@@ -946,7 +941,7 @@ namespace BatmanGemm {
                                 // See comment above on transform_type<> class: this extracts either 'transforms' or
                                 // 'transforms_quantized' as appropriate.
                                 typename transform_type<strategy,
-                                        MergeStep && std::is_same<OutputStage, Requantize32>::value>::type transforms;
+                                    MergeStep && std::is_same<OutputStage, Requantize32>::value>::type transforms;
 
                                 if (_indirect_buf != nullptr) {
                                     transforms.PrepareA_indirect(a_panel,
@@ -982,21 +977,22 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
                                     prof,
 #endif
-                                    // Strategy and panel pointers
-                                    strat, a_panel, b_ptr, g_array._ldb, c_panel,
-                                    // Result buffer pointers
-                                    result_ptr, g_array._ldc,
-                                    // K size, and M/N ranges
-                                    kern_k, start_row, end_row, start_x, end_x,
-                                    // Only do bias on the first pass
-                                    ((bias_pass && g_array._bias) ? g_array._bias + (multi * g_array._bias_multi_stride)
-                                                                  : nullptr),
-                                    // Only do activation on the last pass, and accumulation on any non-first pass.
-                                    (last_pass ? _act : Activation()), (!first_pass || _accumulate),
-                                    // Pass in quantization parameters for requantizing kernels (others will ignore)
-                                    _os, col_bias + (multi * _Nsize),
-                                    // Accumulation buffer
-                                    get_accumulation_buffer(start_row, start_x, batch, multi));
+                                // Strategy and panel pointers
+                                strat, a_panel, b_ptr, g_array._ldb, c_panel,
+                                // Result buffer pointers
+                                result_ptr, g_array._ldc,
+                                // K size, and M/N ranges
+                                kern_k, start_row, end_row, start_x, end_x,
+                                // Only do bias on the first pass
+                                ((bias_pass && g_array._bias)
+                                     ? g_array._bias + (multi * g_array._bias_multi_stride)
+                                     : nullptr),
+                                // Only do activation on the last pass, and accumulation on any non-first pass.
+                                (last_pass ? _act : Activation()), (!first_pass || _accumulate),
+                                // Pass in quantization parameters for requantizing kernels (others will ignore)
+                                _os, col_bias + (multi * _Nsize),
+                                // Accumulation buffer
+                                get_accumulation_buffer(start_row, start_x, batch, multi));
 
                             /* Increment to the next block */
                             start_row += strategy::out_height();
@@ -1046,7 +1042,7 @@ namespace BatmanGemm {
                         // See comment above on transform_type<> class: this extracts either 'transforms' or
                         // 'transforms_quantized' as appropriate.
                         typename transform_type<strategy,
-                                MergeStep && std::is_same<OutputStage, Requantize32>::value>::type transforms;
+                            MergeStep && std::is_same<OutputStage, Requantize32>::value>::type transforms;
 
                         for (unsigned int batch = batch_0; batch <= batch_end; batch++) {
                             unsigned int first_m = (batch == batch_0) ? m_0 : 0;
@@ -1057,18 +1053,18 @@ namespace BatmanGemm {
 
                             if (_indirect_buf != nullptr) {
                                 transforms.PrepareA_indirect(
-                                        a_panel + ((batch * _Mround + first_m) * get_total_k_depth()),
-                                        _indirect_buf + (current.multi() * _nbatches * _Ksections) +
-                                        (batch * _Ksections), _Ksize,
-                                        _rounded_Ksize, first_m, last_m, current.k0(), current.kmax(),
-                                        row_sum_multiplier());
+                                    a_panel + ((batch * _Mround + first_m) * get_total_k_depth()),
+                                    _indirect_buf + (current.multi() * _nbatches * _Ksections) +
+                                    (batch * _Ksections), _Ksize,
+                                    _rounded_Ksize, first_m, last_m, current.k0(), current.kmax(),
+                                    row_sum_multiplier());
                             } else if (_convolver) {
                                 transforms.PrepareA_convolution(
-                                        a_panel + ((batch * _Mround + first_m) * get_total_k_depth()),
-                                        g_array._Aptr + (batch * g_array._A_batch_stride) +
-                                        (current.multi() * g_array._A_multi_stride),
-                                        g_array._lda, *_convolver, _rounded_Ksize, first_m, last_m, current.k0(),
-                                        current.kmax(), row_sum_multiplier());
+                                    a_panel + ((batch * _Mround + first_m) * get_total_k_depth()),
+                                    g_array._Aptr + (batch * g_array._A_batch_stride) +
+                                    (current.multi() * g_array._A_multi_stride),
+                                    g_array._lda, *_convolver, _rounded_Ksize, first_m, last_m, current.k0(),
+                                    current.kmax(), row_sum_multiplier());
                             } else {
                                 transforms.PrepareA(a_panel + ((batch * _Mround + first_m) * get_total_k_depth()),
                                                     g_array._Aptr + (batch * g_array._A_batch_stride) +
@@ -1130,7 +1126,8 @@ namespace BatmanGemm {
 
                             // Bias is passed for the first pass only, except for dequantizefloat nomerge cases where it's the last pass.
                             const bool bias_pass = (std::is_same<OutputStage, DequantizeFloat>::value && !MergeStep)
-                                                   ? last_pass : first_pass;
+                                                       ? last_pass
+                                                       : first_pass;
 
                             // Pointer to appropriate part of result array.
                             Tr *result_ptr = g_array._Cptr + (batch * g_array._C_batch_stride) +
@@ -1147,22 +1144,23 @@ namespace BatmanGemm {
 #ifdef CYCLE_PROFILING
                                     prof,
 #endif
-                                    // Strategy and panel pointers
-                                    strat, a_ptr, b_panel, g_array._ldb, c_panel,
-                                    // Result buffer pointers
-                                    result_ptr, g_array._ldc,
-                                    // K size, and M/N ranges
-                                    kern_k, y, ymax, current.x0(), current.xmax(),
-                                    // Only do bias on the first pass
-                                    ((bias_pass && g_array._bias) ? g_array._bias +
-                                                                    (current.multi() * g_array._bias_multi_stride)
-                                                                  : nullptr),
-                                    // Only do activation on the last pass, and accumulation on any non-first pass.
-                                    (last_pass ? _act : Activation()), (!first_pass || _accumulate),
-                                    // Pass in quantization parameters for requantizing kernels (others will ignore)
-                                    _os, col_bias + (current.multi() * _Nsize),
-                                    // Accumulation buffer
-                                    get_accumulation_buffer(y, current.x0(), batch, current.multi()));
+                                // Strategy and panel pointers
+                                strat, a_ptr, b_panel, g_array._ldb, c_panel,
+                                // Result buffer pointers
+                                result_ptr, g_array._ldc,
+                                // K size, and M/N ranges
+                                kern_k, y, ymax, current.x0(), current.xmax(),
+                                // Only do bias on the first pass
+                                ((bias_pass && g_array._bias)
+                                     ? g_array._bias +
+                                       (current.multi() * g_array._bias_multi_stride)
+                                     : nullptr),
+                                // Only do activation on the last pass, and accumulation on any non-first pass.
+                                (last_pass ? _act : Activation()), (!first_pass || _accumulate),
+                                // Pass in quantization parameters for requantizing kernels (others will ignore)
+                                _os, col_bias + (current.multi() * _Nsize),
+                                // Accumulation buffer
+                                get_accumulation_buffer(y, current.x0(), batch, current.multi()));
 
                             a_ptr += (strategy::out_height() * a_panel_stride);
                         }
@@ -1263,7 +1261,7 @@ namespace BatmanGemm {
         // Support for transposed B is a property of the strategy::transpose type
         bool B_pretranspose_supports_transpose() const override {
             typename transform_type<strategy,
-                    MergeStep && std::is_same<OutputStage, Requantize32>::value>::type transforms;
+                MergeStep && std::is_same<OutputStage, Requantize32>::value>::type transforms;
 
             return transforms.PrepareB_supports_transpose();
         }
@@ -1292,7 +1290,7 @@ namespace BatmanGemm {
             // Skip over blocks we aren't doing
             for (size_t i = 0; i < start; i++) {
                 buffer += roundup(current.xmax() - current.x0(), strategy::out_width()) *
-                          roundup(current.kmax() - current.k0(), strategy::k_unroll());
+                        roundup(current.kmax() - current.k0(), strategy::k_unroll());
                 current.advance();
             }
 
@@ -1339,9 +1337,11 @@ namespace BatmanGemm {
                             strat.transforms.PrepareB(buffer, B + (current.multi() * B_multi_stride), ldb,
                                                       x0, xmax,
                                                       (k_section_base * _Ksize) +
-                                                      k_offset,               // K starting point - compute row to read based on our section and the true section length.
+                                                      k_offset,
+                                                      // K starting point - compute row to read based on our section and the true section length.
                                                       (k_section_base * _Ksize) + k_offset +
-                                                      k_length,    // K end point - starting point plus length computed above.
+                                                      k_length,
+                                                      // K end point - starting point plus length computed above.
                                                       transposed);
 
                             // We need to modify our position based on the ROUNDED version of what we just did.
@@ -1360,7 +1360,7 @@ namespace BatmanGemm {
                                               current.x0(), current.xmax(), current.k0(),
                                               std::min(current.kmax(), _Ksize), transposed);
                     buffer += roundup(current.xmax() - current.x0(), strategy::out_width()) *
-                              roundup(current.kmax() - current.k0(), strategy::k_unroll());
+                            roundup(current.kmax() - current.k0(), strategy::k_unroll());
                 }
 
                 // Advance to the next block, break if we run off the end.
@@ -1400,7 +1400,7 @@ namespace BatmanGemm {
 
         void set_convolution_parameters(BIConvolutionParameters parms) override {
             assert(parms.input_channels == _Ksize);
-            _convolver = std::unique_ptr<convolver<Tlo>>
+            _convolver = std::unique_ptr<convolver<Tlo> >
                     (new convolver<Tlo>(parms));
         }
 
@@ -1471,7 +1471,7 @@ namespace BatmanGemm {
         }
     };
 
-// Aliases for the variations
+    // Aliases for the variations
     template<typename strategy, typename To, typename Tr, typename OutputStage=Nothing>
     using GemmInterleavedNoMerge = GemmInterleaved<strategy, To, To, Tr, OutputStage, false>;
 
@@ -1479,7 +1479,8 @@ namespace BatmanGemm {
     using GemmInterleavedFixedFormat = GemmInterleaved<strategy, To, To, Tr, OutputStage, true, true>;
 
     template<typename strategy, typename To, typename Tr>
-    using GemmInterleavedPretransposedNoMergeQuantizedInline = GemmInterleaved<strategy, To, To, Tr, Requantize32, false>;
+    using GemmInterleavedPretransposedNoMergeQuantizedInline = GemmInterleaved<strategy, To, To, Tr, Requantize32,
+        false>;
 
     template<typename strategy, typename Tlo, typename Tro, typename Tr>
     using GemmInterleavedQuantized = GemmInterleaved<strategy, Tlo, Tro, Tr, Requantize32>;
@@ -1489,5 +1490,4 @@ namespace BatmanGemm {
 
     template<typename strategy, typename Tlo, typename Tro, typename Tr>
     using GemmInterleavedDequantized = GemmInterleaved<strategy, Tlo, Tro, Tr, DequantizeFloat>;
-
 } // namespace BatmanGemm

@@ -53,6 +53,10 @@ namespace BatmanInfer {
                            const BICpuMatMulSettings &settings,
                            const BIActivationLayerInfo &act_info = BIActivationLayerInfo());
 
+            void dynamic_configure(BIITensorInfo *lhs,
+                                   BIITensorInfo *rhs,
+                                   BIITensorInfo *dst);
+
             static BIStatus validate(const BIITensorInfo *lhs,
                                      const BIITensorInfo *rhs,
                                      const BIITensorInfo *dst,

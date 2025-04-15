@@ -20,7 +20,6 @@
 #endif
 
 namespace BatmanGemm {
-
     // Implementation of the GemmCommon abstract class.
     template<typename strategy, typename To, typename Tr>
     class GemmHybridQuantized : public BIGemmCommon<To, To, Tr> {
@@ -137,13 +136,14 @@ namespace BatmanGemm {
 
         /* Constructor */
         GemmHybridQuantized(const GemmArgs &args, const Requantize32 &qp)
-                : _ci(args._ci), _Msize(args._Msize), _Nsize(args._Nsize), _Ksize(args._Ksize),
-                  _nbatches(args._nbatches), _nmulti(args._nmulti),
-                  _k_block(compute_k_block(args)), _n_block(compute_n_block(args)),
-                  _Mround(roundup(args._Msize, strategy::out_height())),
-                  _window_range(iceildiv(args._Msize, strategy::out_height()), _nbatches, iceildiv(_Nsize, _n_block),
-                                _nmulti),
-                  _qp(qp), _nthreads(args._maxthreads) {}
+            : _ci(args._ci), _Msize(args._Msize), _Nsize(args._Nsize), _Ksize(args._Ksize),
+              _nbatches(args._nbatches), _nmulti(args._nmulti),
+              _k_block(compute_k_block(args)), _n_block(compute_n_block(args)),
+              _Mround(roundup(args._Msize, strategy::out_height())),
+              _window_range(iceildiv(args._Msize, strategy::out_height()), _nbatches, iceildiv(_Nsize, _n_block),
+                            _nmulti),
+              _qp(qp), _nthreads(args._maxthreads) {
+        }
 
         // Interface implementation - Compulsory functions
         ndrange_t get_window_size() const override {
@@ -172,8 +172,10 @@ namespace BatmanGemm {
         void update_parameters() override {
             if (_Mround < _Msize)
                 _Mround = roundup(_Msize, strategy::out_height());
-            _window_range = BINDRange<4>{iceildiv(_Msize, strategy::out_height()), _nbatches,
-                                         iceildiv(_Nsize, _n_block), _nmulti};
+            _window_range = BINDRange<4>{
+                iceildiv(_Msize, strategy::out_height()), _nbatches,
+                iceildiv(_Nsize, _n_block), _nmulti
+            };
         }
 
         bool set_dynamic_nmulti_size(int nmulti) override {
@@ -181,6 +183,13 @@ namespace BatmanGemm {
                 return false;
             _nmulti = nmulti;
             return false;
+        }
+
+        bool set_dynamic_N_size(int N_size) override {
+            if (N_size == _Nsize)
+                return false;
+            _Nsize = N_size;
+            return true;
         }
 
         // Stateless execute
@@ -231,22 +240,18 @@ namespace BatmanGemm {
                                          (multi * roundup(_Nsize, strategy::out_width()) *
                                           roundup(_Ksize, strategy::k_unroll())) +
                                          (k0 * roundup(_Nsize, strategy::out_width())) +
-                                         (n0 * kern_k);
-
-                    {
+                                         (n0 * kern_k); {
 #ifdef CYCLE_PROFILING
                         auto p = prof.ScopedProfiler(PROFILE_KERNEL, (m_end - m_start) * kern_k * roundup(nmax-n0, strategy::out_width()));
 #endif
                         strat.kernel(
-                                g_array._Aptr + (multi * g_array._A_multi_stride) + (batch * g_array._A_batch_stride) +
-                                (m_start * g_array._lda) + k0, g_array._lda,
-                                b_panel,
-                                result_buffer, (nmax - n0),
-                                (m_end - m_start), (nmax - n0), kern_k,
-                                nullptr, Activation(), false);
-                    }
-
-                    {
+                            g_array._Aptr + (multi * g_array._A_multi_stride) + (batch * g_array._A_batch_stride) +
+                            (m_start * g_array._lda) + k0, g_array._lda,
+                            b_panel,
+                            result_buffer, (nmax - n0),
+                            (m_end - m_start), (nmax - n0), kern_k,
+                            nullptr, Activation(), false);
+                    } {
 #ifdef CYCLE_PROFILING
                         auto p = prof.ScopedProfiler(PROFILE_ROWSUMS, (m_end - m_start) * _Ksize);
 #endif
@@ -254,9 +259,7 @@ namespace BatmanGemm {
                                          g_array._Aptr + (multi * g_array._A_multi_stride) +
                                          (batch * g_array._A_batch_stride) + (m_start * g_array._lda), g_array._lda,
                                          local_row_sums);
-                    }
-
-                    {
+                    } {
 #ifdef CYCLE_PROFILING
                         auto p = prof.ScopedProfiler(PROFILE_QUANTIZE, (m_end - m_start) * _Nsize);
 #endif
@@ -377,5 +380,4 @@ namespace BatmanGemm {
             _qp.maxval = re.maxval;
         }
     };
-
 } // namespace BatmanGemm

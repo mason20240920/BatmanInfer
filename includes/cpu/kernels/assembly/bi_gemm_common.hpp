@@ -34,7 +34,6 @@ namespace BatmanGemm {
      */
     class BIIGemmCommon {
     public:
-
         /**
          * @brief 设置操作数组及其步长的指针。
          *        这个“通用”版本使用的是 void * 指针，推荐使用下面由模板化的 BIGemmCommon 提供的版本，
@@ -60,13 +59,13 @@ namespace BatmanGemm {
                                         const int A_multi_stride,
                                         const void *B,
                                         const int ldb,
-                /* batches share B */   const int B_multi_stride,
+                                        /* batches share B */ const int B_multi_stride,
                                         void *C,
                                         const int ldc,
                                         const int C_batch_stride,
                                         const int C_multi_stride,
                                         const void *bias,
-                /* no row or batch stride needed */ const int bias_multi_stride) = 0;
+                                        /* no row or batch stride needed */ const int bias_multi_stride) = 0;
 
         /**
          * @brief
@@ -83,7 +82,8 @@ namespace BatmanGemm {
          *
          *        这个方法有一个空的默认实现，因为不关心线程数的 GEMM 可以安全地忽略它。
          */
-        virtual void set_nthreads(int) {};
+        virtual void set_nthreads(int) {
+        };
 
         /**
          * @brief 判断当前 GEMM 是否支持动态调度
@@ -108,7 +108,8 @@ namespace BatmanGemm {
         }
 
         /* 提供工作空间缓冲区——传入的 void * 必须在任何 execute 调用期间保持分配状态。*/
-        virtual void set_working_space(void *) {};
+        virtual void set_working_space(void *) {
+        };
 
         /*** "预转置" 接口（可选） ***/
         /* 判断当前对象是否设置为预转置模式。如果是，则在调用 execute() 之前需要调用 pretranspose_array()。*/
@@ -135,6 +136,7 @@ namespace BatmanGemm {
         virtual size_t get_B_pretranspose_window_size() const {
             return 1;
         }
+
         /* 执行预转置——参数包括输出、输入、输入行步幅和输入多步幅。*/
         /* 该方法的“真实”版本依赖于模板化的操作数类型（见下文）。*/
         virtual void pretranspose_B_array_generic(void *, const void *, const int, const int, bool) = 0;
@@ -217,6 +219,8 @@ namespace BatmanGemm {
          */
         virtual bool set_dynamic_nmulti_size(int nmulti) = 0;
 
+        virtual bool set_dynamic_N_size(int N_size) = 0;
+
         /**
          * 动态设置batch size
          * @param batch_size
@@ -237,13 +241,13 @@ namespace BatmanGemm {
                                 const int A_multi_stride,
                                 const Tw *B,
                                 const int ldb,
-                /* batches share B */ const int B_multi_stride,
+                                /* batches share B */ const int B_multi_stride,
                                 Tr *C,
                                 const int ldc,
                                 const int C_batch_stride,
                                 const int C_multi_stride,
                                 const Tr *bias,
-                /* no row or batch stride needed */ const int bias_multi_stride) {
+                                /* no row or batch stride needed */ const int bias_multi_stride) {
             _gemm_array.set_arrays(A, lda, A_batch_stride, A_multi_stride, B, ldb, B_multi_stride, C, ldc,
                                    C_batch_stride,
                                    C_multi_stride, bias, bias_multi_stride);
@@ -256,13 +260,13 @@ namespace BatmanGemm {
                                 const int A_multi_stride,
                                 const void *B,
                                 const int ldb,
-                /* batches share B */ const int B_multi_stride,
+                                /* batches share B */ const int B_multi_stride,
                                 void *C,
                                 const int ldc,
                                 const int C_batch_stride,
                                 const int C_multi_stride,
                                 const void *bias,
-                /* no row or batch stride needed */ const int bias_multi_stride) override {
+                                /* no row or batch stride needed */ const int bias_multi_stride) override {
             set_arrays(static_cast<const To *>(A), lda, A_batch_stride, A_multi_stride, static_cast<const Tw *>(B), ldb,
                        B_multi_stride, static_cast<Tr *>(C), ldc, C_batch_stride, C_multi_stride,
                        static_cast<const Tr *>(bias), bias_multi_stride);
@@ -271,15 +275,17 @@ namespace BatmanGemm {
         /*** "预转置" 接口 ***/
 
         /* 计算所有列的列和 */
-        virtual void requantize_bias(void *, const Tw *, const int, const int) {};
+        virtual void requantize_bias(void *, const Tw *, const int, const int) {
+        };
 
         /* 执行预转置 - 传入的 void * 指针在任何 execute 调用期间必须保持分配状态。 */
         /* 参数为：输出缓冲区指针、源指针、源行步幅、源多步幅。 */
-        virtual void pretranspose_B_array(void *, const Tw *, const int, const int, bool) {};
+        virtual void pretranspose_B_array(void *, const Tw *, const int, const int, bool) {
+        };
 
         /* 使用 void * 参数的重载实现，将其参数转换为适当的类型。 */
         void pretranspose_B_array_generic(
-                void *out, const void *in, const int row_stride, const int multi_stride, bool transposed) override {
+            void *out, const void *in, const int row_stride, const int multi_stride, bool transposed) override {
             pretranspose_B_array(out, static_cast<const Tw *>(in), row_stride, multi_stride, transposed);
         }
 
@@ -288,8 +294,8 @@ namespace BatmanGemm {
          * 这是合法的，因为当窗口大小为 1 时，start 和 end 的唯一合法值分别为 0 和 1。
          */
         virtual void pretranspose_B_array_part(
-                void *out, const Tw *in, const int row_stride, const int multi_stride, bool transposed, size_t,
-                size_t) {
+            void *out, const Tw *in, const int row_stride, const int multi_stride, bool transposed, size_t,
+            size_t) {
             pretranspose_B_array(out, in, row_stride, multi_stride, transposed);
         };
 
@@ -333,7 +339,6 @@ namespace BatmanGemm {
                                        int threadid,
                                        BIGemmArrays<To, Tw, Tr> &gemm_array) = 0;
     };
-
 }
 
 #endif //BATMANINFER_BI_GEMM_COMMON_HPP

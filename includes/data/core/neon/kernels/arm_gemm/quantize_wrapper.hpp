@@ -11,8 +11,6 @@
 #include "quantized.hpp"
 
 namespace BatmanGemm {
-
-
     /* Quantized wrapper - do an integer GEMM and wrap around the quantization. */
     template<typename To, typename Tr, typename Tgemm>
     class QuantizeWrapper : public BIGemmCommon<To, To, Tr> {
@@ -96,7 +94,6 @@ namespace BatmanGemm {
             }
         }
 
-
     public:
         QuantizeWrapper(const QuantizeWrapper &) = delete;
 
@@ -151,6 +148,10 @@ namespace BatmanGemm {
 
         bool set_dynamic_nmulti_size(int nmulti) override {
             // TODO: fixed for the future
+            return false;
+        }
+
+        bool set_dynamic_N_size(int N_size) override {
             return false;
         }
 
@@ -259,5 +260,4 @@ namespace BatmanGemm {
             _params.maxval = re.maxval;
         }
     };
-
 } // namespace BatmanGemm

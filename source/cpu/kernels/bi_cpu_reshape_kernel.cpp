@@ -150,9 +150,7 @@ namespace BatmanInfer {
             }
 
             void BICpuReshapeKernel::dynamic_configure(const BIITensorInfo *dst) {
-                BIWindow window = BIICPPKernel::window();
-                dynamic_calculate_max_window(*dst, window);
-                BIICPPKernel::dynamic_configure(window);
+                BIICPPKernel::dynamic_configure(calculate_max_window(*dst));
             }
 
 

@@ -55,12 +55,12 @@ namespace BatmanInfer {
                 int32_t output_shift;
 
                 BI_COMPUTE_RETURN_ON_ERROR(
-                        quantization::calculate_quantized_multiplier(multiplier, &output_multiplier, &output_shift));
+                    quantization::calculate_quantized_multiplier(multiplier, &output_multiplier, &output_shift));
 
                 int32_t type_min = 0;
                 int32_t type_max = 0;
                 std::tie(type_min, type_max) = quantization::get_quantized_asymmetric_output_min_max(oq_info, act,
-                                                                                                     data_type);
+                    data_type);
 
                 // 量化乘法器
                 gemmlowp_output_stage_info.gemmlowp_multiplier = output_multiplier;
@@ -77,21 +77,22 @@ namespace BatmanInfer {
         } // namespace
 
         BICpuMatMul::BICpuMatMul()
-                : _transpose_kernel_lhs(),
-                  _transpose_kernel_rhs(),
-                  _asm_glue(),
-                  _lhs_transposed(),
-                  _rhs_transposed(),
-                  _original_lhs_shape(),
-                  _original_rhs_shape(),
-                  _original_dst_shape() {
+            : _transpose_kernel_lhs(),
+              _transpose_kernel_rhs(),
+              _asm_glue(),
+              _lhs_transposed(),
+              _rhs_transposed(),
+              _original_lhs_shape(),
+              _original_rhs_shape(),
+              _original_dst_shape() {
         }
 
         BIStatus BICpuMatMul::validate(const BatmanInfer::BIITensorInfo *lhs, const BatmanInfer::BIITensorInfo *rhs,
                                        const BatmanInfer::BIITensorInfo *dst, const BatmanInfer::BIMatMulInfo &info,
                                        const BatmanInfer::BICpuMatMulSettings &settings,
                                        const BatmanInfer::BIActivationLayerInfo &act_info) {
-            BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(lhs, rhs, dst);
+            // BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(lhs, rhs, dst);
+            BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(lhs, rhs);
             BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_CHANNEL_NOT_IN(lhs, 1, BIDataType::F32, BIDataType::F16,
                                                                 BIDataType::BFLOAT16,
                                                                 BIDataType::QASYMM8, BIDataType::QASYMM8_SIGNED);
@@ -117,7 +118,7 @@ namespace BatmanInfer {
             if (adj_lhs) {
                 auto_init_if_empty(lhs_transposed,
                                    lhs->clone()->set_tensor_shape(
-                                           misc::shape_calculator::compute_transposed_shape(*lhs)));
+                                       misc::shape_calculator::compute_transposed_shape(*lhs)));
                 BI_COMPUTE_RETURN_ON_ERROR(cpu::kernels::BICpuTransposeKernel::validate(lhs_to_use, &lhs_transposed));
                 // Assign lhs_to_use pointer to use transposed TensorInfo
                 lhs_to_use = &lhs_transposed;
@@ -126,7 +127,7 @@ namespace BatmanInfer {
             if (adj_rhs) {
                 auto_init_if_empty(rhs_transposed,
                                    rhs->clone()->set_tensor_shape(
-                                           misc::shape_calculator::compute_transposed_shape(*rhs)));
+                                       misc::shape_calculator::compute_transposed_shape(*rhs)));
                 BI_COMPUTE_RETURN_ON_ERROR(cpu::kernels::BICpuTransposeKernel::validate(rhs_to_use, &rhs_transposed));
                 // Assign rhs_to_use pointer to use transposed TensorInfo
                 rhs_to_use = &rhs_transposed;
@@ -147,25 +148,25 @@ namespace BatmanInfer {
             }
 
             // Quantized-specific configuration
-            if (is_data_type_quantized(lhs->data_type())) {
+            if (is_data_type_quantized(lhs->data_type()) && is_data_type_quantized(dst->data_type())) {
                 BI_COMPUTE_RETURN_ON_ERROR(get_gemmlowp_output_stage_info(lhs_to_use, rhs_to_use, dst,
-                                                                          gemm_info.activation_info,
-                                                                          gemm_info.output_stage));
+                    gemm_info.activation_info,
+                    gemm_info.output_stage));
             }
 
             if (gemm_info.fixed_format) {
                 gemm_info.weight_format = BIWeightFormat::ANY;
                 BatmanInfer::BIWeightFormat expected_weight_format = BIWeightFormat::ANY;
                 BI_COMPUTE_RETURN_ON_ERROR(
-                        cpu::BICpuGemmAssemblyDispatch::has_opt_impl(expected_weight_format, lhs_to_use,
-                                                                     rhs_to_use, nullptr, dst, gemm_info));
+                    cpu::BICpuGemmAssemblyDispatch::has_opt_impl(expected_weight_format, lhs_to_use,
+                        rhs_to_use, nullptr, dst, gemm_info));
 
                 // Set gemm weights info to the one returned by has_opt_impl because the user query the kernel for the format to be set.
                 gemm_info.weight_format = expected_weight_format;
             }
 
             BI_COMPUTE_RETURN_ON_ERROR(
-                    cpu::BICpuGemmAssemblyDispatch::validate(lhs_to_use, rhs_to_use, nullptr, dst, gemm_info));
+                cpu::BICpuGemmAssemblyDispatch::validate(lhs_to_use, rhs_to_use, nullptr, dst, gemm_info));
 
             return BIStatus{};
         }
@@ -200,11 +201,11 @@ namespace BatmanInfer {
 
             // Reshape lhs for use with assembly kernels.
             lhs_to_use.set_tensor_shape(
-                    BITensorShape(_original_lhs_shape.x(), _original_lhs_shape.y(), 1,
-                                  _original_lhs_shape.collapsed_from(2).z()));
+                BITensorShape(_original_lhs_shape.x(), _original_lhs_shape.y(), 1,
+                              _original_lhs_shape.collapsed_from(2).z()));
             dst_to_use.set_tensor_shape(
-                    BITensorShape(_original_dst_shape.x(), _original_dst_shape.y(), 1,
-                                  _original_dst_shape.collapsed_from(2).z()));
+                BITensorShape(_original_dst_shape.x(), _original_dst_shape.y(), 1,
+                              _original_dst_shape.collapsed_from(2).z()));
             rhs_to_use.set_tensor_shape(_original_rhs_shape.collapsed_from(2));
 
             // 2.  配置AB矩阵的转置
@@ -241,7 +242,7 @@ namespace BatmanInfer {
             rhs_to_use = (_adj_rhs) ? _rhs_transposed : rhs_to_use;
 
             // Quantized-specific configuration
-            if (is_data_type_quantized(lhs->data_type())) {
+            if (is_data_type_quantized(lhs->data_type()) && is_data_type_quantized(dst->data_type())) {
                 get_gemmlowp_output_stage_info(&lhs_to_use, &rhs_to_use, &dst_to_use, _gemm_info.activation_info,
                                                _gemm_info.output_stage);
             }
@@ -279,16 +280,11 @@ namespace BatmanInfer {
             }
         }
 
-        void BICpuMatMul::run(BIITensorPack &tensors) {
-            // Retrieve tensors from tensor pack
-            auto lhs = tensors.get_tensor(ACL_SRC_0);
-            auto rhs = tensors.get_const_tensor(ACL_SRC_1);
-            auto dst = tensors.get_tensor(ACL_DST);
-
+        void BICpuMatMul::dynamic_configure(BIITensorInfo *lhs, BIITensorInfo *rhs, BIITensorInfo *dst) {
             // Update for dynamic tensors (dynamic batch size and dynamic sequence length
-            BITensorInfo lhs_to_use = *lhs->info()->clone();
-            BITensorInfo dst_to_use = *dst->info()->clone();
-            BITensorInfo rhs_to_use = *rhs->info()->clone();
+            BITensorInfo lhs_to_use = *lhs->clone();
+            BITensorInfo dst_to_use = *dst->clone();
+            BITensorInfo rhs_to_use = *rhs->clone();
 
             // 保存初始时候的张量形状信息
             _original_lhs_shape = lhs_to_use.tensor_shape();
@@ -297,42 +293,47 @@ namespace BatmanInfer {
 
             // Reshape lhs for use with assembly kernels.
             lhs_to_use.set_tensor_shape(
-                    BITensorShape(_original_lhs_shape.x(), _original_lhs_shape.y(), 1,
-                                  _original_lhs_shape.collapsed_from(2).z()));
+                BITensorShape(_original_lhs_shape.x(), _original_lhs_shape.y(), 1,
+                              _original_lhs_shape.collapsed_from(2).z()));
             dst_to_use.set_tensor_shape(
-                    BITensorShape(_original_dst_shape.x(), _original_dst_shape.y(), 1,
-                                  _original_dst_shape.collapsed_from(2).z()));
+                BITensorShape(_original_dst_shape.x(), _original_dst_shape.y(), 1,
+                              _original_dst_shape.collapsed_from(2).z()));
             rhs_to_use.set_tensor_shape(_original_rhs_shape.collapsed_from(2));
 
-            // 获取动态的aux结果(但是他会在prepare阶段初始化放在tensors里面
-            size_t tensor_b_align;
-            auto tensor_size = _asm_glue->dynamic_tensor_b_size(&lhs_to_use, &rhs_to_use, &dst_to_use, tensor_b_align);
-            // 算子的动态的数据格式
-            auto _tmp_data_type = lhs->info()->data_type();
-            
-            tensors.remove_tensor(1026);
-            BITensor transpose_b_tensor;
-            transpose_b_tensor.allocator()->init(BITensorInfo(BITensorShape(tensor_size), 1, _tmp_data_type),
-                                                 tensor_b_align);
-            transpose_b_tensor.allocator()->allocate();
-            tensors.add_tensor(1026, &transpose_b_tensor);
+            _asm_glue->dynamic_tensor_b_size(&lhs_to_use, &rhs_to_use, &dst_to_use);
+            auto asm_mem_req = _asm_glue->workspace();
+            int idx = 0;
+            for (const auto &aux: asm_mem_req) {
+                _aux_mem[idx] = aux;
+                idx++;
+            }
+        }
 
 
+        void BICpuMatMul::run(BIITensorPack &tensors) {
+            // Retrieve tensors from tensor pack
+            auto lhs = tensors.get_tensor(ACL_SRC_0);
+            auto rhs = tensors.get_const_tensor(ACL_SRC_1);
+            auto dst = tensors.get_tensor(ACL_DST);
+
+            BITensorInfo lhs_to_use = *lhs->info()->clone();
+            BITensorInfo dst_to_use = *dst->info()->clone();
+            BITensorInfo rhs_to_use = *rhs->info()->clone();
             // 配置汇编核
-//            _asm_glue = std::make_unique<cpu::BICpuGemmAssemblyDispatch>();
-//            _asm_glue->configure(&lhs_to_use, &rhs_to_use, nullptr, &dst_to_use,
-//                                 _gemm_info); // c is nullptr as bias not supported in MatMul
-//
-//            BI_COMPUTE_EXIT_ON_MSG(!_asm_glue->is_configured(), "Error in CpuGemmAssemblyDispatch configuration");
+            // _asm_glue = std::make_unique<cpu::BICpuGemmAssemblyDispatch>();
+            // _asm_glue->configure(&lhs_to_use, &rhs_to_use, nullptr, &dst_to_use,
+            //                      _gemm_info); // c is nullptr as bias not supported in MatMul
+
+            //            BI_COMPUTE_EXIT_ON_MSG(!_asm_glue->is_configured(), "Error in CpuGemmAssemblyDispatch configuration");
 
             // Reshape LHS and DST to ensure compatibility with GEMM asm kernel (Batch dimensions is 4th for lhs and dst within asm)
             // Collapse RHS (necessary to support dimensions larger than 3 in gemm assembly)
             lhs->info()->set_tensor_shape(
-                    BITensorShape(_original_lhs_shape.x(), _original_lhs_shape.y(), 1,
-                                  _original_lhs_shape.collapsed_from(2).z())); // Collapsed 3+ dimensions into z
+                BITensorShape(_original_lhs_shape.x(), _original_lhs_shape.y(), 1,
+                              _original_lhs_shape.collapsed_from(2).z())); // Collapsed 3+ dimensions into z
             dst->info()->set_tensor_shape(
-                    BITensorShape(_original_dst_shape.x(), _original_dst_shape.y(), 1,
-                                  _original_dst_shape.collapsed_from(2).z())); // Collapsed 3+ dimensions into z
+                BITensorShape(_original_dst_shape.x(), _original_dst_shape.y(), 1,
+                              _original_dst_shape.collapsed_from(2).z())); // Collapsed 3+ dimensions into z
             rhs->info()->set_tensor_shape(_original_rhs_shape.collapsed_from(2));
 
             // Initialise object to handle stored transposed tensors in auxillary memory
@@ -342,24 +343,7 @@ namespace BatmanInfer {
             // Create tensor pack for asm kernel
             BIITensorPack asm_tensors(tensors);
 
-            // Run transpose lhs if necessary
-            if (_adj_lhs) {
-                BIITensorPack lhs_transpose_pack = {{BITensorType::ACL_SRC, lhs},
-                                                    {BITensorType::ACL_DST, lhs_transposed.get()}};
-                BINEScheduler::get().schedule_op(_transpose_kernel_lhs.get(), BIWindow::DimY,
-                                                 _transpose_kernel_lhs->window(),
-                                                 lhs_transpose_pack);
-                asm_tensors.add_const_tensor(BITensorType::ACL_SRC_0, lhs_transposed.get());
-            }
-            // Run transpose rhs if necessary
-            if (_adj_rhs) {
-                BIITensorPack rhs_transpose_pack = {{BITensorType::ACL_SRC, rhs},
-                                                    {BITensorType::ACL_DST, rhs_transposed.get()}};
-                BINEScheduler::get().schedule_op(_transpose_kernel_rhs.get(), BIWindow::DimY,
-                                                 _transpose_kernel_rhs->window(),
-                                                 rhs_transpose_pack);
-                asm_tensors.add_const_tensor(BITensorType::ACL_SRC_1, rhs_transposed.get());
-            }
+
             // Run asm kernel
             _asm_glue->run(asm_tensors);
 
@@ -380,13 +364,11 @@ namespace BatmanInfer {
             _aux_mem.reserve(Count);
             _aux_mem.resize(Count);
 
-//            for (BIMemoryInfo mi: _kernel->workspace(tensors)) {
-//                _aux_mem.push_back(mi);
-//            }
+            //            for (BIMemoryInfo mi: _kernel->workspace(tensors)) {
+            //                _aux_mem.push_back(mi);
+            //            }
 
             return _aux_mem;
         }
-
-
     } // namespace cpu
 } // namespace BatmanInfer
