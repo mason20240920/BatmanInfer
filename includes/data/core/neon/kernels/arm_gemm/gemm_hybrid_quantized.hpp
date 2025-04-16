@@ -1,5 +1,5 @@
 //
-// Created by Mason on 2025/1/14.
+// Created by Mason on 2025/4/15.
 //
 
 #pragma once
@@ -28,6 +28,7 @@ namespace BatmanGemm {
 
         /* const properties set by constructor */
         const BICPUInfo *const _ci;
+        GemmArgs _args;
 
         unsigned int _Msize;
         unsigned int _Nsize;
@@ -58,6 +59,58 @@ namespace BatmanGemm {
             return _Nsize * _nmulti * sizeof(int32_t);
         }
 
+        bool set_dynamic_M_size(int M_size) override {
+            if (M_size == _Msize)
+                return false;
+            _args._Msize = M_size;
+            _Msize = M_size;
+            return true;
+        }
+
+        bool set_dynamic_batch_size(int batch_size) override {
+            if (batch_size == _nbatches)
+                return false;
+            _nbatches = batch_size;
+            _args._nbatches = _nbatches;
+            return false;
+        }
+
+        void update_parameters() override {
+            if (_Mround != _Msize)
+                _Mround = roundup(_args._Msize, strategy::out_height());
+            _k_block = compute_k_block(_args);
+            _n_block = compute_n_block(_args);
+            _window_range = BINDRange<4>{
+                iceildiv(_Msize, strategy::out_height()), _nbatches,
+                iceildiv(_Nsize, _n_block), _nmulti
+            };
+        }
+
+        bool set_dynamic_nmulti_size(int nmulti) override {
+            if (nmulti == _nmulti)
+                return false;
+            _nmulti = nmulti;
+            _args._nmulti = nmulti;
+            return true;
+        }
+
+        bool set_dynamic_N_size(int N_size) override {
+            if (N_size == _Nsize)
+                return false;
+            _args._Nsize = N_size;
+            _Nsize = N_size;
+            return true;
+        }
+
+        bool set_dynamic_K_size(int K_size) override {
+            if (K_size == _Ksize)
+                return false;
+            _args._Ksize = K_size;
+            _Ksize = K_size;
+            return true;
+        }
+
+
         static unsigned int compute_k_block(const GemmArgs &args) {
             // We don't support K blocks as we only temporarily store 32 bit results.
             return args._Ksize;
@@ -70,8 +123,8 @@ namespace BatmanGemm {
 
             // k_block: Find out how much of the larger array can be loaded into half the cache.
             // This should account for associative caches.
-            unsigned int k_block =
-                    (L1_size / 2) / (sizeof(Toi) * (std::max(strategy::out_width(), strategy::out_height())));
+            unsigned int k_block = (L1_size / 2) / (sizeof(Toi) * (std::max(strategy::out_width(),
+                                                                            strategy::out_height())));
 
             // Needs to be (at least a single) multiple of the K unroll level.
             k_block /= strategy::k_unroll();
@@ -136,7 +189,7 @@ namespace BatmanGemm {
 
         /* Constructor */
         GemmHybridQuantized(const GemmArgs &args, const Requantize32 &qp)
-            : _ci(args._ci), _Msize(args._Msize), _Nsize(args._Nsize), _Ksize(args._Ksize),
+            : _args(args), _ci(args._ci), _Msize(args._Msize), _Nsize(args._Nsize), _Ksize(args._Ksize),
               _nbatches(args._nbatches), _nmulti(args._nmulti),
               _k_block(compute_k_block(args)), _n_block(compute_n_block(args)),
               _Mround(roundup(args._Msize, strategy::out_height())),
@@ -155,43 +208,6 @@ namespace BatmanGemm {
             return true;
         }
 
-        bool set_dynamic_M_size(int M_size) override {
-            if (M_size == _Msize)
-                return false;
-            _Msize = M_size;
-            return true;
-        }
-
-        bool set_dynamic_batch_size(int batch_size) override {
-            if (batch_size == _nbatches)
-                return false;
-            _nbatches = batch_size;
-            return false;
-        }
-
-        void update_parameters() override {
-            if (_Mround < _Msize)
-                _Mround = roundup(_Msize, strategy::out_height());
-            _window_range = BINDRange<4>{
-                iceildiv(_Msize, strategy::out_height()), _nbatches,
-                iceildiv(_Nsize, _n_block), _nmulti
-            };
-        }
-
-        bool set_dynamic_nmulti_size(int nmulti) override {
-            if (nmulti == _nmulti)
-                return false;
-            _nmulti = nmulti;
-            return false;
-        }
-
-        bool set_dynamic_N_size(int N_size) override {
-            if (N_size == _Nsize)
-                return false;
-            _Nsize = N_size;
-            return true;
-        }
-
         // Stateless execute
         // TODO: Make this actually stateless. This still uses the stateful
         // execution data because it requires a workspace which would also need to
@@ -200,14 +216,14 @@ namespace BatmanGemm {
                                BIGemmArrays<To, To, Tr> &) override {
             auto &g_array = this->_gemm_array;
 #ifdef CYCLE_PROFILING
-            profiler prof;
+        profiler prof;
 #endif
             strategy strat(_ci);
 
             uintptr_t working_int = reinterpret_cast<uintptr_t>(working_space);
 
-            Tri *result_buffer = reinterpret_cast<Tri *>(working_int +
-                                                         (threadid * strategy::out_height() * _Nsize * sizeof(Tri)));
+            Tri *result_buffer = reinterpret_cast<Tri *>(
+                working_int + (threadid * strategy::out_height() * _Nsize * sizeof(Tri)));
 
             /* Make sure we've been set up correctly. */
             assert(_B_transposed);
@@ -237,36 +253,36 @@ namespace BatmanGemm {
                     int32_t local_row_sums[strategy::out_height()];
 
                     const Toi *b_panel = _B_transposed +
-                                         (multi * roundup(_Nsize, strategy::out_width()) *
-                                          roundup(_Ksize, strategy::k_unroll())) +
+                                         (multi * roundup(_Nsize, strategy::out_width()) * roundup(
+                                              _Ksize, strategy::k_unroll())) +
                                          (k0 * roundup(_Nsize, strategy::out_width())) +
                                          (n0 * kern_k); {
 #ifdef CYCLE_PROFILING
-                        auto p = prof.ScopedProfiler(PROFILE_KERNEL, (m_end - m_start) * kern_k * roundup(nmax-n0, strategy::out_width()));
+                    auto p = prof.ScopedProfiler(PROFILE_KERNEL, (m_end - m_start) * kern_k * roundup(nmax-n0, strategy::out_width()));
 #endif
                         strat.kernel(
-                            g_array._Aptr + (multi * g_array._A_multi_stride) + (batch * g_array._A_batch_stride) +
-                            (m_start * g_array._lda) + k0, g_array._lda,
+                            g_array._Aptr + (multi * g_array._A_multi_stride) + (batch * g_array._A_batch_stride) + (
+                                m_start * g_array._lda) + k0, g_array._lda,
                             b_panel,
                             result_buffer, (nmax - n0),
                             (m_end - m_start), (nmax - n0), kern_k,
                             nullptr, Activation(), false);
                     } {
 #ifdef CYCLE_PROFILING
-                        auto p = prof.ScopedProfiler(PROFILE_ROWSUMS, (m_end - m_start) * _Ksize);
+                    auto p = prof.ScopedProfiler(PROFILE_ROWSUMS, (m_end - m_start) * _Ksize);
 #endif
                         compute_row_sums(_qp, _Ksize, (m_end - m_start),
-                                         g_array._Aptr + (multi * g_array._A_multi_stride) +
-                                         (batch * g_array._A_batch_stride) + (m_start * g_array._lda), g_array._lda,
+                                         g_array._Aptr + (multi * g_array._A_multi_stride) + (
+                                             batch * g_array._A_batch_stride) + (m_start * g_array._lda), g_array._lda,
                                          local_row_sums);
                     } {
 #ifdef CYCLE_PROFILING
-                        auto p = prof.ScopedProfiler(PROFILE_QUANTIZE, (m_end - m_start) * _Nsize);
+                    auto p = prof.ScopedProfiler(PROFILE_QUANTIZE, (m_end - m_start) * _Nsize);
 #endif
 
                         requantize_block_32(_qp, (nmax - n0), (m_end - m_start), result_buffer, (nmax - n0),
-                                            g_array._Cptr + (multi * g_array._C_multi_stride) +
-                                            (batch * g_array._C_batch_stride) + (m_start * g_array._ldc) + n0,
+                                            g_array._Cptr + (multi * g_array._C_multi_stride) + (
+                                                batch * g_array._C_batch_stride) + (m_start * g_array._ldc) + n0,
                                             g_array._ldc,
                                             local_row_sums, col_bias + (multi * _Nsize) + n0, n0);
                     }
@@ -298,9 +314,8 @@ namespace BatmanGemm {
         }
 
         size_t get_B_pretransposed_array_size() const override {
-            return get_col_sum_size() +
-                   (roundup(_Nsize, strategy::out_width()) * roundup(_Ksize, strategy::k_unroll()) * _nmulti *
-                    sizeof(Toi));
+            return get_col_sum_size() + (roundup(_Nsize, strategy::out_width()) * roundup(_Ksize, strategy::k_unroll())
+                                         * _nmulti * sizeof(Toi));
         }
 
         void requantize_bias(void *in_buffer, const To *B, const int ldb, const int B_multi_stride) override {
@@ -380,4 +395,4 @@ namespace BatmanGemm {
             _qp.maxval = re.maxval;
         }
     };
-} // namespace BatmanGemm
+}

@@ -705,6 +705,146 @@ TEST(QUANTIZE_MATMUL, MATMULQ) {
     // matmul.configure(&a_tensor, &b_tensor, &output_s32, matmul_info, settings);
 }
 
+TEST(QUANTIZE_MATMUL2, MATMULQ2) {
+    int B = 1, S = 1, M = 16, K = 64, N = 16;
+    const std::vector<int8_t> weights_data = {
+        25, -26, 16, -4, 8, 1, 10, -12, 39, -40, -39, 9, -14, 20, -15, -8, -15, -37, -10, -2, -18, 15, -7, -9, -12, 3,
+        18, -3, -5, -19, -12, 3, -2, -5, -1, -53, -22, -14, 29, 16, -27, -28, -35, -10, -20, -49, -21, -29, -1, 2, -20,
+        -6, -24, -17, -30, -1, -20, 2, -33, -8, 3, -8, 23, -33,
+
+        -10, 2, -3, -9, -4, -15, -2, 4, 25, -24, -10, 10, -28, -30, -11, -2, -16, -16, -17, -11, -16, -17, -15, 6, -2,
+        6, -8, -11, -4, -6, -2, -35, -7, 6, -12, -28, 9, 0, -4, -29, -1, -3, 12, -13, -11, -5, -5, 3, -4, 9, -14, -26,
+        -24, -14, -14, -6, 3, -1, -8, -12, -35, 0, -9, -4,
+
+        -23, -9, -19, -14, -13, -28, -12, -22, -5, -22, 2, -20, 5, 1, -23, -31, -24, -12, -17, -4, -16, -16, -15, -9,
+        -26, -27, 5, -5, -2, 8, -27, 0, -16, 5, -11, -26, -27, -10, -29, -13, -15, 4, -26, -12, -19, -19, -31, -5, 0,
+        -29, -10, -10, -8, -15, -22, -35, -8, 7, -21, -21, -25, -1, -6, -11,
+
+        -3, -13, -3, -10, -5, -8, -5, -8, -10, -3, -17, -21, -9, -12, -1, -10, -20, -2, -37, -17, 5, -7, -9, -14, 3, -2,
+        -8, -19, 4, -5, -8, -17, -19, 5, -8, -18, -9, 9, -25, -12, 6, -12, -1, -2, 26, -8, -14, 7, -11, 14, -16, -15,
+        -10, -12, -8, -9, -1, -5, -25, -8, -10, 9, -18, -18,
+
+        -13, -11, -3, -12, 0, -10, -2, -6, -15, -15, -10, -14, -10, -3, -11, -13, -8, -7, -20, -7, -41, 15, -9, -25,
+        -17, -19, -17, -29, -10, -10, -9, -7, -1, 18, -4, -7, -1, -9, -13, -1, 1, -4, -7, -5, -29, -10, -17, -12, -3, 2,
+        -10, -6, -14, 0, -10, -20, 5, -16, -11, -13, -5, -18, -9, -1,
+
+        -30, 11, -6, -16, -24, -12, -9, -25, -14, -12, -4, 0, -8, 6, 16, -15, -5, -25, -8, -6, -30, -18, -22, -23, -13,
+        9, -14, -13, 4, -3, -17, 27, -17, -10, -10, -4, 18, 3, 16, -3, -14, -16, -1, -7, -18, -11, 11, -18, 1, -5, -30,
+        -7, 8, 4, -18, -10, -35, 6, -10, -2, -6, -12, -27, -25,
+
+        38, -4, -25, -16, -12, 9, 14, -5, 0, -1, -6, -16, -7, -25, -16, 2, -26, -6, 1, 5, -6, -14, -5, 5, -21, 31, 1,
+        -7, -11, -13, -20, -32, -6, 2, -9, -14, 20, -11, -3, -15, -20, -8, -2, -14, -9, -16, -20, -18, -23, 21, -26, 3,
+        -2, -34, -20, 8, -14, -1, 12, -9, -20, -4, -8, -15,
+
+        0, -9, -17, -10, -10, 15, -1, -16, -2, -1, -6, 2, -4, -8, 6, -12, -30, -12, -10, 0, 16, -13, 4, -13, -19, -16,
+        -18, -12, -25, -11, -2, -11, -12, -7, -6, -5, -13, -9, -25, -16, -12, -22, -25, -14, 0, 9, -6, -3, -7, -17, 11,
+        10, -16, 2, -21, -23, -4, -6, -13, -5, -18, -21, -13, -13,
+
+        -7, -29, -9, -9, -8, -7, 2, -1, -9, -4, -17, -3, -18, -3, -1, -26, -4, -15, -13, -6, 4, -22, 2, -8, 1, -10, -11,
+        -15, -5, -4, 0, -23, -5, 4, 3, 8, -6, -22, -12, -1, -6, 2, -7, -18, -12, -8, -20, -8, -10, -9, 2, -10, -2, -6,
+        -19, -4, -19, -9, -11, -17, 20, -2, -2, -22,
+
+        -38, -11, -5, -12, -17, -9, -8, -10, -7, -11, -11, -6, -21, -8, -13, -9, -8, -6, -15, -11, -17, -14, -8, -10,
+        22, -7, -12, -5, -15, -16, -4, -6, -34, -10, -13, -43, -20, -11, 5, -10, 0, 1, -21, -20, -12, -11, -4, 15, -10,
+        -13, -10, -8, -12, -7, -5, -11, -14, -16, -13, -14, -16, -11, -8, -17,
+
+        6, -11, -18, -11, -4, -12, -5, -15, -17, -22, -25, -13, -2, 5, -11, -16, 15, -7, -12, 9, 4, -15, -4, -8, -13,
+        -6, -1, -6, 2, -10, -10, -9, -12, -2, -6, 7, -8, 2, -21, -8, -1, -13, -15, -11, -9, -14, -64, 3, 23, -15, -17,
+        -21, -26, -9, -10, -24, -9, -8, -13, -4, -2, -28, -4, -10,
+
+        -22, -2, -20, -10, -1, -21, -51, -4, -20, -21, -13, -1, 1, -9, -11, -2, -19, -8, -16, -10, -2, 1, -23, -19, -33,
+        -10, 10, -17, 2, -18, -15, 1, -28, -29, -21, -3, -31, 3, 4, -30, -11, -11, -9, -4, -37, -21, -6, -18, -14, -8,
+        -15, -16, -5, -40, 3, -23, -16, -3, 5, -20, 3, -23, -16, 0,
+    };
+
+    const std::vector<int8_t> input_data = {
+        127,
+
+        127,
+
+        127,
+
+        127,
+
+        127,
+
+        127,
+
+        127,
+
+        127,
+
+        127,
+
+        127,
+
+        127,
+
+        127,
+    };
+    BITensor a_tensor, b_tensor;
+    a_tensor.allocator()->init(BITensorInfo(BITensorShape(1, 1, 12, 1), 1, BIDataType::QASYMM8_SIGNED,
+                                            BIQuantizationInfo(0.003922f, -128)));
+    a_tensor.allocator()->allocate();
+    b_tensor.allocator()->init(BITensorInfo(BITensorShape(64, 1, 12, 1), 1, BIDataType::QASYMM8_SIGNED,
+                                            BIQuantizationInfo(0.086481f, -9)));
+    b_tensor.allocator()->allocate();
+    QATTest::fill_tensor_val_with_arr(a_tensor, input_data);
+    QATTest::fill_tensor_val_with_arr(b_tensor, weights_data);
+    a_tensor.info()->set_are_values_constant(false);
+    b_tensor.info()->set_are_values_constant(false);
+    // QATTest::print_tensor(a_tensor, "a_tensor");
+
+
+    // 3. 创建中间输出tensor (S32)
+    BITensorShape output_shape(64, 1, 12, 1); // [M, N]
+    BITensor output_s32;
+    BIQuantizationInfo output_qinfo = BIQuantizationInfo(0.086500f, -9);
+    auto output_info = BITensorInfo(output_shape, 1, BIDataType::QASYMM8_SIGNED, output_qinfo);
+    output_s32.allocator()->init(output_info);
+    output_s32.allocator()->allocate();
+
+    // 定义 MatMul 配置信息
+    BIMatMulInfo matmul_info; // 不转置左矩阵，转置右矩阵
+    matmul_info.adj_lhs(false).adj_rhs(false);
+    BICpuMatMulSettings settings;
+    settings.fast_math(true); // 启用快速数学模式
+
+    BINEMatMul matmul;
+    matmul.configure(&a_tensor, &b_tensor, &output_s32, matmul_info, settings);
+    matmul.run();
+
+    QATTest::print_tensor(output_s32, "output_s32");
+
+    a_tensor.allocator()->free();
+    // b_tensor.allocator()->free();
+    // output_s32.allocator()->free();
+    //
+    // B = 10, S = 16;
+    // a_tensor = QATTest::create_qasymm8(a_scale,
+    //                                    a_zp,
+    //                                    std::vector<int>{B, S, M, K},
+    //                                    a_qinfo,
+    //                                    a_2_path);
+    // b_tensor = QATTest::create_qasymm8(a_scale,
+    //                                    a_zp,
+    //                                    std::vector<int>{B, S, K, N},
+    //                                    a_qinfo,
+    //                                    b_2_path);
+    // output_shape = BITensorShape(N, M, S, B); // [M, N]
+    // output_info = BITensorInfo(output_shape, 1, BIDataType::QASYMM8_SIGNED, output_qinfo);
+    // output_s32.allocator()->init(output_info);
+    // output_s32.allocator()->allocate();
+    // a_tensor.info()->set_are_values_constant(false);
+    // b_tensor.info()->set_are_values_constant(false);
+    // matmul.dynamic_configure(&a_tensor, &b_tensor, &output_s32);
+    // //    matmul.configure(&a_tensor, &b_tensor, &output_s32, matmul_info, settings);
+    // matmul.run();
+    //
+    // QATTest::print_tensor(output_s32, "output_s32");
+    // matmul.configure(&a_tensor, &b_tensor, &output_s32, matmul_info, settings);
+}
+
 TEST(DYNAMIC_KERNEL, KERNEL_SIZE_PICK) {
     // 目的查看目前内核的选择的选择图
     // 范围从[B, S, N, M] 从 B = 1, S = 1到B = 20, S = 16

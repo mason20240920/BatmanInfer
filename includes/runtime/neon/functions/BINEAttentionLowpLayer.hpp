@@ -12,13 +12,16 @@
 #include <runtime/bi_tensor.hpp>
 
 #include "BINERMSNormLayer.hpp"
+#include "bi_NEArithmeticAddition.h"
 #include "bi_NEDequantizationLayer.h"
 #include "bi_NEQuantizationLayer.h"
+#include "bi_NESoftmaxLayer.h"
 #include "bi_ne_gemm_lowp_matrix_mul_core.hpp"
 #include "bi_ne_gemm_lowp_output_stage.hpp"
 #include "bi_ne_mat_mul.hpp"
 #include "bi_ne_permute.h"
 #include "bi_ne_split.hpp"
+#include "bi_ne_transpose.hpp"
 
 namespace BatmanInfer {
     // 前向声明
@@ -85,8 +88,13 @@ namespace BatmanInfer {
                        const int &value_q_zp,
                        const float &key_q_scale,
                        const int &key_q_zp,
+                       const float &softmax_out_scale,
+                       const int &softmax_out_zp,
+                       const float &pv_bmm_out_scale,
+                       const int &pv_bmm_out_zp,
                        const PermutationVector &q_perm,
                        const PermutationVector &k_perm,
+                       const PermutationVector &qkv_perm,
                        const size_t &hidden_size,
                        const size_t &max_seq_len,
                        const size_t &batch_size,
@@ -130,6 +138,14 @@ namespace BatmanInfer {
         BINEReshapeLayer _reshape_q_layer, _reshape_k_layer, _reshape_v_layer;
         BINEPermute _transpose_q_layer, _transpose_k_layer, _transpose_v_layer;
         BINEMatMul _qk_bmm_layer;
+        BINEArithmeticAddition _qk_add_layer;
+        BINESoftmaxLayer _softmax_layer;
+        BINEQuantizationLayer _q_softmax_layer;
+        BINEMatMul _pv_bmm_layer;
+        BINEPermute _pv_transpose_layer;
+        BINEReshapeLayer _pv_reshape_layer;
+        BINEDequantizationLayer _pv_dequantization_layer;
+        BINEGEMM _attn_o_gemm_layer;
 
     private:
         BITensor _sub_norm_tensor;
@@ -152,6 +168,15 @@ namespace BatmanInfer {
         BITensor _sub_transpose_k_result;
         BITensor _sub_transpose_v_result;
         BITensor _sub_qk_bmm_output;
+        BITensor _sub_add_output;
+        BITensor _sub_add_weights; // Mask函数选择
+        BITensor _sub_softmax_output;
+        BITensor _sub_softmax_q_result;
+        BITensor _sub_pv_bmm_output;
+        BITensor _sub_pv_transpose_output;
+        BITensor _sub_pv_reshape_output;
+        BITensor _sub_pv_deq_output;
+        BITensor _sub_attn_o_output;
         BITensorInfo _sub_norm_info;
         BITensorInfo _sub_norm_q_info;
         BITensorInfo _sub_c_attn_s32_tensor_info;
@@ -167,7 +192,17 @@ namespace BatmanInfer {
         BITensorInfo _sub_reshape_v_info;
         BITensorInfo _sub_transpose_q_info;
         BITensorInfo _sub_transpose_k_info;
+        BITensorInfo _sub_transpose_v_info;
         BITensorInfo _sub_qk_bmm_output_info;
+        BITensorInfo _sub_add_output_info;
+        BITensorInfo _sub_add_weights_info;
+        BITensorInfo _sub_softmax_output_info;
+        BITensorInfo _sub_softmax_q_result_info;
+        BITensorInfo _sub_pv_bmm_output_info;
+        BITensorInfo _sub_pv_transpose_output_info;
+        BITensorInfo _sub_pv_reshape_output_info;
+        BITensorInfo _sub_pv_deq_output_info;
+        BITensorInfo _sub_attn_o_output_info;
 
         BITensor _norm_output;
         BITensor _q_norm_output;
@@ -189,6 +224,15 @@ namespace BatmanInfer {
         BITensor _transpose_k_result;
         BITensor _transpose_v_result;
         BITensor _qk_bmm_output;
+        BITensor _add_output;
+        BITensor _add_weights;
+        BITensor _softmax_output;
+        BITensor _q_softmax_output;
+        BITensor _pv_bmm_output;
+        BITensor _pv_perm_output;
+        BITensor _pv_reshape_output;
+        BITensor _pv_deq_output;
+        BITensor _attn_o_output;
 
     private:
         // 是否已经完全初始化

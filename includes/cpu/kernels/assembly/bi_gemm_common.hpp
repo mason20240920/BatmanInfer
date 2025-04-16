@@ -221,6 +221,8 @@ namespace BatmanGemm {
 
         virtual bool set_dynamic_N_size(int N_size) = 0;
 
+        virtual bool set_dynamic_K_size(int k_size) = 0;
+
         /**
          * 动态设置batch size
          * @param batch_size

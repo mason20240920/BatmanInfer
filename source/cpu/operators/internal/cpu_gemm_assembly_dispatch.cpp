@@ -393,20 +393,12 @@ namespace BatmanInfer {
             BatmanInfer::cpu::Fallback<TypeInput, TypeWeight, TypeOutput, OutputStage>::update_configure_parameters(
                 const BatmanInfer::BIITensorInfo *a, const BatmanInfer::BIITensorInfo *b,
                 const BatmanInfer::BIITensorInfo *d) {
-                // configure the window, if window is change, just dynamic change the window
-                // auto is_dynamic_m = _gemm_kernel_asm->set_dynamic_M_size(a->tensor_shape().y());
-                // auto is_dynamic_batch = _gemm_kernel_asm->set_dynamic_batch_size(
-                //     a->tensor_shape().z());
-                // auto is_dynamic_multi = _gemm_kernel_asm->set_dynamic_nmulti_size(
-                //     a->tensor_shape()[3]);
-                // _gemm_kernel_asm->update_parameters();
-                // BIWindow win = to_window(_gemm_kernel_asm->get_window_size());
-                // _optimised_kernel->dynamic_configure(win);
                 Params p = extract_simplify_parameters(a, b, d);
                 _gemm_kernel_asm->set_dynamic_M_size(p.M);
                 _gemm_kernel_asm->set_dynamic_batch_size(p.batches);
                 _gemm_kernel_asm->set_dynamic_N_size(p.N);
                 _gemm_kernel_asm->set_dynamic_nmulti_size(p.multis);
+                _gemm_kernel_asm->set_dynamic_K_size(p.K);
                 _gemm_kernel_asm->update_parameters();
                 BIWindow win = to_window(_gemm_kernel_asm->get_window_size());
                 _optimised_kernel->dynamic_configure(win);
@@ -913,6 +905,7 @@ namespace BatmanInfer {
                     {ACL_SRC_0, &in0_tensor},
                     {ACL_SRC_1, &in1_tensor},
                     {ACL_SRC_2, &bias_tensor},
+                    {ACL_SRC_3, workspace.get()},
                     {ACL_DST, &out_tensor}
                 };
 

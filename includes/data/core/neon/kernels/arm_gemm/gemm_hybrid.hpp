@@ -137,6 +137,10 @@ namespace BatmanGemm {
             return false;
         }
 
+        bool set_dynamic_K_size(int K_size) override {
+            return false;
+        }
+
         void update_parameters() override {
             // TODO: For future dynamic
         }

@@ -151,6 +151,10 @@ namespace BatmanGemm {
             return false;
         }
 
+        bool set_dynamic_K_size(int K_size) override {
+            return false;
+        }
+
         bool set_dynamic_N_size(int N_size) override {
             return false;
         }

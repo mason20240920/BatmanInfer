@@ -457,6 +457,13 @@ namespace BatmanGemm {
             return true;
         }
 
+        bool set_dynamic_K_size(int k_size) override {
+            if (k_size == _args._Ksize)
+                return false;
+            _args._Ksize = k_size;
+            return true;
+        }
+
         // Interface implementation - Compulsory functions
         ndrange_t get_window_size() const override {
             return {_window_range.total_size()};

@@ -91,7 +91,7 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
     BITensorInfo input_info(input_tensor_shape, 1, BIDataType::U32);
     input_info.set_format(Format::U32);
     input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
-    std::vector<uint32_t> indices_data{0, 1};
+    std::vector<uint32_t> indices_data{0};
     MemAllocTest::fill_tensor_val_with_arr(input_tensor, indices_data);
 
 
@@ -199,10 +199,15 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
     constexpr int value_zp = -9;
     constexpr float key_scale = 0.0459319413877001f;
     constexpr int key_zp = -18;
+    constexpr float softmax_q_scale = 0.00392156862745098f;
+    constexpr int softmax_zp = -128;
+    constexpr float proj_in_scale = 0.0865f;
+    constexpr int proj_in_zp = -9;
     BINEAttentionLowpLayer attn_lowp_layer;
 
     PermutationVector q_perm{0, 2, 1, 3};
     PermutationVector k_perm{2, 0, 1, 3};
+    PermutationVector qkv_o_perm{0, 2, 1, 3};
     attn_lowp_layer.configure(&add_output_tensor,
                               &attn_gamma_weights,
                               &attn_qkv_weights,
@@ -217,8 +222,13 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
                               value_zp,
                               key_scale,
                               key_zp,
+                              softmax_q_scale,
+                              softmax_zp,
+                              proj_in_scale,
+                              proj_in_zp,
                               q_perm,
                               k_perm,
+                              qkv_o_perm,
                               768,
                               16,
                               20,
