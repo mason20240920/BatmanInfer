@@ -12,6 +12,7 @@
 #include <thread>
 #include <limits>
 #include "function_info/bi_MatMulInfo.h"
+#include "runtime/neon/functions/bi_ne_cast.h"
 
 using namespace BatmanInfer;
 
@@ -346,7 +347,7 @@ namespace QATTest {
     template<typename T>
     void fill_new_tensor_val(const BITensor &tensor, const T val) {
         auto tensor_ptr = reinterpret_cast<T *>(tensor.buffer());
-        size_t num_elements = tensor.info()->tensor_shape().total_size() / tensor.info()->element_size(); // 获取元素数量
+        size_t num_elements = tensor.info()->tensor_shape().total_size(); // 获取元素数量
         for (size_t i = 0; i < num_elements; ++i) {
             tensor_ptr[i] = val;
         }
@@ -355,7 +356,7 @@ namespace QATTest {
     template<typename T>
     void fill_from_one(const BITensor &tensor) {
         auto tensor_ptr = reinterpret_cast<T *>(tensor.buffer());
-        size_t num_elements = tensor.info()->tensor_shape().total_size() / tensor.info()->element_size();
+        size_t num_elements = tensor.info()->tensor_shape().total_size();
         // 获取元素数量
         for (size_t i = 0; i < num_elements; ++i) {
             tensor_ptr[i] = static_cast<T>(i) * 0.00001;
@@ -1183,7 +1184,7 @@ TEST(DynamicTensor, DynamicSoftmax) {
     auto shape1 = BITensorShape(2, 4);
     input.allocator()->init(BITensorInfo(shape1, 1, BIDataType::F16));
     input.allocator()->allocate();
-    QATTest::fill_new_tensor_val(input, 1);
+    QATTest::fill_new_tensor_val(input, static_cast<float16_t>(1));
     output.allocator()->init(BITensorInfo(shape1, 1, BIDataType::F16));
     output.allocator()->allocate();
 
@@ -1195,7 +1196,7 @@ TEST(DynamicTensor, DynamicSoftmax) {
     auto shape2 = BITensorShape(4, 2);
     input.allocator()->init(BITensorInfo(shape2, 1, BIDataType::F16));
     input.allocator()->allocate();
-    QATTest::fill_new_tensor_val(input, 1);
+    QATTest::fill_new_tensor_val(input, static_cast<float16_t>(1));
     output.allocator()->init(BITensorInfo(shape2, 1, BIDataType::F16));
     output.allocator()->allocate();
 
@@ -1386,6 +1387,139 @@ TEST(INT8GPT_2, INT8GPT2Dynamic) {
 
 
     QATTest::print_tensor(ids, "ids");
+}
+
+TEST(BatmanInferLayer, FusedGemm) {
+    bool simple_test = false;
+
+    if (simple_test) {
+        float scale1 = 2.0f;
+        int zero_point = 0;
+        std::vector<float> scale2 = {2, 2, 2, 2};
+
+        // allocate a 4x2 input matrix, a 2x4 input matrix, a 4x4 output matrix
+        BITensor input1, input2, output;
+        auto shape1 = BITensorShape(2, 4), shape2 = BITensorShape(4, 2), shape3 = BITensorShape(4, 4);
+        input1.allocator()->init(BITensorInfo(shape1, 1, BIDataType::QASYMM8));
+        input1.allocator()->allocate();
+        auto tensor_ptr = reinterpret_cast<uint8_t *>(input1.buffer());
+        for (int i = 0; i < shape1[BIWindow::DimY]; ++i) {
+            for (int j = 0; j < shape1[BIWindow::DimX]; ++j) {
+                tensor_ptr[i * shape1[BIWindow::DimX] + j] = i + 1;
+            }
+        }
+        auto q_info1 = BIQuantizationInfo(scale1, zero_point);
+        input1.info()->set_quantization_info(q_info1);
+        input1.info()->set_are_values_constant(false);
+        QATTest::print_tensor(input1, "input1");
+
+        input2.allocator()->init(BITensorInfo(shape2, 1, BIDataType::QSYMM8_PER_CHANNEL));
+        input2.allocator()->allocate();
+        tensor_ptr = reinterpret_cast<uint8_t *>(input2.buffer());
+        for (int i = 0; i < shape2[BIWindow::DimY]; ++i) {
+            for (int j = 0; j < shape2[BIWindow::DimX]; ++j) {
+                tensor_ptr[i * shape2[BIWindow::DimX] + j] = i + 1;
+            }
+        }
+
+        auto q_info2 = BIQuantizationInfo(scale2);
+        input2.info()->set_quantization_info(q_info2);
+        input2.info()->set_are_values_constant(false);
+        QATTest::print_tensor(input2, "input2");
+
+        output.allocator()->init(BITensorInfo(shape3, 1, BIDataType::S32));
+        output.allocator()->allocate();
+
+        // Gemm Mul core, compute input1 * input2 --> output
+        // since data type of output is S32, this core will not compute scales
+        BINEGEMMLowpMatrixMultipleCore gemm_lowp;
+        gemm_lowp.configure(&input1, &input2, nullptr, &output);
+        gemm_lowp.run();
+        QATTest::print_tensor(output, "output");
+
+        // cast output from S32 to F16
+        BITensor output_casted;
+        output_casted.allocator()->init(BITensorInfo(shape3, 1, BIDataType::F16));
+        output_casted.allocator()->allocate();
+
+        BINECast cast_f;
+        cast_f.configure(&output, &output_casted, BIConvertPolicy::WRAP);
+        cast_f.run();
+        QATTest::print_tensor(output_casted, "output_casted");
+
+        // convert scales to a tensor
+        std::vector<float> all_scales = scale2;
+        for (float & one_scale : all_scales) {
+            one_scale *= scale1;
+        }
+
+        auto all_scale_shape = BITensorShape(all_scales.size(), 1);
+        BITensor scale_tensor;
+        scale_tensor.allocator()->init(BITensorInfo(all_scale_shape, 1, BIDataType::F16));
+        scale_tensor.allocator()->allocate();
+        auto tensor_ptr2 = reinterpret_cast<float16_t *>(scale_tensor.buffer());
+        for (int i = 0; i < all_scale_shape[BIWindow::DimY]; ++i) {
+            for (int j = 0; j < shape2[BIWindow::DimX]; ++j) {
+                tensor_ptr2[i * shape2[BIWindow::DimX] + j] = static_cast<float16_t>(all_scales[i * shape2[BIWindow::DimX] + j]);
+            }
+        }
+        QATTest::print_tensor(scale_tensor, "scale_tensor");
+
+        BITensor output_scaled;
+        output_scaled.allocator()->init(BITensorInfo(shape3, 1, BIDataType::F16));
+        output_scaled.allocator()->allocate();
+        // compute scale muhltiplication
+        BINEPixelWiseMultiplication mul_f;
+        mul_f.configure(&output_casted, &scale_tensor, &output_scaled, 1.0f,
+            BIConvertPolicy::WRAP, BIRoundingPolicy::TO_ZERO);
+        mul_f.run();
+        QATTest::print_tensor(output_scaled, "output_scaled");
+    }
+    else {
+        float scale1 = 2.0f;
+        int zero_point = -1;
+        std::vector<float> scale2 = {1, 2, 3, 4};
+
+        auto shape_input = BITensorShape(3, 2), shape_weight = BITensorShape(4, 3), shape_output = BITensorShape(4, 2);
+
+        BITensor input, weight, output;
+        input.allocator()->init(BITensorInfo(shape_input, 1, BIDataType::QASYMM8));
+        input.allocator()->allocate();
+        auto input_ptr = reinterpret_cast<int8_t *>(input.buffer());
+        for (int i = 0; i < shape_input[BIWindow::DimY]; ++i) {
+            for (int j = 0; j < shape_input[BIWindow::DimX]; ++j) {
+                input_ptr[i * shape_input[BIWindow::DimX] + j] =
+                    static_cast<int8_t>(i * shape_input[BIWindow::DimX] + j + 2);
+            }
+        }
+        auto input_q_info = BIQuantizationInfo(scale1, zero_point);
+        input.info()->set_quantization_info(input_q_info);
+        input.info()->set_are_values_constant(false);
+        QATTest::print_tensor(input, "input");
+
+        weight.allocator()->init(BITensorInfo(shape_weight, 1, BIDataType::QSYMM8_PER_CHANNEL));
+        weight.allocator()->allocate();
+        auto weight_ptr = reinterpret_cast<int8_t *>(weight.buffer());
+        for (int i = 0; i < shape_weight[BIWindow::DimY]; ++i) {
+            for (int j = 0; j < shape_weight[BIWindow::DimX]; ++j) {
+                weight_ptr[i * shape_weight[BIWindow::DimX] + j] = static_cast<int8_t>(i + 1);
+            }
+        }
+        auto weight_q_info = BIQuantizationInfo(scale2);
+        weight.info()->set_quantization_info(weight_q_info);
+        weight.info()->set_are_values_constant(false);
+        QATTest::print_tensor(weight, "weight");
+
+        output.allocator()->init(BITensorInfo(shape_output, 1, BIDataType::F16));
+        output.allocator()->allocate();
+
+        BINEGemmLowpWithScale gemm_lowp_scale_layer;
+        gemm_lowp_scale_layer.configure(&input, &weight, nullptr, &output);
+        gemm_lowp_scale_layer.run();
+
+        QATTest::print_tensor(output, "output");
+    }
+
 }
 
 

@@ -45,3 +45,5 @@
 #include <runtime/neon/functions/BINESelect.hpp>
 #include <runtime/neon/functions/BINEMLPLayer.hpp>
 #include <runtime/neon/functions/BINEArgMinMaxLayer.hpp>
+#include "runtime/neon/functions/bi_ne_cast.h"
+#include "runtime/neon/functions/BINEGemmLowpWithScale.h"
