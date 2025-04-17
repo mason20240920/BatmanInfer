@@ -30,7 +30,7 @@ namespace BatmanInfer {
              */
             static BIStatus validate(const BIITensorInfo *src, const BIITensorInfo *dst);
 
-            void dynamic_configure(const BIITensorInfo *dst) const;
+            void dynamic_configure(const BIITensorInfo *dst);
 
             void run(BatmanInfer::BIITensorPack &tensors) override;
 

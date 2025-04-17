@@ -153,9 +153,9 @@ namespace BatmanInfer {
         // _quant_q_layer.dynamic_configure(&_sub_query_states);
         // _quant_k_layer.dynamic_configure(&_sub_key_states);
         _quant_v_layer.dynamic_configure(&_sub_value_states);
-        _reshape_q_layer.dynamic_configure(&_sub_reshape_q_states);
-        _reshape_k_layer.dynamic_configure(&_sub_reshape_k_states);
-        _reshape_v_layer.dynamic_configure(&_sub_reshape_v_states);
+        _reshape_q_layer.dynamic_configure();
+        _reshape_k_layer.dynamic_configure();
+        _reshape_v_layer.dynamic_configure();
         _transpose_q_layer.dynamic_configure(&_sub_reshape_q_states, &_sub_transpose_q_result);
         _transpose_k_layer.dynamic_configure(&_sub_reshape_k_states, &_sub_transpose_k_result);
         _transpose_v_layer.dynamic_configure(&_sub_reshape_v_states, &_sub_transpose_v_result);
@@ -173,14 +173,14 @@ namespace BatmanInfer {
         _q_softmax_layer.dynamic_configure(&_sub_softmax_output);
         _pv_bmm_layer.dynamic_configure(&_sub_softmax_q_result, &_sub_transpose_v_result, &_sub_pv_bmm_output);
         _pv_transpose_layer.dynamic_configure(&_sub_pv_bmm_output, &_sub_pv_transpose_output);
-        _pv_reshape_layer.dynamic_configure(&_sub_pv_reshape_output);
+        _pv_reshape_layer.dynamic_configure();
         _pv_dequantization_layer.dynamic_configure(&_sub_pv_reshape_output);
         _attn_o_gemm_layer.dynamic_configure();
         _c_copy_layer.dynamic_configure();
-        // _sub_softmax_q_result.info()->set_are_values_constant(false);
-        // _sub_transpose_v_result.info()->set_are_values_constant(false);
-        // _pv_bmm_layer.configure(&_sub_softmax_q_result, &_sub_transpose_v_result, &_sub_pv_bmm_output, matmul_info,
-        //                         settings);
+        _sub_softmax_q_result.info()->set_are_values_constant(false);
+        _sub_transpose_v_result.info()->set_are_values_constant(false);
+        _pv_bmm_layer.configure(&_sub_softmax_q_result, &_sub_transpose_v_result, &_sub_pv_bmm_output, matmul_info,
+                                settings);
     }
 
 
@@ -240,7 +240,8 @@ namespace BatmanInfer {
                 init(BITensorInfo(normal_shape, 1, BIDataType::QASYMM8_SIGNED, _norm_q_info));
         _c_attn_s32_output.allocator()->init(BITensorInfo(c_attn_shape, 1, BIDataType::S32));
         const auto _c_attn_q_info = BIQuantizationInfo(attn_gemm_o_scale, attn_gemm_o_zp);
-        _c_attn_q8_output.allocator()->init(BITensorInfo(normal_shape,
+        BITensorShape q_output_shape = BITensorShape(_hidden_size * 3, _max_seq_len, _max_batch_size);
+        _c_attn_q8_output.allocator()->init(BITensorInfo(q_output_shape,
                                                          1,
                                                          BIDataType::QASYMM8_SIGNED,
                                                          _c_attn_q_info));

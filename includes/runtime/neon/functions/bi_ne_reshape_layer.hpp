@@ -48,7 +48,7 @@ namespace BatmanInfer {
          * @brief 运行时动态修改
          * @param output
          */
-        void dynamic_configure(BIITensor *output);
+        void dynamic_configure() const;
 
         /**
          *

@@ -20,8 +20,9 @@ namespace BatmanInfer {
             return kernels::BICpuReshapeKernel::validate(src, dst);
         }
 
-        void BICpuReshape::dynamic_configure(const BIITensorInfo *dst) const {
+        void BICpuReshape::dynamic_configure(const BIITensorInfo *dst) {
             const auto kernel = reinterpret_cast<kernels::BICpuReshapeKernel *>(_kernel.get());
+            _is_prepared = false;
             kernel->dynamic_configure(dst);
         }
 

@@ -1160,7 +1160,7 @@ TEST(NEReshapeLayer, NEReshapeStaticTest) {
     output.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::F32));
     output.allocator()->allocate();
     QATTest::fill_from_one<float>(input);
-    _reshape_f.dynamic_configure(&output);
+    _reshape_f.dynamic_configure();
     _reshape_f.run();
     QATTest::print_tensor(output, "output");
 }

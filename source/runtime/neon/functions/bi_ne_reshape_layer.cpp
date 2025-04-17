@@ -33,8 +33,8 @@ namespace BatmanInfer {
         _impl->op->configure(input->info(), output->info());
     }
 
-    void BINEReshapeLayer::dynamic_configure(BIITensor *output) {
-        _impl->op->dynamic_configure(output->info());
+    void BINEReshapeLayer::dynamic_configure() const {
+        _impl->op->dynamic_configure(_impl->dst->info());
     }
 
 

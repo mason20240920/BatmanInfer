@@ -20,7 +20,7 @@ namespace BatmanInfer {
 
     class BIMemoryGroup final : public BIIMemoryGroup {
     public:
-        BIMemoryGroup(std::shared_ptr<BIIMemoryManager> = nullptr) noexcept;
+        BIMemoryGroup(std::shared_ptr<BIIMemoryManager>  = nullptr) noexcept;
 
         ~BIMemoryGroup() = default;
 
@@ -42,7 +42,6 @@ namespace BatmanInfer {
         void release() override;
 
         BIMemoryMappings &mappings() override;
-
 
     private:
         /**
@@ -66,9 +65,9 @@ namespace BatmanInfer {
         bool _auto_clear;
     };
 
-    inline BIMemoryGroup::BIMemoryGroup(std::shared_ptr<BIIMemoryManager> memory_manager) noexcept:
-            _memory_manager(memory_manager), _pool(nullptr), _mappings(), _auto_clear(false) {
-
+    inline
+    BIMemoryGroup::BIMemoryGroup(std::shared_ptr<BIIMemoryManager> memory_manager) noexcept: _memory_manager(
+            memory_manager), _pool(nullptr), _mappings(), _auto_clear(false) {
     }
 
     inline void BIMemoryGroup::manage(BatmanInfer::BIIMemoryManageable *obj) {
@@ -130,7 +129,6 @@ namespace BatmanInfer {
     inline BIMemoryMappings &BIMemoryGroup::mappings() {
         return _mappings;
     }
-
 }
 
 #endif //BATMANINFER_BI_MEMORY_GROUP_HPP

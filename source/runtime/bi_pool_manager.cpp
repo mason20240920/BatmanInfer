@@ -2,6 +2,8 @@
 // Created by Mason on 2024/12/31.
 //
 
+#include <iostream>
+#include <ostream>
 #include <runtime/bi_pool_manager.hpp>
 
 #include <data/core/bi_error.h>
@@ -9,9 +11,7 @@
 
 using namespace BatmanInfer;
 
-BIPoolManager::BIPoolManager() : _free_pools(), _occupied_pools(), _sem(), _mtx()
-{
-
+BIPoolManager::BIPoolManager() : _free_pools(), _occupied_pools(), _sem(), _mtx() {
 }
 
 BIIMemoryPool *BIPoolManager::lock_pool() {
@@ -64,8 +64,7 @@ std::unique_ptr<BIIMemoryPool> BIPoolManager::release_pool() {
     lock_guard<Mutex> lock(_mtx);
     BI_COMPUTE_ERROR_ON_MSG(!_occupied_pools.empty(), "All pools should be free in order to release one!");
 
-    if (!_free_pools.empty())
-    {
+    if (!_free_pools.empty()) {
         std::unique_ptr<BIIMemoryPool> pool = std::move(_free_pools.front());
         BI_COMPUTE_ERROR_ON(_free_pools.front() != nullptr);
         _free_pools.pop_front();
