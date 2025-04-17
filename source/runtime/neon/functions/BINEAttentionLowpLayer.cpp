@@ -133,6 +133,9 @@ namespace BatmanInfer {
         _sub_pv_deq_output_info.set_tensor_shape(BITensorShape(768, _seq_len, _batch_size));
         _sub_pv_deq_output.allocator()->init(*_pv_deq_output.allocator(), _sub_pv_deq_output_info);
 
+        _sub_attn_o_output_info.set_tensor_shape(BITensorShape(768, _seq_len, _batch_size));
+        _sub_attn_o_output.allocator()->init(*_attn_o_output.allocator(), _sub_attn_o_output_info);
+
         std::vector<BIITensor *> outputs = {
             &_sub_split_q_result_0,
             &_sub_split_q_result_1,
@@ -172,6 +175,8 @@ namespace BatmanInfer {
         _pv_transpose_layer.dynamic_configure(&_sub_pv_bmm_output, &_sub_pv_transpose_output);
         _pv_reshape_layer.dynamic_configure(&_sub_pv_reshape_output);
         _pv_dequantization_layer.dynamic_configure(&_sub_pv_reshape_output);
+        _attn_o_gemm_layer.dynamic_configure();
+        _c_copy_layer.dynamic_configure();
         // _sub_softmax_q_result.info()->set_are_values_constant(false);
         // _sub_transpose_v_result.info()->set_are_values_constant(false);
         // _pv_bmm_layer.configure(&_sub_softmax_q_result, &_sub_transpose_v_result, &_sub_pv_bmm_output, matmul_info,
@@ -183,6 +188,8 @@ namespace BatmanInfer {
                                            const BIITensor *gamma_weights,
                                            const BIITensor *c_attn_weights,
                                            const BIITensor *c_attn_bias,
+                                           const BIITensor *o_attn_weights,
+                                           const BIITensor *o_attn_bias,
                                            const float &gemm_i_scale,
                                            const int &gemm_i_zp,
                                            const float &attn_gemm_o_scale,
@@ -197,17 +204,9 @@ namespace BatmanInfer {
                                            const int &softmax_out_zp,
                                            const float &pv_bmm_out_scale,
                                            const int &pv_bmm_out_zp,
-                                           // const BIITensor *bias,
-                                           // const BIITensor *scalar,
-                                           // const BIITensor *add_weights,
-                                           // const BIITensor *weights_second,
-                                           // const BIITensor *bias_second,
-                                           // const BIITensor *gamma,
                                            const PermutationVector &q_perm,
                                            const PermutationVector &k_perm,
                                            const PermutationVector &qkv_perm,
-                                           // const PermutationVector &perm2,
-                                           // const PermutationVector &final_perm,
                                            const size_t &hidden_size,
                                            const size_t &max_seq_len,
                                            const size_t &batch_size,
@@ -479,6 +478,8 @@ namespace BatmanInfer {
         _sub_pv_deq_output.allocator()->init(_sub_pv_deq_output_info);
 
         _sub_attn_o_output_info = BITensorInfo(_sub_norm_shape, 1, BIDataType::F16);
+        _sub_attn_o_output_info.set_format(Format::F16);
+        _sub_attn_o_output.allocator()->init(_sub_attn_o_output_info);
 
         // 配置量化信息
         _rms_norm_layer.configure(input, gamma_weights, &_sub_norm_tensor);
@@ -544,6 +545,9 @@ namespace BatmanInfer {
         _pv_transpose_layer.configure(&_sub_pv_bmm_output, &_sub_pv_transpose_output, qkv_perm);
         _pv_reshape_layer.configure(&_sub_pv_transpose_output, &_sub_pv_reshape_output);
         _pv_dequantization_layer.configure(&_sub_pv_reshape_output, &_sub_pv_deq_output);
+        _attn_o_gemm_layer.configure(&_sub_pv_deq_output, o_attn_weights, o_attn_bias, &_sub_attn_o_output, 1.0f, 1.0f,
+                                     gemm_info);
+        _c_copy_layer.configure(&_sub_attn_o_output, output);
 
         // _dequantization_layer.configure(&_quantization_output, &_dequantization_output);
         // _copy_f.configure(&_dequantization_output, output);
@@ -593,21 +597,17 @@ namespace BatmanInfer {
         _pv_transpose_layer.run();
         _pv_reshape_layer.run();
         _pv_dequantization_layer.run();
+        _attn_o_gemm_layer.run();
+        _c_copy_layer.run();
 
-        BIIOFormatInfo format;
-        format.element_delim = ", "; // 元素之间用逗号分隔
-        format.row_delim = "\n"; // 每行换行
-        format.align_columns = true; // 对齐列
-        // _sub_softmax_q_result.print(std::cout, format);
-        // _sub_transpose_v_result.print(std::cout, format);
-        std::cout << "====================" << std::endl;
-        _sub_pv_deq_output.print(std::cout, format);
-
-        // _quantization_layer.run(); // 量化计算
-        // _dequantization_layer.run(); // 反量化计算
-        //
-        // // 拷贝隐藏层到输出
-        // _copy_f.run();
+        // BIIOFormatInfo format;
+        // format.element_delim = ", "; // 元素之间用逗号分隔
+        // format.row_delim = "\n"; // 每行换行
+        // format.align_columns = true; // 对齐列
+        // // _sub_softmax_q_result.print(std::cout, format);
+        // // _sub_transpose_v_result.print(std::cout, format);
+        // std::cout << "====================" << std::endl;
+        // _sub_split_q_result_2.print(std::cout, format);
     }
 
     void BINEAttentionLowpLayer::prepare() {
@@ -642,6 +642,7 @@ namespace BatmanInfer {
             _sub_pv_transpose_output.allocator()->init(*_pv_perm_output.allocator(), _sub_pv_transpose_output_info);
             _sub_pv_reshape_output.allocator()->init(*_pv_reshape_output.allocator(), _sub_pv_reshape_output_info);
             _sub_pv_deq_output.allocator()->init(*_pv_deq_output.allocator(), _sub_pv_deq_output_info);
+            _sub_attn_o_output.allocator()->init(*_attn_o_output.allocator(), _sub_attn_o_output_info);
             _is_prepared = true;
         }
     }

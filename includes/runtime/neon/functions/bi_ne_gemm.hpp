@@ -31,7 +31,7 @@ namespace BatmanInfer {
 
         /** Default move constructor */
         BINEGEMM(BINEGEMM
-                 &&) = default;
+            &&) = default;
 
         /** Prevent instances of this class from being copied (As this class contains pointers) */
         BINEGEMM &operator=(const BINEGEMM &) = delete;
@@ -77,6 +77,8 @@ namespace BatmanInfer {
                        float beta,
                        const GEMMInfo &gemm_info = GEMMInfo());
 
+        void dynamic_configure();
+
         /** Static function to check if given info will lead to a valid configuration of @ref NEGEMM.
          *
          * Similar to @ref NEGEMM::configure()
@@ -110,7 +112,6 @@ namespace BatmanInfer {
         void run() override;
 
         void prepare() override;
-
 
     private:
         struct Impl;

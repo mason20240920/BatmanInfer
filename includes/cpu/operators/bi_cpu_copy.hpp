@@ -8,6 +8,7 @@
 
 namespace BatmanInfer {
     class BIITensorInfo;
+
     namespace cpu {
         /**
          * 基本函数: 运行@ref kernels::BICpuCopyKernel
@@ -20,6 +21,12 @@ namespace BatmanInfer {
              * @param dst
              */
             void configure(const BIITensorInfo *src, BIITensorInfo *dst);
+
+            /**
+             * @brief 动态配置
+             * @param dst
+             */
+            void dynamic_configure(BIITensorInfo *dst);
 
             /**
              * 静态方法验证给定参数是否合法

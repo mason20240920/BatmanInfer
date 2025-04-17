@@ -84,6 +84,10 @@ namespace BatmanInfer {
                            float beta,
                            const GEMMInfo &gemm_info = GEMMInfo());
 
+            void dynamic_configure(const BIITensorInfo *a,
+                                   const BIITensorInfo *b,
+                                   BIITensorInfo *d);
+
             static BIStatus validate(const BIITensorInfo *a,
                                      const BIITensorInfo *b,
                                      const BIITensorInfo *c,
@@ -132,10 +136,10 @@ namespace BatmanInfer {
             enum AuxTensorIdx {
                 /* Slots 0 - 2 reserved for CpuGemmAssemblyDispatch */
                 InterleavedLHS = 3, // 标记左侧矩阵（LHS）的交错存储版本
-                PreTransposedRHS,   // 标记右侧矩阵（RHS）的预转置版本
-                Transposed1xWRHS,   // 标记右侧矩阵（RHS）的 1xW 转置版本
-                TempResult,         // 标记临时存储的计算结果
-                Count               // 表示枚举值的总数（通常用于循环或分配数组大小）
+                PreTransposedRHS, // 标记右侧矩阵（RHS）的预转置版本
+                Transposed1xWRHS, // 标记右侧矩阵（RHS）的 1xW 转置版本
+                TempResult, // 标记临时存储的计算结果
+                Count // 表示枚举值的总数（通常用于循环或分配数组大小）
             };
 
             std::unique_ptr<kernels::BICpuGemmInterleave4x4Kernel> _interleave_kernel{nullptr};
@@ -155,7 +159,8 @@ namespace BatmanInfer {
 
             bool _run_vector_matrix_multiplication{false};
             bool _run_interleave_transpose{
-                    true}; /**< If we run CpuGemmInterleave4x4Kernel on lhs and CpuGemmTranspose1xWKernel on rhs */
+                true
+            }; /**< If we run CpuGemmInterleave4x4Kernel on lhs and CpuGemmTranspose1xWKernel on rhs */
             bool _run_alpha_scale{false};
             bool _run_addition{false};
             bool _run_bias_addition{false};

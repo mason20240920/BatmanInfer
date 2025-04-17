@@ -16,7 +16,6 @@ namespace BatmanInfer {
     };
 
     BINECopy::BINECopy() : _impl(std::make_unique<Impl>()) {
-
     }
 
     BINECopy::BINECopy(BINECopy &&) = default;
@@ -24,6 +23,11 @@ namespace BatmanInfer {
     BINECopy &BINECopy::operator=(BINECopy &&) = default;
 
     BINECopy::~BINECopy() = default;
+
+    void BINECopy::dynamic_configure() const {
+        _impl->op->dynamic_configure(_impl->dst->info());
+    }
+
 
     void BINECopy::configure(BatmanInfer::BIITensor *input,
                              BatmanInfer::BIITensor *output) {

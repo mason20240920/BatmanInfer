@@ -33,7 +33,8 @@ namespace BatmanInfer {
                 asm_info.weight_format = info.weight_format();
                 asm_info.accumulate = info.accumulate();
                 asm_info.transpose_b =
-                        info.pretranspose_B(); // The "pretranspose_B" flag here is not the same as the pretranspose_B_array method. The flag here signals to pretranspose_B_array method if we want to perform additional transpose on B before the pretranspose_B_array method
+                        info.pretranspose_B();
+                // The "pretranspose_B" flag here is not the same as the pretranspose_B_array method. The flag here signals to pretranspose_B_array method if we want to perform additional transpose on B before the pretranspose_B_array method
 
                 return asm_info;
             }
@@ -84,8 +85,8 @@ namespace BatmanInfer {
                 if (_run_alpha_scale) {
                     _alpha_scale_func = std::make_unique<cpu::BICpuActivation>();
                     _alpha_scale_func->configure(
-                            d, nullptr,
-                            BIActivationLayerInfo(BIActivationLayerInfo::ActivationFunction::LINEAR, alpha, 0.f));
+                        d, nullptr,
+                        BIActivationLayerInfo(BIActivationLayerInfo::ActivationFunction::LINEAR, alpha, 0.f));
                 }
             } else {
                 _run_interleave_transpose = !_run_vector_matrix_multiplication;
@@ -136,8 +137,9 @@ namespace BatmanInfer {
                     // Configure rhs transpose1xw kernel
                     _transpose1xW_b_kernel = std::make_unique<cpu::kernels::BICpuGemmTranspose1xWKernel>();
                     _transpose1xW_b_kernel->configure(b_to_use, &_tmp_b);
-                    const auto lifetime = _reshape_b_only_on_first_run ? MemoryLifetime::Persistent
-                                                                       : MemoryLifetime::Temporary;
+                    const auto lifetime = _reshape_b_only_on_first_run
+                                              ? MemoryLifetime::Persistent
+                                              : MemoryLifetime::Temporary;
                     _aux_mem[Transposed1xWRHS] = BIMemoryInfo(offset_int_vec(Transposed1xWRHS), lifetime,
                                                               _tmp_b.total_size());
 
@@ -170,8 +172,12 @@ namespace BatmanInfer {
                 _activation_func = std::make_unique<cpu::BICpuActivation>();
                 _activation_func->configure(d, nullptr, gemm_info.activation_info());
             }
-
         }
+
+        void BICpuGemm::dynamic_configure(const BIITensorInfo *a, const BIITensorInfo *b, BIITensorInfo *d) {
+            _asm_glue->dynamic_tensor_b_size(a, b, d);
+        }
+
 
         BIStatus BICpuGemm::validate(const BIITensorInfo *a,
                                      const BIITensorInfo *b,
@@ -187,8 +193,8 @@ namespace BatmanInfer {
                 BI_COMPUTE_RETURN_ERROR_ON_MSG(alpha != 1,
                                                "Accumulation is not supported when alpha is different from 1");
                 BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                        (beta != 0 && c != nullptr),
-                        "Accumulation is not supported when beta is different from 0 with a non-null bias matrix c");
+                    (beta != 0 && c != nullptr),
+                    "Accumulation is not supported when beta is different from 0 with a non-null bias matrix c");
             }
 
             const bool is_c_bias = beta == 1 && c != nullptr;
@@ -201,7 +207,7 @@ namespace BatmanInfer {
             //   1. Moving the checks between "fix-start" and "fix-end" into their corresponding ops / kernels (e.g. the weights format checks can and should be moved into CpuGemmAssemblyDispatch)
             //   2. Moving this b_to_use check back into the non-optimized path
             BITensorInfo pretransposed_b = b->clone()->set_tensor_shape(
-                    misc::shape_calculator::compute_transposed_shape(*b));
+                misc::shape_calculator::compute_transposed_shape(*b));
             const BIITensorInfo *b_to_use = gemm_info.pretranspose_B() ? &pretransposed_b : b;
             // TODO: COMPMID-6597 fix-start
 
@@ -223,21 +229,21 @@ namespace BatmanInfer {
                 // have to verify bias
                 const size_t dim0_sz = a->dimension(0);
                 BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                        (dim0_sz % block_by) != 0,
-                        ("The matrix A number of columns must be a multiple of block_by=" +
-                         std::to_string(block_by)).c_str());
+                    (dim0_sz % block_by) != 0,
+                    ("The matrix A number of columns must be a multiple of block_by=" +
+                        std::to_string(block_by)).c_str());
                 // a->dimension(0) = kernel_area * input_channel + kernel_area * input_pad_right
                 // b_to_use->dimension(1) = kernel_area * input_channel
                 // a->dimension(0) = b_to_use->dimension(1) + kernel_area * input_pad_right
                 const size_t input_pad_right = (dim0_sz - b_to_use->dimension(1)) % block_by;
                 const size_t kernel_area = (dim0_sz - b_to_use->dimension(1)) / input_pad_right;
                 BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                        (dim0_sz - kernel_area * input_pad_right) != b_to_use->dimension(1),
-                        "The product AB is defined only if A number of columns and B number of rows are related");
+                    (dim0_sz - kernel_area * input_pad_right) != b_to_use->dimension(1),
+                    "The product AB is defined only if A number of columns and B number of rows are related");
             } else {
                 BI_COMPUTE_RETURN_ERROR_ON_MSG(
-                        a->dimension(0) != b_to_use->dimension(1),
-                        "The product AB is defined only if the number of columns in A is equal to the number of rows in B");
+                    a->dimension(0) != b_to_use->dimension(1),
+                    "The product AB is defined only if the number of columns in A is equal to the number of rows in B");
             }
 
             BI_COMPUTE_RETURN_ERROR_ON_MSG(gemm_info.is_a_reshaped(), "Matrix A already reshaped is not supported");
@@ -305,7 +311,7 @@ namespace BatmanInfer {
                 int mult_interleave4x4_height = 1;
 
                 const BIGemmReshapeInfo reshape_info = BIGemmReshapeInfo(
-                        m, n, k, mult_transpose1xW_width, mult_interleave4x4_height, gemm_info.depth_output_gemm3d());
+                    m, n, k, mult_transpose1xW_width, mult_interleave4x4_height, gemm_info.depth_output_gemm3d());
 
                 const BIITensorInfo *matrix_a_info = a;
                 const BIITensorInfo *matrix_b_info = b_to_use;
@@ -320,28 +326,28 @@ namespace BatmanInfer {
 
                     // Validate interleave kernel
                     auto_init_if_empty(tmp_a_info, a->clone()->set_tensor_shape(compute_interleaved_shape(
-                            *a, mult_interleave4x4_height, gemm_info.reinterpret_input_as_3d())));
+                                           *a, mult_interleave4x4_height, gemm_info.reinterpret_input_as_3d())));
                     BI_COMPUTE_RETURN_ON_ERROR(cpu::kernels::BICpuGemmInterleave4x4Kernel::validate(a, &tmp_a_info));
 
                     // Validate transpose kernel
                     auto_init_if_empty(tmp_b_info,
                                        b_to_use->clone()->set_tensor_shape(
-                                               compute_transpose_1xw_with_element_size_shape(*b_to_use,
-                                                                                             mult_transpose1xW_width)));
+                                           compute_transpose_1xw_with_element_size_shape(*b_to_use,
+                                               mult_transpose1xW_width)));
                     BI_COMPUTE_RETURN_ON_ERROR(
-                            cpu::kernels::BICpuGemmTranspose1xWKernel::validate(b_to_use, &tmp_b_info));
+                        cpu::kernels::BICpuGemmTranspose1xWKernel::validate(b_to_use, &tmp_b_info));
                 }
 
                 // Validate matrix multiply
                 auto_init_if_empty(tmp_output_info,
                                    matrix_a_info->clone()->set_tensor_shape(compute_mm_shape(
-                                           *matrix_a_info, *matrix_b_info, run_interleave_transpose, reshape_info)));
+                                       *matrix_a_info, *matrix_b_info, run_interleave_transpose, reshape_info)));
                 BI_COMPUTE_RETURN_ON_ERROR(cpu::kernels::BICpuGemmMatrixMultiplyKernel::validate(
-                        matrix_a_info, matrix_b_info, &tmp_output_info, alpha, run_interleave_transpose, reshape_info));
+                    matrix_a_info, matrix_b_info, &tmp_output_info, alpha, run_interleave_transpose, reshape_info));
 
                 if (is_c_bias) {
                     BI_COMPUTE_RETURN_ON_ERROR(
-                            cpu::BICpuAdd::validate(&tmp_output_info, c, d, BIConvertPolicy::SATURATE));
+                        cpu::BICpuAdd::validate(&tmp_output_info, c, d, BIConvertPolicy::SATURATE));
                 }
             }
 
@@ -373,8 +379,10 @@ namespace BatmanInfer {
                 asm_pack.add_const_tensor(ACL_SRC_2, _run_bias_addition ? c : nullptr);
                 _asm_glue->run(asm_pack);
                 if (_run_alpha_scale) {
-                    BIITensorPack pack{{ACL_SRC, d},
-                                       {ACL_DST, d}};
+                    BIITensorPack pack{
+                        {ACL_SRC, d},
+                        {ACL_DST, d}
+                    };
                     _alpha_scale_func->run(pack);
                 }
             } else {
@@ -383,14 +391,18 @@ namespace BatmanInfer {
                 CpuAuxTensorHandler transposed1xw_b(offset_int_vec(Transposed1xWRHS), _tmp_b, tensors, true);
                 CpuAuxTensorHandler temp_d(offset_int_vec(TempResult), _tmp_d, tensors, true);
 
-                BIITensorPack mm_pack{{ACL_SRC_0, a},
-                                      {ACL_SRC_1, b},
-                                      {ACL_DST,   (_run_bias_addition) ? temp_d.get() : d}};
+                BIITensorPack mm_pack{
+                    {ACL_SRC_0, a},
+                    {ACL_SRC_1, b},
+                    {ACL_DST, (_run_bias_addition) ? temp_d.get() : d}
+                };
 
                 if (_run_interleave_transpose) {
                     // Run interleave kernel
-                    BIITensorPack interleave_pack{{ACL_SRC, a},
-                                                  {ACL_DST, interleaved_a.get()}};
+                    BIITensorPack interleave_pack{
+                        {ACL_SRC, a},
+                        {ACL_DST, interleaved_a.get()}
+                    };
                     BINEScheduler::get().schedule_op(_interleave_kernel.get(), BIWindow::DimY,
                                                      _interleave_kernel->window(),
                                                      interleave_pack);
@@ -402,8 +414,10 @@ namespace BatmanInfer {
                 if (_pretranspose_b_func) {
                     if (!_reshape_b_only_on_first_run) {
                         // Run pretranspose kernel
-                        BIITensorPack pretranspose_pack{{ACL_SRC, b_to_use},
-                                                        {ACL_DST, pretransposed_b.get()}};
+                        BIITensorPack pretranspose_pack{
+                            {ACL_SRC, b_to_use},
+                            {ACL_DST, pretransposed_b.get()}
+                        };
                         _pretranspose_b_func->run(pretranspose_pack);
                     }
                     b_to_use = pretransposed_b.get();
@@ -411,8 +425,10 @@ namespace BatmanInfer {
                 if (_run_interleave_transpose) {
                     if (!_reshape_b_only_on_first_run) {
                         // Run transpose1xw kernel
-                        BIITensorPack transpose_pack{{ACL_SRC, b_to_use},
-                                                     {ACL_DST, transposed1xw_b.get()}};
+                        BIITensorPack transpose_pack{
+                            {ACL_SRC, b_to_use},
+                            {ACL_DST, transposed1xw_b.get()}
+                        };
                         BINEScheduler::get().schedule_op(_transpose1xW_b_kernel.get(), BIWindow::DimY,
                                                          _transpose1xW_b_kernel->window(), transpose_pack);
                     }
@@ -427,24 +443,30 @@ namespace BatmanInfer {
 
                 // Run bias addition kernel
                 if (_run_bias_addition) {
-                    BIITensorPack pack{{ACL_SRC_0, temp_d.get()},
-                                       {ACL_SRC_1, c},
-                                       {ACL_DST,   d}};
+                    BIITensorPack pack{
+                        {ACL_SRC_0, temp_d.get()},
+                        {ACL_SRC_1, c},
+                        {ACL_DST, d}
+                    };
                     _add_bias->run(pack);
                 }
             }
 
             // Run matrix addition kernel
             if (_run_addition) {
-                BIITensorPack c_add_pack{{ACL_SRC, c},
-                                         {ACL_DST, d}};
+                BIITensorPack c_add_pack{
+                    {ACL_SRC, c},
+                    {ACL_DST, d}
+                };
                 BINEScheduler::get().schedule_op(_ma_kernel.get(), BIWindow::DimY, _ma_kernel->window(), c_add_pack);
             }
 
             // Run activation function
             if (_run_activation) {
-                BIITensorPack pack{{ACL_SRC, d},
-                                   {ACL_DST, d}};
+                BIITensorPack pack{
+                    {ACL_SRC, d},
+                    {ACL_DST, d}
+                };
                 _activation_func->run(pack);
             }
         }
@@ -457,25 +479,29 @@ namespace BatmanInfer {
                     const BIITensor *b = tensors.get_const_tensor(ACL_SRC_1);
                     const BIITensor *b_to_use = b;
                     CpuAuxTensorHandler pretransposed_b(
-                            offset_int_vec(PreTransposedRHS), _pretransposed_b, tensors,
-                            false /*pack_inject: no need to inject into tensors*/,
-                            _pretranspose_b_func ==
-                            nullptr /*bypass_alloc: no need to allocate if _pretranspose_b_func is not run*/);
+                        offset_int_vec(PreTransposedRHS), _pretransposed_b, tensors,
+                        false /*pack_inject: no need to inject into tensors*/,
+                        _pretranspose_b_func ==
+                        nullptr /*bypass_alloc: no need to allocate if _pretranspose_b_func is not run*/);
                     CpuAuxTensorHandler transposed1xw_b(offset_int_vec(Transposed1xWRHS), _tmp_b, tensors,
                                                         false /*pack_inject*/,
                                                         !_run_interleave_transpose /*bypass_alloc*/);
 
                     if (_pretranspose_b_func) {
                         // Run pretranspose kernel
-                        BIITensorPack pretranspose_pack{{ACL_SRC, b_to_use},
-                                                        {ACL_DST, pretransposed_b.get()}};
+                        BIITensorPack pretranspose_pack{
+                            {ACL_SRC, b_to_use},
+                            {ACL_DST, pretransposed_b.get()}
+                        };
                         _pretranspose_b_func->run(pretranspose_pack);
                         b_to_use = pretransposed_b.get();
                     }
                     if (_run_interleave_transpose) {
                         // Run transpose kernel
-                        BIITensorPack transpose_pack{{ACL_SRC, b_to_use},
-                                                     {ACL_DST, transposed1xw_b.get()}};
+                        BIITensorPack transpose_pack{
+                            {ACL_SRC, b_to_use},
+                            {ACL_DST, transposed1xw_b.get()}
+                        };
                         BINEScheduler::get().schedule_op(_transpose1xW_b_kernel.get(), BIWindow::DimY,
                                                          _transpose1xW_b_kernel->window(), transpose_pack);
                     }

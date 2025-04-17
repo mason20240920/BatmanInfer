@@ -16,6 +16,7 @@
 #include "bi_NEDequantizationLayer.h"
 #include "bi_NEQuantizationLayer.h"
 #include "bi_NESoftmaxLayer.h"
+#include "bi_ne_copy.hpp"
 #include "bi_ne_gemm_lowp_matrix_mul_core.hpp"
 #include "bi_ne_gemm_lowp_output_stage.hpp"
 #include "bi_ne_mat_mul.hpp"
@@ -58,6 +59,8 @@ namespace BatmanInfer {
         * @param gamma_weights
         * @param c_attn_weights 第一层注意力权重
         * @param c_attn_bias 第二层注意力权重
+        * @param o_attn_weights
+        * @param o_attn_bias
         * @param gemm_i_scale Gemm输入的张量量化scale
         * @param gemm_i_zp Gemm输入张量的零点
         * @param attn_gemm_o_scale
@@ -78,6 +81,8 @@ namespace BatmanInfer {
                        const BIITensor *gamma_weights,
                        const BIITensor *c_attn_weights,
                        const BIITensor *c_attn_bias,
+                       const BIITensor *o_attn_weights,
+                       const BIITensor *o_attn_bias,
                        const float &gemm_i_scale,
                        const int &gemm_i_zp,
                        const float &attn_gemm_o_scale,
@@ -146,6 +151,7 @@ namespace BatmanInfer {
         BINEReshapeLayer _pv_reshape_layer;
         BINEDequantizationLayer _pv_dequantization_layer;
         BINEGEMM _attn_o_gemm_layer;
+        BINECopy _c_copy_layer;
 
     private:
         BITensor _sub_norm_tensor;

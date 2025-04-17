@@ -17,6 +17,12 @@ namespace BatmanInfer {
             _kernel = std::move(k);
         }
 
+        void BICpuCopy::dynamic_configure(BIITensorInfo *dst) {
+            auto k = reinterpret_cast<kernels::BICpuCopyKernel *>(_kernel.get());
+            k->dynamic_configure(dst);
+        }
+
+
         BIStatus BICpuCopy::validate(const BatmanInfer::BIITensorInfo *src,
                                      const BatmanInfer::BIITensorInfo *dst) {
             return kernels::BICpuCopyKernel::validate(src, dst);

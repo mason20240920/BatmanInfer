@@ -51,6 +51,34 @@ namespace BatmanInfer {
         t.info()->set_quantization_info(BIQuantizationInfo(qinfo.scale()[0], -qinfo.offset()[0], qinfo.is_dynamic()));
     }
 
+    void BINEMLPLayer::dynamic_configure(const BIITensor *input, const size_t &seq_len, const size_t &batch_size) {
+        _batch_size = batch_size;
+        _seq_len = seq_len;
+        _sub_norm_output_info.set_tensor_shape(BITensorShape(768, seq_len, batch_size));
+        _sub_norm_output.allocator()->init(*_norm_output.allocator(), _sub_norm_output_info);
+        _sub_norm_q_output_info.set_tensor_shape(BITensorShape(768, seq_len, batch_size));
+        _sub_norm_q_output.allocator()->init(*_norm_q_output.allocator(), _sub_norm_q_output_info);
+        _sub_fc_s32_output_info.set_tensor_shape(BITensorShape(3072, seq_len, batch_size));
+        _sub_fc_s32_output.allocator()->init(*_fc_s32_output.allocator(), _sub_fc_s32_output_info);
+        _sub_fc_q_output_info.set_tensor_shape(BITensorShape(3072, seq_len, batch_size));
+        _sub_fc_q_output.allocator()->init(*_fc_q_output.allocator(), _sub_fc_q_output_info);
+        _sub_act_output_info.set_tensor_shape(BITensorShape(3072, seq_len, batch_size));
+        _sub_act_output.allocator()->init(*_act_output.allocator(), _sub_act_output_info);
+        _sub_proj_input_info.set_tensor_shape(BITensorShape(3072, seq_len, batch_size));
+        _sub_proj_input.allocator()->init(*_proj_input.allocator(), _sub_proj_input_info);
+        _sub_proj_output_info.set_tensor_shape(BITensorShape(768, seq_len, batch_size));
+        _sub_proj_output.allocator()->init(*_proj_output.allocator(), _sub_proj_output_info);
+
+        _rms_layer.dynamic_configure(input);
+        _quantization_layer.dynamic_configure(&_sub_norm_output);
+        _matrix_mul_core.dynamic_configure(&_sub_norm_output, &_sub_fc_s32_output);
+        _gemm_lowp_output_stage.dynamic_configure(&_sub_fc_s32_output);
+        _activation_layer.dynamic_configure(&_sub_fc_q_output);
+        _dequantization_layer.dynamic_configure(&_sub_act_output);
+        _c_proj.dynamic_configure();
+        _copy_f.dynamic_configure();
+    }
+
 
     void BINEMLPLayer::configure(const BIITensor *input,
                                  const float fc1_input_scale,
@@ -67,8 +95,8 @@ namespace BatmanInfer {
                                  const BIITensor *gamma,
                                  // const BIActivationLayerInfo &act_info,
                                  BIITensor *output,
-                                 const size_t &batch_size,
-                                 const size_t &seq_len
+                                 const size_t &max_batch_size,
+                                 const size_t &max_seq_len
     ) {
         BI_COMPUTE_ERROR_ON_NULLPTR(input, fc_weights, fc_bias, proj_weights, proj_bias, output, gamma);
         BI_COMPUTE_ERROR_THROW_ON(
@@ -81,12 +109,12 @@ namespace BatmanInfer {
                 output->info()));
 
         BI_COMPUTE_LOG_PARAMS(input, output);
-        _max_batch = batch_size;
-        _max_seq = seq_len;
+        _max_batch = max_batch_size;
+        _max_seq = max_seq_len;
 
         // 中间变量输出的形状
-        BITensorShape norm_output_shape = BITensorShape(input->info()->tensor_shape()); // 归一化输出
-        BITensorShape fc_fuse_output_shape = BITensorShape(3072, seq_len, batch_size); // Gemm + GeLU 融合操作
+        const auto norm_output_shape = BITensorShape(768, max_seq_len, max_batch_size); // 归一化输出
+        const auto fc_fuse_output_shape = BITensorShape(3072, max_seq_len, max_batch_size); // Gemm + GeLU 融合操作
 
         // 初始化中间变量
         _norm_output.allocator()->init(BITensorInfo(norm_output_shape, 1, input->info()->data_type()));
@@ -121,9 +149,40 @@ namespace BatmanInfer {
         _proj_input.allocator()->allocate();
         _proj_output.allocator()->allocate();
 
-        _rms_layer.configure(input, gamma, &_norm_output);
-        _quantization_layer.configure(&_norm_output, &_norm_q_output);
-        invert_qinfo_offset(_norm_q_output);
+        const auto sub_norm_output_shape = BITensorShape(768, _seq_len, _batch_size);
+        _sub_norm_output_info = BITensorInfo(sub_norm_output_shape, 1, input->info()->data_type());
+        _sub_norm_output_info.set_format(Format::F16);
+        _sub_norm_output.allocator()->init(_sub_norm_output_info);
+
+        _sub_norm_q_output_info = BITensorInfo(sub_norm_output_shape, 1, BIDataType::QASYMM8_SIGNED, _norm_q_info);
+        _sub_norm_q_output_info.set_format(Format::S8);
+        _sub_norm_q_output.allocator()->init(_sub_norm_q_output_info);
+
+        const auto sub_fc_fuse_output_shape = BITensorShape(3072, _seq_len, _batch_size);
+        _sub_fc_s32_output_info = BITensorInfo(sub_fc_fuse_output_shape, 1, BIDataType::S32);
+        _sub_fc_s32_output_info.set_format(Format::S32);
+        _sub_fc_s32_output.allocator()->init(_sub_fc_s32_output_info);
+
+        _sub_fc_q_output_info = BITensorInfo(sub_fc_fuse_output_shape, 1, BIDataType::QASYMM8_SIGNED, _c_fc_q_info);
+        _sub_fc_q_output_info.set_format(Format::S8);
+        _sub_fc_q_output.allocator()->init(_sub_fc_q_output_info);
+
+        _sub_act_output_info = BITensorInfo(sub_fc_fuse_output_shape, 1, BIDataType::QASYMM8_SIGNED, _gelu_output_info);
+        _sub_act_output_info.set_format(Format::S8);
+        _sub_act_output.allocator()->init(_sub_act_output_info);
+
+        _sub_proj_input_info = BITensorInfo(sub_fc_fuse_output_shape, 1, input->info()->data_type());
+        _sub_proj_input_info.set_format(Format::F16);
+        _sub_proj_input.allocator()->init(_sub_proj_input_info);
+
+        _sub_proj_output_info = BITensorInfo(sub_norm_output_shape, 1, input->info()->data_type());
+        _sub_proj_output_info.set_format(Format::F16);
+        _sub_proj_output.allocator()->init(_sub_proj_output_info);
+
+
+        _rms_layer.configure(input, gamma, &_sub_norm_output);
+        _quantization_layer.configure(&_sub_norm_output, &_sub_norm_q_output);
+        invert_qinfo_offset(_sub_norm_q_output);
         GEMMInfo gemm_info = GEMMInfo(false,
                                       false,
                                       true,
@@ -133,7 +192,7 @@ namespace BatmanInfer {
                                       BIGEMMLowpOutputStageInfo(),
                                       false, true, false,
                                       BIActivationLayerInfo(), false, BIWeightFormat::UNSPECIFIED, false);
-        _matrix_mul_core.configure(&_norm_q_output, fc_weights, nullptr, &_fc_s32_output, gemm_info);
+        _matrix_mul_core.configure(&_sub_norm_q_output, fc_weights, nullptr, &_sub_fc_s32_output, gemm_info);
         BIGEMMLowpOutputStageInfo c_fc_stage_info;
         c_fc_stage_info.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
         c_fc_stage_info.output_data_type = BIDataType::QASYMM8_SIGNED; // 设置输c出数据类型
@@ -147,24 +206,39 @@ namespace BatmanInfer {
                                                       *c_fc_weight_qinfo,
                                                       _c_fc_q_info,
                                                       c_fc_stage_info);
-        _gemm_lowp_output_stage.configure(&_fc_s32_output, fc_bias, &_fc_q_output, c_fc_stage_info);
-        _activation_layer.configure(&_fc_q_output, &_act_output, BIActivationLayerInfo(BIActivationFunction::GELU));
-        _dequantization_layer.configure(&_act_output, &_proj_input);
-        _c_proj.configure(&_proj_input, proj_weights, proj_bias, &_proj_output, 1.0f, 1.0f, gemm_info);
-        _copy_f.configure(&_proj_output, output);
+        _gemm_lowp_output_stage.configure(&_sub_fc_s32_output, fc_bias, &_sub_fc_q_output, c_fc_stage_info);
+        _activation_layer.configure(&_sub_fc_q_output, &_sub_act_output,
+                                    BIActivationLayerInfo(BIActivationFunction::GELU));
+        _dequantization_layer.configure(&_sub_act_output, &_sub_proj_input);
+        _c_proj.configure(&_sub_proj_input, proj_weights, proj_bias, &_sub_proj_output, 1.0f, 1.0f, gemm_info);
+        _copy_f.configure(&_sub_proj_output, output);
     }
 
     void BINEMLPLayer::run() {
-        BIMemoryGroupResourceScope scope_mg(_memory_group);
+        prepare(); // 内存分配管理
         _rms_layer.run();
-        invert_qinfo_offset(_norm_q_output);
+        // invert_qinfo_offset(_norm_q_output);
         _quantization_layer.run();
-        invert_qinfo_offset(_norm_q_output);
+        // invert_qinfo_offset(_norm_q_output);
         _matrix_mul_core.run();
         _gemm_lowp_output_stage.run();
         _activation_layer.run();
         _dequantization_layer.run();
         _c_proj.run();
         _copy_f.run();
+    }
+
+    void BINEMLPLayer::prepare() {
+        if (!_is_prepared) {
+            _scope_mg = std::make_unique<BIMemoryGroupResourceScope>(_memory_group);
+            _sub_norm_output.allocator()->init(*_norm_output.allocator(), _sub_norm_output_info);
+            _sub_norm_q_output.allocator()->init(*_norm_q_output.allocator(), _sub_norm_q_output_info);
+            _sub_fc_s32_output.allocator()->init(*_fc_s32_output.allocator(), _sub_fc_s32_output_info);
+            _sub_fc_q_output.allocator()->init(*_fc_q_output.allocator(), _sub_fc_q_output_info);
+            _sub_act_output.allocator()->init(*_act_output.allocator(), _sub_act_output_info);
+            _sub_proj_input.allocator()->init(*_proj_input.allocator(), _sub_proj_input_info);
+            _sub_proj_output.allocator()->init(*_proj_output.allocator(), _sub_proj_output_info);
+            _is_prepared = true;
+        }
     }
 }

@@ -44,6 +44,8 @@ namespace BatmanInfer {
          * @param gamma
          * @param act_info
          * @param output
+         * @param max_batch_size
+         * @param max_seq_len
          */
         void configure(const BIITensor *input,
                        const float fc1_input_scale,
@@ -59,9 +61,13 @@ namespace BatmanInfer {
                        const BIITensor *proj_bias,
                        const BIITensor *gamma,
                        BIITensor *output,
-                       const size_t &batch_size,
-                       const size_t &seq_len
+                       const size_t &max_batch_size,
+                       const size_t &max_seq_len
         );
+
+        void dynamic_configure(const BIITensor *input,
+                               const size_t &seq_len,
+                               const size_t &batch_size);
 
         static BIStatus validate(const BIITensorInfo *input,
                                  const BIITensorInfo *fc_weights,
@@ -72,6 +78,8 @@ namespace BatmanInfer {
                                  const BIITensorInfo *output);
 
         void run() override;
+
+        void prepare() override;
 
     private:
         // 将量化信息取反
@@ -98,14 +106,29 @@ namespace BatmanInfer {
     private:
         // 张量信息
         BIMemoryGroup _memory_group; // 内存管理
+        std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;
 
         BITensor _norm_output, _norm_q_output;
         BITensor _fc_q_output, _fc_s32_output;
         BITensor _act_output;
         BITensor _proj_input, _proj_output;
 
+        BITensor _sub_norm_output, _sub_norm_q_output;
+        BITensor _sub_fc_q_output, _sub_fc_s32_output;
+        BITensor _sub_act_output;
+        BITensor _sub_proj_input, _sub_proj_output;
+
+        BITensorInfo _sub_norm_output_info, _sub_norm_q_output_info;
+        BITensorInfo _sub_fc_q_output_info, _sub_fc_s32_output_info;
+        BITensorInfo _sub_act_output_info;
+        BITensorInfo _sub_proj_input_info, _sub_proj_output_info;
+        bool _is_prepared{false};
+
         // 参数长度
         size_t _max_batch;
         size_t _max_seq;
+
+        size_t _batch_size = 1;
+        size_t _seq_len = 1;
     };
 } // namespace BatmanInfer

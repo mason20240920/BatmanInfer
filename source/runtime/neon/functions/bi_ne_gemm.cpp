@@ -89,7 +89,7 @@ namespace BatmanInfer {
         BIMemoryGroup memory_group{};
         BIIWeightsManager *weights_manager{nullptr};
 
-        std::unique_ptr<cpu::BIICpuOperator> op{nullptr};
+        std::unique_ptr<cpu::BICpuGemm> op{nullptr};
 
         const BIITensor *original_b{nullptr};
         bool is_prepared{false};
@@ -116,11 +116,7 @@ namespace BatmanInfer {
 
         _impl->is_dynamic = is_dynamic(a, b, c, d); // 确定是不是动态张量
 
-        if (_impl->is_dynamic)
-            BI_COMPUTE_ERROR_THROW_ON(cpu::BICpuDynamicGemm::validate(
-            a->info(), b->info(), (c != nullptr) ? c->info() : nullptr, d->info(), alpha, beta, gemm_info));
-        else
-            BI_COMPUTE_ERROR_THROW_ON(
+        BI_COMPUTE_ERROR_THROW_ON(
             cpu::BICpuGemm::validate(a->info(), b->info(), (c != nullptr) ? c->info() : nullptr,
                 d->info(), alpha, beta, gemm_info));
 
@@ -128,9 +124,18 @@ namespace BatmanInfer {
         _impl->is_prepared = false;
         // _impl->memory_group.mappings().clear();
         _impl->original_b = b;
+        // 让B矩阵拥有动态值
+        auto b_info_to_use = b->info()->clone();
+        if (!gemm_info.reshape_b_only_on_first_run())
+            b_info_to_use->set_are_values_constant(false);
 
-        _impl->op = make_and_config_op(a->info(), b->info(), (c != nullptr) ? c->info() : nullptr, d->info(), alpha,
-                                       beta, gemm_info);
+        auto op_typed = std::make_unique<cpu::BICpuGemm>();
+        op_typed->configure(a->info(), b_info_to_use.get(), c != nullptr ? c->info() : nullptr, d->info(), alpha, beta,
+                            gemm_info);
+        _impl->op = std::move(op_typed);
+
+        // _impl->op = make_and_config_op(a->info(), b->info(), (c != nullptr) ? c->info() : nullptr, d->info(), alpha,
+        //                                beta, gemm_info);
 
         _impl->run_pack = {
             {ACL_SRC_0, a},
@@ -166,7 +171,8 @@ namespace BatmanInfer {
     }
 
     BIStatus
-    BINEGEMM::has_opt_impl(BatmanInfer::BIWeightFormat &expected_weight_format, const BatmanInfer::BIITensorInfo *a,
+    BINEGEMM::has_opt_impl(BatmanInfer::BIWeightFormat &expected_weight_format,
+                           const BatmanInfer::BIITensorInfo *a,
                            const BatmanInfer::BIITensorInfo *b, const BatmanInfer::BIITensorInfo *c,
                            const BatmanInfer::BIITensorInfo *output, float alpha, float beta,
                            const BatmanInfer::GEMMInfo &gemm_info) {
@@ -175,6 +181,14 @@ namespace BatmanInfer {
 
         return cpu::BICpuGemm::has_opt_impl(expected_weight_format, a, b, c, output, gemm_info);
     }
+
+    void BINEGEMM::dynamic_configure() {
+        auto a = _impl->run_pack.get_const_tensor(ACL_SRC_0);
+        auto b = _impl->run_pack.get_const_tensor(ACL_SRC_1);
+        auto d = _impl->run_pack.get_tensor(ACL_DST);
+        _impl->op->dynamic_configure(a->info(), b->info(), d->info());
+    }
+
 
     void BINEGEMM::run() {
         prepare();

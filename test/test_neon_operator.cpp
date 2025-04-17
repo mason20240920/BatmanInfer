@@ -16,9 +16,9 @@
  * @param scale
  * @param bias
  */
-void layer_norm_optimized(float *output,     // 输出指针 [batch_size, seq_len, hidden_size]
-                          const float *input,// 输入指针 [batch_size, seq_len, hidden_size]
-                          const float *scale,// 可训练参数 [hidden_size]
+void layer_norm_optimized(float *output, // 输出指针 [batch_size, seq_len, hidden_size]
+                          const float *input, // 输入指针 [batch_size, seq_len, hidden_size]
+                          const float *scale, // 可训练参数 [hidden_size]
                           const float *bias, // 可训练参数 [hidden_size]
                           int batch_size,
                           int seq_len,
@@ -37,7 +37,7 @@ void layer_norm_optimized(float *output,     // 输出指针 [batch_size, seq_le
             float sum = 0.0f;
             for (int i = 0; i < num_blocks; ++i) {
                 float32x4_t vec = vld1q_f32(x + i * vec_size);
-                sum += vaddvq_f32(vec);  // 向量内4元素求和
+                sum += vaddvq_f32(vec); // 向量内4元素求和
             }
             float mu = sum / hidden_size;
 
@@ -81,7 +81,9 @@ float *aligned_alloc_float(size_t size) {
     // NEON要求的最小对齐
     const size_t alignment = 16;
 #ifdef BI_COMPUTE_LOGGING_ENABLED
-    void *ptr = aligned_alloc(alignment, size * sizeof(float));
+    // void *ptr = aligned_alloc(alignment, size * sizeof(float));
+    void *ptr = nullptr;
+
 #else
     void *ptr = nullptr;
 #endif
@@ -108,7 +110,7 @@ void free_aligned(float *ptr) {
 TEST(NEONOperator, LayerNormalizer) {
     const int batch_size = 32;
     const int seq_len = 128;
-    const int hidden_size = 768;  // 必须为4的倍数
+    const int hidden_size = 768; // 必须为4的倍数
 
     // 分配输入输出内存（自动对齐）
     float *input = aligned_alloc_float(batch_size * seq_len * hidden_size);
@@ -145,7 +147,7 @@ TEST(NEONOperator, NENormalizationLayer) {
 
     const int batch_size = 32;
     const int seq_len = 128;
-    const int hidden_size = 768;  // 必须满足ACL对齐要求
+    const int hidden_size = 768; // 必须满足ACL对齐要求
 
     // 1. 配置Tensor信息 (NHWC格式)
     BITensorShape input_shape(batch_size, hidden_size, seq_len);
@@ -163,12 +165,12 @@ TEST(NEONOperator, NENormalizationLayer) {
 
     // 4. 初始化参数 (使用ACL规范参数)
     const BINormalizationLayerInfo norm_info(
-            BINormType::CROSS_MAP, // 归一化类型
-            5,                                // 归一化窗口大小
-            0.0001f,                          // epsilon
-            0.75f,                            // beta
-            1.0f,                             // kappa
-            false                             // 是否跨通道
+        BINormType::CROSS_MAP, // 归一化类型
+        5, // 归一化窗口大小
+        0.0001f, // epsilon
+        0.75f, // beta
+        1.0f, // kappa
+        false // 是否跨通道
     );
 
     // 5. 创建并配置归一化层
@@ -222,9 +224,9 @@ TEST(NEONOperator, NEFeedForwardLayer) {
     std::cout << "GELU Output:\n";
 
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
 
     dst.print(std::cout, format);
 }
@@ -248,10 +250,10 @@ void run_dynamic_gemm(BatmanInfer::BINEGEMM &gemm,
     copy_data_to_tensor(src, (seq_len - 1), origin_vec);
     // 输入格式
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
-//    src.print(std::cout, format);
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
+    //    src.print(std::cout, format);
 
     // 开始时间节点
     auto start = std::chrono::high_resolution_clock::now();
@@ -266,7 +268,7 @@ void run_dynamic_gemm(BatmanInfer::BINEGEMM &gemm,
     std::cout << "Current Sequence Length: " << seq_len << std::endl;
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
-//    dst.print(std::cout, format);
+    //    dst.print(std::cout, format);
 }
 
 TEST(NEONOperator, NEGemmActLayer) {
@@ -274,7 +276,7 @@ TEST(NEONOperator, NEGemmActLayer) {
 
     // 张量定义
     BITensor src, weights, bias, dst;
-    const BITensorShape src_shape(2048, 4);  // W=3, H=2 （列优先）
+    const BITensorShape src_shape(2048, 4); // W=3, H=2 （列优先）
     const BITensorShape weight_shape(2048, 2048); // 3x2矩阵转置为2x3
     const BITensorShape bias_shape(2048);
 
@@ -294,8 +296,8 @@ TEST(NEONOperator, NEGemmActLayer) {
     GEMMInfo gemm_info;
     gemm_info.set_fast_math(true);
     gemm_info.set_activation_info(BIActivationLayerInfo(
-            BIActivationLayerInfo::ActivationFunction::GELU,
-            0.044715f, 0.79788458f
+        BIActivationLayerInfo::ActivationFunction::GELU,
+        0.044715f, 0.79788458f
     ));
 
     gemm.configure(&src, &weights, &bias, &dst, 1.0f, 1.0f, gemm_info);
@@ -306,13 +308,13 @@ TEST(NEONOperator, NEGemmActLayer) {
 
     // 填充测试数据（列优先）
     const std::vector<float16_t> src_data = {
-            1, 2, 3, 4,
+        1, 2, 3, 4,
     };
     const std::vector<float16_t> weights_data = {
-            0.5, 1.5, 1, 1,
-            1.0, 2.0, 1, 1,
-            1.5, 0.5, 1, 1,
-            0.5, 0.5, 1, 1
+        0.5, 1.5, 1, 1,
+        1.0, 2.0, 1, 1,
+        1.5, 0.5, 1, 1,
+        0.5, 0.5, 1, 1
     };
 
     const std::vector<float16_t> bias_data = {0.2, -0.1};
@@ -323,21 +325,21 @@ TEST(NEONOperator, NEGemmActLayer) {
 
     run_dynamic_gemm(gemm, 1, src, dst, src_data);
     const std::vector<float16_t> src_data2 = {
-            2, 4, 6, 8,
+        2, 4, 6, 8,
     };
     run_dynamic_gemm(gemm, 2, src, dst, src_data2);
     const std::vector<float16_t> src_data3 = {
-            3, 6, 9, 12,
+        3, 6, 9, 12,
     };
     run_dynamic_gemm(gemm, 3, src, dst, src_data3);
     run_dynamic_gemm(gemm, 4, src, dst, src_data3);
 
-//
-//    // 7. 释放内存（如果需要）
-//    src.allocator()->free();
-//    weights.allocator()->free();
-//    bias.allocator()->free();
-//    dst.allocator()->free();
+    //
+    //    // 7. 释放内存（如果需要）
+    //    src.allocator()->free();
+    //    weights.allocator()->free();
+    //    bias.allocator()->free();
+    //    dst.allocator()->free();
 }
 
 /**
@@ -405,7 +407,7 @@ void rms_norm_neon_fp16(float16_t *output,
     float sum_sq = vget_lane_f32(vpadd_f32(sum_half, sum_half), 0);
 
     // 阶段3: 计算缩放因子 ---------------------------------------------
-    const auto N = static_cast<float >(num_elements);
+    const auto N = static_cast<float>(num_elements);
     const auto eps_f32 = (float) epsilon; // 正确使用标量转换函数
     const float rms_inv = 1.0f / sqrtf(sum_sq / N + eps_f32);
     const float16_t rms_inv_f16 = vduph_lane_f16(vcvt_f16_f32(vdupq_n_f32(rms_inv)), 0);
@@ -449,8 +451,8 @@ inline float16_t manual_addv_f16(float16x8_t vec) {
     float16x4_t high = vget_high_f16(vec);
 
     // 横向归约：((a+b)+(c+d)) + ((e+f)+(g+h))
-    float16x4_t sum1 = vpadd_f16(low, high);      // [a+b, c+d, e+f, g+h]
-    float16x4_t sum2 = vpadd_f16(sum1, sum1);     // [(a+b)+(c+d), (e+f)+(g+h), ...]
+    float16x4_t sum1 = vpadd_f16(low, high); // [a+b, c+d, e+f, g+h]
+    float16x4_t sum2 = vpadd_f16(sum1, sum1); // [(a+b)+(c+d), (e+f)+(g+h), ...]
     return vget_lane_f16(sum2, 0) + vget_lane_f16(sum2, 1);
 }
 
@@ -517,8 +519,6 @@ void rms_norm_acl_tensor_fp16(BatmanInfer::BITensor &output,
             sum_sq_v0 = vfmaq_f16(sum_sq_v0, x6, x6);
             sum_sq_v1 = vfmaq_f16(sum_sq_v1, x7, x7);
         }
-
-
     }, input_it);
 
     // 合并累加器
@@ -617,7 +617,6 @@ void run_kernel(const BIITensor *input,
         const float16x8_t rms_inv_v = vdupq_n_f16(rms_inv_f16); // 向量化的rms_inv
 
 
-
         auto gamma_ptr = reinterpret_cast<const float16_t *>(gamma->buffer());
         i = 0;
         for (; i <= N - 32; i += 32) {
@@ -637,16 +636,15 @@ void run_kernel(const BIITensor *input,
             vst1q_f16(out_ptr + i + 16, vmulq_f16(vmulq_f16(x2, g2), rms_inv_v));
             vst1q_f16(out_ptr + i + 24, vmulq_f16(vmulq_f16(x3, g3), rms_inv_v));
         }
-
     }, input_it, output_it);
 }
 
 TEST(ARMWindow, WindowTest) {
     // 输入格式
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
     BITensor input, output, gamma;
 
     const int N = 768;
@@ -685,16 +683,16 @@ TEST(ARMWindow, WindowTest) {
 
     std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
-//    input.print(std::cout, format);
-//    output.print(std::cout, format);
+    //    input.print(std::cout, format);
+    //    output.print(std::cout, format);
 }
 
 TEST(NEONOperator, RMSNormLayerTest) {
     // 输入格式
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
     BITensor input, output, gamma;
     auto input_shape = BITensorShape(768, 1);
     auto gamma_shape = BITensorShape(768);
@@ -714,7 +712,7 @@ TEST(NEONOperator, RMSNormLayerTest) {
 
     // 初始化输入数据（模拟正态分布）
     for (int i = 0; i < N; ++i) {
-//        input_data[i] = static_cast<float16_t>(i);
+        //        input_data[i] = static_cast<float16_t>(i);
         input_data[i] = static_cast<float16_t>((i % 32 - 16.0f) / 8.0f);
     }
     for (int i = 0; i < H; ++i) {
@@ -791,18 +789,18 @@ TEST(NEONOperator, LayerNorm) {
 
     // 填充测试数据（列优先）
     const std::vector<float16_t> src_data = {
-            1, 2, 3, 4,
-            5, 6, 7, 8,
-            9, 10, 11, 12,
-            13, 14, 15, 16,
-            1, 2, 3, 4,
-            5, 6, 7, 8,
-            9, 10, 11, 12,
-            13, 14, 15, 16,
+        1, 2, 3, 4,
+        5, 6, 7, 8,
+        9, 10, 11, 12,
+        13, 14, 15, 16,
+        1, 2, 3, 4,
+        5, 6, 7, 8,
+        9, 10, 11, 12,
+        13, 14, 15, 16,
     };
 
     const std::vector<float16_t> gamma_data = {
-            1, 1, 1, 1, 1, 1, 1, 1
+        1, 1, 1, 1, 1, 1, 1, 1
     };
 
     copy_data_to_tensor(input, 0, src_data);
@@ -819,7 +817,7 @@ TEST(NEONOperator, LayerNorm) {
     window.set(1, BIWindow::BIDimension(0, seq_length));
 
     cpu::neon_layer_norm_float16_8_0_2D(window,
-                                        &input,    // ACL Tensor 会自动转换为 ITensor 接口
+                                        &input, // ACL Tensor 会自动转换为 ITensor 接口
                                         &gamma,
                                         &beta,
                                         &output);
@@ -827,9 +825,9 @@ TEST(NEONOperator, LayerNorm) {
 
     // 输入格式
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
 
     output.print(std::cout, format);
 }
@@ -857,9 +855,9 @@ BITensor create_normal_tensor(const BITensorShape &shape) {
 void print_npy_tensor(const BITensor &tensor) {
     // 输入格式
     BIIOFormatInfo format;
-    format.element_delim = ", ";  // 元素之间用逗号分隔
-    format.row_delim = "\n";      // 每行换行
-    format.align_columns = 1;     // 对齐列
+    format.element_delim = ", "; // 元素之间用逗号分隔
+    format.row_delim = "\n"; // 每行换行
+    format.align_columns = 1; // 对齐列
     tensor.print(std::cout, format);
 }
 
@@ -874,7 +872,7 @@ TEST(NEONOperator, TensorReader) {
         values[i] = static_cast<float16_t>(static_cast<float>(i) / 10000.0f);
     memcpy(input.buffer(), values.data(), 768 * 16 * sizeof(float16_t));
 
-//    print_npy_tensor(input);
+    //    print_npy_tensor(input);
 
     // RMS NORM参数
     BITensorShape rms_norm_shape(768);
