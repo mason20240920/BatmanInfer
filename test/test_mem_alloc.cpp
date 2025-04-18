@@ -21,7 +21,7 @@ namespace MemAllocTest {
         BatmanInfer::BIIOFormatInfo format;
         format.element_delim = ", "; // 元素之间用逗号分隔
         format.row_delim = "\n"; // 每行换行
-        format.align_columns = 1; // 对齐列
+        format.align_columns = true; // 对齐列
         format.print_region = region;
 
         tensor.print(std::cout, format);
@@ -295,6 +295,7 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
                               20,
                               &attn_output_tensor);
     attn_lowp_layer.run();
+    // MemAllocTest::print_tensor(attn_output_tensor, "attn_output_tensor");
     BITensor sub_mlp_input;
     sub_mlp_input.allocator()->init(*original_attn_rms_output_tensor.allocator(), gather_output_info);
     BINEArithmeticAddition attn_rms_add; // 注意力RMS相加
@@ -404,6 +405,7 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
     BINEGEMM lm_head_layer;
     lm_head_layer.configure(&sub_mlp_rms_output, &lm_head_weights, nullptr, &sub_lm_head_output, 1.0f, 1.0f, gemm_info);
     lm_head_layer.run();
+    MemAllocTest::print_tensor(sub_lm_head_output, "sub_lm_head_output");
     BITensor ids;
     ids.allocator()->init(BITensorInfo(BITensorShape(16, 20), 1, BIDataType::S32));
     ids.allocator()->allocate();
@@ -415,10 +417,9 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
     BINEArgMinMaxLayer arg_minmax_layer;
     arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
     arg_minmax_layer.run();
-    // MemAllocTest::print_tensor(sub_mlp_output, "ids");
     // 再次进行运行(动态)
-    batch_size = 20;
-    seq_len = 16;
+    batch_size = 3;
+    seq_len = 4;
     input_tensor_shape = BITensorShape(seq_len, batch_size);
     input_info.set_tensor_shape(input_tensor_shape);
     input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
@@ -461,97 +462,98 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
     rms_norm_layer.run();
     lm_head_layer.run();
     arg_minmax_layer.run();
-    MemAllocTest::print_tensor(sub_ids, "mlp_input");
-    const auto warmup = 10; // 预热次数
-    const auto iterations = 1000; // 运行次数
-    const double outlier_threshold = 3.0; // 异常值阈值(标准差倍数)
-    std::vector<double> timings;
-    timings.reserve(iterations);
-    // 预测阶段（不记录时间）
-    for (size_t i = 0; i < warmup; ++i) {
-        gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
-        add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-        attn_lowp_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size);
-        attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
-        _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
-        add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
-        rms_norm_layer.dynamic_configure(&sub_add_output);
-        lm_head_layer.dynamic_configure();
-        gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
-        add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-        attn_lowp_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size);
-        attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
-        _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
-        add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
-        rms_norm_layer.dynamic_configure(&sub_add_output);
-        gather_layer.run();
-        add_layer.run();
-        attn_lowp_layer.run();
-        attn_rms_add.run();
-        _mlp_layer.run();
-        add_f.run();
-        rms_norm_layer.run();
-        lm_head_layer.run();
-    } // 正式测量
-    for (size_t i = 0; i < iterations; ++i) {
-        auto start = std::chrono::high_resolution_clock::now();
-        gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
-        add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-        attn_lowp_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size);
-        attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
-        _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
-        add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
-        rms_norm_layer.dynamic_configure(&sub_add_output);
-        lm_head_layer.dynamic_configure();
-        gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
-        add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-        attn_lowp_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size);
-        attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
-        _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
-        add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
-        rms_norm_layer.dynamic_configure(&sub_add_output);
-        gather_layer.run();
-        add_layer.run();
-        attn_lowp_layer.run();
-        attn_rms_add.run();
-        _mlp_layer.run();
-        add_f.run();
-        rms_norm_layer.run();
-        lm_head_layer.run();
-        auto end = std::chrono::high_resolution_clock::now();
-        double duration = std::chrono::duration<double, std::milli>(end - start).count();
-        timings.push_back(duration);
-    }
-    // 异常值过滤
-    auto result = [&] {
-        double sum = std::accumulate(timings.begin(), timings.end(), 0.0);
-        double mean = sum / timings.size();
-        double sq_sum = std::inner_product(timings.begin(), timings.end(),
-                                           timings.begin(), 0.0);
-        double stdev = std::sqrt(sq_sum / timings.size() - mean * mean);
-        return std::make_pair(mean, stdev);
-    }();
-    double avg = result.first;
-    double std_dev = result.second;
-    // 应用3-sigma法则过滤异常值
-    std::vector<double> filtered;
-    std::copy_if(timings.begin(), timings.end(), std::back_inserter(filtered),
-                 [=](double x) { return std::abs(x - avg) < outlier_threshold * std_dev; });
-    // 重新计算统计量
-    double valid_avg = std::accumulate(filtered.begin(), filtered.end(), 0.0) / filtered.size();
-    auto [min_it, max_it] = std::minmax_element(filtered.begin(), filtered.end());
-    auto perf_status = MemAllocTest::PerfStats{
-        valid_avg,
-        std_dev,
-        *min_it,
-        *max_it,
-        filtered.size()
-    };
-
-    std::cout << "Performance Report:\n"
-            << "Iterations: " << perf_status.iterations << "\n"
-            << "Avg Time:   " << perf_status.avg_ms << " ms\n"
-            << "Std Dev:    " << perf_status.std_dev_ms << " ms\n"
-            << "Min Time:   " << perf_status.min_ms << " ms\n"
-            << "Max Time:   " << perf_status.max_ms << " ms\n";
+    MemAllocTest::print_tensor(sub_lm_head_output, "sub_lm_head_output");
+    // MemAllocTest::print_tensor(sub_ids, "mlp_input");
+    // const auto warmup = 10; // 预热次数
+    // const auto iterations = 1000; // 运行次数
+    // const double outlier_threshold = 3.0; // 异常值阈值(标准差倍数)
+    // std::vector<double> timings;
+    // timings.reserve(iterations);
+    // // 预测阶段（不记录时间）
+    // for (size_t i = 0; i < warmup; ++i) {
+    //     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
+    //     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
+    //     attn_lowp_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size);
+    //     attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
+    //     _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
+    //     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
+    //     rms_norm_layer.dynamic_configure(&sub_add_output);
+    //     lm_head_layer.dynamic_configure();
+    //     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
+    //     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
+    //     attn_lowp_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size);
+    //     attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
+    //     _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
+    //     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
+    //     rms_norm_layer.dynamic_configure(&sub_add_output);
+    //     gather_layer.run();
+    //     add_layer.run();
+    //     attn_lowp_layer.run();
+    //     attn_rms_add.run();
+    //     _mlp_layer.run();
+    //     add_f.run();
+    //     rms_norm_layer.run();
+    //     lm_head_layer.run();
+    // } // 正式测量
+    // for (size_t i = 0; i < iterations; ++i) {
+    //     auto start = std::chrono::high_resolution_clock::now();
+    //     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
+    //     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
+    //     attn_lowp_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size);
+    //     attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
+    //     _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
+    //     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
+    //     rms_norm_layer.dynamic_configure(&sub_add_output);
+    //     lm_head_layer.dynamic_configure();
+    //     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
+    //     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
+    //     attn_lowp_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size);
+    //     attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
+    //     _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
+    //     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
+    //     rms_norm_layer.dynamic_configure(&sub_add_output);
+    //     gather_layer.run();
+    //     add_layer.run();
+    //     attn_lowp_layer.run();
+    //     attn_rms_add.run();
+    //     _mlp_layer.run();
+    //     add_f.run();
+    //     rms_norm_layer.run();
+    //     lm_head_layer.run();
+    //     auto end = std::chrono::high_resolution_clock::now();
+    //     double duration = std::chrono::duration<double, std::milli>(end - start).count();
+    //     timings.push_back(duration);
+    // }
+    // // 异常值过滤
+    // auto result = [&] {
+    //     double sum = std::accumulate(timings.begin(), timings.end(), 0.0);
+    //     double mean = sum / timings.size();
+    //     double sq_sum = std::inner_product(timings.begin(), timings.end(),
+    //                                        timings.begin(), 0.0);
+    //     double stdev = std::sqrt(sq_sum / timings.size() - mean * mean);
+    //     return std::make_pair(mean, stdev);
+    // }();
+    // double avg = result.first;
+    // double std_dev = result.second;
+    // // 应用3-sigma法则过滤异常值
+    // std::vector<double> filtered;
+    // std::copy_if(timings.begin(), timings.end(), std::back_inserter(filtered),
+    //              [=](double x) { return std::abs(x - avg) < outlier_threshold * std_dev; });
+    // // 重新计算统计量
+    // double valid_avg = std::accumulate(filtered.begin(), filtered.end(), 0.0) / filtered.size();
+    // auto [min_it, max_it] = std::minmax_element(filtered.begin(), filtered.end());
+    // auto perf_status = MemAllocTest::PerfStats{
+    //     valid_avg,
+    //     std_dev,
+    //     *min_it,
+    //     *max_it,
+    //     filtered.size()
+    // };
+    //
+    // std::cout << "Performance Report:\n"
+    //         << "Iterations: " << perf_status.iterations << "\n"
+    //         << "Avg Time:   " << perf_status.avg_ms << " ms\n"
+    //         << "Std Dev:    " << perf_status.std_dev_ms << " ms\n"
+    //         << "Min Time:   " << perf_status.min_ms << " ms\n"
+    //         << "Max Time:   " << perf_status.max_ms << " ms\n";
 }

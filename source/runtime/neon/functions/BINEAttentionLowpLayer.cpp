@@ -165,8 +165,8 @@ namespace BatmanInfer {
         BICpuMatMulSettings settings;
         // Enable fast math for optimization
         settings = settings.fast_math(true);
-        // _sub_transpose_q_result.info()->set_are_values_constant(false);
-        // _sub_transpose_k_result.info()->set_are_values_constant(false);
+        _sub_transpose_q_result.info()->set_are_values_constant(false);
+        _sub_transpose_k_result.info()->set_are_values_constant(false);
         _qk_bmm_layer.dynamic_configure(&_sub_transpose_q_result, &_sub_transpose_k_result, &_sub_qk_bmm_output);
         _qk_add_layer.dynamic_configure(&_sub_qk_bmm_output, &_add_weights, true);
         _softmax_layer.dynamic_configure();
@@ -607,8 +607,8 @@ namespace BatmanInfer {
         // format.align_columns = true; // 对齐列
         // // _sub_softmax_q_result.print(std::cout, format);
         // // _sub_transpose_v_result.print(std::cout, format);
-        // std::cout << "====================" << std::endl;
-        // _sub_split_q_result_2.print(std::cout, format);
+        // std::cout << "==================== sub_values" << std::endl;
+        // _sub_qk_bmm_output.print(std::cout, format);
     }
 
     void BINEAttentionLowpLayer::prepare() {

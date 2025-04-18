@@ -75,7 +75,8 @@ namespace BatmanInfer {
 
                 virtual void update_configure_parameters(const BIITensorInfo *a,
                                                          const BIITensorInfo *b,
-                                                         const BIITensorInfo *d) = 0;
+                                                         const BIITensorInfo *d,
+                                                         bool is_gemm = true) = 0;
 
                 virtual void update_quantization_parameters(const BIGEMMLowpOutputStageInfo &,
                                                             const BIQuantizationInfo &,
@@ -172,7 +173,8 @@ namespace BatmanInfer {
 
             void dynamic_tensor_b_size(const BIITensorInfo *a,
                                        const BIITensorInfo *b,
-                                       const BIITensorInfo *c);
+                                       const BIITensorInfo *c,
+                                       bool is_gemm);
 
 
             /** 检查是否支持无状态实现

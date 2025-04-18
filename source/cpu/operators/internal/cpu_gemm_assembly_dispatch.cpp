@@ -245,7 +245,8 @@ namespace BatmanInfer {
 
                 void update_configure_parameters(const BatmanInfer::BIITensorInfo *a,
                                                  const BatmanInfer::BIITensorInfo *b,
-                                                 const BatmanInfer::BIITensorInfo *d) override;
+                                                 const BatmanInfer::BIITensorInfo *d,
+                                                 bool is_gemm) override;
 
                 // size_t dynamic_tensor_b(size_t &align) const override;
                 //
@@ -392,7 +393,7 @@ namespace BatmanInfer {
             void
             BatmanInfer::cpu::Fallback<TypeInput, TypeWeight, TypeOutput, OutputStage>::update_configure_parameters(
                 const BatmanInfer::BIITensorInfo *a, const BatmanInfer::BIITensorInfo *b,
-                const BatmanInfer::BIITensorInfo *d) {
+                const BatmanInfer::BIITensorInfo *d, bool is_gemm) {
                 Params p = extract_simplify_parameters(a, b, d);
                 _gemm_kernel_asm->set_dynamic_M_size(p.M);
                 _gemm_kernel_asm->set_dynamic_batch_size(p.batches);
@@ -405,7 +406,8 @@ namespace BatmanInfer {
                 const size_t B_pretranspose_size = _gemm_kernel_asm->get_B_pretransposed_array_size();
                 _pretranspose_info = BITensorInfo(BITensorShape(B_pretranspose_size), 1, BIDataType::U8);
                 _aux_mem[Pretranspose].size = B_pretranspose_size;
-                // _is_prepared = false;
+                if (!is_gemm) // 不是GEMM需要更新MatMul的B矩阵
+                    _is_prepared = false;
             }
 
             template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage>
@@ -1343,8 +1345,8 @@ namespace BatmanInfer {
         }
 
         void BICpuGemmAssemblyDispatch::dynamic_tensor_b_size(const BIITensorInfo *a, const BIITensorInfo *b,
-                                                              const BIITensorInfo *d) {
-            _batman_gemm->update_configure_parameters(a, b, d);
+                                                              const BIITensorInfo *d, bool is_gemm) {
+            _batman_gemm->update_configure_parameters(a, b, d, is_gemm);
         }
     } // namespace cpu
 }

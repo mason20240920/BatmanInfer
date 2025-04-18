@@ -783,10 +783,10 @@ TEST(QUANTIZE_MATMUL2, MATMULQ2) {
         127,
     };
     BITensor a_tensor, b_tensor;
-    a_tensor.allocator()->init(BITensorInfo(BITensorShape(1, 1, 12, 1), 1, BIDataType::QASYMM8_SIGNED,
+    a_tensor.allocator()->init(BITensorInfo(BITensorShape(1, 1, 1, 1), 1, BIDataType::QASYMM8_SIGNED,
                                             BIQuantizationInfo(0.003922f, -128)));
     a_tensor.allocator()->allocate();
-    b_tensor.allocator()->init(BITensorInfo(BITensorShape(64, 1, 12, 1), 1, BIDataType::QASYMM8_SIGNED,
+    b_tensor.allocator()->init(BITensorInfo(BITensorShape(64, 1, 1, 1), 1, BIDataType::QASYMM8_SIGNED,
                                             BIQuantizationInfo(0.086481f, -9)));
     b_tensor.allocator()->allocate();
     QATTest::fill_tensor_val_with_arr(a_tensor, input_data);
@@ -797,7 +797,7 @@ TEST(QUANTIZE_MATMUL2, MATMULQ2) {
 
 
     // 3. 创建中间输出tensor (S32)
-    BITensorShape output_shape(64, 1, 12, 1); // [M, N]
+    BITensorShape output_shape(1, 1, 1, 1); // [M, N]
     BITensor output_s32;
     BIQuantizationInfo output_qinfo = BIQuantizationInfo(0.086500f, -9);
     auto output_info = BITensorInfo(output_shape, 1, BIDataType::QASYMM8_SIGNED, output_qinfo);
@@ -814,6 +814,21 @@ TEST(QUANTIZE_MATMUL2, MATMULQ2) {
     BINEMatMul matmul;
     matmul.configure(&a_tensor, &b_tensor, &output_s32, matmul_info, settings);
     matmul.run();
+    QATTest::print_tensor(output_s32, "output_s32");
+
+    std::cout << "=====================" << std::endl;
+
+    a_tensor.info()->set_tensor_shape(BITensorShape(1, 1, 12, 1));
+    b_tensor.info()->set_tensor_shape(BITensorShape(64, 1, 12, 1));
+    output_s32.info()->set_tensor_shape(BITensorShape(64, 1, 12, 1));
+    a_tensor.allocator()->allocate();
+    b_tensor.allocator()->allocate();
+    output_s32.allocator()->allocate();
+    QATTest::fill_tensor_val_with_arr(a_tensor, input_data);
+    QATTest::fill_tensor_val_with_arr(b_tensor, weights_data);
+    matmul.dynamic_configure(&a_tensor, &b_tensor, &output_s32);
+    matmul.run();
+
 
     // BIGEMMLowpOutputStageInfo attn_qkv_o_stage;
     // attn_qkv_o_stage.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;

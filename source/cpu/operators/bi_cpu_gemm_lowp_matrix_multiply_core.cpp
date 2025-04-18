@@ -342,7 +342,7 @@ namespace BatmanInfer {
         void BICpuGemmLowpMatrixMultiplyCore::dynamic_configure(const BIITensorInfo *a,
                                                                 const BIITensorInfo *b,
                                                                 BIITensorInfo *dst) const {
-            _asm_glue->dynamic_tensor_b_size(a, b, dst);
+            _asm_glue->dynamic_tensor_b_size(a, b, dst, true);
             if (_offset_contribution_kernel)
                 _offset_contribution_kernel->dynamic_configure(dst);
         }

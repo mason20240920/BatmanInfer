@@ -305,7 +305,7 @@ namespace BatmanInfer {
             //                                    _gemm_info.output_stage);
             // }
 
-            _asm_glue->dynamic_tensor_b_size(&lhs_to_use, &rhs_to_use, &dst_to_use);
+            _asm_glue->dynamic_tensor_b_size(&lhs_to_use, &rhs_to_use, &dst_to_use, false);
             auto asm_mem_req = _asm_glue->workspace();
             int idx = 0;
             for (const auto &aux: asm_mem_req) {
