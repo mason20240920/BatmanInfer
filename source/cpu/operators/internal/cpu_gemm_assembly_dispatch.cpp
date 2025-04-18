@@ -47,7 +47,7 @@ namespace BatmanInfer {
                 BI_COMPUTE_ERROR_ON(gemm_asm == nullptr);
                 BI_COMPUTE_ERROR_ON(num_threads == 0);
                 // 获取预转置矩阵 B 所需的总工作量（即矩阵 B 的大小或列数）
-                const unsigned int w_size = gemm_asm->get_B_pretransposed_array_size();
+                const unsigned int w_size = gemm_asm->get_B_pretranspose_window_size();
 
                 // 创建一个大小为 num_threads 的工作负载数组，每个线程将处理一部分工作
                 std::vector<BIIScheduler::BIWorkload> workloads(num_threads);
@@ -405,6 +405,7 @@ namespace BatmanInfer {
                 const size_t B_pretranspose_size = _gemm_kernel_asm->get_B_pretransposed_array_size();
                 _pretranspose_info = BITensorInfo(BITensorShape(B_pretranspose_size), 1, BIDataType::U8);
                 _aux_mem[Pretranspose].size = B_pretranspose_size;
+                // _is_prepared = false;
             }
 
             template<typename TypeInput, typename TypeWeight, typename TypeOutput, class OutputStage>

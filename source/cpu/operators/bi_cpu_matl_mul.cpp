@@ -91,8 +91,8 @@ namespace BatmanInfer {
                                        const BatmanInfer::BIITensorInfo *dst, const BatmanInfer::BIMatMulInfo &info,
                                        const BatmanInfer::BICpuMatMulSettings &settings,
                                        const BatmanInfer::BIActivationLayerInfo &act_info) {
-            BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(lhs, rhs, dst);
-            // BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(lhs, rhs);
+            // BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(lhs, rhs, dst);
+            BI_COMPUTE_RETURN_ERROR_ON_MISMATCHING_DATA_TYPES(lhs, rhs);
             BI_COMPUTE_RETURN_ERROR_ON_DATA_TYPE_CHANNEL_NOT_IN(lhs, 1, BIDataType::F32, BIDataType::F16,
                                                                 BIDataType::BFLOAT16,
                                                                 BIDataType::QASYMM8, BIDataType::QASYMM8_SIGNED);
@@ -148,7 +148,7 @@ namespace BatmanInfer {
             }
 
             // Quantized-specific configuration
-            if (is_data_type_quantized(lhs->data_type())) {
+            if (is_data_type_quantized(lhs->data_type()) && is_data_type_quantized(dst->data_type())) {
                 BI_COMPUTE_RETURN_ON_ERROR(get_gemmlowp_output_stage_info(lhs_to_use, rhs_to_use, dst,
                     gemm_info.activation_info,
                     gemm_info.output_stage));
@@ -299,6 +299,11 @@ namespace BatmanInfer {
                 BITensorShape(_original_dst_shape.x(), _original_dst_shape.y(), 1,
                               _original_dst_shape.collapsed_from(2).z()));
             rhs_to_use.set_tensor_shape(_original_rhs_shape.collapsed_from(2));
+            //
+            // if (is_data_type_quantized(lhs->data_type())) {
+            //     get_gemmlowp_output_stage_info(&lhs_to_use, &rhs_to_use, &dst_to_use, _gemm_info.activation_info,
+            //                                    _gemm_info.output_stage);
+            // }
 
             _asm_glue->dynamic_tensor_b_size(&lhs_to_use, &rhs_to_use, &dst_to_use);
             auto asm_mem_req = _asm_glue->workspace();

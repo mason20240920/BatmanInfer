@@ -801,6 +801,7 @@ TEST(QUANTIZE_MATMUL2, MATMULQ2) {
     BITensor output_s32;
     BIQuantizationInfo output_qinfo = BIQuantizationInfo(0.086500f, -9);
     auto output_info = BITensorInfo(output_shape, 1, BIDataType::QASYMM8_SIGNED, output_qinfo);
+    // auto output_info = BITensorInfo(output_shape, 1, BIDataType::S32);
     output_s32.allocator()->init(output_info);
     output_s32.allocator()->allocate();
 
@@ -814,9 +815,30 @@ TEST(QUANTIZE_MATMUL2, MATMULQ2) {
     matmul.configure(&a_tensor, &b_tensor, &output_s32, matmul_info, settings);
     matmul.run();
 
+    // BIGEMMLowpOutputStageInfo attn_qkv_o_stage;
+    // attn_qkv_o_stage.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
+    // attn_qkv_o_stage.output_data_type = BIDataType::QASYMM8_SIGNED; // 设置输c出数据类型
+    // attn_qkv_o_stage.is_quantized_per_channel = true; // 因为权重是per-channel量化// 设置输出范围
+    // attn_qkv_o_stage.gemmlowp_offset = -9;
+    // attn_qkv_o_stage.gemmlowp_min_bound = -128; // 通常是-128
+    // attn_qkv_o_stage.gemmlowp_max_bound = 127; // 通常是127// 假设已有输入tensor的量化参数
+    // quantization::calculate_quantized_multipliers(BIQuantizationInfo(0.003922f, 128),
+    //                                               BIQuantizationInfo(0.086481f, 9),
+    //                                               output_qinfo,
+    //                                               attn_qkv_o_stage);
+    //
+    // BITensor output_q8;
+    // output_q8.allocator()->init(BITensorInfo(output_shape, 1, BIDataType::QASYMM8_SIGNED, output_qinfo));
+    // output_q8.allocator()->allocate();
     QATTest::print_tensor(output_s32, "output_s32");
+    //
+    // BINEGEMMLowpOutputStage output_stage;
+    // output_stage.configure(&output_s32, nullptr, &output_q8, attn_qkv_o_stage);
+    // output_stage.run();
 
-    a_tensor.allocator()->free();
+    // QATTest::print_tensor(output_q8, "output_s32");
+
+    // a_tensor.allocator()->free();
     // b_tensor.allocator()->free();
     // output_s32.allocator()->free();
     //
