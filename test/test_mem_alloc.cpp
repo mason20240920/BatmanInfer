@@ -462,8 +462,8 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
     rms_norm_layer.run();
     lm_head_layer.run();
     arg_minmax_layer.run();
-    MemAllocTest::print_tensor(sub_lm_head_output, "sub_lm_head_output");
-    // MemAllocTest::print_tensor(sub_ids, "mlp_input");
+    // MemAllocTest::print_tensor(sub_lm_head_output, "sub_lm_head_output");
+    MemAllocTest::print_tensor(sub_ids, "ids");
     // const auto warmup = 10; // 预热次数
     // const auto iterations = 1000; // 运行次数
     // const double outlier_threshold = 3.0; // 异常值阈值(标准差倍数)

@@ -49,7 +49,7 @@ namespace BatmanInfer {
                 // 获取预转置矩阵 B 所需的总工作量（即矩阵 B 的大小或列数）
                 const unsigned int w_size = gemm_asm->get_B_pretranspose_window_size();
 
-                // 创建一个大小为 num_threads 的工作负载数组，每个线程将处理一部分工作
+                // 创建一个大小为 num_threads 的工作负载数组，每个线程将处理一部分工作(没想到吧，操作很多，但是是单线程)
                 std::vector<BIIScheduler::BIWorkload> workloads(num_threads);
                 for (unsigned int t = 0; t < num_threads; ++t) {
                     workloads[t] = [=](const ThreadInfo &info) {

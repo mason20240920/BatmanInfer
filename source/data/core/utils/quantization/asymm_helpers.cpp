@@ -20,6 +20,7 @@ namespace BatmanInfer {
         BIStatus calculate_quantized_multiplier(float multiplier, int32_t *quant_multiplier, int32_t *shift,
                                                 bool ignore_epsilon) {
             if (multiplier >= 1.f) {
+                // 大于1的情况，要防止int32溢出
                 BIStatus status = calculate_quantized_multiplier_greater_than_one(multiplier, quant_multiplier, shift);
                 *shift *= -1;
                 return status;
@@ -90,17 +91,23 @@ namespace BatmanInfer {
             BI_COMPUTE_RETURN_ERROR_ON(left_shift == nullptr);
             BI_COMPUTE_RETURN_ERROR_ON(multiplier < 1.f);
 
-            int shift_exp = 0;
-            const double q = std::frexp(multiplier, &shift_exp);
+            int shift_exp = 0; // 位移的位数
+            const double q = std::frexp(multiplier, &shift_exp); // x = q * 2^(shift_exp)
             *left_shift = shift_exp;
+            // M_initial = round(q * 2 ^31)
+            // fixed_point_one_Q0 = 2^31
             auto q_fixed = static_cast<int64_t>(support::cpp11::round(q * fixed_point_one_Q0));
             BI_COMPUTE_RETURN_ERROR_ON(q_fixed > fixed_point_one_Q0);
+            // 如果M_initial = 2^31
             if (q_fixed == fixed_point_one_Q0) {
-                q_fixed /= 2;
-                ++*left_shift;
+                q_fixed /= 2; // M = M_initial / 2
+                ++*left_shift; // e = e + 1
             }
             BI_COMPUTE_RETURN_ERROR_ON(*left_shift < 0);
             BI_COMPUTE_RETURN_ERROR_ON(q_fixed > std::numeric_limits<int32_t>::max());
+            // M最终: [-2^31, 2^31 - 1], int32范围内
+            // M: quantized_multiplier
+            // e: 最终的left_shift
             *quantized_multiplier = static_cast<int32_t>(q_fixed);
 
             return BIStatus{};
@@ -122,13 +129,13 @@ namespace BatmanInfer {
             quant_multipliers.resize(padded_size);
             quant_shifts.resize(padded_size);
 
-            const auto &w_scales = wq_info.scale();
-            const float i_scale = iq_info.scale().at(0);
-            const float o_scale = oq_info.scale().at(0);
+            const auto &w_scales = wq_info.scale(); // 权重scale 【判断是per channel量化还是per token】
+            const float i_scale = iq_info.scale().at(0); // 输入矩阵的scale
+            const float o_scale = oq_info.scale().at(0); // 输出矩阵的scale
 
             for (unsigned int i = 0; i < size; ++i) {
-                const float multiplier = i_scale * w_scales[i] / o_scale;
-                int32_t quant_multiplier = 0;
+                const float multiplier = i_scale * w_scales[i] / o_scale; // 计算总体scale的大小
+                int32_t quant_multiplier = 0; //
                 int32_t quant_shift = 0;
                 BI_COMPUTE_RETURN_ON_ERROR(
                     calculate_quantized_multiplier(multiplier, &quant_multiplier, &quant_shift));
