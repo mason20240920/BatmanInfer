@@ -12,7 +12,6 @@
 #include <omp.h>
 
 namespace BatmanInfer {
-
 #if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
     (defined(__arm__) || defined(__aarch64__)) && defined(__ANDROID__)
     BIOMPScheduler::BIOMPScheduler() :  _num_threads(cpu_info().get_cpu_num_excluding_little()),
@@ -20,7 +19,8 @@ namespace BatmanInfer {
 #else
 
     BIOMPScheduler::BIOMPScheduler() : _num_threads(omp_get_max_threads()),
-                                       _nonlittle_num_cpus(cpu_info().get_cpu_num_excluding_little()) {}
+                                       _nonlittle_num_cpus(cpu_info().get_cpu_num_excluding_little()) {
+    }
 
 #endif
 

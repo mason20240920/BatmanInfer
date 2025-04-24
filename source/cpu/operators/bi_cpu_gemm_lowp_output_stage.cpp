@@ -39,9 +39,13 @@ namespace BatmanInfer {
                         case BIDataType::QASYMM8_SIGNED: {
                             auto k = std::make_unique<
                                 kernels::BICpuGemmLowpQuantizeDownInt32ToInt8ScaleByFixedPointKernel>();
-                            k->configure(src, bias, dst, info.gemmlowp_multiplier, info.gemmlowp_shift,
+                            k->configure(src, bias, dst, info.gemmlowp_multipliers, info.gemmlowp_shifts,
+                                         info.gemmlowp_multiplier,
+                                         info.gemmlowp_shift,
                                          info.gemmlowp_offset,
-                                         info.gemmlowp_min_bound, info.gemmlowp_max_bound);
+                                         info.is_quantized_per_channel,
+                                         info.gemmlowp_min_bound,
+                                         info.gemmlowp_max_bound);
                             _kernel = std::move(k);
                             break;
                         }

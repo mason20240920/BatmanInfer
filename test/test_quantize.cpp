@@ -729,10 +729,10 @@ TEST(QUANTIZE_MATMUL2, MATMULQ2) {
         48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64
     };
     BITensor a_tensor, b_tensor;
-    a_tensor.allocator()->init(BITensorInfo(BITensorShape(32, 4, 1, 1), 1, BIDataType::QASYMM8_SIGNED,
+    a_tensor.allocator()->init(BITensorInfo(BITensorShape(16, 4, 1, 1), 1, BIDataType::QASYMM8_SIGNED,
                                             BIQuantizationInfo(0.003922f, 0)));
     a_tensor.allocator()->allocate();
-    b_tensor.allocator()->init(BITensorInfo(BITensorShape(4, 32, 1, 1), 1, BIDataType::QASYMM8_SIGNED,
+    b_tensor.allocator()->init(BITensorInfo(BITensorShape(5, 16, 1, 1), 1, BIDataType::QASYMM8_SIGNED,
                                             BIQuantizationInfo(0.086481f, 0)));
     b_tensor.allocator()->allocate();
     QATTest::fill_tensor_val_with_arr(a_tensor, input_data);
@@ -744,11 +744,11 @@ TEST(QUANTIZE_MATMUL2, MATMULQ2) {
 
 
     // 3. 创建中间输出tensor (S32)
-    BITensorShape output_shape(4, 4, 1, 1); // [M, N]
+    BITensorShape output_shape(5, 4, 1, 1); // [M, N]
     BITensor output_s32;
     BIQuantizationInfo output_qinfo = BIQuantizationInfo(0.086500f, -9);
-    // auto output_info = BITensorInfo(output_shape, 1, BIDataType::QASYMM8_SIGNED, output_qinfo);
-    auto output_info = BITensorInfo(output_shape, 1, BIDataType::S32);
+    auto output_info = BITensorInfo(output_shape, 1, BIDataType::QASYMM8_SIGNED, output_qinfo);
+    // auto output_info = BITensorInfo(output_shape, 1, BIDataType::S32);
     output_s32.allocator()->init(output_info);
     output_s32.allocator()->allocate();
 
@@ -1520,16 +1520,74 @@ TEST(INT8GPT_2, INT8GPT2Dynamic) {
 TEST(CalGemmOutputStage, OutStageEAndM) {
     using namespace BatmanInfer;
 
-    // 1. 验证矩阵的M和位移的操作
-    float multiplier = 0.003922f * 0.086481f / 0.086500f;
-    int32_t quant_multiplier = 0; //
-    int32_t quant_shift = 0;
-    if (multiplier > 1.0f)
-        quantization::calculate_quantized_multiplier_greater_than_one(multiplier, &quant_multiplier, &quant_shift);
-    else
-        quantization::calculate_quantized_multiplier_less_than_one(multiplier, &quant_multiplier, &quant_shift,
-                                                                   0.0000002);
-    std::cout << "Hello World" << std::endl;
+    BITensor q_input, q_weight, q_output;
+    std::vector<float> weights_scale{
+        0.0025196850765496492, 0.0024409450124949217, 0.002362204482778907, 0.0022834644187241793,
+        0.0022047243546694517, 0.002125984290614724, 0.002047243993729353, 0.002047243993729353, 0.0021259840577840805,
+        0.0022047243546694517, 0.0022834644187241793, 0.0023622047156095505, 0.0024409450124949217,
+        0.0025196850765496492, 0.0025984253734350204, 0.002677165437489748, 0.0027559055015444756
+    };
+    BIQuantizationInfo q_input_info{0.0002745098026935011f, 92}, q_weight_info{
+        weights_scale,
+    }, q_output_info{0.00011294115392956883f, -100};
+    q_input.allocator()->init(BITensorInfo(BITensorShape(4, 2), 1, BIDataType::QASYMM8_SIGNED, q_input_info));
+    q_input.allocator()->allocate();
+    std::vector<int8_t> input_data{
+        -128, -92, -56, -19,
+        17, 54, 90, 127
+    };
+    QATTest::fill_tensor_val_with_arr(q_input, input_data);
+    // QATTest::print_tensor(q_input, "q_input");
+
+    q_weight.allocator()->init(BITensorInfo(BITensorShape(17, 4), 1, BIDataType::QSYMM8_PER_CHANNEL,
+                                            q_weight_info));
+    q_weight.allocator()->allocate();
+    std::vector<int8_t> weight_data{
+        -127, -127, -127, -127, -127, -127, -127, -122, -113, -104, -96, -89,
+        -82, -75, -69, -64, -58,
+        -60, -57, -55, -53, -50, -47, -44, -39, -33, -27, -22, -17,
+        -12, -8, -4, 0, 4,
+        8, 12, 17, 22, 27, 33, 39, 44, 47, 50, 53, 55,
+        57, 60, 62, 64, 65,
+        75, 82, 89, 96, 104, 113, 122, 127, 127, 127, 127, 127,
+        127, 127, 127, 127, 127
+    };
+    QATTest::fill_tensor_val_with_arr(q_weight, weight_data);
+    // QATTest::print_tensor(q_weight, "q_weight");
+
+    BITensor output_s32;
+    output_s32.allocator()->init(BITensorInfo(BITensorShape(17, 2), 1, BIDataType::S32));
+    output_s32.allocator()->allocate();
+
+    q_output.allocator()->init(BITensorInfo(BITensorShape(17, 2), 1, BIDataType::QASYMM8_SIGNED, q_output_info));
+    q_output.allocator()->allocate();
+
+    BIGEMMLowpOutputStageInfo output_stage_info;
+    output_stage_info.type = BIGEMMLowpOutputStageType::QUANTIZE_DOWN_FIXEDPOINT;
+    output_stage_info.output_data_type = BIDataType::QASYMM8_SIGNED; // 设置输c出数据类型
+    output_stage_info.is_quantized_per_channel = true; // 因为权重是per-channel量化// 设置输出范围
+    output_stage_info.gemmlowp_offset = -100;
+    output_stage_info.gemmlowp_min_bound = -128; // 通常是-128
+    output_stage_info.gemmlowp_max_bound = 127; // 通常是127// 假设已有输入tensor的量化参数
+    // 使用calculate_quantized_multipliers计算每个通道的multiplier和shift
+    // 这个函数会自动填充gemmlowp_multipliers和gemmlowp_shifts
+    // output_stage_info = configure_gemm_output_stage(input_scale, weight_scales, output_scale, output_offset);
+    quantization::calculate_quantized_multipliers(q_input_info,
+                                                  q_weight_info,
+                                                  q_output_info,
+                                                  output_stage_info);
+
+    BINEGEMMLowpMatrixMultipleCore gemm_core;
+    gemm_core.configure(&q_input, &q_weight, nullptr, &output_s32);
+    gemm_core.run();
+
+    QATTest::print_tensor(output_s32, "output_s32");
+
+    BINEGEMMLowpOutputStage gemm_stage;
+    gemm_stage.configure(&output_s32, nullptr, &q_output, output_stage_info);
+    gemm_stage.run();
+
+    QATTest::print_tensor(q_output, "q_output");
 }
 
 

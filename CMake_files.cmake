@@ -27,6 +27,7 @@ add_executable(BatmanInfer main.cpp
         test/test_perf_model.cpp
         ${BENCHMARK_SOURCES}
         test/test_kvcaches.cpp
+        test/gemm_lowp_outputstage_test.cpp
 )
 
 if (ENABLE_BENCHMARK)
