@@ -203,6 +203,8 @@ target_link_libraries(BatmanInfer
         #        ${KAI_LIBS}
 )
 
+target_link_libraries(bat_infer_static PUBLIC OpenMP::OpenMP_CXX)
+
 if (ANDROID)
     target_link_libraries(BatmanInfer OpenMP::OpenMP_CXX)
 endif ()

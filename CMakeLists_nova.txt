@@ -103,14 +103,16 @@ else ()
         set(OpenMP_C_LIB_NAMES "omp")
         set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/Cellar/libomp/19.1.7/include")
         set(OpenMP_CXX_LIB_NAMES "omp")
-        set(OpenMP_omp_LIBRARY "/opt/homebrew/Cellar/libomp/19.1.7/lib/libomp.dylib")
+        set(OpenMP_omp_LIBRARY "/opt/homebrew/Cellar/libomp/19.1.7/lib/libomp.a")
         set(OpenMP_INCLUDE "/opt/homebrew/Cellar/libomp/19.1.7/include")
         find_package(OpenMP REQUIRED)
         message("OpenMP(second find): " "${OpenMP_CXX_LIB_NAMES}")
+        message("OpenMP(second find): " "${OpenMP_CXX_LIBRARIES}")
+        set(CMAKE_CXX_FLAGES "${CMAKE_CXX_FLAGES} ${OpenMP_CXX_FLAGES}")
     endif ()
 
     message(STATUS "Configuring for non-Android platform")
-    # 查找Armadillo库
+    # 查找Armadillo库›
     find_package(Armadillo REQUIRED)
     # 查找 protobuf 包
     find_package(Protobuf REQUIRED)
@@ -141,7 +143,7 @@ endif ()
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -gdwarf-2 -DENABLE_INTEGER_KERNELS -DBI_COMPUTE_DISABLE_THREADS_HINT -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DBI_COMPUTE_ENABLE_FP16  -DBI_COMPUTE_ENABLE_BF16 -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DENABLE_FP16_KERNELS -DENABLE_QASYMM8_KERNELS")
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g -gdwarf-2 -DENABLE_INTEGER_KERNELS -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DBI_COMPUTE_ENABLE_FP16  -DBI_COMPUTE_ENABLE_BF16 -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DENABLE_FP16_KERNELS -DENABLE_QASYMM8_KERNELS")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g -gdwarf-2 -DENABLE_INTEGER_KERNELS -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DBI_COMPUTE_ENABLE_FP16  -DBI_COMPUTE_ENABLE_BF16 -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DENABLE_FP16_KERNELS -DENABLE_QASYMM8_KERNELS -fstrict-aliasing")
 
 
 # 下载GoogleTest项目
@@ -206,6 +208,8 @@ target_link_libraries(BatmanInfer
         ${UTF8RANGE_LIBRARY}
         OpenMP::OpenMP_CXX
 )
+
+target_link_libraries(bat_infer_static PUBLIC OpenMP::OpenMP_CXX)
 
 if (ANDROID)
     target_link_libraries(BatmanInfer OpenMP::OpenMP_CXX)
