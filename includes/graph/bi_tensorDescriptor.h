@@ -6,7 +6,7 @@
 #define BATMANINFER_GRAPH_BI_TENSORDESCRIPTOR_H
 
 #include "graph/bi_types.h"
-#include "support/bi_icloneable.h"
+#include "batman_compute/support/i_clone_able.h"
 
 namespace BatmanInfer {
 
