@@ -83,7 +83,7 @@ TEST(InterfaceCall, Gpt2Model)
 }
 
 TEST(InterfaceCall, OMPTest) {
-#pragma omp parallel
+#pragma omp parallel default(none) shared(std::cout)
     {
         // 获取当前并行区域的线程数
         int num_threads = omp_get_num_threads();

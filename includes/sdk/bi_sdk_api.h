@@ -7,9 +7,15 @@
 #include <vector>
 
 // This interface is only compiled for the ARM platform.
-#ifndef BIAPI
-    #define BIAPI
-#endif // BIAPI
+#if defined(_MSC_VER)
+#   if !defined(BIAPI)
+#       define BIAPI __stdcall
+#   endif
+#else
+#   ifndef BIAPI
+#       define BIAPI __attribute__((visibility("default")))
+#   endif // BIAPI
+#endif
 
 /**
  * Types of supported models.
