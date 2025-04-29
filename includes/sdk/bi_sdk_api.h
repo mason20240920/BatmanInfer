@@ -70,7 +70,7 @@ public:
 };
 
 extern "C" {
-    BIAPI BIModelInterfaceBase *CreateBIModelInterface(const BIModelTypes model_type);
-    BIAPI void DeleteBIModelInterface(const BIModelInterfaceBase *bi_model_interface);
+    BIModelInterfaceBase* BIAPI CreateBIModelInterface(const BIModelTypes model_type);
+    void BIAPI DeleteBIModelInterface(const BIModelInterfaceBase *bi_model_interface);
 }
 
