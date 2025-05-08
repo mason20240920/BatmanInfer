@@ -22,35 +22,82 @@ constexpr int dict_size      = 6003;
 constexpr int hidden_size    = 768;
 constexpr int tensor_max_dim = 6;
 
-struct AttnHyperParams {
-    static constexpr float attn_gemm_i_scale = 0.006409900328692268f;
-    static constexpr int   attn_gemm_i_zero  = -6;
-    static constexpr float attn_gemm_o_scale = 0.08648063435274012f;
-    static constexpr int   attn_gemm_o_zero  = -9;
-    static constexpr float query_scale       = 0.04602363623824774f;
-    static constexpr int   query_zp          = -11;
-    static constexpr float value_scale       = 0.08648063435274012f;
-    static constexpr int   value_zp          = -9;
-    static constexpr float key_scale         = 0.0459319413877001f;
-    static constexpr int   key_zp            = -18;
+typedef struct HyperParameters_ {
+    float attn_input_scale;
+    float attn_output_scale;
+    float q_output_scale;
+    float k_output_scale;
+    float v_output_scale;
+    float out_input_scale;
+    float fc1_input_scale;
+    float fc1_output_scale;
+    float fc2_input_scale;
+    int   attn_input_zp;
+    int   attn_output_zp;
+    int   q_output_zp;
+    int   k_output_zp;
+    int   v_output_zp;
+    int   out_input_zp;
+    int   fc1_input_zp;
+    int   fc1_output_zp;
+    int   fc2_input_zp;
+}HyperParameters;
+
+typedef struct AttnHyperParams_ {
     static constexpr float softmax_q_scale   = 0.00392156862745098f;
     static constexpr int   softmax_zp        = -128;
-    static constexpr float proj_in_scale     = 0.0865f;
-    static constexpr int   proj_in_zp        = -9;
-};
+    float attn_gemm_i_scale;
+    int   attn_gemm_i_zero;
+    float attn_gemm_o_scale;
+    int   attn_gemm_o_zero;
+    float query_scale;
+    int   query_zp;
+    float value_scale;
+    int   value_zp;
+    float key_scale;
+    int   key_zp;
+    float proj_in_scale;
+    int   proj_in_zp;
+
+    AttnHyperParams_() :
+        attn_gemm_i_scale(0),
+        attn_gemm_i_zero(0),
+        attn_gemm_o_scale(0),
+        attn_gemm_o_zero(0),
+        query_scale(0),
+        query_zp(0),
+        value_scale(0),
+        value_zp(0),
+        key_scale(0),
+        key_zp(0),
+        proj_in_scale(0),
+        proj_in_zp(0)
+    {}
+
+}AttnHyperParams;
 
 const PermutationVector q_perm{0, 2, 1, 3};
 const PermutationVector k_perm{2, 0, 1, 3};
 const PermutationVector qkv_o_perm{0, 2, 1, 3};
 
-struct MLPHyperParams {
-    static constexpr float fc1_input_scale        = 0.006902442025203331f;
-    static constexpr int   fc1_input_zero_point   = -9;
-    static constexpr float fc1_output_scale       = 0.1969725440530216f;
-    static constexpr int   fc1_output_zero_point  = -19;
-    static constexpr float gelu_output_scale      = 0.11368115240452337f;
-    static constexpr int   gelu_output_zero_point = -127;
-};
+typedef struct MLPHyperParams_ {
+    float fc1_input_scale;
+    int   fc1_input_zero_point;
+    float fc1_output_scale;
+    int   fc1_output_zero_point;
+    float gelu_output_scale;
+    int   gelu_output_zero_point;
+
+    MLPHyperParams_() :
+        fc1_input_scale(0),
+        fc1_input_zero_point(0),
+        fc1_output_scale(0),
+        fc1_output_zero_point(0),
+        gelu_output_scale(0),
+        gelu_output_zero_point(0)
+    {}
+
+}MLPHyperParams;
 
 // 为资源的打包设定一个顺序
 enum class GPT2ResOrder {
@@ -70,6 +117,7 @@ enum class GPT2ResOrder {
     c_proj_bias,
     rms_gamma_weight,
     lm_head_weight,
+    decode_layer_scales,
     all_res_count,
 };
 
@@ -133,6 +181,8 @@ private:
     BIErrCode load_weight_tensor(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr);
 
     BIErrCode load_scale_vector(std::vector<float> &scales, GPT2ResOrder res_order, OrderPtrMap &order2ptr);
+
+    BIErrCode load_hyper_params(OrderPtrMap &order2ptr);
 
     BIErrCode load_all_non_dynamic_tensors(OrderPtrMap &order2ptr);
 
@@ -208,5 +258,8 @@ private:
 
     BIQuantizationInfo _c_fc_weight_q_info;
     std::vector<int> _output_positions;
+
+    AttnHyperParams _attn_hyper_params;
+    MLPHyperParams  _mlp_hyper_params;
 
 };
