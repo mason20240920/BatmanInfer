@@ -10,6 +10,7 @@
 
 #include "runtime/bi_scheduler.hpp"
 #include "utils/utils.hpp"
+#include "nlohmann/json.hpp"
 
 #include "model_interface/gpt2_model.h"
 
@@ -173,6 +174,62 @@ namespace res_pack {
         return true;
     }
 
+    bool read_and_write_json(int res_order, const std::string &path_prefix, const std::string &res_path,
+        std::fstream &dst_file) {
+
+        std::ifstream json_fin(path_prefix + res_path);
+        if (!json_fin.is_open()) {
+            std::cout << "Cannot open file: " << path_prefix << res_path << "!" << std::endl;
+            return false;
+        }
+
+        nlohmann::json json_data;
+        json_fin >> json_data;
+
+        HyperParameters params;
+
+        params.attn_input_scale = json_data["attn_input_scale"];
+        params.attn_input_zp = json_data["attn_input_zp"];
+
+        params.attn_output_scale = json_data["attn_output_scale"];
+        params.attn_output_zp = json_data["attn_output_zp"];
+
+        params.q_output_scale = json_data["q_output_scale"];
+        params.q_output_zp = json_data["q_output_zp"];
+
+        params.k_output_scale = json_data["k_output_scale"];
+        params.k_output_zp = json_data["k_output_zp"];
+
+        params.v_output_scale = json_data["v_output_scale"];
+        params.v_output_zp = json_data["v_output_zp"];
+
+        params.out_input_scale = json_data["out_input_scale"];
+        params.out_input_zp = json_data["out_input_zp"];
+
+        params.fc1_input_scale = json_data["fc1_input_scale"];
+        params.fc1_input_zp = json_data["fc1_input_zp"];
+
+        params.fc1_output_scale = json_data["fc1_output_scale"];
+        params.fc1_output_zp = json_data["fc1_output_zp"];
+
+        params.fc2_input_scale = json_data["fc2_input_scale"];
+        params.fc2_input_zp = json_data["fc2_input_zp"];
+
+        // write data
+        GPT2ResHeader res_header;
+        res_header.res_order = res_order;
+        res_header.data_length = sizeof(HyperParameters);
+        memset(&res_header.data_type, 0, 8);
+        memset(&res_header.shape, 0, 6 * sizeof(int));
+
+        // 写入头信息
+        dst_file.write(reinterpret_cast<char*>(&res_header), sizeof(res_header));
+        // 写入参数信息
+        dst_file.write(reinterpret_cast<char*>(&params), sizeof(params));
+
+        return true;
+    }
+
 } // namespace res_pack
 
 TEST(ResPack, PackGPT) {
@@ -220,6 +277,11 @@ TEST(ResPack, PackGPT) {
             case GPT2ResOrder::attn_qkv_weight_scale:
             case GPT2ResOrder::c_fc_weight_scale: {
                 ret = res_pack::read_and_write_scales(static_cast<int>(cur_order), res_path_prefix,
+                    res_paths[cur_order], dst_file);
+                break;
+            }
+            case GPT2ResOrder::decode_layer_scales: {
+                ret = res_pack::read_and_write_json(static_cast<int>(cur_order), res_path_prefix,
                     res_paths[cur_order], dst_file);
                 break;
             }

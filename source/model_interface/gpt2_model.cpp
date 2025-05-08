@@ -248,7 +248,7 @@ BIErrCode BIGPT2Model::parse_model_data(const char *data_in, size_t data_size, O
         order2ptr[static_cast<GPT2ResOrder>(header->res_order)] = tmp_ptr;
 
         tmp_ptr += (sizeof(GPT2ResHeader) + header->data_length);
-        tmp_size -= (sizeof(GPT2ResHeader) + header->data_length);
+        tmp_size -= (static_cast<int>(sizeof(GPT2ResHeader)) + static_cast<int>(header->data_length));
     }
 
     return BIErrCode::BISuccess;
@@ -313,6 +313,51 @@ BIErrCode BIGPT2Model::load_scale_vector(std::vector<float> &scales, GPT2ResOrde
 
     return BIErrCode::BISuccess;
 }
+
+BIErrCode BIGPT2Model::load_hyper_params(OrderPtrMap &order2ptr) {
+
+    if (order2ptr.find(GPT2ResOrder::decode_layer_scales) == order2ptr.end()) {
+        return BIErrCode::BIResNotExists;
+    }
+    char *tmp_ptr = order2ptr[GPT2ResOrder::decode_layer_scales];
+
+    const auto header = reinterpret_cast<GPT2ResHeader *>(tmp_ptr);
+    if (header->data_length != sizeof(HyperParameters)) {
+        return BIErrCode::BIResDamaged;
+    }
+
+    const auto all_param = reinterpret_cast<HyperParameters *>(tmp_ptr + sizeof(GPT2ResHeader));
+
+    _attn_hyper_params.attn_gemm_i_scale     = all_param->attn_input_scale;
+    _attn_hyper_params.attn_gemm_i_zero      = all_param->attn_input_zp;
+
+    _attn_hyper_params.attn_gemm_o_scale     = all_param->attn_output_scale;
+    _attn_hyper_params.attn_gemm_o_zero      = all_param->attn_output_zp;
+
+    _attn_hyper_params.query_scale           = all_param->q_output_scale;
+    _attn_hyper_params.query_zp              = all_param->q_output_zp;
+
+    _attn_hyper_params.key_scale             = all_param->k_output_scale;
+    _attn_hyper_params.key_zp                = all_param->k_output_zp;
+
+    _attn_hyper_params.value_scale           = all_param->v_output_scale;
+    _attn_hyper_params.value_zp              = all_param->v_output_zp;
+
+    _attn_hyper_params.proj_in_scale         = all_param->out_input_scale;
+    _attn_hyper_params.proj_in_zp            = all_param->out_input_zp;
+
+    _mlp_hyper_params.fc1_input_scale        = all_param->fc1_input_scale;
+    _mlp_hyper_params.fc1_output_zero_point  = all_param->fc1_output_zp;
+
+    _mlp_hyper_params.fc1_output_scale       = all_param->fc1_output_scale;
+    _mlp_hyper_params.fc1_output_zero_point  = all_param->fc1_output_zp;
+
+    _mlp_hyper_params.gelu_output_scale      = all_param->fc2_input_scale;
+    _mlp_hyper_params.gelu_output_zero_point = all_param->fc2_input_zp;
+
+    return BIErrCode::BISuccess;
+}
+
 
 BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     auto ret = BIErrCode::BISuccess;
@@ -500,6 +545,10 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     ret = load_weight_tensor(_lm_head_weight_tensor, GPT2ResOrder::lm_head_weight, order2ptr);
     CHECK_SUCCESS(ret);
 
+    // load hyper parameters
+    ret = load_hyper_params(order2ptr);
+    CHECK_SUCCESS(ret);
+
     return BIErrCode::BISuccess;
 }
 
@@ -571,20 +620,20 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
                                    &_attn_qkv_bias_tensor,
                                    &_attn_c_proj_weight_tensor,
                                    &_attn_c_proj_bias_tensor,
-                                   AttnHyperParams::attn_gemm_i_scale,
-                                   AttnHyperParams::attn_gemm_i_zero,
-                                   AttnHyperParams::attn_gemm_o_scale,
-                                   AttnHyperParams::attn_gemm_o_zero,
-                                   AttnHyperParams::query_scale,
-                                   AttnHyperParams::query_zp,
-                                   AttnHyperParams::value_scale,
-                                   AttnHyperParams::value_zp,
-                                   AttnHyperParams::key_scale,
-                                   AttnHyperParams::key_zp,
+                                   _attn_hyper_params.attn_gemm_i_scale,
+                                   _attn_hyper_params.attn_gemm_i_zero,
+                                   _attn_hyper_params.attn_gemm_o_scale,
+                                   _attn_hyper_params.attn_gemm_o_zero,
+                                   _attn_hyper_params.query_scale,
+                                   _attn_hyper_params.query_zp,
+                                   _attn_hyper_params.value_scale,
+                                   _attn_hyper_params.value_zp,
+                                   _attn_hyper_params.key_scale,
+                                   _attn_hyper_params.key_zp,
                                    AttnHyperParams::softmax_q_scale,
                                    AttnHyperParams::softmax_zp,
-                                   AttnHyperParams::proj_in_scale,
-                                   AttnHyperParams::proj_in_zp,
+                                   _attn_hyper_params.proj_in_scale,
+                                   _attn_hyper_params.proj_in_zp,
                                    q_perm,
                                    k_perm,
                                    qkv_o_perm,
@@ -597,15 +646,15 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
             &_sub_mlp_input_tensor, BIConvertPolicy::SATURATE);
 
         _mlp_layer.configure(&_sub_mlp_input_tensor,
-                             MLPHyperParams::fc1_input_scale,
-                             MLPHyperParams::fc1_input_zero_point,
+                             _mlp_hyper_params.fc1_input_scale,
+                             _mlp_hyper_params.fc1_input_zero_point,
                              &_c_fc_weight_tensor,
                              &_c_fc_bias_tensor,
                              &_c_fc_weight_q_info,
-                             MLPHyperParams::fc1_output_scale,
-                             MLPHyperParams::fc1_output_zero_point,
-                             MLPHyperParams::gelu_output_scale,
-                             MLPHyperParams::gelu_output_zero_point,
+                             _mlp_hyper_params.fc1_output_scale,
+                             _mlp_hyper_params.fc1_output_zero_point,
+                             _mlp_hyper_params.gelu_output_scale,
+                             _mlp_hyper_params.gelu_output_zero_point,
                              &_c_proj_weight_tensor,
                              &_c_proj_bias_tensor,
                              &_mlp_gamma_weight_tensor,
