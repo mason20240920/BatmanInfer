@@ -557,3 +557,6 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
     //             << "Min Time:   " << perf_status.min_ms << " ms\n"
     //             << "Max Time:   " << perf_status.max_ms << " ms\n";
 }
+
+TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
+}

@@ -55,16 +55,14 @@ namespace BatmanInfer {
         * @param info 激活层参数，用于定义激活函数（如 ReLU、Tanh 等）
         */
         void configure(const BIITensor *input,
-                       const BIITensor *weights,
-                       const BIITensor *bias,
-                       const BIITensor *scalar,
-                       const BIITensor *add_weights,
-                       const BIITensor *weights_second,
-                       const BIITensor *bias_second,
-                       const BIITensor *gamma,
-                       const PermutationVector &perm,
-                       const PermutationVector &perm2,
-                       const PermutationVector &final_perm,
+                       const BIITensor *gamma_weights,
+                       const BIITensor *c_attn_weights,
+                       const BIITensor *c_attn_bias,
+                       const BIITensor *o_attn_weights,
+                       const BIITensor *o_attn_bias,
+                       const PermutationVector &q_perm,
+                       const PermutationVector &k_perm,
+                       const PermutationVector &qkv_perm,
                        const size_t &hidden_size,
                        const size_t &max_seq_len,
                        const size_t &batch_size,
@@ -74,11 +72,8 @@ namespace BatmanInfer {
          * 验证函数
          * @param input
          * @param weights
-         * @param recurrent_weights
          * @param bias
-         * @param hidden_state
          * @param output
-         * @param info
          * @return
          */
         static BIStatus validate(const BIITensorInfo *input,
@@ -101,53 +96,85 @@ namespace BatmanInfer {
         BIMemoryGroup _memory_group; // 内存组管理
 
         // Attention模块算子
-        BINERMSNormLayer _normalization_layer; // 用于执行归一操作的层
-        BINECopy _copy_f; // 张量复制层
-        BINEGEMM _gemm_state_f; // 执行矩阵乘法(GEMM), 用于计算当前状态或隐藏层的现象变换
+        BINERMSNormLayer _rms_norm_layer; // 归一化层
+        BINEGEMM _c_attn_layer; // 进行channel-wise计算
         BINESplit _split_layer; // 切分层
-        BINEReshapeLayer _reshape_1_f; // 分支1的reshape
-        BINEPermute _transpose_1_f; // 转置transpose
-        BINEReshapeLayer _reshape_2_f; // 分支2的reshape
-        BINEPermute _transpose_2_f; // 转置transpose
-        BINEReshapeLayer _reshape_3_f; // 分支2的reshape
-        BINEPermute _transpose_3_f; // 转置transpose
-        BINEPixelWiseMultiplication _mul_1_f;
-        BINEPixelWiseMultiplication _mul_2_f;
-        BINEMatMul _matmul_1_f;
-        BINEArithmeticAddition _add_f;
-        BINESoftmaxLayerGeneric<false> _softmax_layer;
-        BINEMatMul _matmul_2_f;
-        BINEPermute _transpose_final_f; // 转置transpose
-        BINEReshapeLayer _reshape_final_f; //
-        BINEGEMM _gemm_final_f;
+        BINEReshapeLayer _reshape_q_layer, _reshape_k_layer, _reshape_v_layer;
+        BINEPermute _transpose_q_layer, _transpose_k_layer, _transpose_v_layer;
+        BINEMatMul _qk_bmm_layer;
+        BINEArithmeticAddition _qk_add_layer;
+        BINESoftmaxLayer _softmax_layer;
+        BINEMatMul _pv_bmm_layer;
+        BINEPermute _pv_transpose_layer;
+        BINEReshapeLayer _pv_reshape_layer;
+        BINEGEMM _attn_o_gemm_layer;
+        BINECopy _c_copy_layer;
+
+        BITensor _sub_norm_output; // 归一化临时输出
+        BITensor _sub_c_attn_output;
+        BITensor _sub_query_states;
+        BITensor _sub_key_states;
+        BITensor _sub_value_states;
+        BITensor _sub_reshape_q_states;
+        BITensor _sub_reshape_k_states;
+        BITensor _sub_reshape_v_states;
+        BITensor _sub_transpose_q_states;
+        BITensor _sub_transpose_k_states;
+        BITensor _sub_transpose_v_states;
+        BITensor _sub_qk_bmm_output;
+        BITensor _sub_add_output;
+        BITensor _sub_add_weights;
+        BITensor _sub_softmax_output;
+        BITensor _sub_pv_bmm_output;
+        BITensor _sub_pv_perm_output;
+        BITensor _sub_pv_reshape_output;
+        BITensor _sub_attn_o_output;
+
+        // 张量信息
+        BITensorInfo _sub_norm_info;
+        BITensorInfo _sub_c_attn_tensor_info;
+        BITensorInfo _sub_qkv_states_info;
+        BITensorInfo _sub_reshape_qkv_info;
+        BITensorInfo _sub_transpose_q_info;
+        BITensorInfo _sub_transpose_k_info;
+        BITensorInfo _sub_transpose_v_info;
+        BITensorInfo _sub_qk_bmm_output_info;
+        BITensorInfo _sub_add_output_info;
+        BITensorInfo _sub_add_weights_info;
+        BITensorInfo _sub_softmax_output_info;
+        BITensorInfo _sub_pv_bmm_output_info;
+        BITensorInfo _sub_pv_transpose_output_info;
+        BITensorInfo _sub_pv_reshape_output_info;
+        BITensorInfo _sub_attn_o_output_info;
 
         // 中间内存管理的张量输出
         BITensor _norm_output; // 归一化输出值
-        BITensor _gemm_output; // _gemm输出
-        BITensor _split_result_0;
-        BITensor _split_result_1;
-        BITensor _split_result_2;
-        BITensor _reshape_1_output;
-        BITensor _transpose_1_output;
-        BITensor _reshape_2_output;
-        BITensor _transpose_2_output;
-        BITensor _reshape_3_output;
-        BITensor _transpose_3_output;
-        BITensor _mul_1_output;
-        BITensor _mul_2_output;
-        BITensor _matmul_1_output;
+        BITensor _c_attn_output; // QKV的第一次的矩阵计算
+        BITensor _query_states;
+        BITensor _key_states;
+        BITensor _value_states;
+        BITensor _reshape_q_states;
+        BITensor _reshape_k_states;
+        BITensor _reshape_v_states;
+        BITensor _transpose_q_states;
+        BITensor _transpose_k_states;
+        BITensor _transpose_v_states;
+        BITensor _qk_bmm_output;
         BITensor _add_output;
+        BITensor _add_weights;
         BITensor _softmax_output;
-        BITensor _matmul_2_output;
-        BITensor _transpose_final_output;
-        BITensor _reshape_final_output;
-        BITensor _gemm_final_output;
+        BITensor _pv_bmm_output;
+        BITensor _pv_perm_output;
+        BITensor _pv_reshape_output;
+        BITensor _attn_o_output;
 
-
-        // 其他参数
-        size_t _hidden_size; // 隐藏层大小
-        size_t _max_seq_len; // 最大长度输入
-        size_t _batch_size; // 一块的大小
-        bool _is_prepared; // 是否已经完全初始化
+    private:
+        size_t _hidden_size{}; // 隐藏层大小
+        size_t _max_seq_len{}; // 最大长度输入
+        size_t _max_batch_size{}; // 一块的大小
+        size_t _batch_size = 1;
+        size_t _seq_len = 1;
+        bool _is_prepared; // 是否已经完全初始化(预先把内存加载完)
+        std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;
     };
 }
