@@ -176,6 +176,9 @@ namespace BatmanInfer {
 
         void BICpuGemm::dynamic_configure(const BIITensorInfo *a, const BIITensorInfo *b, BIITensorInfo *d) {
             _asm_glue->dynamic_tensor_b_size(a, b, d, true);
+            if (_run_activation) {
+                _activation_func->dynamic_change_win(d);
+            }
         }
 
 

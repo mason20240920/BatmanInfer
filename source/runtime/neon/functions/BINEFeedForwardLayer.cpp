@@ -27,6 +27,23 @@ namespace BatmanInfer {
         _is_prepared(false) {
     }
 
+    void BINEFeedForwardLayer::dynamic_configure(const BIITensor *input, const size_t &seq_len,
+                                                 const size_t &batch_size) {
+        _batch_size = batch_size;
+        _seq_len = seq_len;
+        _sub_norm_output_info.set_tensor_shape(BITensorShape(768, seq_len, batch_size));
+        _sub_norm_output.allocator()->init(*_norm_output.allocator(), _sub_norm_output_info);
+        _sub_fuse_output_info.set_tensor_shape(BITensorShape(3072, seq_len, batch_size));
+        _sub_fuse_output.allocator()->init(*_fuse_output.allocator(), _sub_fuse_output_info);
+        _sub_proj_output_info.set_tensor_shape(BITensorShape(768, seq_len, batch_size));
+        _sub_proj_output.allocator()->init(*_proj_output.allocator(), _sub_proj_output_info);
+
+        _rms_layer.dynamic_configure(input);
+        _c_fc_fuse_act.dynamic_configure();
+        _c_proj.dynamic_configure();
+        _copy_f.dynamic_configure();
+    }
+
     BIStatus
     BINEFeedForwardLayer::validate(const BatmanInfer::BIITensorInfo *input,
                                    const BatmanInfer::BIITensorInfo *fc_weights,
@@ -70,14 +87,14 @@ namespace BatmanInfer {
         _max_seq = seq_len;
 
         // 中间变量输出的形状
-        BITensorShape norm_output_shape = BITensorShape(input->info()->tensor_shape()); // 归一化输出
+        BITensorShape norm_output_shape = BITensorShape(768, seq_len, batch_size); // 归一化输出
         BITensorShape fc_fuse_output_shape = BITensorShape(3072, seq_len, batch_size); // Gemm + GeLU 融合操作
-        BITensorShape proj_output_shape = BITensorShape(output->info()->tensor_shape()); // 最后降解的操作
+        BITensorShape proj_output_shape = BITensorShape(768, seq_len, batch_size); // 最后降解的操作
 
         // 初始化中间变量
-        _norm_output.allocator()->init(BITensorInfo(norm_output_shape, 1, input->info()->data_type()));
-        _fuse_output.allocator()->init(BITensorInfo(fc_fuse_output_shape, 1, input->info()->data_type()));
-        _proj_output.allocator()->init(BITensorInfo(proj_output_shape, 1, input->info()->data_type()));
+        _norm_output.allocator()->init(BITensorInfo(norm_output_shape, 1, BIDataType::F16));
+        _fuse_output.allocator()->init(BITensorInfo(fc_fuse_output_shape, 1, BIDataType::F16));
+        _proj_output.allocator()->init(BITensorInfo(proj_output_shape, 1, BIDataType::F16));
 
         // 内存管理
         _memory_group.manage(&_norm_output);
@@ -88,6 +105,20 @@ namespace BatmanInfer {
         _fuse_output.allocator()->allocate();
         _proj_output.allocator()->allocate();
 
+        const auto sub_norm_output_shape = BITensorShape(768, _seq_len, _batch_size);
+        _sub_norm_output_info = BITensorInfo(sub_norm_output_shape, 1, BIDataType::F16);
+        _sub_norm_output_info.set_format(Format::F16);
+        _sub_norm_output.allocator()->init(_sub_norm_output_info);
+
+        const auto sub_fc_fuse_output_shape = BITensorShape(3072, _seq_len, _batch_size);
+        _sub_fuse_output_info = BITensorInfo(sub_fc_fuse_output_shape, 1, BIDataType::F16);
+        _sub_fuse_output_info.set_format(Format::F16);
+        _sub_fuse_output.allocator()->init(_sub_fuse_output_info);
+
+        _sub_proj_output_info = BITensorInfo(sub_norm_output_shape, 1, BIDataType::F16);
+        _sub_proj_output_info.set_format(Format::F16);
+        _sub_proj_output.allocator()->init(_sub_proj_output_info);
+
         // 配置GemmInfo
         GEMMInfo fc_gemm_info, proj_gemm_info;
         fc_gemm_info.set_activation_info(act_info);
@@ -95,15 +126,14 @@ namespace BatmanInfer {
         proj_gemm_info.set_fast_math(true);
 
         // 算子进行配置
-        _rms_layer.configure(input, gamma, &_norm_output);
-        _c_fc_fuse_act.configure(&_norm_output, fc_weights, fc_bias, &_fuse_output, 1.f, 1.f, fc_gemm_info);
-        _c_proj.configure(&_fuse_output, proj_weights, proj_bias, &_proj_output, 1.0f, 1.0f, proj_gemm_info);
-        _copy_f.configure(&_proj_output, output);
+        _rms_layer.configure(input, gamma, &_sub_norm_output);
+        _c_fc_fuse_act.configure(&_sub_norm_output, fc_weights, fc_bias, &_sub_fuse_output, 1.f, 1.f, fc_gemm_info);
+        _c_proj.configure(&_sub_fuse_output, proj_weights, proj_bias, &_sub_proj_output, 1.0f, 1.0f, proj_gemm_info);
+        _copy_f.configure(&_sub_proj_output, output);
     }
 
     void BINEFeedForwardLayer::run() {
         prepare();
-        BIMemoryGroupResourceScope scope_mg(_memory_group);
         _rms_layer.run();
         _c_fc_fuse_act.run();
         _c_proj.run();
@@ -112,9 +142,10 @@ namespace BatmanInfer {
 
     void BINEFeedForwardLayer::prepare() {
         if (!_is_prepared) {
-            //            _reshape.prepare();
-            //            _gemm_state_f.prepare();
-
+            _scope_mg = std::make_unique<BIMemoryGroupResourceScope>(_memory_group);
+            _sub_norm_output.allocator()->init(*_norm_output.allocator(), _sub_norm_output_info);
+            _sub_fuse_output.allocator()->init(*_fuse_output.allocator(), _sub_fuse_output_info);
+            _sub_proj_output.allocator()->init(*_proj_output.allocator(), _sub_proj_output_info);
             _is_prepared = true;
         }
     }

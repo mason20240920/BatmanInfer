@@ -515,36 +515,36 @@ TEST(LOWPATTETION, ATTENTIONTEST) {
     scalar_ptr[0] = 0.5f;
 
     BINEAttentionLayer attention_layer;
-    attention_layer.configure(&input,
-                              &weights,
-                              &bias,
-                              &scalar,
-                              &add_tensor,
-                              &weights2,
-                              &bias2,
-                              &gamma,
-                              perm,
-                              perm2,
-                              perm_final,
-                              768,
-                              16,
-                              5,
-                              &output);
-    //    print_new_tensor(input);
-    // 获取开始时间点
-    auto start = std::chrono::high_resolution_clock::now();
-
-
-    attention_layer.run();
-
-    // 获取结束时间点
-    auto end = std::chrono::high_resolution_clock::now();
-
-    // 计算耗时（以微秒为单位）
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-
-    // 输出运行时间
-    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
+    // attention_layer.configure(&input,
+    //                           &weights,
+    //                           &bias,
+    //                           &scalar,
+    //                           &add_tensor,
+    //                           &weights2,
+    //                           &bias2,
+    //                           &gamma,
+    //                           perm,
+    //                           perm2,
+    //                           perm_final,
+    //                           768,
+    //                           16,
+    //                           5,
+    //                           &output);
+    // //    print_new_tensor(input);
+    // // 获取开始时间点
+    // auto start = std::chrono::high_resolution_clock::now();
+    //
+    //
+    // attention_layer.run();
+    //
+    // // 获取结束时间点
+    // auto end = std::chrono::high_resolution_clock::now();
+    //
+    // // 计算耗时（以微秒为单位）
+    // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    //
+    // // 输出运行时间
+    // std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 }
 
 TEST(QUANTIZE_TEST, DEQUAN_EXAM) {

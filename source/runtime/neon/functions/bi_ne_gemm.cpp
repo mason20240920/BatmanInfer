@@ -182,7 +182,7 @@ namespace BatmanInfer {
         return cpu::BICpuGemm::has_opt_impl(expected_weight_format, a, b, c, output, gemm_info);
     }
 
-    void BINEGEMM::dynamic_configure() {
+    void BINEGEMM::dynamic_configure() const {
         auto a = _impl->run_pack.get_const_tensor(ACL_SRC_0);
         auto b = _impl->run_pack.get_const_tensor(ACL_SRC_1);
         auto d = _impl->run_pack.get_tensor(ACL_DST);

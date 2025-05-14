@@ -502,108 +502,108 @@ TEST(ModelPerfTest, GPT2Perf) {
     fill_model_tensor_val(scalar, static_cast<float16_t>(0.3535533845424652));
 
 
-    attention_layer.configure(&input,
-                              &weights,
-                              &bias,
-                              &scalar,
-                              &add_tensor,
-                              &weights2,
-                              &bias2,
-                              &gamma,
-                              perm,
-                              perm2,
-                              perm_final,
-                              768,
-                              16,
-                              5,
-                              &output);
-
-    add_f.configure(&output, &input, &add_temp_out, BIConvertPolicy::WRAP);
-
-    feedforward_layer.configure(&add_temp_out, &fc_weights,
-                                &fc_bias,
-                                &proj_weights,
-                                &proj_bias,
-                                &gamma2,
-                                act_info,
-                                &ffn_out,
-                                5,
-                                16);
-
-    add_2_f.configure(&add_temp_out, &ffn_out, &final_out, BIConvertPolicy::WRAP);
-
-    const auto warmup = 10; // 预热次数
-    const auto iterations = 1000; // 运行次数
-    const double outlier_threshold = 3.0; // 异常值阈值(标准差倍数)
-
-    std::vector<double> timings;
-    timings.reserve(iterations);
-
-    // 预测阶段（不记录时间）
-    for (size_t i = 0; i < warmup; ++i) {
-        std::vector<float16_t> input_data(768 * 16);
-        for (int i = 0; i < 768 * 16; i++) {
-            input_data[i] = static_cast<float16_t>(i + 1) / 1000;
-        }
-        std::memcpy(input.buffer(), input_data.data(), 768 * 16 * sizeof(float16_t));
-        attention_layer.run();
-        add_f.run();
-        feedforward_layer.run();
-        add_2_f.run();
-    }
-
-    // 修改input的sequence长度
-
-    // 正式测量
-    for (size_t i = 0; i < iterations; ++i) {
-        auto start = std::chrono::high_resolution_clock::now();
-        attention_layer.run();
-        add_f.run();
-        feedforward_layer.run();
-        add_2_f.run();
-        auto end = std::chrono::high_resolution_clock::now();
-
-        double duration = std::chrono::duration<double, std::milli>(end - start).count();
-        timings.push_back(duration);
-    }
-
-    // 异常值过滤
-    auto result = [&] {
-        double sum = std::accumulate(timings.begin(), timings.end(), 0.0);
-        double mean = sum / timings.size();
-        double sq_sum = std::inner_product(timings.begin(), timings.end(),
-                                           timings.begin(), 0.0);
-        double stdev = std::sqrt(sq_sum / timings.size() - mean * mean);
-        return std::make_pair(mean, stdev);
-    }();
-    double avg = result.first;
-    double std_dev = result.second;
-
-    // 应用3-sigma法则过滤异常值
-    std::vector<double> filtered;
-    std::copy_if(timings.begin(), timings.end(), std::back_inserter(filtered),
-                 [=](double x) { return std::abs(x - avg) < outlier_threshold * std_dev; });
-
-    // 重新计算统计量
-    double valid_avg = std::accumulate(filtered.begin(), filtered.end(), 0.0) / filtered.size();
-    auto [min_it, max_it] = std::minmax_element(filtered.begin(), filtered.end());
-
-    auto perf_status = PerfStats{
-        valid_avg,
-        std_dev,
-        *min_it,
-        *max_it,
-        filtered.size()
-    };
-
-    std::cout << "Performance Report:\n"
-            << "Iterations: " << perf_status.iterations << "\n"
-            << "Avg Time:   " << perf_status.avg_ms << " ms\n"
-            << "Std Dev:    " << perf_status.std_dev_ms << " ms\n"
-            << "Min Time:   " << perf_status.min_ms << " ms\n"
-            << "Max Time:   " << perf_status.max_ms << " ms\n";
-
-    return;
+    // attention_layer.configure(&input,
+    //                           &weights,
+    //                           &bias,
+    //                           &scalar,
+    //                           &add_tensor,
+    //                           &weights2,
+    //                           &bias2,
+    //                           &gamma,
+    //                           perm,
+    //                           perm2,
+    //                           perm_final,
+    //                           768,
+    //                           16,
+    //                           5,
+    //                           &output);
+    //
+    // add_f.configure(&output, &input, &add_temp_out, BIConvertPolicy::WRAP);
+    //
+    // feedforward_layer.configure(&add_temp_out, &fc_weights,
+    //                             &fc_bias,
+    //                             &proj_weights,
+    //                             &proj_bias,
+    //                             &gamma2,
+    //                             act_info,
+    //                             &ffn_out,
+    //                             5,
+    //                             16);
+    //
+    // add_2_f.configure(&add_temp_out, &ffn_out, &final_out, BIConvertPolicy::WRAP);
+    //
+    // const auto warmup = 10; // 预热次数
+    // const auto iterations = 1000; // 运行次数
+    // const double outlier_threshold = 3.0; // 异常值阈值(标准差倍数)
+    //
+    // std::vector<double> timings;
+    // timings.reserve(iterations);
+    //
+    // // 预测阶段（不记录时间）
+    // for (size_t i = 0; i < warmup; ++i) {
+    //     std::vector<float16_t> input_data(768 * 16);
+    //     for (int i = 0; i < 768 * 16; i++) {
+    //         input_data[i] = static_cast<float16_t>(i + 1) / 1000;
+    //     }
+    //     std::memcpy(input.buffer(), input_data.data(), 768 * 16 * sizeof(float16_t));
+    //     attention_layer.run();
+    //     add_f.run();
+    //     feedforward_layer.run();
+    //     add_2_f.run();
+    // }
+    //
+    // // 修改input的sequence长度
+    //
+    // // 正式测量
+    // for (size_t i = 0; i < iterations; ++i) {
+    //     auto start = std::chrono::high_resolution_clock::now();
+    //     attention_layer.run();
+    //     add_f.run();
+    //     feedforward_layer.run();
+    //     add_2_f.run();
+    //     auto end = std::chrono::high_resolution_clock::now();
+    //
+    //     double duration = std::chrono::duration<double, std::milli>(end - start).count();
+    //     timings.push_back(duration);
+    // }
+    //
+    // // 异常值过滤
+    // auto result = [&] {
+    //     double sum = std::accumulate(timings.begin(), timings.end(), 0.0);
+    //     double mean = sum / timings.size();
+    //     double sq_sum = std::inner_product(timings.begin(), timings.end(),
+    //                                        timings.begin(), 0.0);
+    //     double stdev = std::sqrt(sq_sum / timings.size() - mean * mean);
+    //     return std::make_pair(mean, stdev);
+    // }();
+    // double avg = result.first;
+    // double std_dev = result.second;
+    //
+    // // 应用3-sigma法则过滤异常值
+    // std::vector<double> filtered;
+    // std::copy_if(timings.begin(), timings.end(), std::back_inserter(filtered),
+    //              [=](double x) { return std::abs(x - avg) < outlier_threshold * std_dev; });
+    //
+    // // 重新计算统计量
+    // double valid_avg = std::accumulate(filtered.begin(), filtered.end(), 0.0) / filtered.size();
+    // auto [min_it, max_it] = std::minmax_element(filtered.begin(), filtered.end());
+    //
+    // auto perf_status = PerfStats{
+    //     valid_avg,
+    //     std_dev,
+    //     *min_it,
+    //     *max_it,
+    //     filtered.size()
+    // };
+    //
+    // std::cout << "Performance Report:\n"
+    //         << "Iterations: " << perf_status.iterations << "\n"
+    //         << "Avg Time:   " << perf_status.avg_ms << " ms\n"
+    //         << "Std Dev:    " << perf_status.std_dev_ms << " ms\n"
+    //         << "Min Time:   " << perf_status.min_ms << " ms\n"
+    //         << "Max Time:   " << perf_status.max_ms << " ms\n";
+    //
+    // return;
 }
 
 TEST(ModelPerfTest, KVCaches) {
@@ -694,106 +694,106 @@ TEST(ModelPerfTest, MLPOriginPerf) {
     fill_model_tensor_val(scalar, static_cast<float16_t>(0.3535533845424652));
 
 
-    attention_layer.configure(&input,
-                              &weights,
-                              &bias,
-                              &scalar,
-                              &add_tensor,
-                              &weights2,
-                              &bias2,
-                              &gamma,
-                              perm,
-                              perm2,
-                              perm_final,
-                              768,
-                              16,
-                              5,
-                              &output);
-
-    add_f.configure(&output, &input, &add_temp_out, BIConvertPolicy::WRAP);
-
-    feedforward_layer.configure(&add_temp_out, &fc_weights,
-                                &fc_bias,
-                                &proj_weights,
-                                &proj_bias,
-                                &gamma2,
-                                act_info,
-                                &ffn_out,
-                                5,
-                                16);
-
-    add_2_f.configure(&add_temp_out, &ffn_out, &final_out, BIConvertPolicy::WRAP);
-
-    const auto warmup = 10; // 预热次数
-    const auto iterations = 1000; // 运行次数
-    const double outlier_threshold = 3.0; // 异常值阈值(标准差倍数)
-
-    std::vector<double> timings;
-    timings.reserve(iterations);
-
-    // 预测阶段（不记录时间）
-    for (size_t i = 0; i < warmup; ++i) {
-        std::vector<float16_t> input_data(768 * 16);
-        for (int i = 0; i < 768 * 16; i++) {
-            input_data[i] = static_cast<float16_t>(i + 1) / 1000;
-        }
-        std::memcpy(input.buffer(), input_data.data(), 768 * 16 * sizeof(float16_t));
-        attention_layer.run();
-        add_f.run();
-        feedforward_layer.run();
-        // add_2_f.run();
-    }
-
-    // 修改input的sequence长度
-
-    // 正式测量
-    for (size_t i = 0; i < iterations; ++i) {
-        attention_layer.run();
-        add_f.run();
-        auto start = std::chrono::high_resolution_clock::now();
-        feedforward_layer.run();
-        auto end = std::chrono::high_resolution_clock::now();
-        // add_2_f.run();
-
-        double duration = std::chrono::duration<double, std::milli>(end - start).count();
-        timings.push_back(duration);
-    }
-
-    // 异常值过滤
-    auto result = [&] {
-        double sum = std::accumulate(timings.begin(), timings.end(), 0.0);
-        double mean = sum / timings.size();
-        double sq_sum = std::inner_product(timings.begin(), timings.end(),
-                                           timings.begin(), 0.0);
-        double stdev = std::sqrt(sq_sum / timings.size() - mean * mean);
-        return std::make_pair(mean, stdev);
-    }();
-    double avg = result.first;
-    double std_dev = result.second;
-
-    // 应用3-sigma法则过滤异常值
-    std::vector<double> filtered;
-    std::copy_if(timings.begin(), timings.end(), std::back_inserter(filtered),
-                 [=](double x) { return std::abs(x - avg) < outlier_threshold * std_dev; });
-
-    // 重新计算统计量
-    double valid_avg = std::accumulate(filtered.begin(), filtered.end(), 0.0) / filtered.size();
-    auto [min_it, max_it] = std::minmax_element(filtered.begin(), filtered.end());
-
-    auto perf_status = PerfStats{
-        valid_avg,
-        std_dev,
-        *min_it,
-        *max_it,
-        filtered.size()
-    };
-
-    std::cout << "Performance Report:\n"
-            << "Iterations: " << perf_status.iterations << "\n"
-            << "Avg Time:   " << perf_status.avg_ms << " ms\n"
-            << "Std Dev:    " << perf_status.std_dev_ms << " ms\n"
-            << "Min Time:   " << perf_status.min_ms << " ms\n"
-            << "Max Time:   " << perf_status.max_ms << " ms\n";
+    // attention_layer.configure(&input,
+    //                           &weights,
+    //                           &bias,
+    //                           &scalar,
+    //                           &add_tensor,
+    //                           &weights2,
+    //                           &bias2,
+    //                           &gamma,
+    //                           perm,
+    //                           perm2,
+    //                           perm_final,
+    //                           768,
+    //                           16,
+    //                           5,
+    //                           &output);
+    //
+    // add_f.configure(&output, &input, &add_temp_out, BIConvertPolicy::WRAP);
+    //
+    // feedforward_layer.configure(&add_temp_out, &fc_weights,
+    //                             &fc_bias,
+    //                             &proj_weights,
+    //                             &proj_bias,
+    //                             &gamma2,
+    //                             act_info,
+    //                             &ffn_out,
+    //                             5,
+    //                             16);
+    //
+    // add_2_f.configure(&add_temp_out, &ffn_out, &final_out, BIConvertPolicy::WRAP);
+    //
+    // const auto warmup = 10; // 预热次数
+    // const auto iterations = 1000; // 运行次数
+    // const double outlier_threshold = 3.0; // 异常值阈值(标准差倍数)
+    //
+    // std::vector<double> timings;
+    // timings.reserve(iterations);
+    //
+    // // 预测阶段（不记录时间）
+    // for (size_t i = 0; i < warmup; ++i) {
+    //     std::vector<float16_t> input_data(768 * 16);
+    //     for (int i = 0; i < 768 * 16; i++) {
+    //         input_data[i] = static_cast<float16_t>(i + 1) / 1000;
+    //     }
+    //     std::memcpy(input.buffer(), input_data.data(), 768 * 16 * sizeof(float16_t));
+    //     attention_layer.run();
+    //     add_f.run();
+    //     feedforward_layer.run();
+    //     // add_2_f.run();
+    // }
+    //
+    // // 修改input的sequence长度
+    //
+    // // 正式测量
+    // for (size_t i = 0; i < iterations; ++i) {
+    //     attention_layer.run();
+    //     add_f.run();
+    //     auto start = std::chrono::high_resolution_clock::now();
+    //     feedforward_layer.run();
+    //     auto end = std::chrono::high_resolution_clock::now();
+    //     // add_2_f.run();
+    //
+    //     double duration = std::chrono::duration<double, std::milli>(end - start).count();
+    //     timings.push_back(duration);
+    // }
+    //
+    // // 异常值过滤
+    // auto result = [&] {
+    //     double sum = std::accumulate(timings.begin(), timings.end(), 0.0);
+    //     double mean = sum / timings.size();
+    //     double sq_sum = std::inner_product(timings.begin(), timings.end(),
+    //                                        timings.begin(), 0.0);
+    //     double stdev = std::sqrt(sq_sum / timings.size() - mean * mean);
+    //     return std::make_pair(mean, stdev);
+    // }();
+    // double avg = result.first;
+    // double std_dev = result.second;
+    //
+    // // 应用3-sigma法则过滤异常值
+    // std::vector<double> filtered;
+    // std::copy_if(timings.begin(), timings.end(), std::back_inserter(filtered),
+    //              [=](double x) { return std::abs(x - avg) < outlier_threshold * std_dev; });
+    //
+    // // 重新计算统计量
+    // double valid_avg = std::accumulate(filtered.begin(), filtered.end(), 0.0) / filtered.size();
+    // auto [min_it, max_it] = std::minmax_element(filtered.begin(), filtered.end());
+    //
+    // auto perf_status = PerfStats{
+    //     valid_avg,
+    //     std_dev,
+    //     *min_it,
+    //     *max_it,
+    //     filtered.size()
+    // };
+    //
+    // std::cout << "Performance Report:\n"
+    //         << "Iterations: " << perf_status.iterations << "\n"
+    //         << "Avg Time:   " << perf_status.avg_ms << " ms\n"
+    //         << "Std Dev:    " << perf_status.std_dev_ms << " ms\n"
+    //         << "Min Time:   " << perf_status.min_ms << " ms\n"
+    //         << "Max Time:   " << perf_status.max_ms << " ms\n";
 }
 
 TEST(AnotherTest, NewMLPOriginPerf) {

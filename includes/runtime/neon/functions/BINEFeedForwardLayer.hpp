@@ -18,7 +18,6 @@
 
 
 namespace BatmanInfer {
-
     /**
      * FFN神经网络
      * 1. 先进行LayerNorm
@@ -31,7 +30,6 @@ namespace BatmanInfer {
         explicit BINEFeedForwardLayer(std::shared_ptr<BIIMemoryManager> memory_manager);
 
         BINEFeedForwardLayer() : BINEFeedForwardLayer(BIMemoryManagerOnDemand::make_default()) {
-
         }
 
         BINEFeedForwardLayer(const BINEFeedForwardLayer &) = delete;
@@ -44,6 +42,10 @@ namespace BatmanInfer {
 
         ~BINEFeedForwardLayer() override;
 
+        void dynamic_configure(const BIITensor *input,
+                               const size_t &seq_len,
+                               const size_t &batch_size);
+
         /**
          *
          * @param input 输入张量
@@ -53,6 +55,8 @@ namespace BatmanInfer {
          * @param proj_bias
          * @param gamma
          * @param output
+         * @param max_batch_size
+         * @param max_seq_len
          */
         void configure(const BIITensor *input,
                        const BIITensor *fc_weights,
@@ -62,8 +66,8 @@ namespace BatmanInfer {
                        const BIITensor *gamma,
                        const BIActivationLayerInfo &act_info,
                        BIITensor *output,
-                       const size_t &batch_size,
-                       const size_t &seq_len);
+                       const size_t &max_batch_size,
+                       const size_t &max_seq_len);
 
         static BIStatus validate(const BIITensorInfo *input,
                                  const BIITensorInfo *fc_weights,
@@ -81,24 +85,32 @@ namespace BatmanInfer {
     private:
         // 内存管理
         BIMemoryGroup _memory_group;
+        std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;
 
         // 算子操作
-        BINERMSNormLayer _rms_layer;  // 用于执行归一操作的层
+        BINERMSNormLayer _rms_layer; // 用于执行归一操作的层
 
-        BINEGEMM _c_fc_fuse_act;  // 用于进行扩展维度 (融合激活函数)
+        BINEGEMM _c_fc_fuse_act; // 用于进行扩展维度 (融合激活函数)
 
         BINEGEMM _c_proj; // 用于进行恢复维度
 
         BINECopy _copy_f; // 拷贝张量算子
 
         // 中间张量处理
-        BITensor _norm_output;  // 归一化输出
+        BITensor _norm_output; // 归一化输出
         BITensor _fuse_output; // 扩展激活函数输出
         BITensor _proj_output; // 恢复维度输出
+
+        BITensor _sub_norm_output, _sub_fuse_output, _sub_proj_output;
+
+        BITensorInfo _sub_norm_output_info, _sub_fuse_output_info, _sub_proj_output_info;
 
         // 参数长度
         size_t _max_batch;
         size_t _max_seq;
+
+        size_t _batch_size = 1;
+        size_t _seq_len = 3;
 
         // 其他参数 (是否准备就绪)
         bool _is_prepared;

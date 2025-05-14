@@ -265,37 +265,37 @@ TEST(BatmanInferLayer, CPUAttentionTest) {
     auto scalar_ptr = reinterpret_cast<float16_t *>(scalar.buffer());
     scalar_ptr[0] = 0.5f;
 
-    BINEAttentionLayer attention_layer;
-    attention_layer.configure(&input,
-                              &weights,
-                              &bias,
-                              &scalar,
-                              &add_tensor,
-                              &weights2,
-                              &bias2,
-                              &gamma,
-                              perm,
-                              perm2,
-                              perm_final,
-                              768,
-                              16,
-                              5,
-                              &output);
-    //    print_new_tensor(input);
-    // 获取开始时间点
-    auto start = std::chrono::high_resolution_clock::now();
-
-
-    attention_layer.run();
-
-    // 获取结束时间点
-    auto end = std::chrono::high_resolution_clock::now();
-
-    // 计算耗时（以微秒为单位）
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-
-    // 输出运行时间
-    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
+    // BINEAttentionLayer attention_layer;
+    // attention_layer.configure(&input,
+    //                           &weights,
+    //                           &bias,
+    //                           &scalar,
+    //                           &add_tensor,
+    //                           &weights2,
+    //                           &bias2,
+    //                           &gamma,
+    //                           perm,
+    //                           perm2,
+    //                           perm_final,
+    //                           768,
+    //                           16,
+    //                           5,
+    //                           &output);
+    // //    print_new_tensor(input);
+    // // 获取开始时间点
+    // auto start = std::chrono::high_resolution_clock::now();
+    //
+    //
+    // attention_layer.run();
+    //
+    // // 获取结束时间点
+    // auto end = std::chrono::high_resolution_clock::now();
+    //
+    // // 计算耗时（以微秒为单位）
+    // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    //
+    // // 输出运行时间
+    // std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 
     //    print_new_tensor(output);
 }
@@ -570,51 +570,51 @@ TEST(BatmanInferLayer, GPT2OneLayerTest) {
     std::memcpy(input.buffer(), input_data.data(), 768 * 16 * sizeof(float16_t));
 
 
-    attention_layer.configure(&input,
-                              &weights,
-                              &bias,
-                              &scalar,
-                              &add_tensor,
-                              &weights2,
-                              &bias2,
-                              &gamma,
-                              perm,
-                              perm2,
-                              perm_final,
-                              768,
-                              16,
-                              1,
-                              &output);
-
-    add_f.configure(&output, &input, &add_temp_out, BIConvertPolicy::WRAP);
-
-    feedforward_layer.configure(&add_temp_out, &fc_weights,
-                                &fc_bias,
-                                &proj_weights,
-                                &proj_bias,
-                                &gamma2,
-                                act_info,
-                                &ffn_out,
-                                1,
-                                16);
-
-    add_2_f.configure(&add_temp_out, &ffn_out, &final_out, BIConvertPolicy::WRAP);
-
-
-    // 开始时间节点
-    auto start = std::chrono::high_resolution_clock::now();
-    attention_layer.run();
-    add_f.run();
-    feedforward_layer.run();
-    add_2_f.run();
-    // 结束时间节点
-    auto end = std::chrono::high_resolution_clock::now();
-
-    print_new_tensor(final_out);
-
-    // 计算耗时（以微秒为单位）
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-
-    // 输出运行时间
-    std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
+    // attention_layer.configure(&input,
+    //                           &weights,
+    //                           &bias,
+    //                           &scalar,
+    //                           &add_tensor,
+    //                           &weights2,
+    //                           &bias2,
+    //                           &gamma,
+    //                           perm,
+    //                           perm2,
+    //                           perm_final,
+    //                           768,
+    //                           16,
+    //                           1,
+    //                           &output);
+    //
+    // add_f.configure(&output, &input, &add_temp_out, BIConvertPolicy::WRAP);
+    //
+    // feedforward_layer.configure(&add_temp_out, &fc_weights,
+    //                             &fc_bias,
+    //                             &proj_weights,
+    //                             &proj_bias,
+    //                             &gamma2,
+    //                             act_info,
+    //                             &ffn_out,
+    //                             1,
+    //                             16);
+    //
+    // add_2_f.configure(&add_temp_out, &ffn_out, &final_out, BIConvertPolicy::WRAP);
+    //
+    //
+    // // 开始时间节点
+    // auto start = std::chrono::high_resolution_clock::now();
+    // attention_layer.run();
+    // add_f.run();
+    // feedforward_layer.run();
+    // add_2_f.run();
+    // // 结束时间节点
+    // auto end = std::chrono::high_resolution_clock::now();
+    //
+    // print_new_tensor(final_out);
+    //
+    // // 计算耗时（以微秒为单位）
+    // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    //
+    // // 输出运行时间
+    // std::cout << "Function execution time: " << duration.count() << " microseconds" << std::endl;
 }

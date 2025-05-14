@@ -77,7 +77,7 @@ namespace BatmanInfer {
                        float beta,
                        const GEMMInfo &gemm_info = GEMMInfo());
 
-        void dynamic_configure();
+        void dynamic_configure() const;
 
         /** Static function to check if given info will lead to a valid configuration of @ref NEGEMM.
          *

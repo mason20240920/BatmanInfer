@@ -19,7 +19,9 @@ namespace BatmanInfer {
 
     BINEAttentionLayer::BINEAttentionLayer(std::shared_ptr<BIIMemoryManager> memory_manager) : _memory_group(
             std::move(memory_manager)),
-        _normalization_layer(),
+        // _rms_norm_layer(),
+        // _c_attn_layer(),
+        // _norm_output(),
         // _gemm_state_f(),
         // _split_layer(),
         // _reshape_1_f(),
@@ -71,6 +73,97 @@ namespace BatmanInfer {
         BI_COMPUTE_RETURN_ERROR_ON(input->num_dimensions() == 1);
 
         return BIStatus{};
+    }
+
+    void BINEAttentionLayer::dynamic_configure(const BIITensor *input,
+                                               const size_t &seq_len,
+                                               const size_t &batch_size) {
+        _batch_size = batch_size;
+        _seq_len = seq_len;
+
+        _sub_norm_info.set_tensor_shape(BITensorShape(_hidden_size, seq_len, batch_size));
+        _sub_norm_output.allocator()->init(*_norm_output.allocator(), _sub_norm_info);
+
+        _sub_c_attn_tensor_info.set_tensor_shape(BITensorShape(_hidden_size * 3, seq_len, batch_size));
+        _sub_c_attn_output.allocator()->init(*_c_attn_output.allocator(), _sub_c_attn_tensor_info);
+
+        _sub_qkv_states_info.set_tensor_shape(BITensorShape(_hidden_size, seq_len, batch_size));
+        _sub_query_states.allocator()->init(*_query_states.allocator(), _sub_qkv_states_info);
+        _sub_key_states.allocator()->init(*_key_states.allocator(), _sub_qkv_states_info);
+        _sub_value_states.allocator()->init(*_value_states.allocator(), _sub_qkv_states_info);
+
+        _sub_reshape_qkv_info.set_tensor_shape(BITensorShape(64, 12, seq_len, batch_size));
+        _sub_reshape_q_states.allocator()->init(*_reshape_q_states.allocator(), _sub_reshape_qkv_info);
+        _sub_reshape_k_states.allocator()->init(*_reshape_k_states.allocator(), _sub_reshape_qkv_info);
+        _sub_reshape_v_states.allocator()->init(*_reshape_v_states.allocator(), _sub_reshape_qkv_info);
+
+        _sub_transpose_q_info.set_tensor_shape(BITensorShape(64, _seq_len, 12, _batch_size));
+        _sub_transpose_q_states.allocator()->init(*_transpose_q_states.allocator(), _sub_transpose_q_info);
+
+        _sub_transpose_k_info.set_tensor_shape(BITensorShape(_seq_len, 64, 12, _batch_size));
+        _sub_transpose_k_states.allocator()->init(*_transpose_k_states.allocator(), _sub_transpose_k_info);
+
+        _sub_transpose_v_info.set_tensor_shape(BITensorShape(64, _seq_len, 12, _batch_size));
+        _sub_transpose_v_states.allocator()->init(*_transpose_v_states.allocator(), _sub_transpose_v_info);
+
+        _sub_qk_bmm_output_info.set_tensor_shape(BITensorShape(_seq_len, _seq_len, 12, _batch_size));
+        _sub_qk_bmm_output.allocator()->init(*_qk_bmm_output.allocator(), _sub_qk_bmm_output_info);
+
+        _sub_add_weights_info.set_tensor_shape(BITensorShape(_seq_len, _seq_len));
+        _sub_add_weights.allocator()->init(*_add_weights.allocator(), _sub_add_weights_info);
+
+        _sub_add_output_info.set_tensor_shape(BITensorShape(_seq_len, _seq_len, 12, _batch_size));
+        _sub_add_output.allocator()->init(*_add_output.allocator(), _sub_add_output_info);
+
+        _sub_softmax_output_info.set_tensor_shape(BITensorShape(_seq_len, _seq_len, 12, _batch_size));
+        _sub_softmax_output.allocator()->init(*_softmax_output.allocator(), _sub_softmax_output_info);
+
+        _sub_pv_bmm_output_info.set_tensor_shape(BITensorShape(64, _seq_len, 12, _batch_size));
+        _sub_pv_bmm_output.allocator()->init(*_pv_bmm_output.allocator(), _sub_pv_bmm_output_info);
+
+        _sub_pv_transpose_output_info.set_tensor_shape(BITensorShape(64, 12, _seq_len, _batch_size));
+        _sub_pv_perm_output.allocator()->init(*_pv_perm_output.allocator(), _sub_pv_transpose_output_info);
+
+        _sub_pv_reshape_output_info.set_tensor_shape(BITensorShape(768, _seq_len, _batch_size));
+        _sub_pv_reshape_output.allocator()->init(*_pv_reshape_output.allocator(), _sub_pv_reshape_output_info);
+
+        _sub_attn_o_output_info.set_tensor_shape(BITensorShape(768, _seq_len, _batch_size));
+        _sub_attn_o_output.allocator()->init(*_attn_o_output.allocator(), _sub_attn_o_output_info);
+
+        std::vector<BIITensor *> outputs = {
+            &_sub_query_states,
+            &_sub_key_states,
+            &_sub_value_states
+        };
+
+        _rms_norm_layer.dynamic_configure(input);
+        _c_attn_layer.dynamic_configure();
+        _split_layer.dynamic_configure(&_sub_c_attn_output, outputs);
+        _reshape_q_layer.dynamic_configure();
+        _reshape_k_layer.dynamic_configure();
+        _reshape_v_layer.dynamic_configure();
+        _transpose_q_layer.dynamic_configure(&_sub_reshape_q_states, &_sub_transpose_q_states);
+        _transpose_k_layer.dynamic_configure(&_sub_reshape_k_states, &_sub_transpose_k_states);
+        _transpose_v_layer.dynamic_configure(&_sub_reshape_v_states, &_sub_transpose_v_states);
+        BIMatMulInfo matmul_info; // No transpose for lhs or rhs
+        matmul_info.adj_lhs(false).adj_rhs(false);
+        // Define CpuMatMulSettings
+        BICpuMatMulSettings settings;
+        // Enable fast math for optimization
+        settings = settings.fast_math(true);
+        _sub_transpose_q_states.info()->set_are_values_constant(false);
+        _sub_transpose_k_states.info()->set_are_values_constant(false);
+        _qk_bmm_layer.dynamic_configure(&_sub_transpose_q_states, &_sub_transpose_k_states, &_sub_qk_bmm_output);
+        _qk_add_layer.dynamic_configure(&_sub_qk_bmm_output, &_add_weights, true);
+        _softmax_layer.dynamic_configure();
+        _pv_bmm_layer.dynamic_configure(&_sub_softmax_output, &_sub_transpose_v_states, &_sub_pv_bmm_output);
+        _pv_transpose_layer.dynamic_configure(&_sub_pv_bmm_output, &_sub_pv_perm_output);
+        _pv_reshape_layer.dynamic_configure();
+        _attn_o_gemm_layer.dynamic_configure();
+        _c_copy_layer.dynamic_configure();
+        _sub_softmax_output.info()->set_are_values_constant(false);
+        _sub_transpose_v_states.info()->set_are_values_constant(false);
+        _pv_bmm_layer.dynamic_configure(&_sub_softmax_output, &_sub_transpose_v_states, &_sub_pv_bmm_output);
     }
 
     void BINEAttentionLayer::configure(const BIITensor *input,
@@ -131,6 +224,7 @@ namespace BatmanInfer {
         _pv_perm_output.allocator()->init(BITensorInfo(reshape_qkv_shape, 1, BIDataType::F16));
         _pv_reshape_output.allocator()->init(BITensorInfo(rms_norm_shape, 1, BIDataType::F16));
         _attn_o_output.allocator()->init(BITensorInfo(rms_norm_shape, 1, BIDataType::F16));
+        _add_weights.allocator()->init(BITensorInfo(add_weights_shape, 1, BIDataType::F16));
 
         // 内存管理
         _memory_group.manage(&_norm_output);
@@ -151,6 +245,7 @@ namespace BatmanInfer {
         _memory_group.manage(&_pv_perm_output);
         _memory_group.manage(&_pv_reshape_output);
         _memory_group.manage(&_attn_o_output);
+        _memory_group.manage(&_add_weights);
 
         _norm_output.allocator()->allocate();
         _c_attn_output.allocator()->allocate();
@@ -170,6 +265,7 @@ namespace BatmanInfer {
         _pv_perm_output.allocator()->allocate();
         _pv_reshape_output.allocator()->allocate();
         _attn_o_output.allocator()->allocate();
+        _add_weights.allocator()->allocate();
 
         // Sub张量初始化
         const auto _sub_norm_shape = BITensorShape(_hidden_size, _seq_len, _batch_size);
@@ -251,99 +347,94 @@ namespace BatmanInfer {
         gemm_info.set_fast_math(true);
         _c_attn_layer.configure(&_sub_norm_output, c_attn_weights, c_attn_bias, &_sub_c_attn_output, 1.0f, 1.0f,
                                 gemm_info);
-
-        // _gemm_state_f.configure(&_norm_output, weights, bias, &_gemm_output, 1.0f, 1.0f, gemm_info);
-        // std::vector<BIITensor *> outputs = {&_split_result_1, &_split_result_2, &_split_result_0};
-        // _split_layer.configure(&_gemm_output, outputs, 0);
-        // _reshape_1_f.configure(&_split_result_0, &_reshape_1_output);
-        // _transpose_1_f.configure(&_reshape_1_output, &_transpose_1_output, perm);
-        // _reshape_2_f.configure(&_split_result_1, &_reshape_2_output);
-        // _transpose_2_f.configure(&_reshape_2_output, &_transpose_2_output, perm2);
-        // _mul_1_f.configure(&_transpose_2_output,
-        //                    scalar,
-        //                    &_mul_1_output,
-        //                    1.0f,
-        //                    BIConvertPolicy::WRAP,
-        //                    BIRoundingPolicy::TO_ZERO);
-        // _reshape_3_f.configure(&_split_result_2, &_reshape_3_output);
-        // _transpose_3_f.configure(&_reshape_3_output, &_transpose_3_output, perm);
-        // _mul_2_f.configure(&_transpose_3_output,
-        //                    scalar,
-        //                    &_mul_2_output,
-        //                    1.0f,
-        //                    BIConvertPolicy::WRAP,
-        //                    BIRoundingPolicy::TO_ZERO);
-        //
-        // // Define MatMulInfo
-        // BIMatMulInfo matmul_info; // No transpose for lhs or rhs
-        //
-        // // Define CpuMatMulSettings
-        // BICpuMatMulSettings settings;
-        // // Enable fast math for optimization
+        std::vector<BIITensor *> outputs = {&_sub_query_states, &_sub_key_states, &_sub_value_states};
+        _split_layer.configure(&_sub_c_attn_output, outputs, 0);
+        _reshape_q_layer.configure(&_sub_query_states, &_sub_reshape_q_states);
+        _reshape_k_layer.configure(&_sub_key_states, &_sub_reshape_k_states);
+        _reshape_v_layer.configure(&_sub_value_states, &_sub_reshape_v_states);
+        _transpose_q_layer.configure(&_sub_reshape_q_states, &_sub_transpose_q_states, q_perm);
+        _transpose_k_layer.configure(&_sub_reshape_k_states, &_sub_transpose_k_states, k_perm);
+        _transpose_v_layer.configure(&_sub_reshape_v_states, &_sub_transpose_v_states, q_perm);
+        _sub_transpose_q_states.info()->set_are_values_constant(false);
+        _sub_transpose_k_states.info()->set_are_values_constant(false);
+        BIMatMulInfo matmul_info; // No transpose for lhs or rhs
+        matmul_info.adj_lhs(false).adj_rhs(false);
+        // Define CpuMatMulSettings
+        BICpuMatMulSettings settings;
+        // Enable fast math for optimization
         // settings = settings.fast_math(true);
-        // // 设置不是常量
-        // _mul_1_output.info()->set_are_values_constant(false);
-        // _mul_2_output.info()->set_are_values_constant(false);
-        // _matmul_1_f.configure(&_mul_2_output,
-        //                       &_mul_1_output,
-        //                       &_matmul_1_output, matmul_info, settings);
-        // _add_f.configure(&_matmul_1_output,
-        //                  add_weights,
-        //                  &_add_output,
-        //                  BIConvertPolicy::SATURATE);
-        // _softmax_layer.configure(&_add_output,
-        //                          &_softmax_output,
-        //                          1.0f,
-        //                          0);
-        // _transpose_1_output.info()->set_are_values_constant(false);
-        // _softmax_output.info()->set_are_values_constant(false);
-        // _matmul_2_f.configure(&_softmax_output,
-        //                       &_transpose_1_output,
-        //                       &_matmul_2_output, matmul_info, settings);
-        // _transpose_final_f.configure(&_matmul_2_output, &_transpose_final_output, final_perm);
-        // _reshape_final_f.configure(&_transpose_final_output, &_reshape_final_output);
-        // _gemm_final_f.configure(&_reshape_final_output, weights_second, bias_second, &_gemm_final_output, 1.f, 1.f,
-        //                         gemm_info);
-        // _copy_f.configure(&_gemm_final_output, output);
+        _qk_bmm_layer.configure(&_sub_transpose_q_states, &_sub_transpose_k_states, &_sub_qk_bmm_output, matmul_info,
+                                settings);
+        _qk_add_layer.configure(&_sub_qk_bmm_output, &_sub_add_weights, &_sub_add_output, BIConvertPolicy::SATURATE);
+        _softmax_layer.configure(&_sub_add_output, &_sub_softmax_output);
+        _sub_softmax_output.info()->set_are_values_constant(false);
+        _sub_transpose_v_states.info()->set_are_values_constant(false);
+        _pv_bmm_layer.configure(&_sub_softmax_output, &_sub_transpose_v_states, &_sub_pv_bmm_output, matmul_info,
+                                settings);
+        _pv_transpose_layer.configure(&_sub_pv_bmm_output, &_sub_pv_perm_output, qkv_perm);
+        _pv_reshape_layer.configure(&_sub_pv_perm_output, &_sub_pv_reshape_output);
+        _attn_o_gemm_layer.configure(&_sub_pv_reshape_output, o_attn_weights, o_attn_bias, &_sub_attn_o_output, 1.0f,
+                                     1.0f,
+                                     gemm_info);
+        _c_copy_layer.configure(&_sub_attn_o_output, output);
     }
 
     void BINEAttentionLayer::run() {
-        // 输入格式
-        BIIOFormatInfo format;
-        format.element_delim = ", "; // 元素之间用逗号分隔
-        format.row_delim = "\n"; // 每行换行
-        format.align_columns = 1; // 对齐列
-        //        prepare();
-
-        BIMemoryGroupResourceScope scope_mg(_memory_group);
-
+        prepare();
         // 执行函数
-        _normalization_layer.run(); // 归一化 layer norm
-        // _gemm_state_f.run();
-        // _split_layer.run();
-        // _reshape_1_f.run();
-        // _transpose_1_f.run();
-        // _reshape_2_f.run();
-        // _transpose_2_f.run();
-        // _mul_1_f.run();
-        // _reshape_3_f.run();
-        // _transpose_3_f.run();
-        // _mul_2_f.run();
-        // _matmul_1_f.run();
-        // _add_f.run();
-        // _softmax_layer.run();
-        // _matmul_2_f.run();
-        // _transpose_final_f.run();
-        // _reshape_final_f.run();
-        // _gemm_final_f.run();
-        // _copy_f.run(); // 运行拷贝
+        _rms_norm_layer.run(); // 归一化 layer norm
+        _c_attn_layer.run();
+        _split_layer.run();
+        _reshape_q_layer.run();
+        _reshape_k_layer.run();
+        _reshape_v_layer.run();
+        _transpose_q_layer.run();
+        _transpose_k_layer.run();
+        _transpose_v_layer.run();
+        _qk_bmm_layer.run(); // 计算add之前先给add_weights值进行修改
+        BIWindow window;
+        window.use_tensor_dimensions(_sub_add_weights_info.tensor_shape());
+        BIIterator mask_it(&_sub_add_weights, window);
+        execute_window_loop(window, [&](const BICoordinates &id) {
+            auto x = id[0];
+            auto y = id[1];
+            *reinterpret_cast<float16_t *>(mask_it.ptr()) = (x <= y)
+                                                                ? 0
+                                                                : -std::numeric_limits<
+                                                                    float>::infinity();
+        }, mask_it);
+        _qk_add_layer.run();
+        _softmax_layer.run();
+        _pv_bmm_layer.run();
+        _pv_transpose_layer.run();
+        _pv_reshape_layer.run();
+        _attn_o_gemm_layer.run();
+        _c_copy_layer.run();
     }
 
     void BINEAttentionLayer::prepare() {
         if (!_is_prepared) {
-            //            _reshape.prepare();
-            //            _gemm_state_f.prepare();
-
+            // 1. 先调用内存管理组(再进行sub tensor的内存分布, 申请开辟连续内存)
+            _scope_mg = std::make_unique<BIMemoryGroupResourceScope>(_memory_group);
+            _sub_norm_output.allocator()->init(*_norm_output.allocator(), _sub_norm_info);
+            _sub_c_attn_output.allocator()->init(*_c_attn_output.allocator(), _sub_c_attn_tensor_info);
+            _sub_query_states.allocator()->init(*_query_states.allocator(), _sub_qkv_states_info);
+            _sub_key_states.allocator()->init(*_key_states.allocator(), _sub_qkv_states_info);
+            _sub_value_states.allocator()->init(*_value_states.allocator(), _sub_qkv_states_info);
+            _sub_reshape_q_states.allocator()->init(*_reshape_q_states.allocator(), _sub_reshape_qkv_info);
+            _sub_reshape_k_states.allocator()->init(*_reshape_k_states.allocator(), _sub_reshape_qkv_info);
+            _sub_reshape_v_states.allocator()->init(*_reshape_v_states.allocator(), _sub_reshape_qkv_info);
+            _sub_transpose_q_states.allocator()->init(*_transpose_q_states.allocator(), _sub_transpose_q_info);
+            _sub_transpose_k_states.allocator()->init(*_transpose_k_states.allocator(), _sub_transpose_k_info);
+            _sub_transpose_v_states.allocator()->init(*_transpose_v_states.allocator(), _sub_transpose_v_info);
+            _sub_qk_bmm_output.allocator()->init(*_qk_bmm_output.allocator(), _sub_qk_bmm_output_info);
+            _sub_add_weights.allocator()->init(*_add_weights.allocator(), _sub_add_weights_info);
+            _sub_add_output.allocator()->init(*_add_output.allocator(), _sub_add_output_info);
+            _sub_softmax_output.allocator()->init(*_softmax_output.allocator(), _sub_softmax_output_info);
+            _sub_pv_bmm_output.allocator()->init(*_pv_bmm_output.allocator(), _sub_pv_bmm_output_info);
+            _sub_pv_perm_output.allocator()->init(*_pv_perm_output.allocator(), _sub_pv_transpose_output_info);
+            _sub_pv_reshape_output.allocator()->init(*_pv_reshape_output.allocator(), _sub_pv_reshape_output_info);
+            _sub_attn_o_output.allocator()->init(*_attn_o_output.allocator(), _sub_attn_o_output_info);
             _is_prepared = true;
         }
     }
