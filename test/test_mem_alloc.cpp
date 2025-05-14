@@ -823,10 +823,10 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     attn_layer.run();
     attn_rms_add.run();
     _mlp_layer.run();
-    MemAllocTest::print_tensor(sub_mlp_output, "attn_output_tensor");
     add_f.run();
     rms_norm_layer.run();
     lm_head_layer.run();;
+    MemAllocTest::print_tensor(sub_lm_head_output, "attn_output_tensor");
     arg_minmax_layer.run();
     // MemAllocTest::print_tensor(sub_lm_head_output, "sub_lm_head_output");
     MemAllocTest::print_tensor(sub_ids, "ids");
