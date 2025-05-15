@@ -271,8 +271,8 @@ namespace BatmanGemm {
         /* Quantized support (in addition to 'output stage' above) */
         int32_t *_col_bias = nullptr;
 
-        const unsigned int _Ktotal; // 处理整个计算的所有K段总量
-        const unsigned int _rounded_Ksize; // 处理单个K段内的对齐
+        unsigned int _Ktotal; // 处理整个计算的所有K段总量
+        unsigned int _rounded_Ksize; // 处理单个K段内的对齐
 
         /* Blocking info */
         unsigned int _n_block;
@@ -424,6 +424,8 @@ namespace BatmanGemm {
         void update_parameters() override {
             if (_Mround != _args._Msize)
                 _Mround = roundup(_args._Msize, strategy::out_height());
+            _Ktotal = round(get_ktotal(_args));
+            _rounded_Ksize = roundup(_args._Ksize, strategy::k_unroll());
             _n_block = compute_n_block(_args, _os);
             _k_block = compute_k_block(_args);
             _window_range = BINDRange<4>{

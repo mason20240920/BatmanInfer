@@ -62,8 +62,11 @@ namespace BatmanInfer {
     }
 
     void BINEMatMul::dynamic_configure(BIITensor *lhs, BIITensor *rhs, BIITensor *dst) const {
+        // _impl->lhs = lhs;
+        // _impl->rhs = rhs;
+        // _impl->output = dst;
         _impl->memory_group.mappings().clear(); // 清空内存管理
-        _impl->op->dynamic_configure(lhs->info(), rhs->info(), dst->info());
+        _impl->op->dynamic_configure(_impl->lhs->info(), _impl->rhs->info(), _impl->output->info());
         _impl->workspace_tensors = manage_workspace<
             BITensor>(_impl->op->workspace(),
                       _impl->memory_group,
