@@ -39,7 +39,7 @@ namespace test_interface_call
 TEST(InterfaceCall, Gpt2Model)
 {
     bool ret = true;
-    std::string gpt2_res_path = "./gpt2_res/gpt2_final.bin";
+    std::string gpt2_res_path = "./gpt2_res_all_float/gpt2_final.bin";
 
     std::ifstream fin(gpt2_res_path, std::ios::in | std::ios::binary);
     if (!fin.is_open()) {
@@ -60,7 +60,7 @@ TEST(InterfaceCall, Gpt2Model)
     model_interface->bi_init(data_in, data_size);
     delete[] data_in;
 
-    std::vector< std::vector<unsigned int> > input_vec = { { 0 } };
+    std::vector< std::vector<unsigned int> > input_vec = { { 0, 1, 2 } };
 
     model_interface->bi_set_input(input_vec);
 
@@ -70,7 +70,7 @@ TEST(InterfaceCall, Gpt2Model)
 
     test_interface_call::find_and_print_top_n(output_vec, 20);
 
-    std::vector< std::vector<unsigned int> > input_vec2 = { { 0, 8, 9, }, { 0, 8, 9, 10 } };
+    std::vector< std::vector<unsigned int> > input_vec2 = { { 0, 1, 2, }, { 0, 1, 2 }, { 0, 1, 2 } };
 
     model_interface->bi_set_input(input_vec2);
 

@@ -22,6 +22,7 @@ constexpr int dict_size      = 6003;
 constexpr int hidden_size    = 768;
 constexpr int tensor_max_dim = 6;
 
+/*
 typedef struct HyperParameters_ {
     float attn_input_scale;
     float attn_output_scale;
@@ -42,7 +43,9 @@ typedef struct HyperParameters_ {
     int   fc1_output_zp;
     int   fc2_input_zp;
 }HyperParameters;
+*/
 
+/*
 typedef struct AttnHyperParams_ {
     static constexpr float softmax_q_scale   = 0.00392156862745098f;
     static constexpr int   softmax_zp        = -128;
@@ -75,11 +78,13 @@ typedef struct AttnHyperParams_ {
     {}
 
 }AttnHyperParams;
+*/
 
 const PermutationVector q_perm{0, 2, 1, 3};
 const PermutationVector k_perm{2, 0, 1, 3};
 const PermutationVector qkv_o_perm{0, 2, 1, 3};
 
+/*
 typedef struct MLPHyperParams_ {
     float fc1_input_scale;
     int   fc1_input_zero_point;
@@ -98,6 +103,7 @@ typedef struct MLPHyperParams_ {
     {}
 
 }MLPHyperParams;
+*/
 
 // 为资源的打包设定一个顺序
 enum class GPT2ResOrder {
@@ -105,19 +111,19 @@ enum class GPT2ResOrder {
     add_weight,
     attn_gamma_weight,
     attn_qkv_weight,
-    attn_qkv_weight_scale,
+    // attn_qkv_weight_scale,
     attn_qkv_bias,
     attn_c_proj_weight,
     attn_c_proj_bias,
     mlp_gamma_weight,
     c_fc_weight,
-    c_fc_weight_scale,
+    // c_fc_weight_scale,
     c_fc_bias,
     c_proj_weight,
     c_proj_bias,
     rms_gamma_weight,
     lm_head_weight,
-    decode_layer_scales,
+    // decode_layer_scales,
     all_res_count,
 };
 
@@ -249,17 +255,19 @@ private:
 
     BINEGather             _gather_layer;
     BINEArithmeticAddition _add_layer;
-    BINEAttentionLowpLayer _attn_lowp_layer;
+    // BINEAttentionLowpLayer _attn_lowp_layer;
+    BINEAttentionLayer     _attn_layer;
     BINEArithmeticAddition _attn_rms_add_layer;
-    BINEMLPLayer           _mlp_layer;
+    // BINEMLPLayer           _mlp_layer;
+    BINEFeedForwardLayer   _mlp_layer;
     BINEArithmeticAddition _add_mlp_layer;
     BINERMSNormLayer       _rms_norm_layer;
     BINEGEMM               _lm_head_layer;
 
-    BIQuantizationInfo _c_fc_weight_q_info;
+    // BIQuantizationInfo _c_fc_weight_q_info;
     std::vector<int> _output_positions;
 
-    AttnHyperParams _attn_hyper_params;
-    MLPHyperParams  _mlp_hyper_params;
+    // AttnHyperParams _attn_hyper_params;
+    // MLPHyperParams  _mlp_hyper_params;
 
 };
