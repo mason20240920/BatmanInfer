@@ -177,7 +177,7 @@ namespace BatmanInfer {
         size_t _max_seq_len{}; // 最大长度输入
         size_t _max_batch_size{}; // 一块的大小
         size_t _batch_size = 1;
-        size_t _seq_len = 3;
+        size_t _seq_len = 1;
         bool _is_prepared; // 是否已经完全初始化(预先把内存加载完)
         std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;
     };

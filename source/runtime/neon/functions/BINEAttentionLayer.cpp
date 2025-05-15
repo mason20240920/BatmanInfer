@@ -161,9 +161,6 @@ namespace BatmanInfer {
         _pv_reshape_layer.dynamic_configure();
         _attn_o_gemm_layer.dynamic_configure();
         _c_copy_layer.dynamic_configure();
-        _sub_softmax_output.info()->set_are_values_constant(false);
-        _sub_transpose_v_states.info()->set_are_values_constant(false);
-        _pv_bmm_layer.dynamic_configure(&_sub_softmax_output, &_sub_transpose_v_states, &_sub_pv_bmm_output);
     }
 
     void BINEAttentionLayer::configure(const BIITensor *input,
