@@ -54,6 +54,13 @@ BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size) {
     ret = init_configure_all_layers();
     CHECK_SUCCESS(ret);
 
+    // 为了使内存正确分配，需要在开始的时候 run 一次，以执行每一个算子中的 prepare 函数
+    std::vector< std::vector<unsigned int> > tmp_input_vec = { { 0 } };
+    fill_tensor_data_2D(_sub_input_tensor, tmp_input_vec, 1);
+    std::vector< std::vector<float> > tmp_output_vec;
+    ret = bi_run(tmp_output_vec);
+    CHECK_SUCCESS(ret);
+
 #ifdef QYW_PRINT
     std::cout << std::string(__FUNCTION__) << " success!" << std::endl;
 #endif // QYW_PRINT
