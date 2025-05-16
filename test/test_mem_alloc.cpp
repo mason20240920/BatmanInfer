@@ -783,13 +783,15 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
     arg_minmax_layer.run();
     MemAllocTest::print_tensor(sub_ids, "ids");
+
+
     // 再次进行运行(动态)
     batch_size = 1;
-    seq_len = 4;
+    seq_len = 3;
     input_tensor_shape = BITensorShape(seq_len, batch_size);
     input_info.set_tensor_shape(input_tensor_shape);
     input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
-    indices_data = {0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3};
+    indices_data = {0, 1, 2, 0, 1, 2, 0, 1, 2};
     MemAllocTest::fill_tensor_val_with_arr(input_tensor, indices_data);
     gather_output_tensor_shape = BITensorShape(768, seq_len, batch_size);
     gather_output_info.set_tensor_shape(gather_output_tensor_shape);
@@ -825,11 +827,100 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     _mlp_layer.run();
     add_f.run();
     rms_norm_layer.run();
-    lm_head_layer.run();;
-    MemAllocTest::print_tensor(sub_lm_head_output, "attn_output_tensor");
+    lm_head_layer.run();
     arg_minmax_layer.run();
-    // MemAllocTest::print_tensor(sub_lm_head_output, "sub_lm_head_output");
     MemAllocTest::print_tensor(sub_ids, "ids");
+    MemAllocTest::print_tensor(sub_lm_head_output, "sub_lm_head_output");
+
+    batch_size = 3;
+    seq_len = 3;
+    input_tensor_shape = BITensorShape(seq_len, batch_size);
+    input_info.set_tensor_shape(input_tensor_shape);
+    input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
+    indices_data = {0, 2, 2, 0, 1, 2, 0, 1, 2};
+    MemAllocTest::fill_tensor_val_with_arr(input_tensor, indices_data);
+    gather_output_tensor_shape = BITensorShape(768, seq_len, batch_size);
+    gather_output_info.set_tensor_shape(gather_output_tensor_shape);
+    gather_output_tensor.allocator()->init(*original_gather_output_tensor.allocator(), gather_output_info);
+    add_output_tensor.allocator()->init(*original_add_output_tensor.allocator(), gather_output_info);
+    sub_add_weight_shape = BITensorShape(768, seq_len);
+    sub_add_weight_info.set_tensor_shape(sub_add_weight_shape);
+    sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
+    attn_output_tensor.allocator()->init(*attn_origin_o_tensor.allocator(), gather_output_info);
+    sub_mlp_input.allocator()->init(*original_attn_rms_output_tensor.allocator(), gather_output_info);
+    sub_mlp_output.allocator()->init(*output.allocator(), gather_output_info);
+    sub_mlp_rms_output.allocator()->init(*mlp_rms_output.allocator(), gather_output_info);
+    sub_add_output.allocator()->init(*add_output.allocator(), gather_output_info);
+    sub_lm_head_output_info.set_tensor_shape(BITensorShape(6003, seq_len, batch_size));
+    sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+    sub_ids_info.set_tensor_shape(BITensorShape(seq_len, batch_size));
+    sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
+    gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
+    add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
+    attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size);
+    attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
+    add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
+    rms_norm_layer.dynamic_configure(&sub_add_output);
+    lm_head_layer.dynamic_configure();
+    arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
+    gather_layer.run();
+    add_layer.run();
+    attn_layer.run();
+    attn_rms_add.run();
+    _mlp_layer.run();
+    add_f.run();
+    rms_norm_layer.run();
+    lm_head_layer.run();
+    arg_minmax_layer.run();
+    MemAllocTest::print_tensor(sub_ids, "ids");
+    // MemAllocTest::print_tensor(sub_lm_head_output, "sub_lm_head_output");
+
+    batch_size = 5;
+    seq_len = 3;
+    input_tensor_shape = BITensorShape(seq_len, batch_size);
+    input_info.set_tensor_shape(input_tensor_shape);
+    input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
+    indices_data = {0, 2, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2};
+    MemAllocTest::fill_tensor_val_with_arr(input_tensor, indices_data);
+    gather_output_tensor_shape = BITensorShape(768, seq_len, batch_size);
+    gather_output_info.set_tensor_shape(gather_output_tensor_shape);
+    gather_output_tensor.allocator()->init(*original_gather_output_tensor.allocator(), gather_output_info);
+    add_output_tensor.allocator()->init(*original_add_output_tensor.allocator(), gather_output_info);
+    sub_add_weight_shape = BITensorShape(768, seq_len);
+    sub_add_weight_info.set_tensor_shape(sub_add_weight_shape);
+    sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
+    attn_output_tensor.allocator()->init(*attn_origin_o_tensor.allocator(), gather_output_info);
+    sub_mlp_input.allocator()->init(*original_attn_rms_output_tensor.allocator(), gather_output_info);
+    sub_mlp_output.allocator()->init(*output.allocator(), gather_output_info);
+    sub_mlp_rms_output.allocator()->init(*mlp_rms_output.allocator(), gather_output_info);
+    sub_add_output.allocator()->init(*add_output.allocator(), gather_output_info);
+    sub_lm_head_output_info.set_tensor_shape(BITensorShape(6003, seq_len, batch_size));
+    sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+    sub_ids_info.set_tensor_shape(BITensorShape(seq_len, batch_size));
+    sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
+    gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
+    add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
+    attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size);
+    attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
+    add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
+    rms_norm_layer.dynamic_configure(&sub_add_output);
+    lm_head_layer.dynamic_configure();
+    arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
+
+
+    gather_layer.run();
+    add_layer.run();
+    attn_layer.run();
+    attn_rms_add.run();
+    _mlp_layer.run();
+    add_f.run();
+    rms_norm_layer.run();
+    lm_head_layer.run();
+    arg_minmax_layer.run();
+    MemAllocTest::print_tensor(sub_ids, "ids");
+    // MemAllocTest::print_tensor(sub_lm_head_output, "sub_lm_head_output");
     // const auto warmup = 10; // 预热次数
     // const auto iterations = 1000; // 运行次数
     // const double outlier_threshold = 3.0; // 异常值阈值(标准差倍数)
