@@ -58,6 +58,7 @@ BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size) {
     std::vector< std::vector<unsigned int> > tmp_input_vec = { { 0 } };
     fill_tensor_data_2D(_sub_input_tensor, tmp_input_vec, 1);
     std::vector< std::vector<float> > tmp_output_vec;
+    _output_positions = { 1 };
     ret = bi_run(tmp_output_vec);
     CHECK_SUCCESS(ret);
 
