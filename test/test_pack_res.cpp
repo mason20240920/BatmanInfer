@@ -177,6 +177,7 @@ namespace res_pack {
     bool read_and_write_json(int res_order, const std::string &path_prefix, const std::string &res_path,
         std::fstream &dst_file) {
 
+        /*
         std::ifstream json_fin(path_prefix + res_path);
         if (!json_fin.is_open()) {
             std::cout << "Cannot open file: " << path_prefix << res_path << "!" << std::endl;
@@ -226,6 +227,7 @@ namespace res_pack {
         dst_file.write(reinterpret_cast<char*>(&res_header), sizeof(res_header));
         // 写入参数信息
         dst_file.write(reinterpret_cast<char*>(&params), sizeof(params));
+        */
 
         return true;
     }
@@ -237,7 +239,7 @@ TEST(ResPack, PackGPT) {
 
 
     std::map<GPT2ResOrder, std::string> res_paths;
-    std::string res_path_prefix = "./gpt2_res/", path_storage_file = "_all_res_paths.txt";
+    std::string res_path_prefix = "./gpt2_res_all_float/", path_storage_file = "_all_res_paths.txt";
     ret = res_pack::load_res_paths(res_path_prefix, path_storage_file, res_paths);
     ASSERT_TRUE(ret);
 
@@ -274,17 +276,21 @@ TEST(ResPack, PackGPT) {
                     res_paths[cur_order], dst_file);
                 break;
             }
+            /*
             case GPT2ResOrder::attn_qkv_weight_scale:
             case GPT2ResOrder::c_fc_weight_scale: {
                 ret = res_pack::read_and_write_scales(static_cast<int>(cur_order), res_path_prefix,
                     res_paths[cur_order], dst_file);
                 break;
             }
+            */
+            /*
             case GPT2ResOrder::decode_layer_scales: {
                 ret = res_pack::read_and_write_json(static_cast<int>(cur_order), res_path_prefix,
                     res_paths[cur_order], dst_file);
                 break;
             }
+            */
 
             default: ;
         }
