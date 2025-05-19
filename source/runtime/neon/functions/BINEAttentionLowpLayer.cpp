@@ -560,7 +560,7 @@ namespace BatmanInfer {
         // 运行计算
         _rms_norm_layer.run(); // 归一化计算
         _quantization_layer.run();
-        // invert_qinfo_offset(_sub_norm_q_tensor);
+        // // invert_qinfo_offset(_sub_norm_q_tensor);
         _c_attn_layer.run();
         _c_attn_o_stage.run();
         _split_layer.run();
