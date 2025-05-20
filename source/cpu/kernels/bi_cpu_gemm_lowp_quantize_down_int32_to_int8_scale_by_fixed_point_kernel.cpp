@@ -92,11 +92,13 @@ namespace BatmanInfer {
                                 for (; x < window_end_x; ++x) {
                                     const int32_t bias_value = *(reinterpret_cast<const int32_t *>(bias_i.ptr()) + x);
                                     int32_t in_value = *(reinterpret_cast<const int32_t *>(in.ptr()) + x);
+                                    const auto curr_result_fixedpoint_multiplier = _result_fixedpoint_multipliers[x];
+                                    const auto curr_result_shift = _result_shifts[x];
                                     // Add bias
                                     in_value += bias_value;
                                     // Finalize and store the result
                                     *reinterpret_cast<int8_t *>(out.ptr() + x) = finalize_quantization(
-                                        in_value, _result_fixedpoint_multiplier, _result_shift,
+                                        in_value, curr_result_fixedpoint_multiplier, curr_result_shift,
                                         _result_offset_after_shift,
                                         static_cast<int8_t>(_min), static_cast<int8_t>(_max), is_bounded_relu);
                                 }

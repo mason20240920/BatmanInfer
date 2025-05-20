@@ -226,6 +226,12 @@ namespace BatmanInfer {
         _dequantization_layer.run();
         _c_proj.run();
         _copy_f.run();
+        // BIIOFormatInfo format;
+        // format.element_delim = ", "; // 元素之间用逗号分隔
+        // format.row_delim = "\n"; // 每行换行
+        // format.align_columns = true; // 对齐列
+        // std::cout << "==================== sub_values" << std::endl;
+        // _sub_proj_output.print(std::cout, format);
     }
 
     void BINEMLPLayer::prepare() {

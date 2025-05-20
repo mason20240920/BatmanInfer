@@ -28,6 +28,42 @@ namespace MemAllocTest {
         tensor.print(std::cout, format);
     }
 
+    void print_score(const std::vector<float> &scores, const size_t dim_size) {
+        for (int i = 0; i < scores.size(); i++) {
+            std::cout << scores[i] << "\t";
+            if ((i + 1) % dim_size == 0) {
+                std::cout << std::endl;
+            }
+        }
+        std::cout << std::endl;
+    }
+
+    /**
+     * @brief 获取索引的最大值
+     * @param input_tensor: 张量信息
+     * @param tensor_ids: 张量id信息
+     * @param ret: 返回值id
+     * @return
+     */
+    void get_index_val(const BITensor &input_tensor, const std::vector<int> &tensor_ids, std::vector<float> &ret) {
+        ret.clear();
+        const auto dim_size = input_tensor.info()->tensor_shape()[0];
+        auto *data_ptr = reinterpret_cast<float16_t *>(input_tensor.buffer());
+        const size_t ret_size = tensor_ids.size();
+        for (size_t i = 0; i < ret_size; i++) {
+            ret.push_back(static_cast<float>(data_ptr[tensor_ids[i] + i * dim_size]));
+        }
+    }
+
+    void get_s32_val(const BITensor &input_tensor, std::vector<int> &ret) {
+        ret.clear();
+        const auto *data_ptr = reinterpret_cast<int32_t *>(input_tensor.buffer());
+        const size_t ret_size = input_tensor.info()->tensor_shape().total_size();
+        for (size_t i = 0; i < ret_size; i++) {
+            ret.push_back(static_cast<int>(data_ptr[i]));
+        }
+    }
+
     BITensor create_norm_input(std::vector<int> shapes, const std::string &file_path = "") {
         BITensorShape input_shape;
         if (shapes.size() == 3)
@@ -417,14 +453,26 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
     arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
     arg_minmax_layer.run();
 
+    std::vector<int> infos{};
+    std::vector<float> scores{};
+    MemAllocTest::get_s32_val(sub_ids, infos);
+
+    MemAllocTest::get_index_val(sub_lm_head_output, infos, scores);
     MemAllocTest::print_tensor(sub_ids, "ids");
+    MemAllocTest::print_score(scores, seq_len);
+
+    // std::cout << MemAllocTest::get_index_val(sub_lm_head_output, std::vector<int>{8}) << std::endl;
+
+
+    // MemAllocTest::print_tensor(sub_ids, "ids");
+
     // 再次进行运行(动态)
     batch_size = 3;
     seq_len = 5;
     input_tensor_shape = BITensorShape(seq_len, batch_size);
     input_info.set_tensor_shape(input_tensor_shape);
     input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
-    indices_data = {0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4};
+    indices_data = {0, 3, 4, 5, 6, 0, 3, 4, 5, 6, 0, 3, 4, 5, 6};
     MemAllocTest::fill_tensor_val_with_arr(input_tensor, indices_data);
     gather_output_tensor_shape = BITensorShape(768, seq_len, batch_size);
     gather_output_info.set_tensor_shape(gather_output_tensor_shape);
@@ -463,7 +511,11 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
     lm_head_layer.run();
     arg_minmax_layer.run();
     // MemAllocTest::print_tensor(sub_lm_head_output, "sub_lm_head_output");
+    MemAllocTest::get_s32_val(sub_ids, infos);
+
+    MemAllocTest::get_index_val(sub_lm_head_output, infos, scores);
     MemAllocTest::print_tensor(sub_ids, "ids");
+    MemAllocTest::print_score(scores, seq_len);
     // const auto warmup = 10; // 预热次数
     // const auto iterations = 1000; // 运行次数
     // const double outlier_threshold = 3.0; // 异常值阈值(标准差倍数)

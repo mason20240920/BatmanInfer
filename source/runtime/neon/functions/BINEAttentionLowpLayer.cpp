@@ -605,8 +605,8 @@ namespace BatmanInfer {
         // format.element_delim = ", "; // 元素之间用逗号分隔
         // format.row_delim = "\n"; // 每行换行
         // format.align_columns = true; // 对齐列
-        // // _sub_softmax_q_result.print(std::cout, format);
-        // // _sub_transpose_v_result.print(std::cout, format);
+        // _sub_softmax_q_result.print(std::cout, format);
+        // _sub_transpose_v_result.print(std::cout, format);
         // std::cout << "==================== sub_values" << std::endl;
         // _sub_qk_bmm_output.print(std::cout, format);
     }
