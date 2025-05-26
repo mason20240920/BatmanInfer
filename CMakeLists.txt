@@ -107,25 +107,25 @@ else ()
     set(KAI_INCLUDES "${CMAKE_SOURCE_DIR}/third_party/kleidiai")
     set(KAI_LIBS "${CMAKE_SOURCE_DIR}/third_party/kleidiai/libs/libkleidiai.a")
     message(STATUS "Configuring for non-Android platform")
-    # 查找Armadillo库
-    find_package(Armadillo REQUIRED)
+    #    # 查找Armadillo库
+    #    find_package(Armadillo REQUIRED)
     # 查找 protobuf 包
-    find_package(Protobuf REQUIRED)
-    # 查找abseil
-    find_package(absl REQUIRED)
-    # 查找 ONNX 包
-    find_package(onnx REQUIRED)
-    # 设置libs库
-    set(ONNX_LIBRARIES "/usr/local/lib")
-    # 设置abseil
-    set(ABSEL_LIBARARY
-            absl::base
-            absl::strings
-            absl::log
-            absl::log_internal_check_op  # 可能需要这个
-    )
-    set(UTF8RANGE_LIBRARY "")
-
+    #    find_package(Protobuf REQUIRED)
+    #    # 查找abseil
+    #    find_package(absl REQUIRED)
+    #    # 查找 ONNX 包
+    #    find_package(onnx REQUIRED)
+    #    # 设置libs库
+    #    set(ONNX_LIBRARIES "/usr/local/lib")
+    #    # 设置abseil
+    #    set(ABSEL_LIBARARY
+    #            absl::base
+    #            absl::strings
+    #            absl::log
+    #            absl::log_internal_check_op  # 可能需要这个
+    #    )
+    #    set(UTF8RANGE_LIBRARY "")
+    #
     # 查找glog
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GLOG REQUIRED libglog)
@@ -164,7 +164,7 @@ if (ENABLE_BENCHMARK)
 endif ()
 
 # 查找OpenCV库
-find_package(OpenCV REQUIRED)
+#find_package(OpenCV REQUIRED)
 
 # 导入google的Protobuf
 include_directories(${Protobuf_INCLUDE_DIR})
@@ -173,15 +173,15 @@ include_directories(${Protobuf_INCLUDE_DIR})
 enable_testing()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/includes
-        ${Protobuf_INCLUDE_DIRS}
-        ${ONNX_INCLUDE_DIRS}
+        #        ${Protobuf_INCLUDE_DIRS}
+        #        ${ONNX_INCLUDE_DIRS}
         ${GLOG_INCLUDE_DIRS}
         ${OpenMP_INCLUDE}
-        ${ARMADILLO_INCLUDE_DIRS}
+        #        ${ARMADILLO_INCLUDE_DIRS}
 )
 
 link_directories(${GLOG_LIBRARY_DIRS}
-        ${ONNX_LIBRARIES}
+        #        ${ONNX_LIBRARIES}
 )
 
 # 文件列表拆分
@@ -189,16 +189,16 @@ include(${CMAKE_CURRENT_LIST_DIR}/CMake_files.cmake)
 
 # 链接GoogleTest库
 target_link_libraries(BatmanInfer
-        ${ONNX_LIBRARIES}/libonnx_proto.a
+        #        ${ONNX_LIBRARIES}/libonnx_proto.a
         GTest::gtest_main
-        ${ARMADILLO_LIBRARIES}
+        #        ${ARMADILLO_LIBRARIES}
         ${GLOG_LIBRARIES}
-        ${Protobuf_LIBRARIES}
-        ${OpenCV_LIBS}
-        ${ONNX_LIBRARIES}/libonnx.a
+        #        ${Protobuf_LIBRARIES}
+        #        ${OpenCV_LIBS}
+        #        ${ONNX_LIBRARIES}/libonnx.a
         #        ${OpenMP_omp_LIBRARY}
-        ${ABSEL_LIBARARY}
-        ${UTF8RANGE_LIBRARY}
+        #        ${ABSEL_LIBARARY}
+        #        ${UTF8RANGE_LIBRARY}
         OpenMP::OpenMP_CXX  # 添加这一行，确保所有平台都链接OpenMP
         #        ${KAI_LIBS}
 )
@@ -211,16 +211,16 @@ endif ()
 
 if (ENABLE_BENCHMARK)
     target_link_libraries(matmul_benchmark
-            ${ONNX_LIBRARIES}/libonnx_proto.a
+            #            ${ONNX_LIBRARIES}/libonnx_proto.a
             GTest::gtest_main
-            ${ARMADILLO_LIBRARIES}
+            #            ${ARMADILLO_LIBRARIES}
             ${GLOG_LIBRARIES}
-            ${Protobuf_LIBRARIES}
-            ${OpenCV_LIBS}
-            ${ONNX_LIBRARIES}/libonnx.a
+            #            ${Protobuf_LIBRARIES}
+            #            ${OpenCV_LIBS}
+            #            ${ONNX_LIBRARIES}/libonnx.a
             ${OpenMP_omp_LIBRARY}
-            ${ABSEL_LIBARARY}
-            ${UTF8RANGE_LIBRARY}
+            #            ${ABSEL_LIBARARY}
+            #            ${UTF8RANGE_LIBRARY}
             OpenMP::OpenMP_CXX  # 添加这一行，确保所有平台都链接OpenMP
             benchmark::benchmark
     )
@@ -231,5 +231,3 @@ include(GoogleTest)
 
 #target_include_directories(BatmanInfer PUBLIC ${KAI_INCLUDES})
 
-# 包含Armadillo头文件路径
-target_include_directories(BatmanInfer PRIVATE ${ARMADILLO_INCLUDE_DIRS})
