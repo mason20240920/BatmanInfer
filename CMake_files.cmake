@@ -6,6 +6,7 @@ file(GLOB_RECURSE COMMON_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/common/*.cpp
 file(GLOB_RECURSE C_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/c/*.cpp)
 file(GLOB_RECURSE INTERFACE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/model_interface/*.cpp)
 file(GLOB_RECURSE SDK_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/sdk/*.cpp)
+file(GLOB_RECURSE KV_CACHE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/source/kv_cache_manager/*.cpp)
 if (ENABLE_BENCHMARK)
     file(GLOB_RECURSE BENCHMARK_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/benchmark/*.cpp)
 else ()
@@ -21,6 +22,7 @@ add_executable(BatmanInfer main.cpp
         ${COMMON_SOURCES}
         ${INTERFACE_SOURCES}
         ${SDK_SOURCES}
+        ${KV_CACHE_SOURCES}
         test/test_layer_operator.cpp
         test/test_neon_operator.cpp
         test/test_dynamic_gemmlowp.cpp

@@ -11,7 +11,17 @@
 
 #include <omp.h>
 
+#include "runtime/bi_tensor.hpp"
+
 namespace BatmanInfer {
+    template<typename T>
+    void print_offset(void *data_ptr, const size_t move_size) {
+        T *p = static_cast<T *>(data_ptr);
+        for (size_t i = 0; i < move_size; i++) {
+            std::cout << p[i] << ", ";
+        }
+        std::cout << std::endl;
+    }
 #if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
     (defined(__arm__) || defined(__aarch64__)) && defined(__ANDROID__)
     BIOMPScheduler::BIOMPScheduler() :  _num_threads(cpu_info().get_cpu_num_excluding_little()),
@@ -87,7 +97,66 @@ namespace BatmanInfer {
         }
     }
 
+    void BIOMPScheduler::schedule_kv(BIITensorPack &tensors) {
+        // 最后一个维度的数量
+        BI_COMPUTE_ERROR_ON_MSG(tensors.empty(), "Tensors are empty in this scheduler!");
+        BI_COMPUTE_ERROR_ON_MSG(tensors.get_tensor(0) == nullptr, "Tensors are empty in this scheduler!");
+        // 目前使用一个tensor(默认id为0)
+        BITensor *tensor = reinterpret_cast<BITensor *>(tensors.get_tensor(0));
+        const unsigned int batch = tensor->info()->dimension(3); // batch
+        const unsigned int num_heads = tensor->info()->dimension(2); // num_head
+        const unsigned int sequence_length = tensor->info()->dimension(1) <= 1
+                                                 ? tensor->info()->dimension(1)
+                                                 : tensor->
+                                                   info()->dimension(1) - 1;
+        const unsigned int head_dim = tensor->info()->dimension(0);
+        // 序列长度
+        const unsigned int num_iterations = batch * num_heads;
+
+        // Cap the number of threads to be spawn with the size of the thread pool
+        const unsigned int num_threads = std::min(num_iterations, _num_threads);
+
+        // 进行多线程拷贝操作
+        const unsigned int num_windows = num_threads;
+        const unsigned int total_usage = (num_iterations + num_threads - 1) / num_threads; // 每个线程需要处理的维度
+        const unsigned int remain_usage = num_iterations % num_threads;
+        std::vector<BIIScheduler::BIWorkload> workloads(num_windows);
+        for (unsigned int t = 0; t < num_windows; t++) {
+            workloads[t] = [t, &tensor, &num_windows, &remain_usage, & total_usage, &head_dim, &sequence_length
+                    ](const ThreadInfo &info) {
+                        // 计算需要Split开始的起点
+                        if (t == num_windows - 1 && remain_usage > 0) {
+                            // 最后一个迭代，直接使用余数
+                            unsigned int current_gmem_index = total_usage * t; // 当前全局的起始节点
+                            for (int split_i = 0; split_i < remain_usage; split_i++, current_gmem_index++) {
+                                // 获取当前坐标
+                                // TODO: 当前默认是float16, 所以最后乘以2
+                                unsigned int offset = (sequence_length * current_gmem_index - 1) * head_dim * 2;
+                                unsigned int data_size = head_dim * 2;
+                                auto data = tensor->allocator()->data(offset, data_size);
+                                print_offset<float16_t>(data, head_dim);
+                            }
+                        }
+                        // 循环遍历
+                        unsigned int current_gmem_index = total_usage * t;
+                        // 当前全局的起始节点
+                        for (int split_i = 0; split_i < total_usage; split_i++, current_gmem_index++) {
+                            // 获取当前坐标
+                            // TODO: 当前默认是float16, 所以最后乘以2
+                            unsigned int offset = (sequence_length * current_gmem_index - 1) * head_dim * 2;
+                            unsigned int data_size = head_dim * 2;
+                            auto data = tensor->allocator()->data(offset, data_size);
+                            print_offset<float16_t>(data, head_dim);
+                        }
+                    };
+        }
+        // 进行并发执行
+        run_workloads(workloads);
+    }
+
+
 #ifndef DOXYGEN_SKIP_THIS
+
 
     void BIOMPScheduler::run_workloads(std::vector<BIWorkload> &workloads) {
         // 计算任务的总数，即 workloads 的大小，并将其存储在 amount_of_work 中

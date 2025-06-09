@@ -75,7 +75,6 @@ namespace BatmanInfer {
                   BIStrategyHint strategy = BIStrategyHint::STATIC,
                   int threshold = 0) : _split_dimension(split_dimension), _strategy(strategy),
                                        _threshold(threshold) {
-
             }
 
             /**
@@ -119,7 +118,7 @@ namespace BatmanInfer {
             }
 
         private:
-            unsigned int   _split_dimension{};
+            unsigned int _split_dimension{};
             // 负载策略
             BIStrategyHint _strategy{};
             /**
@@ -129,7 +128,7 @@ namespace BatmanInfer {
              *      1. 如果 threshold 值较小，则颗粒度较小，任务划分更细，调度更加灵活，但调度开销可能增加。
              *      2. 如果 threshold 值较大，则颗粒度较大，调度开销减少，但可能导致负载不均衡。
              */
-            int            _threshold{};
+            int _threshold{};
         };
 
         /**
@@ -177,6 +176,12 @@ namespace BatmanInfer {
          */
         virtual void
         schedule_op(BIICPPKernel *kernel, const Hints &hints, const BIWindow &window, BIITensorPack &tensors) = 0;
+
+        /**
+         * @brief 调度kv cache的拷贝器
+         * @param tensors 张量信息
+         */
+        virtual void schedule_kv(BIITensorPack &tensors) = 0;
 
         /**
          * @brief 执行所有传递的工作负载

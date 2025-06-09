@@ -137,6 +137,14 @@ uint8_t *BITensorAllocator::data() const {
     return (_memory.region() == nullptr) ? nullptr : reinterpret_cast<uint8_t *>(_memory.region()->buffer());
 }
 
+uint8_t *BITensorAllocator::data(const size_t offset, const size_t size) const {
+    if (_memory.region() == nullptr)
+        return nullptr;
+    const auto region = _memory.region()->extract_subregion(offset, size);
+    return static_cast<uint8_t *>(region->buffer());
+}
+
+
 void BITensorAllocator::allocate() {
     // 如果未指定对齐方式，则默认对齐到64字节边界。
     const size_t alignment_to_use = (alignment() != 0) ? alignment() : 64;

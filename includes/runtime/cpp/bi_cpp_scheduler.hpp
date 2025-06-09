@@ -44,6 +44,8 @@ namespace BatmanInfer {
         void schedule_op(BatmanInfer::BIICPPKernel *kernel, const BatmanInfer::BIIScheduler::Hints &hints,
                          const BatmanInfer::BIWindow &window, BatmanInfer::BIITensorPack &tensors) override;
 
+        void schedule_kv(BIITensorPack &tensors) override;
+
     protected:
         /**
          * @brief 将使用 num_threads 并行运行工作负载。
@@ -55,7 +57,6 @@ namespace BatmanInfer {
         struct Impl;
         std::unique_ptr<Impl> _impl;
     };
-
 }
 
 

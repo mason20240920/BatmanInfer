@@ -1,0 +1,83 @@
+//
+// Created by Mason on 2025/5/26.
+//
+
+#pragma once
+#include <mutex>
+
+#include "bi_kv_cahe_i_manager.hpp"
+#include "memory_tree.hpp"
+#include "physical_block_manager.hpp"
+#include "data/core/common/bi_core_common_macros.hpp"
+
+namespace BatmanInfer {
+    /**
+     * @brief 解码的KV Cache管理器
+     * @desc: 使用单例模式, 每次运行仅初始化一次, 后续每次拷贝都是直接实例调用
+     */
+    class KVCacheManager final : IKVCacheManager {
+    public:
+        /**
+         * @brief 禁止拷贝与赋值
+         */
+        BI_COMPUTE_DISALLOW_COPY_ALLOW_MOVE(KVCacheManager);
+
+        static KVCacheManager &getInstance(); /**
+         * @brief 获取当前的解码节点
+         * @return 返回当前叶子的解码节点
+         */
+        [[nodiscard]] std::vector<unsigned int> get_decode_ids() const;
+
+        [[nodiscard]] unsigned int root_id() const;
+
+        /**
+         * 根据需求动态请求新的KV Cache内存
+         * @param parent_id
+         * @param require_block_count
+         */
+        void alloc_decode_next(const unsigned int parent_id, const int require_block_count) const;
+
+        /**
+         * 根据输出的buffer值存储到对应的block_id里
+         * @param source_buffer
+         * @param block_id
+         * @param block_size
+         */
+        void memcpy_decode_buffer(const void *source_buffer, const int block_id, const int block_size) const;
+
+        /**
+         * 释放空的解码序列
+         * @param leaf_id: 叶子节点id
+         */
+        void release_useless_decode_id(const unsigned int leaf_id) const;
+
+        /**
+         * 根据序列节点号，获取解码出来的解码K, V Cache结果
+         * @param leaf_id
+         * @param block_ids
+         */
+        void decode_sequence_lst(const unsigned int leaf_id, std::vector<unsigned int> &block_ids) const;
+
+        /**
+         * 解码序列的内存Block数组
+         * @param block_ids
+         * @param block_mem_lst
+         */
+        void decode_sequence_blocks(const std::vector<unsigned int> &block_ids,
+                                    std::vector<PhysicalBlock *> &block_mem_lst) const;
+
+    private:
+        KVCacheManager();
+
+        static std::unique_ptr<KVCacheManager> instance_;
+        static std::once_flag onceFlag_;
+
+        // 初始化函数，由 call_once 调用
+        static void initInstance() {
+            instance_.reset(new KVCacheManager()); // 使用 new 创建，并由 unique_ptr 管理
+        }
+
+        std::unique_ptr<MemoryTree> m_tree_; // 序列管理树
+        PhysicalBlockManager *manager_; // 物理内存块管理器
+    };
+}

@@ -26,7 +26,6 @@ namespace BatmanInfer {
             explicit BIThreadFeeder(unsigned int start = 0,
                                     unsigned int end = 0) : _atomic_counter(start),
                                                             _end(end) {
-
             }
 
             /**
@@ -41,7 +40,7 @@ namespace BatmanInfer {
 
         private:
             // 当前任务索引，线程安全
-            std::atomic_uint   _atomic_counter;
+            std::atomic_uint _atomic_counter;
             // 任务范围的结束值
             const unsigned int _end;
         };
@@ -156,31 +155,31 @@ namespace BatmanInfer {
             /** Set the scheduling strategy to be linear */
             void set_linear_mode() {
                 _thread_pool = nullptr;
-                _wake_beg    = 0;
-                _wake_end    = 0;
+                _wake_beg = 0;
+                _wake_end = 0;
             }
 
             /** Set the scheduling strategy to be fanout */
             void set_fanout_mode(std::list<BIThread> *thread_pool, unsigned int wake_beg, unsigned int wake_end) {
                 _thread_pool = thread_pool;
-                _wake_beg    = wake_beg;
-                _wake_end    = wake_end;
+                _wake_beg = wake_beg;
+                _wake_end = wake_end;
             }
 
         private:
-            std::thread                           _thread{};
-            ThreadInfo                            _info{};
+            std::thread _thread{};
+            ThreadInfo _info{};
             std::vector<BIIScheduler::BIWorkload> *_workloads{nullptr};
-            BIThreadFeeder                        *_feeder{nullptr};
-            std::mutex                            _m{};
-            std::condition_variable               _cv{};
-            bool                                  _wait_for_work{false};
-            bool                                  _job_complete{true};
-            std::exception_ptr                    _current_exception{nullptr};
-            int                                   _core_pin{-1};
-            std::list<BIThread>                   *_thread_pool{nullptr};
-            unsigned int                          _wake_beg{0};
-            unsigned int                          _wake_end{0};
+            BIThreadFeeder *_feeder{nullptr};
+            std::mutex _m{};
+            std::condition_variable _cv{};
+            bool _wait_for_work{false};
+            bool _job_complete{true};
+            std::exception_ptr _current_exception{nullptr};
+            int _core_pin{-1};
+            std::list<BIThread> *_thread_pool{nullptr};
+            unsigned int _wake_beg{0};
+            unsigned int _wake_end{0};
         };
 
         BIThread::BIThread(int core_pin) : _core_pin(core_pin) {
@@ -201,21 +200,19 @@ namespace BatmanInfer {
         BIThread::set_workload(std::vector<BIIScheduler::BIWorkload> *workloads, BatmanInfer::BIThreadFeeder &feeder,
                                const BatmanInfer::ThreadInfo &info) {
             _workloads = workloads;
-            _feeder    = &feeder;
-            _info      = info;
+            _feeder = &feeder;
+            _info = info;
         }
 
-        void BIThread::start() {
-            {
+        void BIThread::start() { {
                 std::lock_guard<std::mutex> lock(_m);
                 _wait_for_work = true;
-                _job_complete  = false;
+                _job_complete = false;
             }
             _cv.notify_one();
         }
 
-        std::exception_ptr BIThread::wait() {
-            {
+        std::exception_ptr BIThread::wait() { {
                 std::unique_lock<std::mutex> lock(_m);
                 _cv.wait(lock, [&] { return _job_complete; });
             }
@@ -241,8 +238,8 @@ namespace BatmanInfer {
                 if (_thread_pool != nullptr) {
                     auto thread_it = _thread_pool->begin();
                     std::advance(thread_it, std::min(static_cast<unsigned int>(_thread_pool->size()), _wake_beg));
-                    auto              wake_end = std::min(_wake_end, static_cast<unsigned int>(_info.num_threads - 1));
-                    for (unsigned int t        = _wake_beg; t < wake_end; ++t, ++thread_it) {
+                    auto wake_end = std::min(_wake_end, static_cast<unsigned int>(_info.num_threads - 1));
+                    for (unsigned int t = _wake_beg; t < wake_end; ++t, ++thread_it) {
                         thread_it->start();
                     }
                 }
@@ -252,12 +249,11 @@ namespace BatmanInfer {
                     process_workloads(*_workloads, *_feeder, _info);
 
 #ifndef BI_COMPUTE_EXCEPTIONS_DISABLED
-                }
-                catch (...) {
+                } catch (...) {
                     _current_exception = std::current_exception();
                 }
 #endif /* BI_COMPUTE_EXCEPTIONS_DISABLED */
-                _workloads    = nullptr;
+                _workloads = nullptr;
                 _job_complete = true;
                 lock.unlock();
                 _cv.notify_one();
@@ -267,10 +263,12 @@ namespace BatmanInfer {
 
     struct BICPPScheduler::Impl final {
         constexpr static unsigned int m_default_wake_fanout = 4;
+
         enum class Mode {
             Linear,
             Fanout
         };
+
         enum class ModeToggle {
             None,
             Linear,
@@ -278,7 +276,7 @@ namespace BatmanInfer {
         };
 
         explicit Impl(unsigned int thread_hint)
-                : _num_threads(thread_hint), _threads(_num_threads - 1), _mode(Mode::Linear), _wake_fanout(0U) {
+            : _num_threads(thread_hint), _threads(_num_threads - 1), _mode(Mode::Linear), _wake_fanout(0U) {
             const auto mode_env_v = misc::utility::tolower(misc::utility::getenv("BI_COMPUTE_CPP_SCHEDULER_MODE"));
             if (mode_env_v == "linear") {
                 _forced_mode = ModeToggle::Linear;
@@ -314,9 +312,10 @@ namespace BatmanInfer {
             if (_forced_mode == ModeToggle::Fanout || (_forced_mode == ModeToggle::None && num_threads_to_use > 8)) {
                 set_fanout_mode(m_default_wake_fanout, num_threads_to_use);
                 BI_COMPUTE_LOG_INFO_MSG_WITH_FORMAT_CORE(
-                        "Set CPPScheduler to Fanout mode, with wake up fanout : %d and %d threads to use\n",
-                        this->wake_fanout(), num_threads_to_use);
-            } else // Equivalent to (_forced_mode == ModeToggle::Linear || (_forced_mode == ModeToggle::None && num_threads_to_use <= 8))
+                    "Set CPPScheduler to Fanout mode, with wake up fanout : %d and %d threads to use\n",
+                    this->wake_fanout(), num_threads_to_use);
+            } else
+            // Equivalent to (_forced_mode == ModeToggle::Linear || (_forced_mode == ModeToggle::None && num_threads_to_use <= 8))
             {
                 set_linear_mode();
                 BI_COMPUTE_LOG_INFO_MSG_WITH_FORMAT_CORE("Set CPPScheduler to Linear mode, with %d threads to use\n",
@@ -328,17 +327,17 @@ namespace BatmanInfer {
             for (auto &thread: _threads) {
                 thread.set_linear_mode();
             }
-            _mode        = Mode::Linear;
+            _mode = Mode::Linear;
             _wake_fanout = 0U;
         }
 
         void set_fanout_mode(unsigned int wake_fanout, unsigned int num_threads_to_use) {
             BI_COMPUTE_ERROR_ON(num_threads_to_use > _threads.size() + 1);
             const auto actual_wake_fanout = std::max(2U, std::min(wake_fanout, num_threads_to_use - 1));
-            auto       thread_it          = _threads.begin();
-            for (auto  i                  = 1U; i < num_threads_to_use; ++i, ++thread_it) {
+            auto thread_it = _threads.begin();
+            for (auto i = 1U; i < num_threads_to_use; ++i, ++thread_it) {
                 const auto wake_begin = i * actual_wake_fanout - 1;
-                const auto wake_end   = std::min((i + 1) * actual_wake_fanout - 1, num_threads_to_use - 1);
+                const auto wake_end = std::min((i + 1) * actual_wake_fanout - 1, num_threads_to_use - 1);
                 thread_it->set_fanout_mode(&_threads, wake_begin, wake_end);
             }
             // Reset the remaining threads's wake up schedule
@@ -346,7 +345,7 @@ namespace BatmanInfer {
                 thread_it->set_fanout_mode(&_threads, 0U, 0U);
                 ++thread_it;
             }
-            _mode        = Mode::Fanout;
+            _mode = Mode::Fanout;
             _wake_fanout = actual_wake_fanout;
         }
 
@@ -364,12 +363,12 @@ namespace BatmanInfer {
 
         void run_workloads(std::vector<BIIScheduler::BIWorkload> &workloads);
 
-        unsigned int        _num_threads;
+        unsigned int _num_threads;
         std::list<BIThread> _threads;
-        BatmanInfer::Mutex  _run_workloads_mutex{};
-        Mode                _mode{Mode::Linear};
-        ModeToggle          _forced_mode{ModeToggle::None};
-        unsigned int        _wake_fanout{0};
+        BatmanInfer::Mutex _run_workloads_mutex{};
+        Mode _mode{Mode::Linear};
+        ModeToggle _forced_mode{ModeToggle::None};
+        unsigned int _wake_fanout{0};
     };
 
     BICPPScheduler &BICPPScheduler::get() {
@@ -407,8 +406,8 @@ namespace BatmanInfer {
         // This is not great because different threads workloads won't run in parallel but at least they
         // won't interfere each other and deadlock.
         BatmanInfer::lock_guard<std::mutex> lock(_impl->_run_workloads_mutex);
-        const unsigned int                  num_threads_to_use = std::min(_impl->num_threads(),
-                                                                          static_cast<unsigned int>(workloads.size()));
+        const unsigned int num_threads_to_use = std::min(_impl->num_threads(),
+                                                         static_cast<unsigned int>(workloads.size()));
         if (num_threads_to_use < 1) {
             return;
         }
@@ -427,11 +426,11 @@ namespace BatmanInfer {
             }
         }
         BIThreadFeeder feeder(num_threads_to_use, workloads.size());
-        ThreadInfo     info;
-        info.cpu_info    = &cpu_info();
+        ThreadInfo info;
+        info.cpu_info = &cpu_info();
         info.num_threads = num_threads_to_use;
-        unsigned int t         = 0;
-        auto         thread_it = _impl->_threads.begin();
+        unsigned int t = 0;
+        auto thread_it = _impl->_threads.begin();
         // Set num_threads_to_use - 1 workloads to the threads as the remaining 1 is left to the main thread
         for (; t < num_threads_to_use - 1; ++t, ++thread_it) {
             info.thread_id = t;
@@ -448,8 +447,7 @@ namespace BatmanInfer {
 #endif                                              /* ARM_COMPUTE_EXCEPTIONS_DISABLED */
             process_workloads(workloads, feeder, info); // Main thread processes workloads
 #ifndef BI_COMPUTE_EXCEPTIONS_DISABLED
-        }
-        catch (...) {
+        } catch (...) {
             last_exception = std::current_exception();
         }
 
@@ -466,8 +464,7 @@ namespace BatmanInfer {
                 std::rethrow_exception(last_exception);
             }
 #ifndef BI_COMPUTE_EXCEPTIONS_DISABLED
-        }
-        catch (const std::system_error &e) {
+        } catch (const std::system_error &e) {
             std::cerr << "Caught system_error with code " << e.code() << " meaning " << e.what() << '\n';
         }
 #endif /* ARM_COMPUTE_EXCEPTIONS_DISABLED */
@@ -483,5 +480,9 @@ namespace BatmanInfer {
     void BICPPScheduler::schedule(BatmanInfer::BIICPPKernel *kernel, const BatmanInfer::BIIScheduler::Hints &hints) {
         BIITensorPack tensors;
         schedule_common(kernel, hints, kernel->window(), tensors);
+    }
+
+    void BICPPScheduler::schedule_kv(BIITensorPack &tensors) {
+        BI_COMPUTE_UNUSED(tensors);
     }
 }

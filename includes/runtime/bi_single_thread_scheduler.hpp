@@ -41,6 +41,8 @@ namespace BatmanInfer {
         void schedule_op(BatmanInfer::BIICPPKernel *kernel, const BatmanInfer::BIIScheduler::Hints &hints,
                          const BatmanInfer::BIWindow &window, BatmanInfer::BIITensorPack &tensors) override;
 
+        void schedule_kv(BIITensorPack &tensors) override;
+
     protected:
         /**
          * @brief 将按顺序依次运行工作负载

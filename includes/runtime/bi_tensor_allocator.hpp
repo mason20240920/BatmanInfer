@@ -72,6 +72,8 @@ namespace BatmanInfer {
          */
         uint8_t *data() const;
 
+        uint8_t *data(const size_t offset, const size_t size) const;
+
         /**
          * @brief 分配由 TensorInfo 指定大小的 CPU 内存。
          *

@@ -51,4 +51,7 @@ namespace BatmanInfer {
         return 1;
     }
 
+    void BISingleThreadScheduler::schedule_kv(BIITensorPack &tensors) {
+        BI_COMPUTE_UNUSED(tensors);
+    }
 }

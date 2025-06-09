@@ -14,6 +14,8 @@
 
 #include <common/utils/bi_log.hpp>
 
+#include "kv_cache_manager/bi_kv_cache_manager.hpp"
+
 namespace BatmanInfer {
     BINEAttentionLayer::~BINEAttentionLayer() = default;
 
@@ -388,6 +390,9 @@ namespace BatmanInfer {
         _transpose_q_layer.run();
         _transpose_k_layer.run();
         _transpose_v_layer.run();
+        // KVCacheManager::getInstance().memcpy_decode_buffer();
+        // std::cout << _transpose_k_states.info()->total_size() << std::endl;
+        // _sub_transpose_k_states.print(std::cout);
         _qk_bmm_layer.run(); // 计算add之前先给add_weights值进行修改
         BIWindow window;
         window.use_tensor_dimensions(_sub_add_weights_info.tensor_shape());
