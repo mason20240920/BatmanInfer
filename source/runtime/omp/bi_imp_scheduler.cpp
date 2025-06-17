@@ -11,6 +11,8 @@
 
 #include <omp.h>
 
+#include "kv_cache_manager/block/physical_block.hpp"
+#include "model_interface/gpt2_model.h"
 #include "runtime/bi_tensor.hpp"
 
 namespace BatmanInfer {
@@ -18,7 +20,7 @@ namespace BatmanInfer {
     void print_offset(void *data_ptr, const size_t move_size) {
         T *p = static_cast<T *>(data_ptr);
         for (size_t i = 0; i < move_size; i++) {
-            std::cout << p[i] << ", ";
+            std::cout << static_cast<float>(p[i]) << ", ";
         }
         std::cout << std::endl;
     }
@@ -97,21 +99,19 @@ namespace BatmanInfer {
         }
     }
 
-    void BIOMPScheduler::schedule_kv(BIITensorPack &tensors) {
+    void BIOMPScheduler::schedule_kv_split(BIITensorPack &tensors) {
         // 最后一个维度的数量
         BI_COMPUTE_ERROR_ON_MSG(tensors.empty(), "Tensors are empty in this scheduler!");
-        BI_COMPUTE_ERROR_ON_MSG(tensors.get_tensor(0) == nullptr, "Tensors are empty in this scheduler!");
+        BI_COMPUTE_ERROR_ON_MSG(tensors.get_tensor(ACL_SRC) == nullptr,
+                                "Tensors are empty in this scheduler!");
         // 目前使用一个tensor(默认id为0)
-        BITensor *tensor = reinterpret_cast<BITensor *>(tensors.get_tensor(0));
-        const unsigned int batch = tensor->info()->dimension(3); // batch
-        const unsigned int num_heads = tensor->info()->dimension(2); // num_head
-        const unsigned int sequence_length = tensor->info()->dimension(1) <= 1
-                                                 ? tensor->info()->dimension(1)
-                                                 : tensor->
-                                                   info()->dimension(1) - 1;
-        const unsigned int head_dim = tensor->info()->dimension(0);
+        auto *tensor = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_SRC));
+        auto *dst = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_DST));
+        const unsigned int batch = tensor->info()->dimension(2); // batch
+        const unsigned int sequence_length = tensor->info()->dimension(1);
+        const unsigned int hidden_size = tensor->info()->dimension(0);
         // 序列长度
-        const unsigned int num_iterations = batch * num_heads;
+        const unsigned int num_iterations = batch;
 
         // Cap the number of threads to be spawn with the size of the thread pool
         const unsigned int num_threads = std::min(num_iterations, _num_threads);
@@ -122,35 +122,129 @@ namespace BatmanInfer {
         const unsigned int remain_usage = num_iterations % num_threads;
         std::vector<BIIScheduler::BIWorkload> workloads(num_windows);
         for (unsigned int t = 0; t < num_windows; t++) {
-            workloads[t] = [t, &tensor, &num_windows, &remain_usage, & total_usage, &head_dim, &sequence_length
+            workloads[t] = [t, &tensor,&dst, &num_windows, &remain_usage, & total_usage, &hidden_size, &sequence_length
                     ](const ThreadInfo &info) {
                         // 计算需要Split开始的起点
                         if (t == num_windows - 1 && remain_usage > 0) {
-                            // 最后一个迭代，直接使用余数
-                            unsigned int current_gmem_index = total_usage * t; // 当前全局的起始节点
-                            for (int split_i = 0; split_i < remain_usage; split_i++, current_gmem_index++) {
+                            for (int split_i = 1; split_i <= remain_usage; split_i++) {
+                                unsigned int current_gmem_index = total_usage * t + split_i;
                                 // 获取当前坐标
                                 // TODO: 当前默认是float16, 所以最后乘以2
-                                unsigned int offset = (sequence_length * current_gmem_index - 1) * head_dim * 2;
-                                unsigned int data_size = head_dim * 2;
+                                unsigned int offset = (sequence_length * current_gmem_index - 1) * hidden_size * 2;
+                                unsigned int dst_offset = (current_gmem_index - 1) * hidden_size * 2;
+                                unsigned int data_size = hidden_size * 2;
                                 auto data = tensor->allocator()->data(offset, data_size);
-                                print_offset<float16_t>(data, head_dim);
+                                auto dst_ptr = dst->allocator()->data(dst_offset, data_size);
+                                memcpy(dst_ptr, data, data_size);
                             }
                         }
-                        // 循环遍历
-                        unsigned int current_gmem_index = total_usage * t;
                         // 当前全局的起始节点
-                        for (int split_i = 0; split_i < total_usage; split_i++, current_gmem_index++) {
+                        for (int split_i = 1; split_i <= total_usage; split_i++) {
+                            unsigned int current_gmem_index = total_usage * t + split_i;
                             // 获取当前坐标
                             // TODO: 当前默认是float16, 所以最后乘以2
-                            unsigned int offset = (sequence_length * current_gmem_index - 1) * head_dim * 2;
-                            unsigned int data_size = head_dim * 2;
+                            unsigned int offset = (sequence_length * current_gmem_index - 1) * hidden_size * 2;
+                            unsigned int dst_offset = (current_gmem_index - 1) * hidden_size * 2;
+                            unsigned int data_size = hidden_size * 2;
                             auto data = tensor->allocator()->data(offset, data_size);
-                            print_offset<float16_t>(data, head_dim);
+                            auto dst_ptr = dst->allocator()->data(dst_offset, data_size);
+                            memcpy(dst_ptr, data, data_size);
                         }
                     };
         }
         // 进行并发执行
+        run_workloads(workloads);
+    }
+
+    void BIOMPScheduler::schedule_kv_concat(BIITensorPack &tensors, const std::vector<PhysicalBlock *> &mem_lst) {
+        // 1. 最后一个维度的数量
+        BI_COMPUTE_ERROR_ON_MSG(tensors.empty(), "Tensors are empty in this scheduler!");
+        BI_COMPUTE_ERROR_ON_MSG(tensors.get_tensor(ACL_SRC) == nullptr, "Tensors are empty in this scheduler!");
+        BI_COMPUTE_ERROR_ON_MSG(tensors.get_tensor(ACL_DST) == nullptr, "Tensors are empty in this scheduler!");
+        auto *k_src = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_SRC_0));
+        auto *v_src = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_SRC_1));
+        auto *k_dst = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_DST_0));
+        auto *v_dst = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_DST_1));
+        // 2. 先确定当前的并行数量
+        const size_t batch = v_dst->info()->dimension(3);
+        const size_t seq_len = v_dst->info()->dimension(2);
+        const size_t num_head = v_dst->info()->dimension(1);
+        const size_t dim_size = v_dst->info()->dimension(0);
+        const size_t mm_dim_item_size = dim_size * sizeof(float16_t) * num_head;
+        const size_t parallel_iter = batch; // 按照batch进行切割
+        // 3. 获取当前并行数量
+        const size_t num_threads = std::min(parallel_iter, static_cast<size_t>(_num_threads));
+        // 4. round up 这些参数
+        const size_t middle_loop_num = parallel_iter / num_threads;
+        const size_t remain_loop_num = parallel_iter % num_threads;
+        // 5. 建立并行匿名函数
+        std::vector<BIWorkload> workloads(num_threads);
+        // 一般来说是10个线程
+        for (unsigned int t = 0; t < num_threads; t++) {
+            workloads[t] = [t,
+                        &middle_loop_num,
+                        &seq_len,
+                        &dim_size,
+                        &k_dst,
+                        &v_dst,
+                        &mm_dim_item_size,
+                        &remain_loop_num,
+                        &num_threads,
+                        &mem_lst,
+                        &k_src,
+                        &v_src](const ThreadInfo &info) {
+                        // 1. 先直接进行中循环遍历
+                        for (int m_r = 0; m_r < middle_loop_num; m_r++) {
+                            // 2. 对于全局张量的当前偏移量(每个线程偏移middle_loop_num的数量)
+                            const unsigned int batch_index = middle_loop_num * t + m_r;
+                            for (int seq = 0; seq < seq_len - 1; seq++) {
+                                const unsigned int mm_item_index = batch_index * (seq_len - 1) + seq;
+                                const unsigned int cur_mm_offset = (batch_index * seq_len + seq) * mm_dim_item_size;
+                                auto pb_gmem_addr = static_cast<char *>(mem_lst[mm_item_index]->buffer);
+                                auto k_dst_ptr = k_dst->allocator()->data(cur_mm_offset, mm_dim_item_size);
+                                auto v_dst_ptr = v_dst->allocator()->data(
+                                    cur_mm_offset + mm_dim_item_size, mm_dim_item_size);
+                                memcpy(k_dst_ptr, pb_gmem_addr, mm_dim_item_size);
+                                memcpy(v_dst_ptr, pb_gmem_addr + mm_dim_item_size, mm_dim_item_size);
+                            }
+                            const unsigned int t_mm_offset = ((batch_index + 1) * seq_len - 1) * mm_dim_item_size;
+                            const unsigned int t_orin_offset = batch_index * mm_dim_item_size;
+                            auto k_gmem_addr = k_src->allocator()->data(t_orin_offset, mm_dim_item_size);
+                            auto v_gmem_addr = v_src->allocator()->data(t_orin_offset, mm_dim_item_size);
+                            auto k_dst_ptr = k_dst->allocator()->data(t_mm_offset, mm_dim_item_size);
+                            auto v_dst_ptr = v_dst->allocator()->data(t_mm_offset, mm_dim_item_size);
+                            memcpy(k_dst_ptr, k_gmem_addr, mm_dim_item_size);
+                            memcpy(v_dst_ptr, v_gmem_addr, mm_dim_item_size);
+                        }
+                        // 如果是remain大小就进行remain计算
+                        if (t == num_threads - 1 && remain_loop_num > 0) {
+                            // 1. 先直接进行中循环遍历
+                            for (int m_r = 0; m_r <= remain_loop_num; m_r++) {
+                                // 2. 对于全局张量的当前偏移量(每个线程偏移middle_loop_num的数量)
+                                const unsigned int batch_index = middle_loop_num * t + m_r;
+                                for (int seq = 0; seq < seq_len - 1; seq++) {
+                                    const unsigned int mm_item_index = batch_index * (seq_len - 1) + seq;
+                                    const unsigned int cur_mm_offset = (batch_index * seq_len + seq) * mm_dim_item_size;
+                                    auto pb_gmem_addr = static_cast<char *>(mem_lst[mm_item_index]->buffer);
+                                    auto k_dst_ptr = k_dst->allocator()->data(cur_mm_offset, mm_dim_item_size);
+                                    auto v_dst_ptr = v_dst->allocator()->data(
+                                        cur_mm_offset + mm_dim_item_size, mm_dim_item_size);
+                                    memcpy(k_dst_ptr, pb_gmem_addr, mm_dim_item_size);
+                                    memcpy(v_dst_ptr, pb_gmem_addr + mm_dim_item_size, mm_dim_item_size);
+                                }
+                                const unsigned int t_mm_offset = ((batch_index + 1) * seq_len - 1) * mm_dim_item_size;
+                                const unsigned int t_orin_offset = batch_index * mm_dim_item_size;
+                                auto k_gmem_addr = k_src->allocator()->data(t_orin_offset, mm_dim_item_size);
+                                auto v_gmem_addr = v_src->allocator()->data(t_orin_offset, mm_dim_item_size);
+                                auto k_dst_ptr = k_dst->allocator()->data(t_mm_offset, mm_dim_item_size);
+                                auto v_dst_ptr = v_dst->allocator()->data(t_mm_offset, mm_dim_item_size);
+                                memcpy(k_dst_ptr, k_gmem_addr, mm_dim_item_size);
+                                memcpy(v_dst_ptr, v_gmem_addr, mm_dim_item_size);
+                            }
+                        }
+                    };
+        }
+        // 执行并行操作
         run_workloads(workloads);
     }
 

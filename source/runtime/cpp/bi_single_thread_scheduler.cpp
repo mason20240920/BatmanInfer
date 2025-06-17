@@ -51,7 +51,13 @@ namespace BatmanInfer {
         return 1;
     }
 
-    void BISingleThreadScheduler::schedule_kv(BIITensorPack &tensors) {
+    void BISingleThreadScheduler::schedule_kv_split(BIITensorPack &tensors) {
         BI_COMPUTE_UNUSED(tensors);
+    }
+
+    void BISingleThreadScheduler::schedule_kv_concat(BIITensorPack &tensors,
+                                                     const std::vector<PhysicalBlock *> &mem_lst) {
+        BI_COMPUTE_UNUSED(tensors);
+        BI_COMPUTE_UNUSED(mem_lst);
     }
 }

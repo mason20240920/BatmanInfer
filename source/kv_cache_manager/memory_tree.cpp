@@ -5,6 +5,8 @@
 #include <unordered_set>
 #include <vector>
 #include <kv_cache_manager/memory_tree.hpp>
+
+#include "data/core/bi_error.h"
 /**
  * @brief 内存树的管理模块的block_id与申请物理内存的block_id一一映射，所以可以直接申请Block_ids数量的memory_pool
  * 进行动态调整，同时不进行删除，只进行更新
@@ -14,13 +16,13 @@ namespace BatmanInfer {
     /**
      * 内存树结构
      */
-    MemoryTree::MemoryTree(const unsigned int root_id) {
+    MemoryTree::MemoryTree(const unsigned int root_id, const unsigned int decode_id) {
         // 对内存池，全量进行初始化
         for (int i = 0; i < DEFAULT_CAPACITY; i++) {
-            memory_pool.emplace_back(new MemoryNode(i));
+            memory_pool.emplace_back(new MemoryNode(i, 0));
         }
         node_map.reserve(DEFAULT_CAPACITY);
-        root_node = create_node(root_id);
+        root_node = create_node(root_id, decode_id);
     }
 
     /**
@@ -34,9 +36,10 @@ namespace BatmanInfer {
     /**
      * @brief 创建叶子节点
      * @param id 创建节点的id
+     * @param decode_id
      * @return
      */
-    MemoryTree::MemoryNode *MemoryTree::create_node(unsigned int id) {
+    MemoryTree::MemoryNode *MemoryTree::create_node(unsigned int id, unsigned int decode_id) {
         // 先查找节点是否已经存在
         auto it = node_map.find(id);
         if (it != node_map.end())
@@ -44,10 +47,11 @@ namespace BatmanInfer {
 
         // 创建新节点, 加入节点内存池
         MemoryNode *new_node = memory_pool.at(id).get();
+        new_node->decode_id = decode_id;
         node_map.emplace(id, new_node);
 
         // 新节点一开始是叶子节点
-        leaf_nodes.insert(id);
+        leaf_nodes.insert({id, decode_id});
 
         return new_node;
     }
@@ -56,12 +60,15 @@ namespace BatmanInfer {
      * @brief 增加子节点
      * @param parent_id 父节点的创建
      * @param child_ids 子节点的id数组
+     * @param decode_ids
      * @return 返回子节点
      */
-    void MemoryTree::add_children(const unsigned int parent_id, const std::vector<unsigned int> &child_ids) {
+    void MemoryTree::add_children(const unsigned int parent_id,
+                                  const std::vector<unsigned int> &child_ids,
+                                  const std::vector<unsigned int> &decode_ids) {
         MemoryNode *parent = find_node(parent_id);
         if (!parent)
-            parent = create_node(parent_id);
+            BI_COMPUTE_ERROR("Find Parent Node failure");
 
         // 预留空间，避免Rehash
         parent->children.reserve(parent->children.size() + child_ids.size());
@@ -71,10 +78,12 @@ namespace BatmanInfer {
             leaf_nodes.erase(parent_id);
         }
 
-        for (const unsigned int child_id: child_ids) {
+        for (int i = 0; i < child_ids.size(); i++) {
+            unsigned int child_id = child_ids[i];
+            unsigned int decode_id = decode_ids[i + 1];
             MemoryNode *child = find_node(child_id);
             if (!child) {
-                child = create_node(child_id);
+                child = create_node(child_id, decode_id);
                 child->parent = parent;
             }
 
@@ -85,15 +94,17 @@ namespace BatmanInfer {
     /**
      * 优化的子节点添加，避免重复查找
      */
-    MemoryTree::MemoryNode *MemoryTree::add_child(const unsigned int parent_id, const unsigned int child_id) {
+    MemoryTree::MemoryNode *MemoryTree::add_child(const unsigned int parent_id,
+                                                  const unsigned int child_id,
+                                                  const unsigned int decode_id) {
         MemoryNode *parent = find_node(parent_id);
         if (!parent) {
-            parent = create_node(parent_id);
+            parent = create_node(parent_id, 0);
         }
 
         MemoryNode *child = find_node(child_id);
         if (!child) {
-            child = create_node(child_id);
+            child = create_node(child_id, decode_id);
             child->parent = parent;
         }
 
@@ -153,8 +164,8 @@ namespace BatmanInfer {
         return depth;
     }
 
-    // 获取叶子节点现在变得非常高效
-    std::vector<unsigned int> MemoryTree::get_leaf_ids() const {
+
+    std::unordered_map<unsigned int, unsigned int> MemoryTree::get_leaf_ids() const {
         return {leaf_nodes.begin(), leaf_nodes.end()};
     }
 

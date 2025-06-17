@@ -12,7 +12,7 @@ void debug_print_tensor(const BITensor &tensor, std::string name) {
     std::cout << name << ":" << std::endl;
     BatmanInfer::BIIOFormatInfo format;
     format.element_delim = ", "; // 元素之间用逗号分隔
-    format.row_delim = "\n";     // 每行换行
+    format.row_delim = "\n"; // 每行换行
     format.align_columns = true; // 对齐列
     format.print_region = BatmanInfer::BIIOFormatInfo::PrintRegion::Full;
 
@@ -21,13 +21,11 @@ void debug_print_tensor(const BITensor &tensor, std::string name) {
 
 // ======================================== public function part ========================================
 
-BIGPT2Model::BIGPT2Model(std::shared_ptr<BIIMemoryManager> memory_manager) :
-    _memory_group(std::move(memory_manager)) {
+BIGPT2Model::BIGPT2Model(std::shared_ptr<BIIMemoryManager> memory_manager) : _memory_group(std::move(memory_manager)) {
     _output_positions.clear();
 }
 
-BIGPT2Model::BIGPT2Model() : BIGPT2Model(BIMemoryManagerOnDemand::make_default())
-{
+BIGPT2Model::BIGPT2Model() : BIGPT2Model(BIMemoryManagerOnDemand::make_default()) {
 }
 
 BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size) {
@@ -46,7 +44,7 @@ BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size) {
     CHECK_SUCCESS(ret);
 
     // initialize all intermediate tensors
-    const std::vector<int> init_tensor_shape = { 1, 1 };
+    const std::vector<int> init_tensor_shape = {1, 1};
     ret = set_all_intermediate_tensors(init_tensor_shape);
     CHECK_SUCCESS(ret);
 
@@ -55,10 +53,10 @@ BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size) {
     CHECK_SUCCESS(ret);
 
     // 为了使内存正确分配，需要在开始的时候 run 一次，以执行每一个算子中的 prepare 函数
-    std::vector< std::vector<unsigned int> > tmp_input_vec = { { 0 } };
+    std::vector<std::vector<unsigned int> > tmp_input_vec = {{0}};
     fill_tensor_data_2D(_sub_input_tensor, tmp_input_vec, 1);
-    std::vector< std::vector<float> > tmp_output_vec;
-    _output_positions = { 1 };
+    std::vector<std::vector<float> > tmp_output_vec;
+    _output_positions = {1};
     ret = bi_run(tmp_output_vec);
     CHECK_SUCCESS(ret);
 
@@ -69,13 +67,13 @@ BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size) {
     return ret;
 }
 
-BIErrCode BIGPT2Model::bi_set_input(std::vector< std::vector<unsigned int> > &input_vec) {
+BIErrCode BIGPT2Model::bi_set_input(std::vector<std::vector<unsigned int> > &input_vec) {
     auto ret = BIErrCode::BISuccess;
 
     int cur_batch_size = static_cast<int>(input_vec.size()), cur_seq_len = 0;
     _output_positions.clear();
     _output_positions.reserve(cur_batch_size);
-    for (auto& item : input_vec) {
+    for (auto &item: input_vec) {
         int item_len = static_cast<int>(item.size());
         cur_seq_len = cur_seq_len > item_len ? cur_seq_len : item_len;
         _output_positions.emplace_back(item_len);
@@ -143,8 +141,7 @@ BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec) {
 #ifdef QYW_PRINT
         std::cout << std::string(TO_STR(_lm_head_layer)) << " run success!" << std::endl;
 #endif // QYW_PRINT
-    }
-    catch (std::runtime_error &e) {
+    } catch (std::runtime_error &e) {
         ret = BIErrCode::BIGeneralError;
         std::cout << std::string(__FUNCTION__) << " ERROR: " << e.what() << std::endl;
     }
@@ -204,9 +201,9 @@ BIErrCode BIGPT2Model::fill_tensor_data_1D(BITensor &tensor, std::vector<T> &dat
 }
 
 template<typename T>
-BIErrCode BIGPT2Model::fill_tensor_data_2D(BITensor &tensor, std::vector< std::vector<T> > &data_in) {
+BIErrCode BIGPT2Model::fill_tensor_data_2D(BITensor &tensor, std::vector<std::vector<T> > &data_in) {
     size_t max_item_len = 0;
-    for (auto &item : data_in) {
+    for (auto &item: data_in) {
         max_item_len = item.size() > max_item_len ? item.size() : max_item_len;
     }
 
@@ -217,13 +214,13 @@ BIErrCode BIGPT2Model::fill_tensor_data_2D(BITensor &tensor, std::vector< std::v
 
 template<typename T>
 BIErrCode BIGPT2Model::fill_tensor_data_2D(BITensor &tensor, std::vector<std::vector<T> > &data_in,
-    const size_t max_item_len) {
+                                           const size_t max_item_len) {
     const size_t input_item_cnt = data_in.size();
 
     if ((tensor.info()->tensor_shape()[0] != max_item_len) ||
         (tensor.info()->tensor_shape()[1] != input_item_cnt)) {
         return BIErrCode::BISizeNotMatch;
-        }
+    }
 
     auto tensor_ptr = reinterpret_cast<T *>(tensor.buffer());
     for (auto i = 0; i < input_item_cnt; ++i) {
@@ -231,8 +228,7 @@ BIErrCode BIGPT2Model::fill_tensor_data_2D(BITensor &tensor, std::vector<std::ve
         for (auto j = 0; j < max_item_len; ++j) {
             if (j < item_len) {
                 tensor_ptr[i * max_item_len + j] = data_in[i][j];
-            }
-            else {
+            } else {
                 tensor_ptr[i * max_item_len + j] = 2;
             }
         }
@@ -263,8 +259,7 @@ BIErrCode BIGPT2Model::parse_model_data(const char *data_in, size_t data_size, O
     return BIErrCode::BISuccess;
 }
 
-BIErrCode BIGPT2Model::load_weight_tensor(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr)
-{
+BIErrCode BIGPT2Model::load_weight_tensor(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr) {
     if (order2ptr.find(res_order) == order2ptr.end()) {
         return BIErrCode::BIResNotExists;
     }
@@ -303,8 +298,7 @@ BIErrCode BIGPT2Model::load_weight_tensor(BITensor &tensor, GPT2ResOrder res_ord
     return BIErrCode::BISuccess;
 }
 
-BIErrCode BIGPT2Model::load_scale_vector(std::vector<float> &scales, GPT2ResOrder res_order, OrderPtrMap &order2ptr)
-{
+BIErrCode BIGPT2Model::load_scale_vector(std::vector<float> &scales, GPT2ResOrder res_order, OrderPtrMap &order2ptr) {
     if (order2ptr.find(res_order) == order2ptr.end()) {
         return BIErrCode::BIResNotExists;
     }
@@ -324,7 +318,6 @@ BIErrCode BIGPT2Model::load_scale_vector(std::vector<float> &scales, GPT2ResOrde
 }
 
 BIErrCode BIGPT2Model::load_hyper_params(OrderPtrMap &order2ptr) {
-
     /*
     if (order2ptr.find(GPT2ResOrder::decode_layer_scales) == order2ptr.end()) {
         return BIErrCode::BIResNotExists;
@@ -660,14 +653,17 @@ BIErrCode BIGPT2Model::set_all_intermediate_tensors(const std::vector<int> &tens
     sub_mlp_output_tensor_info.set_format(Format::F16);
     _sub_mlp_output_tensor.allocator()->init(*_ori_mlp_output_tensor.allocator(), sub_mlp_output_tensor_info);
 
-    _sub_add_mlp_output_tensor.allocator()->init(*_ori_add_mlp_output_tensor.allocator(), sub_gather_output_tensor_info);
+    _sub_add_mlp_output_tensor.allocator()->
+            init(*_ori_add_mlp_output_tensor.allocator(), sub_gather_output_tensor_info);
 
-    _sub_mlp_rms_output_tensor.allocator()->init(*_ori_mlp_rms_output_tensor.allocator(), sub_gather_output_tensor_info);
+    _sub_mlp_rms_output_tensor.allocator()->
+            init(*_ori_mlp_rms_output_tensor.allocator(), sub_gather_output_tensor_info);
 
     BITensorShape sub_lm_head_output_tensor_shape(dict_size, cur_seq_len, cur_batch_size);
     BITensorInfo sub_lm_head_output_tensor_info(sub_lm_head_output_tensor_shape, 1, BIDataType::F16);
     sub_lm_head_output_tensor_info.set_format(Format::F16);
-    _sub_lm_head_output_tensor.allocator()->init(*_ori_lm_head_output_tensor.allocator(), sub_lm_head_output_tensor_info);
+    _sub_lm_head_output_tensor.allocator()->init(*_ori_lm_head_output_tensor.allocator(),
+                                                 sub_lm_head_output_tensor_info);
 
     return ret;
 }
@@ -678,7 +674,7 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
         _gather_layer.configure(&_gather_weight_tensor, &_sub_input_tensor, &_sub_gather_output_tensor, 1);
 
         _add_layer.configure(&_sub_gather_output_tensor, &_sub_add_weight_tensor,
-            &_sub_add_output_tensor, BIConvertPolicy::SATURATE);
+                             &_sub_add_output_tensor, BIConvertPolicy::SATURATE);
 
         // _attn_lowp_layer.configure(&_sub_add_output_tensor,
         //                            &_attn_gamma_weight_tensor,
@@ -723,7 +719,7 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
                               &_sub_attn_output_tensor);
 
         _attn_rms_add_layer.configure(&_sub_add_output_tensor, &_sub_attn_output_tensor,
-            &_sub_mlp_input_tensor, BIConvertPolicy::SATURATE);
+                                      &_sub_mlp_input_tensor, BIConvertPolicy::SATURATE);
 
         // _mlp_layer.configure(&_sub_mlp_input_tensor,
         //                      _mlp_hyper_params.fc1_input_scale,
@@ -755,7 +751,7 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
                              max_seq_len);
 
         _add_mlp_layer.configure(&_sub_mlp_output_tensor, &_sub_mlp_input_tensor,
-            &_sub_add_mlp_output_tensor, BIConvertPolicy::SATURATE);
+                                 &_sub_add_mlp_output_tensor, BIConvertPolicy::SATURATE);
 
         _rms_norm_layer.configure(&_sub_add_mlp_output_tensor, &_rms_gamma_weight_tensor, &_sub_mlp_rms_output_tensor);
 
@@ -781,8 +777,7 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
                                  1.0f,
                                  1.0f,
                                  gemm_info);
-    }
-    catch (std::runtime_error &e) {
+    } catch (std::runtime_error &e) {
         ret = BIErrCode::BIGeneralError;
         std::cout << std::string(__FUNCTION__) << " ERROR: " << e.what() << std::endl;
     }
@@ -810,7 +805,7 @@ BIErrCode BIGPT2Model::dynamic_configure_all_layers(const std::vector<int> &tens
         _add_layer.dynamic_configure(&_sub_gather_output_tensor, &_sub_add_weight_tensor, true);
 
         // _attn_lowp_layer.dynamic_configure(&_sub_add_output_tensor, cur_seq_len, cur_batch_size);
-        _attn_layer.dynamic_configure(&_sub_add_output_tensor, cur_seq_len, cur_batch_size);
+        // _attn_layer.dynamic_configure(&_sub_add_output_tensor, cur_seq_len, cur_batch_size);
 
         _attn_rms_add_layer.dynamic_configure(&_sub_add_output_tensor, &_sub_attn_output_tensor, true);
 
@@ -821,8 +816,7 @@ BIErrCode BIGPT2Model::dynamic_configure_all_layers(const std::vector<int> &tens
         _rms_norm_layer.dynamic_configure(&_sub_add_mlp_output_tensor);
 
         _lm_head_layer.dynamic_configure();
-    }
-    catch (std::runtime_error &e) {
+    } catch (std::runtime_error &e) {
         ret = BIErrCode::BIGeneralError;
         std::cout << std::string(__FUNCTION__) << " ERROR: " << e.what() << std::endl;
     }

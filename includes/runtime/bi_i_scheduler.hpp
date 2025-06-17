@@ -13,6 +13,7 @@
 #include <limits>
 
 namespace BatmanInfer {
+    struct PhysicalBlock;
     // 前向声明
     class BIICPPKernel;
 
@@ -178,10 +179,17 @@ namespace BatmanInfer {
         schedule_op(BIICPPKernel *kernel, const Hints &hints, const BIWindow &window, BIITensorPack &tensors) = 0;
 
         /**
-         * @brief 调度kv cache的拷贝器
+         * @brief 调度kv cache的切分拷贝
          * @param tensors 张量信息
          */
-        virtual void schedule_kv(BIITensorPack &tensors) = 0;
+        virtual void schedule_kv_split(BIITensorPack &tensors) = 0;
+
+        /**
+         * @brief 调度KV Cache Manager的合并接口
+         * @param tensors 张量信息
+         * @param mem_lst 内存块数组 - 默认内存块大小(N, num heads, sequence length, head dim)
+         */
+        virtual void schedule_kv_concat(BIITensorPack &tensors, const std::vector<PhysicalBlock *> &mem_lst) = 0;
 
         /**
          * @brief 执行所有传递的工作负载

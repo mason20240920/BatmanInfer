@@ -38,7 +38,8 @@ namespace BatmanInfer {
 
         void dynamic_configure(const BIITensor *input,
                                const size_t &seq_len,
-                               const size_t &batch_size);
+                               const size_t &batch_size,
+                               std::vector<std::vector<unsigned int> > &kv_caches_vec);
 
         /**
         * 初始化函数
@@ -58,7 +59,7 @@ namespace BatmanInfer {
         * @param output 输出张量，形状为 [num_units, batch_size]
         * @param info 激活层参数，用于定义激活函数（如 ReLU、Tanh 等）
         */
-        void configure(const BIITensor *input,
+        void configure(BIITensor *input,
                        const BIITensor *gamma_weights,
                        const BIITensor *c_attn_weights,
                        const BIITensor *c_attn_bias,
@@ -84,6 +85,8 @@ namespace BatmanInfer {
                                  const BIITensorInfo *weights,
                                  const BIITensorInfo *bias,
                                  const BIITensorInfo *output);
+
+        void get_kv_block_ids(std::vector<unsigned int> &kv_block_ids);
 
         /***
          * 设置输入的sequence长度
@@ -122,6 +125,9 @@ namespace BatmanInfer {
         BITensor _sub_reshape_q_states;
         BITensor _sub_reshape_k_states;
         BITensor _sub_reshape_v_states;
+        // KV Cache合并的接口
+        BITensor _sub_concat_reshape_k_states;
+        BITensor _sub_concat_reshape_v_states;
         BITensor _sub_transpose_q_states;
         BITensor _sub_transpose_k_states;
         BITensor _sub_transpose_v_states;
@@ -139,6 +145,7 @@ namespace BatmanInfer {
         BITensorInfo _sub_c_attn_tensor_info;
         BITensorInfo _sub_qkv_states_info;
         BITensorInfo _sub_reshape_qkv_info;
+        BITensorInfo _sub_concat_reshape_kv_info;
         BITensorInfo _sub_transpose_q_info;
         BITensorInfo _sub_transpose_k_info;
         BITensorInfo _sub_transpose_v_info;
@@ -160,6 +167,8 @@ namespace BatmanInfer {
         BITensor _reshape_q_states;
         BITensor _reshape_k_states;
         BITensor _reshape_v_states;
+        BITensor _concat_reshape_k_states;
+        BITensor _concat_reshape_v_states;
         BITensor _transpose_q_states;
         BITensor _transpose_k_states;
         BITensor _transpose_v_states;
@@ -180,5 +189,19 @@ namespace BatmanInfer {
         size_t _seq_len = 1;
         bool _is_prepared; // 是否已经完全初始化(预先把内存加载完)
         std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;
+        bool _is_first_kv_cache = true; // 是否第一次KV Cache
+        std::vector<std::vector<unsigned int> > _kv_decode_ids; // 进行kv cache的传递
+        std::vector<unsigned int> _block_ids{};
+
+    private:
+        /**
+         * @brief 存储每次计算的KV Caches
+         */
+        void store_kv_cache();
+
+        /**
+         * @brief 合并KV Cache缓存
+         */
+        void concat_kv_cache();
     };
 }

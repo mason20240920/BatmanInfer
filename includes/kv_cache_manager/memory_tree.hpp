@@ -19,11 +19,14 @@ namespace BatmanInfer {
         struct MemoryNode {
             unsigned int block_id; // 内存块的id
 
+            unsigned int decode_id; // 解码序列的id
+
             std::unordered_map<unsigned int, MemoryNode *> children; // 使用哈希表存储子节点，提高查询效率
 
             MemoryNode *parent; // 获取父节点
 
-            explicit MemoryNode(const unsigned int block_id) : block_id(block_id), parent(nullptr) {
+            explicit MemoryNode(const unsigned int block_id, const unsigned int decode_id) : block_id(block_id),
+                decode_id(decode_id), parent(nullptr) {
             }
         };
 
@@ -37,13 +40,14 @@ namespace BatmanInfer {
         // ID到节点的快速映射
         std::unordered_map<unsigned int, MemoryNode *> node_map;
 
-        std::unordered_set<unsigned int> leaf_nodes; // 维护叶子节点表
+        // 叶子节点两个key: 一个是block_id, 一个是decode_id
+        std::unordered_map<unsigned int, unsigned int> leaf_nodes; // 维护叶子节点表
 
         MemoryNode *root_node;
 
     public:
         // 构造函数, 预分配内存
-        explicit MemoryTree(const unsigned int root_id);
+        explicit MemoryTree(const unsigned int root_id, unsigned int decode_id);
 
         /**
          * 获取根节点
@@ -56,7 +60,7 @@ namespace BatmanInfer {
          * @param id 创建节点的id
          * @return
          */
-        MemoryNode *create_node(unsigned int id);
+        MemoryNode *create_node(unsigned int id, unsigned int decode_id);
 
         /**
          * @brief 增加子节点
@@ -64,12 +68,13 @@ namespace BatmanInfer {
          * @param child_ids 子节点的id数组
          * @return 返回子节点
          */
-        void add_children(const unsigned int parent_id, const std::vector<unsigned int> &child_ids);
+        void add_children(unsigned int parent_id, const std::vector<unsigned int> &child_ids,
+                          const std::vector<unsigned int> &decode_ids);
 
         /**
          * 优化的子节点添加，避免重复查找
          */
-        MemoryNode *add_child(const unsigned int parent_id, const unsigned int child_id);
+        MemoryNode *add_child(unsigned int parent_id, unsigned int child_id, unsigned int decode_id);
 
         /**
          * @brief 根据id查找节点, Q(1)的时间复杂度
@@ -95,7 +100,7 @@ namespace BatmanInfer {
         [[nodiscard]] int get_depth(const unsigned int id) const;
 
         // 获取叶子节点现在变得非常高效
-        [[nodiscard]] std::vector<unsigned int> get_leaf_ids() const;
+        [[nodiscard]] std::unordered_map<unsigned int, unsigned int> get_leaf_ids() const;
 
         /**
          * @brief 根据叶子节点获取一个序列的内存block_ids

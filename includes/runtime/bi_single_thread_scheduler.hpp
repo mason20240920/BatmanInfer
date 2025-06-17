@@ -41,7 +41,9 @@ namespace BatmanInfer {
         void schedule_op(BatmanInfer::BIICPPKernel *kernel, const BatmanInfer::BIIScheduler::Hints &hints,
                          const BatmanInfer::BIWindow &window, BatmanInfer::BIITensorPack &tensors) override;
 
-        void schedule_kv(BIITensorPack &tensors) override;
+        void schedule_kv_split(BIITensorPack &tensors) override;
+
+        void schedule_kv_concat(BIITensorPack &tensors, const std::vector<PhysicalBlock *> &mem_lst) override;
 
     protected:
         /**

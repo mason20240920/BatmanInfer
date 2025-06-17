@@ -72,6 +72,12 @@ namespace BatmanInfer {
          */
         uint8_t *data() const;
 
+        /**
+         * @brief 返回位移的分配数据指针
+         * @param offset 头指针的便宜量
+         * @param size 元素的大小
+         * @return
+         */
         uint8_t *data(const size_t offset, const size_t size) const;
 
         /**

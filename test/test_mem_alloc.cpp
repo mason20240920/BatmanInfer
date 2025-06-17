@@ -337,6 +337,7 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
     BINEArithmeticAddition attn_rms_add; // 注意力RMS相加
     attn_rms_add.configure(&add_output_tensor, &attn_output_tensor, &sub_mlp_input, BIConvertPolicy::SATURATE);
     attn_rms_add.run();
+    MemAllocTest::print_tensor(sub_mlp_input, "&sub_mlp_input");
     // MemAllocTest::print_tensor(sub_mlp_input, "mlp_input");
     BINEMLPLayer _mlp_layer; // MLP层
     // 2. 初始化gamma张量
@@ -458,7 +459,7 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
     MemAllocTest::get_s32_val(sub_ids, infos);
 
     MemAllocTest::get_index_val(sub_lm_head_output, infos, scores);
-    MemAllocTest::print_tensor(sub_ids, "ids");
+    MemAllocTest::print_tensor(add_output_tensor, "ids");
     MemAllocTest::print_score(scores, seq_len);
 
     // std::cout << MemAllocTest::get_index_val(sub_lm_head_output, std::vector<int>{8}) << std::endl;
@@ -467,12 +468,12 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
     // MemAllocTest::print_tensor(sub_ids, "ids");
 
     // 再次进行运行(动态)
-    batch_size = 3;
-    seq_len = 5;
+    batch_size = 1;
+    seq_len = 3;
     input_tensor_shape = BITensorShape(seq_len, batch_size);
     input_info.set_tensor_shape(input_tensor_shape);
     input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
-    indices_data = {0, 3, 4, 5, 6, 0, 3, 4, 5, 6, 0, 3, 4, 5, 6};
+    indices_data = {0, 3, 4};
     MemAllocTest::fill_tensor_val_with_arr(input_tensor, indices_data);
     gather_output_tensor_shape = BITensorShape(768, seq_len, batch_size);
     gather_output_info.set_tensor_shape(gather_output_tensor_shape);
@@ -862,7 +863,8 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-    attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size);
+    std::vector<std::vector<unsigned int> > decodes_vec{{1, 2, 3}};
+    attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size, decodes_vec);
     attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
     _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
@@ -908,7 +910,7 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-    attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size);
+    attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size, decodes_vec);
     attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
     _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
@@ -952,7 +954,7 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-    attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size);
+    attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size, decodes_vec);
     attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
     _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);

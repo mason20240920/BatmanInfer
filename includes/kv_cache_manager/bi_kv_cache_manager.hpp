@@ -22,11 +22,15 @@ namespace BatmanInfer {
          */
         BI_COMPUTE_DISALLOW_COPY_ALLOW_MOVE(KVCacheManager);
 
-        static KVCacheManager &getInstance(); /**
+        static void initialize(size_t num_blocks, size_t block_size);
+
+        static KVCacheManager &getInstance();
+
+        /**
          * @brief 获取当前的解码节点
          * @return 返回当前叶子的解码节点
          */
-        [[nodiscard]] std::vector<unsigned int> get_decode_ids() const;
+        [[nodiscard]] std::unordered_map<unsigned int, unsigned int> get_decode_ids() const;
 
         [[nodiscard]] unsigned int root_id() const;
 
@@ -34,8 +38,11 @@ namespace BatmanInfer {
          * 根据需求动态请求新的KV Cache内存
          * @param parent_id
          * @param require_block_count
+         * @param inp_ids: 输入的解码ids
          */
-        void alloc_decode_next(const unsigned int parent_id, const int require_block_count) const;
+        [[nodiscard]] std::vector<unsigned int> alloc_decode_next(const unsigned int parent_id,
+                                                                  const int require_block_count,
+                                                                  const std::vector<unsigned int> &inp_ids) const;
 
         /**
          * 根据输出的buffer值存储到对应的block_id里
@@ -43,7 +50,7 @@ namespace BatmanInfer {
          * @param block_id
          * @param block_size
          */
-        void memcpy_decode_buffer(const void *source_buffer, const int block_id, const int block_size) const;
+        void memcpy_decode_buffer(const void *source_buffer, const int block_id, bool is_k = false) const;
 
         /**
          * 释放空的解码序列
@@ -66,6 +73,8 @@ namespace BatmanInfer {
         void decode_sequence_blocks(const std::vector<unsigned int> &block_ids,
                                     std::vector<PhysicalBlock *> &block_mem_lst) const;
 
+        void *decode_buffer_ptr(unsigned int block_id) const;
+
     private:
         KVCacheManager();
 
@@ -79,5 +88,7 @@ namespace BatmanInfer {
 
         std::unique_ptr<MemoryTree> m_tree_; // 序列管理树
         PhysicalBlockManager *manager_; // 物理内存块管理器
+        static size_t NUM_BLOCKS;
+        static size_t BLOCK_SIZE; // 4KB per block
     };
 }

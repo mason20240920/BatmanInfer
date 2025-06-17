@@ -482,7 +482,12 @@ namespace BatmanInfer {
         schedule_common(kernel, hints, kernel->window(), tensors);
     }
 
-    void BICPPScheduler::schedule_kv(BIITensorPack &tensors) {
+    void BICPPScheduler::schedule_kv_split(BIITensorPack &tensors) {
         BI_COMPUTE_UNUSED(tensors);
+    }
+
+    void BICPPScheduler::schedule_kv_concat(BIITensorPack &tensors, const std::vector<PhysicalBlock *> &mem_lst) {
+        BI_COMPUTE_UNUSED(tensors);
+        BI_COMPUTE_UNUSED(mem_lst);
     }
 }
