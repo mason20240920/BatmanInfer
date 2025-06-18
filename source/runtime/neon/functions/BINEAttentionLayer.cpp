@@ -404,6 +404,10 @@ namespace BatmanInfer {
     }
 
     void BINEAttentionLayer::run() {
+        BIIOFormatInfo format;
+        format.element_delim = ", "; // 元素之间用逗号分隔
+        format.row_delim = "\n"; // 每行换行
+        format.align_columns = true; // 对齐列
         prepare();
 
         // 执行函数
@@ -426,7 +430,7 @@ namespace BatmanInfer {
         execute_window_loop(window, [&](const BICoordinates &id) {
             auto x = id[0];
             auto y = id[1];
-            *reinterpret_cast<float16_t *>(mask_it.ptr()) = (x <= _seq_len / 2)
+            *reinterpret_cast<float16_t *>(mask_it.ptr()) = (x <= _seq_len)
                                                                 ? 0
                                                                 : -std::numeric_limits<
                                                                     float>::infinity();
@@ -437,6 +441,7 @@ namespace BatmanInfer {
         _pv_transpose_layer.run();
         _pv_reshape_layer.run();
         _attn_o_gemm_layer.run();
+        // _sub_pv_bmm_output.print(std::cout, format);
         _c_copy_layer.run();
     }
 
@@ -528,7 +533,9 @@ namespace BatmanInfer {
         format.row_delim = "\n"; // 每行换行
         format.align_columns = true; // 对齐列
 
-        // _sub_reshape_k_states.print(std::cout, format);
+        // // _sub_reshape_k_states.print(std::cout, format);
         // _sub_concat_reshape_k_states.print(std::cout, format);
+        // std::cout << "================================================================" << std::endl;
+        // _sub_concat_reshape_v_states.print(std::cout, format);
     }
 }

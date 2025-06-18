@@ -203,7 +203,7 @@ namespace BatmanInfer {
                                 auto pb_gmem_addr = static_cast<char *>(mem_lst[mm_item_index]->buffer);
                                 auto k_dst_ptr = k_dst->allocator()->data(cur_mm_offset, mm_dim_item_size);
                                 auto v_dst_ptr = v_dst->allocator()->data(
-                                    cur_mm_offset + mm_dim_item_size, mm_dim_item_size);
+                                    cur_mm_offset, mm_dim_item_size);
                                 memcpy(k_dst_ptr, pb_gmem_addr, mm_dim_item_size);
                                 memcpy(v_dst_ptr, pb_gmem_addr + mm_dim_item_size, mm_dim_item_size);
                             }
@@ -227,8 +227,7 @@ namespace BatmanInfer {
                                     const unsigned int cur_mm_offset = (batch_index * seq_len + seq) * mm_dim_item_size;
                                     auto pb_gmem_addr = static_cast<char *>(mem_lst[mm_item_index]->buffer);
                                     auto k_dst_ptr = k_dst->allocator()->data(cur_mm_offset, mm_dim_item_size);
-                                    auto v_dst_ptr = v_dst->allocator()->data(
-                                        cur_mm_offset + mm_dim_item_size, mm_dim_item_size);
+                                    auto v_dst_ptr = v_dst->allocator()->data(cur_mm_offset, mm_dim_item_size);
                                     memcpy(k_dst_ptr, pb_gmem_addr, mm_dim_item_size);
                                     memcpy(v_dst_ptr, pb_gmem_addr + mm_dim_item_size, mm_dim_item_size);
                                 }
