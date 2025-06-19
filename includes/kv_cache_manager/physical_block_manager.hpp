@@ -4,11 +4,31 @@
 
 #pragma once
 #include <atomic>
+#include <stdlib.h>
 #include <kv_cache_manager/block/physical_block.hpp>
 
 #include "data/core/bi_error.h"
 
 namespace BatmanInfer {
+    namespace {
+        // 跨平台对齐内存分配函数
+        void *platform_aligned_alloc(size_t alignment, size_t size) {
+#ifdef __ANDROID__
+            // Android 使用 posix_memalign
+            void* ptr = nullptr;
+            if (posix_memalign(&ptr, alignment, size) != 0) {
+                return nullptr;  // 分配失败
+            }
+            return ptr;
+#else
+            // 其他平台使用 aligned_alloc
+            // aligned_alloc 要求 size 是 alignment 的倍数
+            size_t aligned_size = ((size + alignment - 1) / alignment) * alignment;
+            return aligned_alloc(alignment, aligned_size);
+#endif
+        }
+    }
+
     /**
      * @brief 内存块管理器
      */
@@ -43,37 +63,37 @@ namespace BatmanInfer {
 
     inline PhysicalBlockManager *create_block_manager(size_t num_blocks, size_t block_size) {
         constexpr size_t aligned_size = ((sizeof(PhysicalBlockManager) + 63) / 64) * 64;
-        auto manager = static_cast<PhysicalBlockManager *>(aligned_alloc(64, aligned_size));
+        auto manager = static_cast<PhysicalBlockManager *>(platform_aligned_alloc(64, aligned_size));
         if (!manager) {
             BI_COMPUTE_ERROR("Failed to allocate memory for physical block manager");
         }
 
         // 使用大页内存(Huge Pages)减少TLB缺失
-#ifdef _GNU_SOURCE
-        manager->memory_pool = mmap(NULL, num_blocks * block_size,
-                                  PROT_READ | PROT_WRITE,
-                                  MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
-                                  -1, 0);
-        if (manager->memory_pool == MAP_FAILED) {
-            // 如果大页分配失败，退回到常规内存分配
-            manager->memory_pool = aligned_alloc(4096, num_blocks * block_size);
-            if (!manager->memory_pool) {
-                free(manager);
-                return nullptr;
-            }
-        }
-#else
-        manager->memory_pool = aligned_alloc(4096, num_blocks * block_size);
+        // #ifdef _GNU_SOURCE
+        //         manager->memory_pool = mmap(NULL, num_blocks * block_size,
+        //                                   PROT_READ | PROT_WRITE,
+        //                                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
+        //                                   -1, 0);
+        //         if (manager->memory_pool == MAP_FAILED) {
+        //             // 如果大页分配失败，退回到常规内存分配
+        //             manager->memory_pool = aligned_alloc(4096, num_blocks * block_size);
+        //             if (!manager->memory_pool) {
+        //                 free(manager);
+        //                 return nullptr;
+        //             }
+        //         }
+        // #else
+        manager->memory_pool = platform_aligned_alloc(4096, num_blocks * block_size);
         if (!manager->memory_pool) {
             free(manager);
             return nullptr;
         }
-#endif
+        // #endif
 
         // 对齐的内存block_size
         constexpr size_t aligned_block_size = ((sizeof(PhysicalBlock) + 63) / 64) * 64;
         // 分配块数组, 确保每个块都对齐到缓存行
-        manager->blocks = static_cast<PhysicalBlock *>(aligned_alloc(64, aligned_block_size * num_blocks));
+        manager->blocks = static_cast<PhysicalBlock *>(platform_aligned_alloc(64, aligned_block_size * num_blocks));
         if (!manager->blocks) {
             free(manager->memory_pool);
             free(manager);
@@ -86,7 +106,7 @@ namespace BatmanInfer {
             manager->blocks[i].buffer = static_cast<char *>(manager->memory_pool) + (i * block_size);
         }
 
-        manager->free_stack = static_cast<int *>(aligned_alloc(64, num_blocks * sizeof(int)));
+        manager->free_stack = static_cast<int *>(platform_aligned_alloc(64, num_blocks * sizeof(int)));
         if (!manager->free_stack) {
             free(manager->memory_pool);
             free(manager->blocks);

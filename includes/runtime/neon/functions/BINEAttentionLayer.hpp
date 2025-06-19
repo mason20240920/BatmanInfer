@@ -109,7 +109,6 @@ namespace BatmanInfer {
         BINEReshapeLayer _reshape_q_layer, _reshape_k_layer, _reshape_v_layer;
         BINEPermute _transpose_q_layer, _transpose_k_layer, _transpose_v_layer;
         BINEMatMul _qk_bmm_layer;
-        BINEArithmeticAddition _qk_add_layer;
         BINESoftmaxLayer _softmax_layer;
         BINEMatMul _pv_bmm_layer;
         BINEPermute _pv_transpose_layer;
@@ -132,8 +131,6 @@ namespace BatmanInfer {
         BITensor _sub_transpose_k_states;
         BITensor _sub_transpose_v_states;
         BITensor _sub_qk_bmm_output;
-        BITensor _sub_add_output;
-        BITensor _sub_add_weights;
         BITensor _sub_softmax_output;
         BITensor _sub_pv_bmm_output;
         BITensor _sub_pv_perm_output;
@@ -150,8 +147,7 @@ namespace BatmanInfer {
         BITensorInfo _sub_transpose_k_info;
         BITensorInfo _sub_transpose_v_info;
         BITensorInfo _sub_qk_bmm_output_info;
-        BITensorInfo _sub_add_output_info;
-        BITensorInfo _sub_add_weights_info;
+        // BITensorInfo _sub_add_weights_info;
         BITensorInfo _sub_softmax_output_info;
         BITensorInfo _sub_pv_bmm_output_info;
         BITensorInfo _sub_pv_transpose_output_info;
@@ -173,8 +169,8 @@ namespace BatmanInfer {
         BITensor _transpose_k_states;
         BITensor _transpose_v_states;
         BITensor _qk_bmm_output;
-        BITensor _add_output;
-        BITensor _add_weights;
+        // BITensor _add_output;
+        // BITensor _add_weights;
         BITensor _softmax_output;
         BITensor _pv_bmm_output;
         BITensor _pv_perm_output;

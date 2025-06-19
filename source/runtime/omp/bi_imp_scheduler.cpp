@@ -118,26 +118,12 @@ namespace BatmanInfer {
 
         // 进行多线程拷贝操作
         const unsigned int num_windows = num_threads;
-        const unsigned int total_usage = (num_iterations + num_threads - 1) / num_threads; // 每个线程需要处理的维度
+        const unsigned int total_usage = num_iterations / num_threads; // 每个线程需要处理的维度
         const unsigned int remain_usage = num_iterations % num_threads;
         std::vector<BIIScheduler::BIWorkload> workloads(num_windows);
         for (unsigned int t = 0; t < num_windows; t++) {
             workloads[t] = [t, &tensor,&dst, &num_windows, &remain_usage, & total_usage, &hidden_size, &sequence_length
                     ](const ThreadInfo &info) {
-                        // 计算需要Split开始的起点
-                        if (t == num_windows - 1 && remain_usage > 0) {
-                            for (int split_i = 1; split_i <= remain_usage; split_i++) {
-                                unsigned int current_gmem_index = total_usage * t + split_i;
-                                // 获取当前坐标
-                                // TODO: 当前默认是float16, 所以最后乘以2
-                                unsigned int offset = (sequence_length * current_gmem_index - 1) * hidden_size * 2;
-                                unsigned int dst_offset = (current_gmem_index - 1) * hidden_size * 2;
-                                unsigned int data_size = hidden_size * 2;
-                                auto data = tensor->allocator()->data(offset, data_size);
-                                auto dst_ptr = dst->allocator()->data(dst_offset, data_size);
-                                memcpy(dst_ptr, data, data_size);
-                            }
-                        }
                         // 当前全局的起始节点
                         for (int split_i = 1; split_i <= total_usage; split_i++) {
                             unsigned int current_gmem_index = total_usage * t + split_i;
@@ -149,6 +135,20 @@ namespace BatmanInfer {
                             auto data = tensor->allocator()->data(offset, data_size);
                             auto dst_ptr = dst->allocator()->data(dst_offset, data_size);
                             memcpy(dst_ptr, data, data_size);
+                        }
+                        // 计算需要Split开始的起点
+                        if (t == num_windows - 1 && remain_usage > 0) {
+                            for (int split_i = 1; split_i <= remain_usage; split_i++) {
+                                unsigned int current_gmem_index = total_usage * (t + 1) + split_i;
+                                // 获取当前坐标
+                                // TODO: 当前默认是float16, 所以最后乘以2
+                                unsigned int offset = (sequence_length * current_gmem_index - 1) * hidden_size * 2;
+                                unsigned int dst_offset = (current_gmem_index - 1) * hidden_size * 2;
+                                unsigned int data_size = hidden_size * 2;
+                                auto data = tensor->allocator()->data(offset, data_size);
+                                auto dst_ptr = dst->allocator()->data(dst_offset, data_size);
+                                memcpy(dst_ptr, data, data_size);
+                            }
                         }
                     };
         }
