@@ -809,7 +809,7 @@ BIErrCode BIGPT2Model::dynamic_configure_all_layers(const std::vector<int> &tens
 
         _attn_rms_add_layer.dynamic_configure(&_sub_add_output_tensor, &_sub_attn_output_tensor, true);
 
-        _mlp_layer.dynamic_configure(&_sub_mlp_input_tensor, cur_seq_len, cur_batch_size);
+        _mlp_layer.dynamic_configure(&_sub_mlp_input_tensor, cur_batch_size);
 
         _add_mlp_layer.dynamic_configure(&_sub_mlp_output_tensor, &_sub_mlp_input_tensor, false);
 

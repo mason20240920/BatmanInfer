@@ -46,6 +46,23 @@ namespace KVCacheTestName {
         tensor.print(std::cout, format);
     }
 
+    void concat_tensor(const BITensor &tensor,
+                       std::vector<int> &output_ids) {
+        // 元素开始起点
+        const auto start_offset = static_cast<int>(tensor.info()->offset_first_element_in_bytes());
+        const uint8_t *ptr = tensor.buffer() + start_offset;
+        const auto input_s32 = static_cast<int32_t>(*ptr);
+        output_ids.push_back(input_s32);
+    }
+
+    template<typename T>
+    void print_output_info(const std::vector<T> &output_ids) {
+        for (const auto &id: output_ids) {
+            std::cout << id << ", ";
+        }
+        std::cout << std::endl;
+    }
+
     void print_score(const std::vector<float> &scores, const size_t dim_size) {
         for (int i = 0; i < scores.size(); i++) {
             std::cout << scores[i] << "\t";
@@ -456,14 +473,19 @@ TEST(KVCaches, DynamicGemm) {
 }
 
 TEST(KVCacheGPT, GPT2KVCacheOrigin) {
+    // 输出的ids
+    std::vector<int> output_ids{};
+    std::vector<float> scores{};
     // 需要复制传入数组的值
     std::vector<uint32_t> input_ids{};
     // 1. 先初始化KV Cache的数据
     constexpr int num_head = 12;
     constexpr int head_dim = 64;
+    constexpr int max_seq = 16;
+    constexpr int kv_manager_num = 512;
     constexpr int kv_mem_size = num_head * head_dim * sizeof(float16_t) * 2; // 每次存取的时候会存储K和V
     std::vector<unsigned int> kv_block_ids;
-    KVCacheManager::initialize(512, kv_mem_size);
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size);
     const auto root_id = KVCacheManager::getInstance().root_id();
     // 获取KV Cache的主要的叶子root_id
     std::cout << "root_id = " << root_id << std::endl;
@@ -475,7 +497,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     int seq_len = 1;
     // 1. 初始化一个最大input算子
     BITensor original_input_tensor;
-    BITensorShape original_input_tensor_shape(16, 20);
+    BITensorShape original_input_tensor_shape(max_seq, 20);
     original_input_tensor.allocator()->init(BITensorInfo(original_input_tensor_shape, 1, BIDataType::U32));
     original_input_tensor.allocator()->allocate();
 
@@ -499,7 +521,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
 
     // 3. 输出原始矩阵
     BITensor original_gather_output_tensor;
-    BITensorShape original_gather_output_tensor_shape(768, 16, 20);
+    BITensorShape original_gather_output_tensor_shape(768, max_seq, 20);
     BITensorShape original_attn_output_tensor_shape(768, 1, 20);
     original_gather_output_tensor.allocator()->init(
         BITensorInfo(original_gather_output_tensor_shape, 1, BIDataType::F16));
@@ -522,7 +544,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     gather_layer.configure(&weight, &input_tensor, &gather_output_tensor, 1);
     gather_layer.run();
     // 3. Add权重的获取
-    BITensorShape add_wte_weight_shape(768, 16);
+    BITensorShape add_wte_weight_shape(768, max_seq);
     const std::string &add_wte_weight_path = "./input_res/add_wte_weights.npy";
     BITensor add_wte_weight = utils::create_type_tensor(
         add_wte_weight_path, add_wte_weight_shape,
@@ -598,7 +620,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
                          k_perm,
                          qkv_o_perm,
                          768,
-                         16,
+                         max_seq,
                          20,
                          &attn_output_tensor);
     attn_layer.run();
@@ -641,7 +663,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
                          act_info,
                          &sub_mlp_output,
                          20,
-                         16);
+                         1);
     _mlp_layer.run(); // 1. 先用输出结果进行相加
     BITensorShape add_output_shape(768, 1, 20);
     BITensor add_output;
@@ -697,12 +719,17 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     BINEArgMinMaxLayer arg_minmax_layer;
     arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
     arg_minmax_layer.run();
-    KVCacheTestName::print_tensor(sub_ids, "ids");
-    KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
-    //
-    //
+    std::vector<int> infos{};
+    std::vector<float> score{};
+    KVCacheTestName::concat_tensor(sub_ids, output_ids);
+    KVCacheTestName::get_s32_val(sub_ids, infos);
+    KVCacheTestName::get_index_val(sub_lm_head_output, infos, score);
+    scores.push_back(score[0]);
+
+    KVCacheTestName::print_output_info(output_ids);
+    KVCacheTestName::print_output_info(scores);
     // 再次进行运行(动态)
-    batch_size = 1;
+    batch_size = 20;
     std::vector<std::vector<unsigned int> > inp_map{};
     for (int i = 0; i < batch_size; i++) {
         inp_map.push_back({kv_block_ids[0], 1});
@@ -737,7 +764,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
@@ -747,8 +774,8 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     BINEScheduler::get().schedule_kv_split(pack);
     attn_layer.run();
     attn_layer.get_kv_block_ids(kv_block_ids);
-    attn_rms_add.run();
-    _mlp_layer.run();
+    // attn_rms_add.run();
+    // _mlp_layer.run();
     inp_map.clear();
     for (unsigned int &kv_block_id: kv_block_ids)
         inp_map.push_back({kv_block_id, 1});
@@ -756,7 +783,13 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     rms_norm_layer.run();
     lm_head_layer.run();
     arg_minmax_layer.run();
-    KVCacheTestName::print_tensor(sub_ids, "ids");
+    KVCacheTestName::concat_tensor(sub_ids, output_ids);
+    KVCacheTestName::get_s32_val(sub_ids, infos);
+    KVCacheTestName::get_index_val(sub_lm_head_output, infos, score);
+    scores.push_back(score[0]);
+
+    KVCacheTestName::print_output_info(output_ids);
+    KVCacheTestName::print_output_info(scores);
 
     seq_len = 3;
     input_tensor_shape = BITensorShape(seq_len, batch_size);
@@ -788,7 +821,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
@@ -807,10 +840,16 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     rms_norm_layer.run();
     lm_head_layer.run();
     arg_minmax_layer.run();
-    KVCacheTestName::print_tensor(sub_ids, "sub_ids");
-    // KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
+    KVCacheTestName::concat_tensor(sub_ids, output_ids);
+    KVCacheTestName::get_s32_val(sub_ids, infos);
+    KVCacheTestName::get_index_val(sub_lm_head_output, infos, score);
+    scores.push_back(score[0]);
 
-    for (int seq_run = 1; seq_run < 5; seq_run++) {
+    KVCacheTestName::print_output_info(output_ids);
+    KVCacheTestName::print_output_info(scores);
+    KVCacheTestName::print_tensor(sub_ids, "sub_ids");
+
+    for (int seq_run = 1; seq_run < 13; seq_run++) {
         seq_len++;
         std::cout << "当前的sequence长度" << seq_len << std::endl;
         input_tensor_shape = BITensorShape(seq_len, batch_size);
@@ -819,9 +858,6 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
         indices_data.push_back(seq_run + 4);
         KVCacheTestName::fill_tensor_with_repeat_arr(input_ids, batch_size, indices_data);
         KVCacheTestName::fill_tensor_val_with_arr(input_tensor, input_ids);
-        if (seq_len == 9) {
-            KVCacheTestName::print_tensor(input_tensor, "input");
-        }
         gather_output_tensor_shape = BITensorShape(768, seq_len, batch_size);
         attn_output_tensor_shape = BITensorShape(768, 1, batch_size);
         gather_output_info.set_tensor_shape(gather_output_tensor_shape);
@@ -846,7 +882,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
         add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
         attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
         attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
-        _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
+        _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
         add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
         rms_norm_layer.dynamic_configure(&sub_add_output);
         lm_head_layer.dynamic_configure();
@@ -862,14 +898,23 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
         inp_map.clear();
         for (unsigned int &kv_block_id: kv_block_ids)
             inp_map.push_back({kv_block_id, 1});
+        KVCacheTestName::print_tensor(split_add_output_tensor, "scores");
         add_f.run();
         rms_norm_layer.run();
         lm_head_layer.run();
         auto end = std::chrono::high_resolution_clock::now();
         double duration = std::chrono::duration<double, std::milli>(end - start).count();
         arg_minmax_layer.run();
-        KVCacheTestName::print_tensor(sub_ids, "sub_ids");
         std::cout << "Performance Report:" << duration << std::endl;
+        KVCacheTestName::print_tensor(sub_ids, "sub_ids");
+        // KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
+        KVCacheTestName::concat_tensor(sub_ids, output_ids);
+        KVCacheTestName::get_s32_val(sub_ids, infos);
+        KVCacheTestName::get_index_val(sub_lm_head_output, infos, score);
+        scores.push_back(score[0]);
+
+        KVCacheTestName::print_output_info(output_ids);
+        KVCacheTestName::print_output_info(scores);
         // KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
     }
 }

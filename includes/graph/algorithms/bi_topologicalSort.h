@@ -10,30 +10,26 @@
 #include <vector>
 
 namespace BatmanInfer {
+    namespace graph {
+        // Forward declarations
+        class BIGraph;
 
-namespace graph {
+        /** Breadth-first search traversal
+         *
+         * @param g Graph to traverse
+         *
+         * @return A vector with the node id traversal order
+         */
+        std::vector<NodeID> bfs(BIGraph &g);
 
-    // Forward declarations
-    class BIGraph;
-
-    /** Breadth first search traversal
-     *
-     * @param g Graph to traverse
-     *
-     * @return A vector with the node id traversal order
-     */
-    std::vector<NodeID> bfs(BIGraph &g);
-
-    /** Depth first search traversal
-     *
-     * @param g Graph to traverse
-     *
-     * @return A vector with the node id traversal order
-     */
-    std::vector<NodeID> dfs(BIGraph &g);
-
-} // namespace graph
-
+        /** Depth-first search traversal
+         *
+         * @param g Graph to traverse
+         *
+         * @return A vector with the node id traversal order
+         */
+        std::vector<NodeID> dfs(BIGraph &g);
+    } // namespace graph
 } // namespace BatmanInfer
 
 #endif //BATMANINFER_GRAPH_BI_TOPOLOGICALSORT_H

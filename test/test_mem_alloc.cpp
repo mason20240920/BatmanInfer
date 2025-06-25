@@ -469,7 +469,7 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
 
     // 再次进行运行(动态)
     batch_size = 20;
-    seq_len = 7;
+    seq_len = 16;
     input_tensor_shape = BITensorShape(seq_len, batch_size);
     input_info.set_tensor_shape(input_tensor_shape);
     input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
@@ -866,7 +866,7 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     std::vector<std::vector<unsigned int> > decodes_vec{{1, 2, 3}};
     attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size, decodes_vec);
     attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
@@ -912,7 +912,7 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size, decodes_vec);
     attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
@@ -956,7 +956,7 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size, decodes_vec);
     attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, seq_len, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
