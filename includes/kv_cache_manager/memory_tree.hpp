@@ -95,6 +95,12 @@ namespace BatmanInfer {
         void clear();
 
         /**
+         * @brief 重置Reset树节点
+         */
+        void reset();
+
+
+        /**
          * 获取节点深度
          */
         [[nodiscard]] int get_depth(const unsigned int id) const;

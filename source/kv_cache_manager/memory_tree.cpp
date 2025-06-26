@@ -141,8 +141,22 @@ namespace BatmanInfer {
      */
     void MemoryTree::clear() {
         node_map.clear();
+        leaf_nodes.clear();
         root_node = nullptr;
     }
+
+    /**
+     * @brief 树重置
+     */
+    void MemoryTree::reset() {
+        const auto root_id = root_node->block_id;
+        //1. 先清除所有map
+        node_map.clear();
+        leaf_nodes.clear();
+        node_map.emplace(root_id, root_node);
+        leaf_nodes.emplace(root_id, 0);
+    }
+
 
     /**
      * 获取节点深度

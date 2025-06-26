@@ -68,21 +68,6 @@ namespace BatmanInfer {
             BI_COMPUTE_ERROR("Failed to allocate memory for physical block manager");
         }
 
-        // 使用大页内存(Huge Pages)减少TLB缺失
-        // #ifdef _GNU_SOURCE
-        //         manager->memory_pool = mmap(NULL, num_blocks * block_size,
-        //                                   PROT_READ | PROT_WRITE,
-        //                                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
-        //                                   -1, 0);
-        //         if (manager->memory_pool == MAP_FAILED) {
-        //             // 如果大页分配失败，退回到常规内存分配
-        //             manager->memory_pool = aligned_alloc(4096, num_blocks * block_size);
-        //             if (!manager->memory_pool) {
-        //                 free(manager);
-        //                 return nullptr;
-        //             }
-        //         }
-        // #else
         manager->memory_pool = platform_aligned_alloc(4096, num_blocks * block_size);
         if (!manager->memory_pool) {
             free(manager);
@@ -119,13 +104,28 @@ namespace BatmanInfer {
             // 可以考虑不同的初始化策略，这里使用顺序编号
             manager->free_stack[i] = static_cast<int>(i);
         }
+        manager->num_blocks = num_blocks;
 
         // 原子操作不会强制任何内存访问的顺序约束
         manager->free_stack_top.store(static_cast<int>(num_blocks) - 1, std::memory_order_relaxed);
         manager->free_blocks.store(static_cast<int>(num_blocks), std::memory_order_relaxed);
 
         return manager;
-    } /**
+    }
+
+    /**
+     * @brief 重置管理器里面KV Cache的内存块, 保留root_id
+     * @param manager
+     */
+    inline void reset_block_manager(PhysicalBlockManager *manager) {
+        for (size_t i = 0; i < (manager->num_blocks - 1); i++) {
+            manager->free_stack[i] = static_cast<int>(i);
+        }
+        manager->free_stack_top.store(static_cast<int>(manager->num_blocks) - 2, std::memory_order_relaxed);
+        manager->free_blocks.store(static_cast<int>(manager->num_blocks - 1), std::memory_order_relaxed);
+    }
+
+    /**
      * @brief 申请物理内存块
      * @param manager
      * @param request_count: 请求内存数量

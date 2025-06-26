@@ -75,6 +75,11 @@ namespace BatmanInfer {
 
         void *decode_buffer_ptr(unsigned int block_id) const;
 
+        /**
+         * @brief 每次解码之后对KV Cache的blocks进行释放
+         */
+        void reset_decode_lst();
+
     private:
         KVCacheManager();
 

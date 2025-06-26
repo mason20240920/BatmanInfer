@@ -114,4 +114,9 @@ namespace BatmanInfer {
             throw std::runtime_error("Failed to get decode buffer");
         return manager_->blocks[block_id].buffer;
     }
+
+    void KVCacheManager::reset_decode_lst() {
+        m_tree_->reset();
+        reset_block_manager(manager_);
+    }
 }
