@@ -118,11 +118,14 @@ BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec) {
 #ifdef QYW_PRINT
         std::cout << std::string(TO_STR(_add_layer)) << " run success!" << std::endl;
 #endif // QYW_PRINT
-        // _attn_lowp_layer.run();
+#ifdef FIX_VER
+        _attn_lowp_layer.run();
+#elifdef FLOAT_VER
         _attn_layer.run();
 #ifdef QYW_PRINT
         std::cout << std::string(TO_STR(_attn_layer)) << " run success!" << std::endl;
 #endif // QYW_PRINT
+#endif // FLOAT_VER
         _attn_rms_add_layer.run();
 #ifdef QYW_PRINT
         std::cout << std::string(TO_STR(_attn_rms_add_layer)) << " run success!" << std::endl;
@@ -324,8 +327,7 @@ BIErrCode BIGPT2Model::load_scale_vector(std::vector<float> &scales, GPT2ResOrde
 }
 
 BIErrCode BIGPT2Model::load_hyper_params(OrderPtrMap &order2ptr) {
-
-    /*
+#ifdef FIX_VER
     if (order2ptr.find(GPT2ResOrder::decode_layer_scales) == order2ptr.end()) {
         return BIErrCode::BIResNotExists;
     }
@@ -364,8 +366,7 @@ BIErrCode BIGPT2Model::load_hyper_params(OrderPtrMap &order2ptr) {
 
     _mlp_hyper_params.gelu_output_scale      = all_param->fc2_input_scale;
     _mlp_hyper_params.gelu_output_zero_point = all_param->fc2_input_zp;
-    */
-
+#endif
     return BIErrCode::BISuccess;
 }
 
@@ -395,12 +396,18 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     _ori_attn_output_tensor.allocator()->init(BITensorInfo(ori_gather_output_tensor_shape, 1, BIDataType::F16));
 
     const BITensorShape attn_qkv_weight_tensor_shape(hidden_size * 3, hidden_size);
-    // _attn_qkv_weight_tensor.allocator()->init(BITensorInfo(attn_qkv_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
+#ifdef FLOAT_VER
     _attn_qkv_weight_tensor.allocator()->init(BITensorInfo(attn_qkv_weight_tensor_shape, 1, BIDataType::F16));
+#elifdef FIX_VER
+    _attn_qkv_weight_tensor.allocator()->init(BITensorInfo(attn_qkv_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
+#endif
 
     const BITensorShape attn_qkv_bias_tensor_shape(hidden_size * 3);
-    // _attn_qkv_bias_tensor.allocator()->init(BITensorInfo(attn_qkv_bias_tensor_shape, 1, BIDataType::S32));
+#ifdef FLOAT_VER
     _attn_qkv_bias_tensor.allocator()->init(BITensorInfo(attn_qkv_bias_tensor_shape, 1, BIDataType::F16));
+#elifdef FIX_VER
+    _attn_qkv_bias_tensor.allocator()->init(BITensorInfo(attn_qkv_bias_tensor_shape, 1, BIDataType::S32));
+#endif
 
     const BITensorShape attn_c_proj_weight_tensor_shape(hidden_size, hidden_size);
     _attn_c_proj_weight_tensor.allocator()->init(BITensorInfo(attn_c_proj_weight_tensor_shape, 1, BIDataType::F16));
@@ -412,12 +419,18 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     _mlp_gamma_weight_tensor.allocator()->init(BITensorInfo(mlp_gamma_tensor_shape, 1, BIDataType::F16));
 
     const BITensorShape c_fc_weight_tensor_shape(hidden_size * 4, hidden_size);
-    // _c_fc_weight_tensor.allocator()->init(BITensorInfo(c_fc_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
+#ifdef FLOAT_VER
     _c_fc_weight_tensor.allocator()->init(BITensorInfo(c_fc_weight_tensor_shape, 1, BIDataType::F16));
+#elifdef FIX_VER
+    _c_fc_weight_tensor.allocator()->init(BITensorInfo(c_fc_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
+#endif
 
     const BITensorShape c_fc_bias_tensor_shape(hidden_size * 4);
-    // _c_fc_bias_tensor.allocator()->init(BITensorInfo(c_fc_bias_tensor_shape, 1, BIDataType::S32));
+#ifdef FLOAT_VER
     _c_fc_bias_tensor.allocator()->init(BITensorInfo(c_fc_bias_tensor_shape, 1, BIDataType::F16));
+#elifdef FIX_VER
+    _c_fc_bias_tensor.allocator()->init(BITensorInfo(c_fc_bias_tensor_shape, 1, BIDataType::S32));
+#endif
 
     const BITensorShape ori_mlp_outpu_tensor_shape(hidden_size, max_seq_len, max_batch_size);
     _ori_mlp_output_tensor.allocator()->init(BITensorInfo(ori_mlp_outpu_tensor_shape, 1, BIDataType::F16));
@@ -514,20 +527,23 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     std::cout << std::string(TO_STR(_attn_gamma_weight_tensor)) << " load success!" << std::endl;
 #endif // QYW_PRINT
 
+#ifdef FLOAT_VER
     // load attn qkiv weight
     ret = load_weight_tensor(_attn_qkv_weight_tensor, GPT2ResOrder::attn_qkv_weight, order2ptr);
     CHECK_SUCCESS(ret);
 #ifdef QYW_PRINT
     std::cout << std::string(TO_STR(_attn_qkv_weight_tensor)) << " load success!" << std::endl;
 #endif // QYW_PRINT
+#elifdef FIX_VER
     // load attn qkv scales
-    // std::vector<float> attn_qkv_scales;
-    // ret = load_scale_vector(attn_qkv_scales, GPT2ResOrder::attn_qkv_weight_scale, order2ptr);
-    // CHECK_SUCCESS(ret);
+    std::vector<float> attn_qkv_scales;
+    ret = load_scale_vector(attn_qkv_scales, GPT2ResOrder::attn_qkv_weight_scale, order2ptr);
+    CHECK_SUCCESS(ret);
 #ifdef QYW_PRINT
-    // std::cout << std::string(TO_STR(attn_qkv_scales)) << " load success!" << std::endl;
+    std::cout << std::string(TO_STR(attn_qkv_scales)) << " load success!" << std::endl;
 #endif // QYW_PRINT
-    // _attn_qkv_weight_tensor.info()->set_quantization_info(attn_qkv_scales);
+    _attn_qkv_weight_tensor.info()->set_quantization_info(attn_qkv_scales);
+#endif // FIX_VER
 
     // load qkv bias
     ret = load_weight_tensor(_attn_qkv_bias_tensor, GPT2ResOrder::attn_qkv_bias, order2ptr);
@@ -557,21 +573,24 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     std::cout << std::string(TO_STR(_mlp_gamma_weight_tensor)) << " load success!" << std::endl;
 #endif // QYW_PRINT
 
+#ifdef FLOAT_VER
     // load c fc weight
     ret = load_weight_tensor(_c_fc_weight_tensor, GPT2ResOrder::c_fc_weight, order2ptr);
     CHECK_SUCCESS(ret);
 #ifdef QYW_PRINT
     std::cout << std::string(TO_STR(_c_fc_weight_tensor)) << " load success!" << std::endl;
 #endif // QYW_PRINT
-    // std::vector<float> c_fc_weight_scales;
+#elifdef FIX_VER
+    std::vector<float> c_fc_weight_scales;
     // load c fc weight scales
-    // ret = load_scale_vector(c_fc_weight_scales, GPT2ResOrder::c_fc_weight_scale, order2ptr);
-    // CHECK_SUCCESS(ret);
+    ret = load_scale_vector(c_fc_weight_scales, GPT2ResOrder::c_fc_weight_scale, order2ptr);
+    CHECK_SUCCESS(ret);
 #ifdef QYW_PRINT
-    // std::cout << std::string(TO_STR(c_fc_weight_scales)) << " load success!" << std::endl;
+    std::cout << std::string(TO_STR(c_fc_weight_scales)) << " load success!" << std::endl;
 #endif // QYW_PRINT
-    // _c_fc_weight_q_info = BIQuantizationInfo(c_fc_weight_scales);
-    // _c_fc_weight_tensor.info()->set_quantization_info(_c_fc_weight_q_info);
+    _c_fc_weight_q_info = BIQuantizationInfo(c_fc_weight_scales);
+    _c_fc_weight_tensor.info()->set_quantization_info(_c_fc_weight_q_info);
+#endif // FIX_VER
 
     // load c fc bias
     ret = load_weight_tensor(_c_fc_bias_tensor, GPT2ResOrder::c_fc_bias, order2ptr);
@@ -608,13 +627,14 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     std::cout << std::string(TO_STR(_lm_head_weight_tensor)) << " load success!" << std::endl;
 #endif // QYW_PRINT
 
+#ifdef FIX_VER
     // load hyper parameters
     ret = load_hyper_params(order2ptr);
     CHECK_SUCCESS(ret);
 #ifdef QYW_PRINT
     std::cout << "Hyper parameters load success!" << std::endl;
 #endif // QYW_PRINT
-
+#endif // FIX_VER
     return BIErrCode::BISuccess;
 }
 
@@ -680,34 +700,35 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
         _add_layer.configure(&_sub_gather_output_tensor, &_sub_add_weight_tensor,
             &_sub_add_output_tensor, BIConvertPolicy::SATURATE);
 
-        // _attn_lowp_layer.configure(&_sub_add_output_tensor,
-        //                            &_attn_gamma_weight_tensor,
-        //                            &_attn_qkv_weight_tensor,
-        //                            &_attn_qkv_bias_tensor,
-        //                            &_attn_c_proj_weight_tensor,
-        //                            &_attn_c_proj_bias_tensor,
-        //                            _attn_hyper_params.attn_gemm_i_scale,
-        //                            _attn_hyper_params.attn_gemm_i_zero,
-        //                            _attn_hyper_params.attn_gemm_o_scale,
-        //                            _attn_hyper_params.attn_gemm_o_zero,
-        //                            _attn_hyper_params.query_scale,
-        //                            _attn_hyper_params.query_zp,
-        //                            _attn_hyper_params.value_scale,
-        //                            _attn_hyper_params.value_zp,
-        //                            _attn_hyper_params.key_scale,
-        //                            _attn_hyper_params.key_zp,
-        //                            AttnHyperParams::softmax_q_scale,
-        //                            AttnHyperParams::softmax_zp,
-        //                            _attn_hyper_params.proj_in_scale,
-        //                            _attn_hyper_params.proj_in_zp,
-        //                            q_perm,
-        //                            k_perm,
-        //                            qkv_o_perm,
-        //                            hidden_size,
-        //                            max_seq_len,
-        //                            max_batch_size,
-        //                            &_sub_attn_output_tensor);
-
+#ifdef FIX_VER
+        _attn_lowp_layer.configure(&_sub_add_output_tensor,
+                                   &_attn_gamma_weight_tensor,
+                                   &_attn_qkv_weight_tensor,
+                                   &_attn_qkv_bias_tensor,
+                                   &_attn_c_proj_weight_tensor,
+                                   &_attn_c_proj_bias_tensor,
+                                   _attn_hyper_params.attn_gemm_i_scale,
+                                   _attn_hyper_params.attn_gemm_i_zero,
+                                   _attn_hyper_params.attn_gemm_o_scale,
+                                   _attn_hyper_params.attn_gemm_o_zero,
+                                   _attn_hyper_params.query_scale,
+                                   _attn_hyper_params.query_zp,
+                                   _attn_hyper_params.value_scale,
+                                   _attn_hyper_params.value_zp,
+                                   _attn_hyper_params.key_scale,
+                                   _attn_hyper_params.key_zp,
+                                   AttnHyperParams::softmax_q_scale,
+                                   AttnHyperParams::softmax_zp,
+                                   _attn_hyper_params.proj_in_scale,
+                                   _attn_hyper_params.proj_in_zp,
+                                   q_perm,
+                                   k_perm,
+                                   qkv_o_perm,
+                                   hidden_size,
+                                   max_seq_len,
+                                   max_batch_size,
+                                   &_sub_attn_output_tensor);
+#elifdef FLOAT_VER
         _attn_layer.configure(&_sub_add_output_tensor,
                               &_attn_gamma_weight_tensor,
                               &_attn_qkv_weight_tensor,
@@ -721,27 +742,29 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
                               max_seq_len,
                               max_batch_size,
                               &_sub_attn_output_tensor);
+#endif
 
         _attn_rms_add_layer.configure(&_sub_add_output_tensor, &_sub_attn_output_tensor,
             &_sub_mlp_input_tensor, BIConvertPolicy::SATURATE);
 
-        // _mlp_layer.configure(&_sub_mlp_input_tensor,
-        //                      _mlp_hyper_params.fc1_input_scale,
-        //                      _mlp_hyper_params.fc1_input_zero_point,
-        //                      &_c_fc_weight_tensor,
-        //                      &_c_fc_bias_tensor,
-        //                      &_c_fc_weight_q_info,
-        //                      _mlp_hyper_params.fc1_output_scale,
-        //                      _mlp_hyper_params.fc1_output_zero_point,
-        //                      _mlp_hyper_params.gelu_output_scale,
-        //                      _mlp_hyper_params.gelu_output_zero_point,
-        //                      &_c_proj_weight_tensor,
-        //                      &_c_proj_bias_tensor,
-        //                      &_mlp_gamma_weight_tensor,
-        //                      &_sub_mlp_output_tensor,
-        //                      max_batch_size,
-        //                      max_seq_len);
-
+#ifdef FIX_VER
+        _mlp_layer.configure(&_sub_mlp_input_tensor,
+                             _mlp_hyper_params.fc1_input_scale,
+                             _mlp_hyper_params.fc1_input_zero_point,
+                             &_c_fc_weight_tensor,
+                             &_c_fc_bias_tensor,
+                             &_c_fc_weight_q_info,
+                             _mlp_hyper_params.fc1_output_scale,
+                             _mlp_hyper_params.fc1_output_zero_point,
+                             _mlp_hyper_params.gelu_output_scale,
+                             _mlp_hyper_params.gelu_output_zero_point,
+                             &_c_proj_weight_tensor,
+                             &_c_proj_bias_tensor,
+                             &_mlp_gamma_weight_tensor,
+                             &_sub_mlp_output_tensor,
+                             max_batch_size,
+                             max_seq_len);
+#elifdef FLOAT_VER
         const BIActivationLayerInfo act_info(BIActivationFunction::GELU);
         _mlp_layer.configure(&_sub_mlp_input_tensor,
                              &_c_fc_weight_tensor,
@@ -753,6 +776,7 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
                              &_sub_mlp_output_tensor,
                              max_batch_size,
                              max_seq_len);
+#endif
 
         _add_mlp_layer.configure(&_sub_mlp_output_tensor, &_sub_mlp_input_tensor,
             &_sub_add_mlp_output_tensor, BIConvertPolicy::SATURATE);
@@ -809,8 +833,11 @@ BIErrCode BIGPT2Model::dynamic_configure_all_layers(const std::vector<int> &tens
 
         _add_layer.dynamic_configure(&_sub_gather_output_tensor, &_sub_add_weight_tensor, true);
 
-        // _attn_lowp_layer.dynamic_configure(&_sub_add_output_tensor, cur_seq_len, cur_batch_size);
+#ifdef FIX_VER
+        _attn_lowp_layer.dynamic_configure(&_sub_add_output_tensor, cur_seq_len, cur_batch_size);
+#elifdef FLOAT_VER
         _attn_layer.dynamic_configure(&_sub_add_output_tensor, cur_seq_len, cur_batch_size);
+#endif
 
         _attn_rms_add_layer.dynamic_configure(&_sub_add_output_tensor, &_sub_attn_output_tensor, true);
 

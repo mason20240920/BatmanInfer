@@ -1,0 +1,155 @@
+cmake_minimum_required(VERSION 3.28)
+project(BatmanInfer)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED true)
+
+# 指定标准库为 libc++
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+endif ()
+option(ENABLE_BENCHMARK "For enable benchmark" OFF)
+
+# 指定当前编译版本是浮点模型还是定点量化模型，两者必须二选一开启
+option(FLOAT_VER "float version" OFF)
+option(FIX_VER "fix version" ON)
+if(FLOAT_VER)
+    add_definitions(-DFLOAT_VER)
+endif()
+if(FIX_VER)
+    add_definitions(-DFIX_VER)
+endif ()
+
+# 检查目标平台
+if (ANDROID)
+    # Android特定的设置
+    add_definitions(-DPLATFORM_ANDROID)
+
+    find_package(OpenMP REQUIRED)
+    if (OpenMP_CXX_FOUND)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    endif ()
+
+    # 加载glog路径
+    set(GLOG_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/third_party/install/include")
+    set(GLOG_LIBRARY_DIRS "${CMAKE_SOURCE_DIR}/third_party/install/lib/")
+    set(GLOG_LIBRARIES "${CMAKE_SOURCE_DIR}/third_party/install/lib/libglog.a")
+else ()
+    set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/usr/local/llvm14/lib/clang/14.0.6/include/")
+    set(OpenMP_C_LIB_NAMES "omp")
+    set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I/usr/local/llvm14/lib/clang/14.0.6/include/")
+    set(OpenMP_CXX_LIB_NAMES "omp")
+    set(OpenMP_omp_LIBRARY "/usr/local/llvm14/lib/libomp.dylib")
+    set(OpenMP_INCLUDE "/usr/local/llvm14/lib/clang/14.0.6/include/")
+    #[[set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/Cellar/libomp@19.1.7/19.1.7/include")
+    set(OpenMP_C_LIB_NAMES "omp")
+    set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/Cellar/libomp@19.1.7/19.1.7/include")
+    set(OpenMP_CXX_LIB_NAMES "omp")
+    set(OpenMP_omp_LIBRARY "/opt/homebrew/Cellar/libomp@19.1.7/19.1.7/lib/libomp.a")
+    set(OpenMP_INCLUDE "/opt/homebrew/Cellar/libomp@19.1.7/19.1.7/include")]]
+    find_package(OpenMP REQUIRED)
+    message("OpenMP(second find): " "${OpenMP_CXX_LIB_NAMES}")
+    message("OpenMP(second find): " "${OpenMP_CXX_LIBRARIES}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+
+    # 查找glog
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GLOG REQUIRED libglog)
+endif ()
+
+
+#set(CMAKE_CXX_FLAGS_DEBUG "-O3 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED   -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DBI_COMPUTE_ENABLE_FP16  -DBI_COMPUTE_ENABLE_BF16 -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DENABLE_FP16_KERNELS -DENABLE_QASYMM8_KERNELS")
+
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -DBI_COMPUTE_ASSERTS_ENABLED -DENABLE_INTEGER_KERNELS -DBI_COMPUTE_DISABLE_THREADS_HINT -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DBI_COMPUTE_ENABLE_FP16  -DBI_COMPUTE_ENABLE_BF16 -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DENABLE_FP16_KERNELS -DENABLE_QASYMM8_KERNELS")
+
+if (ANDROID)
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DENABLE_INTEGER_KERNELS -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DBI_COMPUTE_ENABLE_FP16  -DBI_COMPUTE_ENABLE_BF16 -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DENABLE_FP16_KERNELS -DENABLE_QASYMM8_KERNELS")
+else ()
+    set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g -gdwarf-2 -DBI_COMPUTE_ASSERTS_ENABLED -DENABLE_INTEGER_KERNELS -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DBI_COMPUTE_ENABLE_FP16  -DBI_COMPUTE_ENABLE_BF16 -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DENABLE_FP16_KERNELS -DENABLE_QASYMM8_KERNELS")
+endif ()
+#set(CMAKE_CXX_FLAGS_RELEASE "-O0 -g -gdwarf-2 -DENABLE_INTEGER_KERNELS -DBI_COMPUTE_DISABLE_THREADS_HINT -DBI_COMPUTE_ASSERTS_ENABLED -DBI_COMPUTE_DEBUG_ENABLED -DBI_COMPUTE_LOGGING_ENABLED -DBI_COMPUTE_OPENMP_SCHEDULER -DBI_COMPUTE_ENABLE_NEON -DENABLE_FP32_KERNELS -DBI_COMPUTE_CPU_ENABLED -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DBI_COMPUTE_ENABLE_FP16  -DBI_COMPUTE_ENABLE_BF16 -DBI_COMPUTE_ENABLE_FIXED_FORMAT_KERNELS -DENABLE_FP16_KERNELS -DENABLE_QASYMM8_KERNELS")
+
+
+# # 下载GoogleTest项目
+# include(FetchContent)
+# FetchContent_Declare(
+#         googletest
+#         URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+# )
+
+if (ANDROID)
+    set(GTEST_ROOT "${CMAKE_SOURCE_DIR}/third_party/install/")
+    set(GTEST_LIBRARIES "${GTEST_ROOT}/lib/libgtest.a")
+    include_directories(${GTEST_ROOT}/include/gtest)
+else ()
+    find_package(GTest REQUIRED)
+    message("GTest_DIR: " "${GTest_DIR}")
+
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    # FetchContent_MakeAvailable(googletest)
+endif ()
+
+if (ENABLE_BENCHMARK)
+    # 获取Google Benchmark
+    include(FetchContent)
+    FetchContent_Declare(
+            googlebenchmark
+            GIT_REPOSITORY https://github.com/google/benchmark.git
+            GIT_TAG v1.8.0)
+    FetchContent_MakeAvailable(googlebenchmark)
+endif ()
+
+# 启动测试
+enable_testing()
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/includes
+        ${GLOG_INCLUDE_DIRS}
+        ${OpenMP_INCLUDE}
+)
+
+link_directories(${GLOG_LIBRARY_DIRS}
+)
+
+# 文件列表拆分
+include(${CMAKE_CURRENT_LIST_DIR}/CMake_files.cmake)
+
+if (ANDROID)
+    target_compile_definitions(BatmanInfer PRIVATE
+            GLOG_USE_GLOG_EXPORT
+            GLOG_NO_EXPORT=
+            GLOG_EXPORT=
+    )
+    # 链接GoogleTest库
+    target_link_libraries(BatmanInfer
+            ${GTEST_LIBRARIES}
+            ${GLOG_LIBRARIES}
+            OpenMP::OpenMP_CXX  # 添加这一行，确保所有平台都链接OpenMP
+    )
+else ()
+    # 链接GoogleTest库
+    target_link_libraries(BatmanInfer
+            GTest::gtest_main
+            ${GLOG_LIBRARIES}
+            OpenMP::OpenMP_CXX  # 添加这一行，确保所有平台都链接OpenMP
+    )
+endif ()
+
+target_link_libraries(bat_infer_static PUBLIC OpenMP::OpenMP_CXX)
+
+if (ANDROID)
+    target_link_libraries(BatmanInfer OpenMP::OpenMP_CXX)
+endif ()
+
+if (ENABLE_BENCHMARK)
+    target_link_libraries(matmul_benchmark
+            GTest::gtest_main
+            ${GLOG_LIBRARIES}
+            ${OpenMP_omp_LIBRARY}
+            OpenMP::OpenMP_CXX  # 添加这一行，确保所有平台都链接OpenMP
+            benchmark::benchmark
+    )
+endif ()
+
+# 添加测试
+include(GoogleTest)
