@@ -527,22 +527,19 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     std::cout << std::string(TO_STR(_attn_gamma_weight_tensor)) << " load success!" << std::endl;
 #endif // QYW_PRINT
 
-#ifdef FLOAT_VER
     // load attn qkiv weight
     ret = load_weight_tensor(_attn_qkv_weight_tensor, GPT2ResOrder::attn_qkv_weight, order2ptr);
     CHECK_SUCCESS(ret);
 #ifdef QYW_PRINT
     std::cout << std::string(TO_STR(_attn_qkv_weight_tensor)) << " load success!" << std::endl;
 #endif // QYW_PRINT
-#elifdef FIX_VER
+#ifdef FIX_VER
     // load attn qkv scales
     std::vector<float> attn_qkv_scales;
     ret = load_scale_vector(attn_qkv_scales, GPT2ResOrder::attn_qkv_weight_scale, order2ptr);
     CHECK_SUCCESS(ret);
-#ifdef QYW_PRINT
-    std::cout << std::string(TO_STR(attn_qkv_scales)) << " load success!" << std::endl;
-#endif // QYW_PRINT
-    _attn_qkv_weight_tensor.info()->set_quantization_info(attn_qkv_scales);
+    _c_attn_weight_q_info = BIQuantizationInfo(attn_qkv_scales);
+    _attn_qkv_weight_tensor.info()->set_quantization_info(_c_attn_weight_q_info);
 #endif // FIX_VER
 
     // load qkv bias
@@ -573,14 +570,13 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     std::cout << std::string(TO_STR(_mlp_gamma_weight_tensor)) << " load success!" << std::endl;
 #endif // QYW_PRINT
 
-#ifdef FLOAT_VER
     // load c fc weight
     ret = load_weight_tensor(_c_fc_weight_tensor, GPT2ResOrder::c_fc_weight, order2ptr);
     CHECK_SUCCESS(ret);
 #ifdef QYW_PRINT
     std::cout << std::string(TO_STR(_c_fc_weight_tensor)) << " load success!" << std::endl;
 #endif // QYW_PRINT
-#elifdef FIX_VER
+#ifdef FIX_VER
     std::vector<float> c_fc_weight_scales;
     // load c fc weight scales
     ret = load_scale_vector(c_fc_weight_scales, GPT2ResOrder::c_fc_weight_scale, order2ptr);

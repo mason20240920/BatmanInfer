@@ -108,18 +108,16 @@ enum class GPT2ResOrder {
     gather_weight = 0,
     add_weight,
     attn_gamma_weight,
-#ifdef FLOAT_VER
     attn_qkv_weight,
-#elifdef FIX_VER
+#ifdef FIX_VER
     attn_qkv_weight_scale,
 #endif
     attn_qkv_bias,
     attn_c_proj_weight,
     attn_c_proj_bias,
     mlp_gamma_weight,
-#ifdef FLOAT_VER
     c_fc_weight,
-#elifdef FIX_VER
+#ifdef FIX_VER
     c_fc_weight_scale,
 #endif
     c_fc_bias,
@@ -277,6 +275,7 @@ private:
     BINEGEMM               _lm_head_layer;
 
 #ifdef FIX_VER
+    BIQuantizationInfo _c_attn_weight_q_info;
     BIQuantizationInfo _c_fc_weight_q_info;
 #endif
     std::vector<int> _output_positions;
