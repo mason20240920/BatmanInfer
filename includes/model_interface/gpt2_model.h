@@ -146,9 +146,9 @@ public:
     explicit BIGPT2Model(std::shared_ptr<BIIMemoryManager> memory_manager);
     BIGPT2Model();
 
-    BIErrCode bi_init(const char *data_in, size_t data_size) override;
-    BIErrCode bi_set_input(std::vector< std::vector<unsigned int> > &input_vec) override;
-    BIErrCode bi_run(std::vector< std::vector<float> > &output_vec) override;
+    BIErrCode bi_init(const char *data_in, size_t data_size, std::vector< std::vector<float> > &output_vec, unsigned int &kv_cache_id) override;
+    BIErrCode bi_set_input(std::vector< std::vector<unsigned int> > &input_vec, std::vector< std::vector<unsigned int> > &kv_cache_id_map) override;
+    BIErrCode bi_run(std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids) override;
 
 private:
     /**
@@ -208,9 +208,10 @@ private:
     /**
      * 中间执行过程中，对所有 layer 执行动态 configure
      * @param tensor_shape 传入的输入的形状
+     * @param kv_cache_id_map 上一步推理生成的 kv_cache_id 数据
      * @return 返回码
      */
-    BIErrCode dynamic_configure_all_layers(const std::vector<int> &tensor_shape);
+    BIErrCode dynamic_configure_all_layers(const std::vector<int> &tensor_shape, std::vector< std::vector<unsigned int> > &kv_cache_id_map);
 
 private:
     BIMemoryGroup                               _memory_group;
@@ -270,4 +271,5 @@ private:
     // AttnHyperParams _attn_hyper_params;
     // MLPHyperParams  _mlp_hyper_params;
 
+    unsigned int kv_root_id;
 };

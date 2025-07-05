@@ -49,23 +49,26 @@ public:
      * 根据传入的模型参数初始化模型
      * @param data_in 模型的全部参数
      * @param data_size 模型参数的总字节数
+     * @param output_vec 初始化时，需要推理一下 </s>，该值对应 </s> 模型输出
+     * @param kv_cache_id 模型推理 </s> 时，Attention模块的 kv值会进行记录，该值表示对应 kv cache 的 id值
      * @return 返回码
      */
-    virtual BIErrCode bi_init(const char *data_in, size_t data_size) = 0;
+    virtual BIErrCode bi_init(const char *data_in, size_t data_size, std::vector< std::vector<float> > &output_vec, unsigned int &kv_cache_id) = 0;
 
     /**
      * 设置模型的输入
      * @param input_vec 模型输入
      * @return 返回码
      */
-    virtual BIErrCode bi_set_input(std::vector< std::vector<unsigned int> >& input_vec) = 0;
+    virtual BIErrCode bi_set_input(std::vector< std::vector<unsigned int> >& input_vec, std::vector< std::vector<unsigned int> > &kv_cache_id_map) = 0;
 
     /**
      * 调用模型的推理过程
      * @param output_vec 模型输出
+     * @param kv_block_ids 模型推理过程中的 kv cache block id 信息
      * @return 返回码
      */
-    virtual BIErrCode bi_run(std::vector< std::vector<float> > &output_vec) = 0;
+    virtual BIErrCode bi_run(std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids) = 0;
 
 };
 

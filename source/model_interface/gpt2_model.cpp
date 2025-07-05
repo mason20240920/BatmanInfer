@@ -4,6 +4,8 @@
 
 #include "model_interface/gpt2_model.h"
 
+#include "kv_cache_manager/bi_kv_cache_manager.hpp"
+
 // ======================================== for debug part ========================================
 
 #define TO_STR(value) #value
@@ -26,9 +28,14 @@ BIGPT2Model::BIGPT2Model(std::shared_ptr<BIIMemoryManager> memory_manager) : _me
 }
 
 BIGPT2Model::BIGPT2Model() : BIGPT2Model(BIMemoryManagerOnDemand::make_default()) {
+    // 创建 kvcache
+    int num_head = 12;
+    int head_dim = 64;
+    KVCacheManager::initialize(512, num_head * head_dim * sizeof(float16_t) * 2);
+    kv_root_id = KVCacheManager::getInstance().root_id();
 }
 
-BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size) {
+BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size, std::vector< std::vector<float> > &output_vec, unsigned int &kv_cache_id) {
     // check input parameters
     if (!data_in || !data_size) {
         return BIErrCode::BIInvalidArgument;
@@ -55,9 +62,11 @@ BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size) {
     // 为了使内存正确分配，需要在开始的时候 run 一次，以执行每一个算子中的 prepare 函数
     std::vector<std::vector<unsigned int> > tmp_input_vec = {{0}};
     fill_tensor_data_2D(_sub_input_tensor, tmp_input_vec, 1);
-    std::vector<std::vector<float> > tmp_output_vec;
     _output_positions = {1};
-    ret = bi_run(tmp_output_vec);
+
+    std::vector<unsigned int> kv_block_ids;
+    ret = bi_run(output_vec, kv_block_ids);
+    kv_cache_id = kv_block_ids[0];
     CHECK_SUCCESS(ret);
 
 #ifdef QYW_PRINT
@@ -67,7 +76,7 @@ BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size) {
     return ret;
 }
 
-BIErrCode BIGPT2Model::bi_set_input(std::vector<std::vector<unsigned int> > &input_vec) {
+BIErrCode BIGPT2Model::bi_set_input(std::vector<std::vector<unsigned int> > &input_vec, std::vector< std::vector<unsigned int> > &kv_cache_id_map) {
     auto ret = BIErrCode::BISuccess;
 
     int cur_batch_size = static_cast<int>(input_vec.size()), cur_seq_len = 0;
@@ -90,7 +99,7 @@ BIErrCode BIGPT2Model::bi_set_input(std::vector<std::vector<unsigned int> > &inp
     CHECK_SUCCESS(ret);
 
     // configure some layers dynamically
-    ret = dynamic_configure_all_layers(tensor_shape);
+    ret = dynamic_configure_all_layers(tensor_shape, kv_cache_id_map);
     CHECK_SUCCESS(ret);
 
 #ifdef QYW_PRINT
@@ -100,7 +109,7 @@ BIErrCode BIGPT2Model::bi_set_input(std::vector<std::vector<unsigned int> > &inp
     return ret;
 }
 
-BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec) {
+BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids) {
     auto ret = BIErrCode::BISuccess;
 
 #ifdef QYW_PRINT
@@ -118,6 +127,7 @@ BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec) {
 #endif // QYW_PRINT
         // _attn_lowp_layer.run();
         _attn_layer.run();
+        _attn_layer.get_kv_block_ids(kv_block_ids);
 #ifdef QYW_PRINT
         std::cout << std::string(TO_STR(_attn_layer)) << " run success!" << std::endl;
 #endif // QYW_PRINT
@@ -748,7 +758,7 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
                              act_info,
                              &_sub_mlp_output_tensor,
                              max_batch_size,
-                             max_seq_len);
+                             1);
 
         _add_mlp_layer.configure(&_sub_mlp_output_tensor, &_sub_mlp_input_tensor,
                                  &_sub_add_mlp_output_tensor, BIConvertPolicy::SATURATE);
@@ -785,7 +795,7 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
     return ret;
 }
 
-BIErrCode BIGPT2Model::dynamic_configure_all_layers(const std::vector<int> &tensor_shape) {
+BIErrCode BIGPT2Model::dynamic_configure_all_layers(const std::vector<int> &tensor_shape, std::vector< std::vector<unsigned int> > &kv_cache_id_map) {
     auto ret = BIErrCode::BISuccess;
     try {
         int cur_batch_size = 1, cur_seq_len = 1;
@@ -805,7 +815,7 @@ BIErrCode BIGPT2Model::dynamic_configure_all_layers(const std::vector<int> &tens
         _add_layer.dynamic_configure(&_sub_gather_output_tensor, &_sub_add_weight_tensor, true);
 
         // _attn_lowp_layer.dynamic_configure(&_sub_add_output_tensor, cur_seq_len, cur_batch_size);
-        // _attn_layer.dynamic_configure(&_sub_add_output_tensor, cur_seq_len, cur_batch_size);
+        _attn_layer.dynamic_configure(&_sub_add_output_tensor, cur_seq_len, cur_batch_size, kv_cache_id_map);
 
         _attn_rms_add_layer.dynamic_configure(&_sub_add_output_tensor, &_sub_attn_output_tensor, true);
 
