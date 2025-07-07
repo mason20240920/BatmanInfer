@@ -66,7 +66,6 @@ namespace BatmanInfer {
         );
 
         void dynamic_configure(const BIITensor *input,
-                               const size_t &seq_len,
                                const size_t &batch_size);
 
         static BIStatus validate(const BIITensorInfo *input,

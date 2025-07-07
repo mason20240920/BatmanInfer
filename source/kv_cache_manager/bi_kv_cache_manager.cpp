@@ -3,6 +3,8 @@
 //
 #include <kv_cache_manager/bi_kv_cache_manager.hpp>
 
+#include "cpu/bi_cpu_types.hpp"
+
 namespace BatmanInfer {
     size_t KVCacheManager::NUM_BLOCKS;
     size_t KVCacheManager::BLOCK_SIZE;
@@ -66,15 +68,26 @@ namespace BatmanInfer {
      * @param source_buffer
      * @param block_id
      * @param is_k_cond
+     * @param is_smooth_quant
      */
-    void KVCacheManager::memcpy_decode_buffer(const void *source_buffer, const int block_id, bool is_k_cond) const {
-        auto physic_block = manager_->blocks[block_id];
-        const auto block_size = BLOCK_SIZE / 2;
+    void KVCacheManager::memcpy_decode_buffer(const void *source_buffer,
+                                              int block_id,
+                                              bool is_k_cond,
+                                              bool is_smooth_quant) const {
+        auto [id, buffer] = manager_->blocks[block_id];
+        unsigned long k_block_size, v_block_size;
+        if (is_smooth_quant) {
+            k_block_size = BLOCK_SIZE / 3 * 2;
+            v_block_size = BLOCK_SIZE / 3;
+        } else {
+            k_block_size = v_block_size = BLOCK_SIZE / 2;
+        }
+
         if (is_k_cond) {
-            memcpy(physic_block.buffer, source_buffer, block_size);
+            memcpy(buffer, source_buffer, k_block_size);
             return;
         }
-        memcpy(static_cast<char *>(physic_block.buffer) + block_size, source_buffer, block_size);
+        memcpy(static_cast<char *>(buffer) + k_block_size, source_buffer, v_block_size);
     }
 
     /**
@@ -115,7 +128,7 @@ namespace BatmanInfer {
         return manager_->blocks[block_id].buffer;
     }
 
-    void KVCacheManager::reset_decode_lst() {
+    void KVCacheManager::reset_decode_lst() const {
         m_tree_->reset();
         reset_block_manager(manager_);
     }

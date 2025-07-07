@@ -165,12 +165,15 @@ namespace BatmanInfer {
         auto *v_src = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_SRC_1));
         auto *k_dst = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_DST_0));
         auto *v_dst = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_DST_1));
+        const auto k_type_size = k_src->info()->data_type() == BIDataType::F16 ? sizeof(float16_t) : sizeof(int8_t);
+        const auto v_type_size = v_src->info()->data_type() == BIDataType::F16 ? sizeof(float16_t) : sizeof(int8_t);
         // 2. 先确定当前的并行数量
         const size_t batch = v_dst->info()->dimension(3);
         const size_t seq_len = v_dst->info()->dimension(2);
         const size_t num_head = v_dst->info()->dimension(1);
         const size_t dim_size = v_dst->info()->dimension(0);
-        const size_t mm_dim_item_size = dim_size * sizeof(float16_t) * num_head;
+        const size_t k_mm_dim_item_size = dim_size * k_type_size * num_head;
+        const size_t v_mm_dim_item_size = dim_size * v_type_size * num_head;
         const size_t parallel_iter = batch; // 按照batch进行切割
         // 3. 获取当前并行数量
         const size_t num_threads = std::min(parallel_iter, static_cast<size_t>(_num_threads));
@@ -187,7 +190,8 @@ namespace BatmanInfer {
                         &dim_size,
                         &k_dst,
                         &v_dst,
-                        &mm_dim_item_size,
+                        &k_mm_dim_item_size,
+                        &v_mm_dim_item_size,
                         &remain_loop_num,
                         &num_threads,
                         &mem_lst,
@@ -199,22 +203,24 @@ namespace BatmanInfer {
                             const unsigned int batch_index = middle_loop_num * t + m_r;
                             for (int seq = 0; seq < seq_len - 1; seq++) {
                                 const unsigned int mm_item_index = batch_index * (seq_len - 1) + seq;
-                                const unsigned int cur_mm_offset = (batch_index * seq_len + seq) * mm_dim_item_size;
+                                const unsigned int cur_k_mm_offset = (batch_index * seq_len + seq) * k_mm_dim_item_size;
+                                const unsigned int cur_v_mm_offset = (batch_index * seq_len + seq) * v_mm_dim_item_size;
                                 auto pb_gmem_addr = static_cast<char *>(mem_lst[mm_item_index]->buffer);
-                                auto k_dst_ptr = k_dst->allocator()->data(cur_mm_offset, mm_dim_item_size);
-                                auto v_dst_ptr = v_dst->allocator()->data(
-                                    cur_mm_offset, mm_dim_item_size);
-                                memcpy(k_dst_ptr, pb_gmem_addr, mm_dim_item_size);
-                                memcpy(v_dst_ptr, pb_gmem_addr + mm_dim_item_size, mm_dim_item_size);
+                                auto k_dst_ptr = k_dst->allocator()->data(cur_k_mm_offset, k_mm_dim_item_size);
+                                auto v_dst_ptr = v_dst->allocator()->data(cur_v_mm_offset, v_mm_dim_item_size);
+                                memcpy(k_dst_ptr, pb_gmem_addr, k_mm_dim_item_size);
+                                memcpy(v_dst_ptr, pb_gmem_addr + k_mm_dim_item_size, v_mm_dim_item_size);
                             }
-                            const unsigned int t_mm_offset = ((batch_index + 1) * seq_len - 1) * mm_dim_item_size;
-                            const unsigned int t_orin_offset = batch_index * mm_dim_item_size;
-                            auto k_gmem_addr = k_src->allocator()->data(t_orin_offset, mm_dim_item_size);
-                            auto v_gmem_addr = v_src->allocator()->data(t_orin_offset, mm_dim_item_size);
-                            auto k_dst_ptr = k_dst->allocator()->data(t_mm_offset, mm_dim_item_size);
-                            auto v_dst_ptr = v_dst->allocator()->data(t_mm_offset, mm_dim_item_size);
-                            memcpy(k_dst_ptr, k_gmem_addr, mm_dim_item_size);
-                            memcpy(v_dst_ptr, v_gmem_addr, mm_dim_item_size);
+                            const unsigned int t_k_mm_offset = ((batch_index + 1) * seq_len - 1) * k_mm_dim_item_size;
+                            const unsigned int t_v_mm_offset = ((batch_index + 1) * seq_len - 1) * v_mm_dim_item_size;
+                            const unsigned int t_k_orin_offset = batch_index * k_mm_dim_item_size;
+                            const unsigned int t_v_orin_offset = batch_index * v_mm_dim_item_size;
+                            auto k_gmem_addr = k_src->allocator()->data(t_k_orin_offset, k_mm_dim_item_size);
+                            auto v_gmem_addr = v_src->allocator()->data(t_v_orin_offset, v_mm_dim_item_size);
+                            auto k_dst_ptr = k_dst->allocator()->data(t_k_mm_offset, k_mm_dim_item_size);
+                            auto v_dst_ptr = v_dst->allocator()->data(t_v_mm_offset, v_mm_dim_item_size);
+                            memcpy(k_dst_ptr, k_gmem_addr, k_mm_dim_item_size);
+                            memcpy(v_dst_ptr, v_gmem_addr, v_mm_dim_item_size);
                         }
                         // 如果是remain大小就进行remain计算
                         if (t == num_threads - 1 && remain_loop_num > 0) {
@@ -224,21 +230,28 @@ namespace BatmanInfer {
                                 const unsigned int batch_index = middle_loop_num * t + m_r;
                                 for (int seq = 0; seq < seq_len - 1; seq++) {
                                     const unsigned int mm_item_index = batch_index * (seq_len - 1) + seq;
-                                    const unsigned int cur_mm_offset = (batch_index * seq_len + seq) * mm_dim_item_size;
+                                    const unsigned int cur_k_mm_offset =
+                                            (batch_index * seq_len + seq) * k_mm_dim_item_size;
+                                    const unsigned int cur_v_mm_offset =
+                                            (batch_index * seq_len + seq) * v_mm_dim_item_size;
                                     auto pb_gmem_addr = static_cast<char *>(mem_lst[mm_item_index]->buffer);
-                                    auto k_dst_ptr = k_dst->allocator()->data(cur_mm_offset, mm_dim_item_size);
-                                    auto v_dst_ptr = v_dst->allocator()->data(cur_mm_offset, mm_dim_item_size);
-                                    memcpy(k_dst_ptr, pb_gmem_addr, mm_dim_item_size);
-                                    memcpy(v_dst_ptr, pb_gmem_addr + mm_dim_item_size, mm_dim_item_size);
+                                    auto k_dst_ptr = k_dst->allocator()->data(cur_k_mm_offset, k_mm_dim_item_size);
+                                    auto v_dst_ptr = v_dst->allocator()->data(cur_v_mm_offset, v_mm_dim_item_size);
+                                    memcpy(k_dst_ptr, pb_gmem_addr, k_mm_dim_item_size);
+                                    memcpy(v_dst_ptr, pb_gmem_addr + k_mm_dim_item_size, v_mm_dim_item_size);
                                 }
-                                const unsigned int t_mm_offset = ((batch_index + 1) * seq_len - 1) * mm_dim_item_size;
-                                const unsigned int t_orin_offset = batch_index * mm_dim_item_size;
-                                auto k_gmem_addr = k_src->allocator()->data(t_orin_offset, mm_dim_item_size);
-                                auto v_gmem_addr = v_src->allocator()->data(t_orin_offset, mm_dim_item_size);
-                                auto k_dst_ptr = k_dst->allocator()->data(t_mm_offset, mm_dim_item_size);
-                                auto v_dst_ptr = v_dst->allocator()->data(t_mm_offset, mm_dim_item_size);
-                                memcpy(k_dst_ptr, k_gmem_addr, mm_dim_item_size);
-                                memcpy(v_dst_ptr, v_gmem_addr, mm_dim_item_size);
+                                const unsigned int t_k_mm_offset =
+                                        ((batch_index + 1) * seq_len - 1) * k_mm_dim_item_size;
+                                const unsigned int t_v_mm_offset =
+                                        ((batch_index + 1) * seq_len - 1) * v_mm_dim_item_size;
+                                const unsigned int t_k_orin_offset = batch_index * k_mm_dim_item_size;
+                                const unsigned int t_v_orin_offset = batch_index * v_mm_dim_item_size;
+                                auto k_gmem_addr = k_src->allocator()->data(t_k_orin_offset, k_mm_dim_item_size);
+                                auto v_gmem_addr = v_src->allocator()->data(t_v_orin_offset, v_mm_dim_item_size);
+                                auto k_dst_ptr = k_dst->allocator()->data(t_k_mm_offset, k_mm_dim_item_size);
+                                auto v_dst_ptr = v_dst->allocator()->data(t_v_mm_offset, v_mm_dim_item_size);
+                                memcpy(k_dst_ptr, k_gmem_addr, k_mm_dim_item_size);
+                                memcpy(v_dst_ptr, v_gmem_addr, v_mm_dim_item_size);
                             }
                         }
                     };

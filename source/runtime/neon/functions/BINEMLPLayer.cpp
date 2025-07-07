@@ -51,22 +51,21 @@ namespace BatmanInfer {
         t.info()->set_quantization_info(BIQuantizationInfo(qinfo.scale()[0], -qinfo.offset()[0], qinfo.is_dynamic()));
     }
 
-    void BINEMLPLayer::dynamic_configure(const BIITensor *input, const size_t &seq_len, const size_t &batch_size) {
+    void BINEMLPLayer::dynamic_configure(const BIITensor *input, const size_t &batch_size) {
         _batch_size = batch_size;
-        _seq_len = seq_len;
-        _sub_norm_output_info.set_tensor_shape(BITensorShape(768, seq_len, batch_size));
+        _sub_norm_output_info.set_tensor_shape(BITensorShape(768, _max_seq, batch_size));
         _sub_norm_output.allocator()->init(*_norm_output.allocator(), _sub_norm_output_info);
-        _sub_norm_q_output_info.set_tensor_shape(BITensorShape(768, seq_len, batch_size));
+        _sub_norm_q_output_info.set_tensor_shape(BITensorShape(768, _max_seq, batch_size));
         _sub_norm_q_output.allocator()->init(*_norm_q_output.allocator(), _sub_norm_q_output_info);
-        _sub_fc_s32_output_info.set_tensor_shape(BITensorShape(3072, seq_len, batch_size));
+        _sub_fc_s32_output_info.set_tensor_shape(BITensorShape(3072, _max_seq, batch_size));
         _sub_fc_s32_output.allocator()->init(*_fc_s32_output.allocator(), _sub_fc_s32_output_info);
-        _sub_fc_q_output_info.set_tensor_shape(BITensorShape(3072, seq_len, batch_size));
+        _sub_fc_q_output_info.set_tensor_shape(BITensorShape(3072, _max_seq, batch_size));
         _sub_fc_q_output.allocator()->init(*_fc_q_output.allocator(), _sub_fc_q_output_info);
-        _sub_act_output_info.set_tensor_shape(BITensorShape(3072, seq_len, batch_size));
+        _sub_act_output_info.set_tensor_shape(BITensorShape(3072, _max_seq, batch_size));
         _sub_act_output.allocator()->init(*_act_output.allocator(), _sub_act_output_info);
-        _sub_proj_input_info.set_tensor_shape(BITensorShape(3072, seq_len, batch_size));
+        _sub_proj_input_info.set_tensor_shape(BITensorShape(3072, _max_seq, batch_size));
         _sub_proj_input.allocator()->init(*_proj_input.allocator(), _sub_proj_input_info);
-        _sub_proj_output_info.set_tensor_shape(BITensorShape(768, seq_len, batch_size));
+        _sub_proj_output_info.set_tensor_shape(BITensorShape(768, _max_seq, batch_size));
         _sub_proj_output.allocator()->init(*_proj_output.allocator(), _sub_proj_output_info);
 
         _rms_layer.dynamic_configure(input);
