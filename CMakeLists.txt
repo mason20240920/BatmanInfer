@@ -130,6 +130,8 @@ else ()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GLOG REQUIRED libglog)
 
+    find_package(gflags REQUIRED)
+
 endif ()
 
 
@@ -176,6 +178,7 @@ enable_testing()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/includes
         #        ${Protobuf_INCLUDE_DIRS}
         #        ${ONNX_INCLUDE_DIRS}
+        ${GFLAGS_INCLUDE_DIR}
         ${GLOG_INCLUDE_DIRS}
         ${OpenMP_INCLUDE}
         #        ${ARMADILLO_INCLUDE_DIRS}
@@ -193,6 +196,7 @@ target_link_libraries(BatmanInfer
         #        ${ONNX_LIBRARIES}/libonnx_proto.a
         GTest::gtest_main
         #        ${ARMADILLO_LIBRARIES}
+        ${GFLAGS_LIBRARIES}
         ${GLOG_LIBRARIES}
         #        ${Protobuf_LIBRARIES}
         #        ${OpenCV_LIBS}

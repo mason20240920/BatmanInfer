@@ -15,6 +15,7 @@
 #include <common/utils/bi_log.hpp>
 
 #include "data/core/utils/quantization/asymm_helpers.hpp"
+#include "kv_cache_manager/bi_kv_cache_manager.hpp"
 
 namespace BatmanInfer {
     inline void invert_qinfo_offset(BITensor &t) {
@@ -52,28 +53,31 @@ namespace BatmanInfer {
 
     void BINEAttentionLowpLayer::dynamic_configure(const BIITensor *input,
                                                    const size_t &seq_len,
-                                                   const size_t &batch_size) {
+                                                   const size_t &batch_size,
+                                                   std::vector<std::vector<unsigned int> > &kv_caches_vec) {
         _batch_size = batch_size;
         _seq_len = seq_len;
+        _kv_decode_ids = std::move(kv_caches_vec);
 
-        _sub_norm_info.set_tensor_shape(BITensorShape(_hidden_size, seq_len, batch_size));
+
+        _sub_norm_info.set_tensor_shape(BITensorShape(_hidden_size, 1, batch_size));
         _sub_norm_tensor.allocator()->init(*_norm_output.allocator(), _sub_norm_info);
 
-        _sub_norm_q_info.set_tensor_shape(BITensorShape(_hidden_size, seq_len, batch_size));
+        _sub_norm_q_info.set_tensor_shape(BITensorShape(_hidden_size, 1, batch_size));
         _sub_norm_q_tensor.allocator()->init(*_q_norm_output.allocator(), _sub_norm_q_info);
 
-        _sub_c_attn_s32_tensor_info.set_tensor_shape(BITensorShape(_hidden_size * 3, seq_len, batch_size));
+        _sub_c_attn_s32_tensor_info.set_tensor_shape(BITensorShape(_hidden_size * 3, 1, batch_size));
         _sub_c_attn_s32_tensor.allocator()->init(*_c_attn_s32_output.allocator(), _sub_c_attn_s32_tensor_info);
 
-        _sub_c_attn_q_info.set_tensor_shape(BITensorShape(_hidden_size * 3, seq_len, batch_size));
+        _sub_c_attn_q_info.set_tensor_shape(BITensorShape(_hidden_size * 3, 1, batch_size));
         _sub_c_attn_q8_tensor.allocator()->init(*_c_attn_q8_output.allocator(), _sub_c_attn_q_info);
 
-        _sub_split_q_info.set_tensor_shape(BITensorShape(_hidden_size, seq_len, batch_size));
+        _sub_split_q_info.set_tensor_shape(BITensorShape(_hidden_size, 1, batch_size));
         _sub_split_q_result_0.allocator()->init(*_split_q_result_0.allocator(), _sub_split_q_info);
         _sub_split_q_result_1.allocator()->init(*_split_q_result_1.allocator(), _sub_split_q_info);
         _sub_split_q_result_2.allocator()->init(*_split_q_result_2.allocator(), _sub_split_q_info);
 
-        _sub_query_info.set_tensor_shape(BITensorShape(_hidden_size, seq_len, batch_size));
+        _sub_query_info.set_tensor_shape(BITensorShape(_hidden_size, 1, batch_size));
         _sub_query_states.allocator()->init(*_query_states.allocator(), _sub_query_info);
         _sub_key_states.allocator()->init(*_key_states.allocator(), _sub_query_info);
         _sub_value_states.allocator()->init(*_value_states.allocator(), _sub_query_info);
@@ -84,19 +88,26 @@ namespace BatmanInfer {
         // _sub_q_key_info.set_tensor_shape(BITensorShape(_hidden_size, seq_len, batch_size));
         // _sub_q_key_states.allocator()->init(*_q_key_states.allocator(), _sub_q_key_info);
 
-        _sub_q_value_info.set_tensor_shape(BITensorShape(_hidden_size, seq_len, batch_size));
+        _sub_q_value_info.set_tensor_shape(BITensorShape(_hidden_size, 1, batch_size));
         _sub_q_value_states.allocator()->init(*_q_value_states.allocator(), _sub_q_value_info);
 
-        _sub_reshape_q_info.set_tensor_shape(BITensorShape(64, 12, seq_len, batch_size));
+        _sub_reshape_q_info.set_tensor_shape(BITensorShape(64, 12, 1, batch_size));
         _sub_reshape_q_states.allocator()->init(*_reshape_q_states.allocator(), _sub_reshape_q_info);
 
-        _sub_reshape_k_info.set_tensor_shape(BITensorShape(64, 12, seq_len, batch_size));
+        _sub_reshape_k_info.set_tensor_shape(BITensorShape(64, 12, 1, batch_size));
         _sub_reshape_k_states.allocator()->init(*_reshape_k_states.allocator(), _sub_reshape_k_info);
 
-        _sub_reshape_v_info.set_tensor_shape(BITensorShape(64, 12, seq_len, batch_size));
+        _sub_reshape_v_info.set_tensor_shape(BITensorShape(64, 12, 1, batch_size));
         _sub_reshape_v_states.allocator()->init(*_reshape_v_states.allocator(), _sub_reshape_v_info);
 
-        _sub_transpose_q_info.set_tensor_shape(BITensorShape(64, _seq_len, 12, _batch_size));
+        _sub_concat_reshape_k_info.set_tensor_shape(BITensorShape(64, 12, _seq_len, batch_size));
+        _sub_concat_reshape_v_info.set_tensor_shape(BITensorShape(64, 12, _seq_len, batch_size));
+        _sub_concat_reshape_k_states.allocator()->init(*_concat_reshape_k_states.allocator(),
+                                                       _sub_concat_reshape_k_info);
+        _sub_concat_reshape_v_states.allocator()->init(*_concat_reshape_v_states.allocator(),
+                                                       _sub_concat_reshape_v_info);
+
+        _sub_transpose_q_info.set_tensor_shape(BITensorShape(64, 1, 12, _batch_size));
         _sub_transpose_q_result.allocator()->init(*_transpose_q_result.allocator(), _sub_transpose_q_info);
 
         _sub_transpose_k_info.set_tensor_shape(BITensorShape(_seq_len, 64, 12, _batch_size));
@@ -105,35 +116,29 @@ namespace BatmanInfer {
         _sub_transpose_v_info.set_tensor_shape(BITensorShape(64, _seq_len, 12, _batch_size));
         _sub_transpose_v_result.allocator()->init(*_transpose_v_result.allocator(), _sub_transpose_v_info);
 
-        _sub_qk_bmm_output_info.set_tensor_shape(BITensorShape(_seq_len, _seq_len, 12, _batch_size));
+        _sub_qk_bmm_output_info.set_tensor_shape(BITensorShape(_seq_len, 1, 12, _batch_size));
         _sub_qk_bmm_output.allocator()->init(*_qk_bmm_output.allocator(), _sub_qk_bmm_output_info);
 
-        _sub_add_weights_info.set_tensor_shape(BITensorShape(_seq_len, _seq_len));
-        _sub_add_weights.allocator()->init(*_add_weights.allocator(), _sub_add_weights_info);
-
-        _sub_add_output_info.set_tensor_shape(BITensorShape(_seq_len, _seq_len, 12, _batch_size));
-        _sub_add_output.allocator()->init(*_add_output.allocator(), _sub_add_output_info);
-
-        _sub_softmax_output_info.set_tensor_shape(BITensorShape(_seq_len, _seq_len, 12, _batch_size));
+        _sub_softmax_output_info.set_tensor_shape(BITensorShape(_seq_len, 1, 12, _batch_size));
         _sub_softmax_output.allocator()->init(*_softmax_output.allocator(), _sub_softmax_output_info);
 
-        _sub_softmax_q_result_info.set_tensor_shape(BITensorShape(_seq_len, _seq_len, 12, _batch_size));
+        _sub_softmax_q_result_info.set_tensor_shape(BITensorShape(_seq_len, 1, 12, _batch_size));
         _sub_softmax_q_result.allocator()->init(*_q_softmax_output.allocator(), _sub_softmax_q_result_info);
 
-        _sub_pv_bmm_output_info.set_tensor_shape(BITensorShape(64, _seq_len, 12, _batch_size));
+        _sub_pv_bmm_output_info.set_tensor_shape(BITensorShape(64, 1, 12, _batch_size));
         _sub_pv_bmm_output.allocator()->init(*_pv_bmm_output.allocator(), _sub_pv_bmm_output_info);
 
-        _sub_pv_transpose_output_info.set_tensor_shape(BITensorShape(64, 12, _seq_len, _batch_size));
+        _sub_pv_transpose_output_info.set_tensor_shape(BITensorShape(64, 12, 1, _batch_size));
         _sub_pv_transpose_output
                 .allocator()->init(*_pv_perm_output.allocator(), _sub_pv_transpose_output_info);
 
-        _sub_pv_reshape_output_info.set_tensor_shape(BITensorShape(768, _seq_len, _batch_size));
+        _sub_pv_reshape_output_info.set_tensor_shape(BITensorShape(768, 1, _batch_size));
         _sub_pv_reshape_output.allocator()->init(*_pv_reshape_output.allocator(), _sub_pv_reshape_output_info);
 
-        _sub_pv_deq_output_info.set_tensor_shape(BITensorShape(768, _seq_len, _batch_size));
+        _sub_pv_deq_output_info.set_tensor_shape(BITensorShape(768, 1, _batch_size));
         _sub_pv_deq_output.allocator()->init(*_pv_deq_output.allocator(), _sub_pv_deq_output_info);
 
-        _sub_attn_o_output_info.set_tensor_shape(BITensorShape(768, _seq_len, _batch_size));
+        _sub_attn_o_output_info.set_tensor_shape(BITensorShape(768, 1, _batch_size));
         _sub_attn_o_output.allocator()->init(*_attn_o_output.allocator(), _sub_attn_o_output_info);
 
         std::vector<BIITensor *> outputs = {
@@ -157,8 +162,8 @@ namespace BatmanInfer {
         _reshape_k_layer.dynamic_configure();
         _reshape_v_layer.dynamic_configure();
         _transpose_q_layer.dynamic_configure(&_sub_reshape_q_states, &_sub_transpose_q_result);
-        _transpose_k_layer.dynamic_configure(&_sub_reshape_k_states, &_sub_transpose_k_result);
-        _transpose_v_layer.dynamic_configure(&_sub_reshape_v_states, &_sub_transpose_v_result);
+        _transpose_k_layer.dynamic_configure(&_sub_concat_reshape_k_states, &_sub_transpose_k_result);
+        _transpose_v_layer.dynamic_configure(&_sub_concat_reshape_v_states, &_sub_transpose_v_result);
         BIMatMulInfo matmul_info; // No transpose for lhs or rhs
         matmul_info.adj_lhs(false).adj_rhs(false);
         // Define CpuMatMulSettings
@@ -168,7 +173,6 @@ namespace BatmanInfer {
         _sub_transpose_q_result.info()->set_are_values_constant(false);
         _sub_transpose_k_result.info()->set_are_values_constant(false);
         _qk_bmm_layer.dynamic_configure(&_sub_transpose_q_result, &_sub_transpose_k_result, &_sub_qk_bmm_output);
-        _qk_add_layer.dynamic_configure(&_sub_qk_bmm_output, &_add_weights, true);
         _softmax_layer.dynamic_configure();
         _q_softmax_layer.dynamic_configure(&_sub_softmax_output);
         _pv_bmm_layer.dynamic_configure(&_sub_softmax_q_result, &_sub_transpose_v_result, &_sub_pv_bmm_output);
@@ -181,6 +185,10 @@ namespace BatmanInfer {
         _sub_transpose_v_result.info()->set_are_values_constant(false);
         _pv_bmm_layer.configure(&_sub_softmax_q_result, &_sub_transpose_v_result, &_sub_pv_bmm_output, matmul_info,
                                 settings);
+    }
+
+    void BINEAttentionLowpLayer::get_kv_block_ids(std::vector<unsigned int> &kv_block_ids) {
+        kv_block_ids = std::move(_block_ids);
     }
 
 
@@ -225,13 +233,14 @@ namespace BatmanInfer {
         _is_prepared = false; // 初始化标志，标识尚未准备好
 
         // 配置中间张量输出
-        auto normal_shape = BITensorShape(_hidden_size, _max_seq_len, _max_batch_size); // 默认输入和输出
-        auto c_attn_shape = BITensorShape(_hidden_size * 3, _max_seq_len, _max_batch_size); // c_attn计算的输出
-        auto reshape_q_shape = BITensorShape(64, 12, _max_seq_len, _max_batch_size);
-        auto transpose_q_shape = BITensorShape(64, _max_seq_len, 12, _max_batch_size);
+        auto normal_shape = BITensorShape(_hidden_size, 1, _max_batch_size); // 默认输入和输出
+        auto c_attn_shape = BITensorShape(_hidden_size * 3, 1, _max_batch_size); // c_attn计算的输出
+        auto reshape_q_shape = BITensorShape(64, 12, 1, _max_batch_size);
+        const auto concat_reshape_kv_shape = BITensorShape(64, 12, _max_seq_len, _max_batch_size);
+        auto transpose_q_shape = BITensorShape(64, 1, 12, _max_batch_size);
+        auto transpose_v_shape = BITensorShape(64, _max_seq_len, 12, _max_batch_size);
         auto transpose_k_shape = BITensorShape(_max_seq_len, 64, 12, _max_batch_size);
-        auto qk_bmm_output_shape = BITensorShape(_max_seq_len, _max_seq_len, 12, _max_batch_size);
-        const auto add_weights_shape = BITensorShape(_max_seq_len, _max_seq_len);
+        auto qk_bmm_output_shape = BITensorShape(_max_seq_len, 1, 12, _max_batch_size);
 
 
         const auto _norm_q_info = BIQuantizationInfo(gemm_i_scale, gemm_i_zp);
@@ -240,8 +249,7 @@ namespace BatmanInfer {
                 init(BITensorInfo(normal_shape, 1, BIDataType::QASYMM8_SIGNED, _norm_q_info));
         _c_attn_s32_output.allocator()->init(BITensorInfo(c_attn_shape, 1, BIDataType::S32));
         const auto _c_attn_q_info = BIQuantizationInfo(attn_gemm_o_scale, attn_gemm_o_zp);
-        BITensorShape q_output_shape = BITensorShape(_hidden_size * 3, _max_seq_len, _max_batch_size);
-        _c_attn_q8_output.allocator()->init(BITensorInfo(q_output_shape,
+        _c_attn_q8_output.allocator()->init(BITensorInfo(c_attn_shape,
                                                          1,
                                                          BIDataType::QASYMM8_SIGNED,
                                                          _c_attn_q_info));
@@ -272,6 +280,9 @@ namespace BatmanInfer {
                 init(BITensorInfo(reshape_q_shape, 1, BIDataType::F16));
         _reshape_v_states.allocator()->
                 init(BITensorInfo(reshape_q_shape, 1, BIDataType::QASYMM8_SIGNED, _q_value_info));
+        _concat_reshape_k_states.allocator()->init(BITensorInfo(concat_reshape_kv_shape, 1, BIDataType::F16));
+        _concat_reshape_v_states.allocator()->init(
+            BITensorInfo(concat_reshape_kv_shape, 1, BIDataType::QASYMM8_SIGNED, _q_value_info));
 
         _transpose_q_result.allocator()->init(BITensorInfo(transpose_q_shape,
                                                            1,
@@ -279,11 +290,9 @@ namespace BatmanInfer {
         _transpose_k_result.allocator()->init(BITensorInfo(transpose_k_shape,
                                                            1,
                                                            BIDataType::F16));
-        _transpose_v_result.allocator()->init(BITensorInfo(transpose_q_shape, 1, BIDataType::QASYMM8_SIGNED,
+        _transpose_v_result.allocator()->init(BITensorInfo(transpose_v_shape, 1, BIDataType::QASYMM8_SIGNED,
                                                            _q_value_info));
         _qk_bmm_output.allocator()->init(BITensorInfo(qk_bmm_output_shape, 1, BIDataType::F16));
-        _add_weights.allocator()->init(BITensorInfo(add_weights_shape, 1, BIDataType::F16));
-        _add_output.allocator()->init(BITensorInfo(qk_bmm_output_shape, 1, BIDataType::F16));
         _softmax_output.allocator()->init(BITensorInfo(qk_bmm_output_shape, 1, BIDataType::F16));
         const auto _q_softmax_info = BIQuantizationInfo(softmax_out_scale, softmax_out_zp);
         _q_softmax_output.allocator()->init(BITensorInfo(qk_bmm_output_shape, 1, BIDataType::QASYMM8_SIGNED,
@@ -318,12 +327,12 @@ namespace BatmanInfer {
         _memory_group.manage(&_reshape_q_states);
         _memory_group.manage(&_reshape_k_states);
         _memory_group.manage(&_reshape_v_states);
+        _memory_group.manage(&_concat_reshape_k_states);
+        _memory_group.manage(&_concat_reshape_v_states);
         _memory_group.manage(&_transpose_q_result);
         _memory_group.manage(&_transpose_k_result);
         _memory_group.manage(&_transpose_v_result);
         _memory_group.manage(&_qk_bmm_output);
-        _memory_group.manage(&_add_weights);
-        _memory_group.manage(&_add_output);
         _memory_group.manage(&_softmax_output);
         _memory_group.manage(&_q_softmax_output);
         _memory_group.manage(&_pv_bmm_output);
@@ -350,12 +359,12 @@ namespace BatmanInfer {
         _reshape_q_states.allocator()->allocate();
         _reshape_k_states.allocator()->allocate();
         _reshape_v_states.allocator()->allocate();
+        _concat_reshape_k_states.allocator()->allocate();
+        _concat_reshape_v_states.allocator()->allocate();
         _transpose_q_result.allocator()->allocate();
         _transpose_k_result.allocator()->allocate();
         _transpose_v_result.allocator()->allocate();
         _qk_bmm_output.allocator()->allocate();
-        _add_weights.allocator()->allocate();
-        _add_output.allocator()->allocate();
         _softmax_output.allocator()->allocate();
         _q_softmax_output.allocator()->allocate();
         _pv_bmm_output.allocator()->allocate();
@@ -367,7 +376,7 @@ namespace BatmanInfer {
         // _dequantization_output.allocator()->allocate();
 
         // 首次初始化
-        const auto _sub_norm_shape = BITensorShape(_hidden_size, _seq_len, _batch_size);
+        const auto _sub_norm_shape = BITensorShape(_hidden_size, 1, _batch_size);
         _sub_norm_info = BITensorInfo(_sub_norm_shape, 1, BIDataType::F16);
         _sub_norm_info.set_format(Format::F16);
         _sub_norm_tensor.allocator()->init(_sub_norm_info);
@@ -376,7 +385,7 @@ namespace BatmanInfer {
         _sub_norm_q_info.set_format(Format::S8);
         _sub_norm_q_tensor.allocator()->init(_sub_norm_q_info);
 
-        const auto _sub_c_attn_shape = BITensorShape(_hidden_size * 3, _seq_len, _batch_size);
+        const auto _sub_c_attn_shape = BITensorShape(_hidden_size * 3, 1, _batch_size);
         _sub_c_attn_s32_tensor_info = BITensorInfo(_sub_c_attn_shape, 1, BIDataType::S32);
         _sub_c_attn_s32_tensor_info.set_format(Format::S32);
         _sub_c_attn_s32_tensor.allocator()->init(_sub_c_attn_s32_tensor_info);
@@ -410,10 +419,19 @@ namespace BatmanInfer {
         _sub_q_value_info.set_format(Format::S8);
         _sub_q_value_states.allocator()->init(_sub_q_value_info);
 
-        const auto sub_reshape_q_shape = BITensorShape(64, 12, _seq_len, _batch_size);
+        const auto sub_reshape_q_shape = BITensorShape(64, 12, 1, _batch_size);
         _sub_reshape_q_info = BITensorInfo(sub_reshape_q_shape, 1, BIDataType::F16);
         _sub_reshape_q_info.set_format(Format::F16);
         _sub_reshape_q_states.allocator()->init(_sub_reshape_q_info);
+
+        const auto sub_concat_qkv_reshape = BITensorShape(64, 12, _seq_len, _batch_size);
+        _sub_concat_reshape_k_info = BITensorInfo(sub_concat_qkv_reshape, 1, BIDataType::F16);
+        _sub_concat_reshape_k_info.set_format(Format::F16);;
+        _sub_concat_reshape_k_states.allocator()->init(_sub_concat_reshape_k_info);
+
+        _sub_concat_reshape_v_info = BITensorInfo(sub_concat_qkv_reshape, 1, BIDataType::QASYMM8_SIGNED, _q_value_info);
+        _sub_concat_reshape_v_info.set_format(Format::S8);;
+        _sub_concat_reshape_v_states.allocator()->init(_sub_concat_reshape_v_info);
 
         _sub_reshape_k_info = BITensorInfo(sub_reshape_q_shape, 1, BIDataType::F16);
         _sub_reshape_k_info.set_format(Format::F16);
@@ -423,7 +441,7 @@ namespace BatmanInfer {
         _sub_reshape_v_info.set_format(Format::S8);
         _sub_reshape_v_states.allocator()->init(_sub_reshape_v_info);
 
-        const auto sub_transpose_q_shape = BITensorShape(64, _seq_len, 12, _batch_size);
+        const auto sub_transpose_q_shape = BITensorShape(64, 1, 12, _batch_size);
         _sub_transpose_q_info = BITensorInfo(sub_transpose_q_shape, 1, BIDataType::F16);
         _sub_transpose_q_info.set_format(Format::F16);
         _sub_transpose_q_result.allocator()->init(_sub_transpose_q_info);
@@ -433,23 +451,15 @@ namespace BatmanInfer {
         _sub_transpose_k_info.set_format(Format::F16);
         _sub_transpose_k_result.allocator()->init(_sub_transpose_k_info);
 
-        _sub_transpose_v_info = BITensorInfo(sub_transpose_q_shape, 1, BIDataType::QASYMM8_SIGNED, _q_value_info);
+        const auto sub_transpose_v_shape = BITensorShape(64, _seq_len, 12, _batch_size);
+        _sub_transpose_v_info = BITensorInfo(sub_transpose_v_shape, 1, BIDataType::QASYMM8_SIGNED, _q_value_info);
         _sub_transpose_v_info.set_format(Format::S8);
         _sub_transpose_v_result.allocator()->init(_sub_transpose_v_info);
 
-        const auto sub_qk_bmm_output_shape = BITensorShape(_seq_len, _seq_len, 12, _batch_size);
+        const auto sub_qk_bmm_output_shape = BITensorShape(_seq_len, 1, 12, _batch_size);
         _sub_qk_bmm_output_info = BITensorInfo(sub_qk_bmm_output_shape, 1, BIDataType::F16);
         _sub_qk_bmm_output_info.set_format(Format::F16);
         _sub_qk_bmm_output.allocator()->init(_sub_qk_bmm_output_info);
-
-        const auto sub_add_weight_shape = BITensorShape(_seq_len, _seq_len);
-        _sub_add_weights_info = BITensorInfo(sub_add_weight_shape, 1, BIDataType::F16);
-        _sub_add_weights_info.set_format(Format::F16);
-        _sub_add_weights.allocator()->init(_sub_add_weights_info);
-
-        _sub_add_output_info = BITensorInfo(sub_qk_bmm_output_shape, 1, BIDataType::F16);
-        _sub_add_output_info.set_format(Format::F16);
-        _sub_add_output.allocator()->init(_sub_add_output_info);
 
         _sub_softmax_output_info = BITensorInfo(sub_qk_bmm_output_shape, 1, BIDataType::F16);
         _sub_softmax_output_info.set_format(Format::F16);
@@ -524,8 +534,8 @@ namespace BatmanInfer {
         _reshape_k_layer.configure(&_sub_key_states, &_sub_reshape_k_states);
         _reshape_v_layer.configure(&_sub_q_value_states, &_sub_reshape_v_states);
         _transpose_q_layer.configure(&_sub_reshape_q_states, &_sub_transpose_q_result, q_perm);
-        _transpose_k_layer.configure(&_sub_reshape_k_states, &_sub_transpose_k_result, k_perm);
-        _transpose_v_layer.configure(&_sub_reshape_v_states, &_sub_transpose_v_result, q_perm);
+        _transpose_k_layer.configure(&_sub_concat_reshape_k_states, &_sub_transpose_k_result, k_perm);
+        _transpose_v_layer.configure(&_sub_concat_reshape_v_states, &_sub_transpose_v_result, q_perm);
         _sub_transpose_q_result.info()->set_are_values_constant(false);
         _sub_transpose_k_result.info()->set_are_values_constant(false);
         BIMatMulInfo matmul_info; // No transpose for lhs or rhs
@@ -536,8 +546,7 @@ namespace BatmanInfer {
         settings = settings.fast_math(true);
         _qk_bmm_layer.configure(&_sub_transpose_q_result, &_sub_transpose_k_result, &_sub_qk_bmm_output, matmul_info,
                                 settings);
-        _qk_add_layer.configure(&_sub_qk_bmm_output, &_sub_add_weights, &_sub_add_output, BIConvertPolicy::SATURATE);
-        _softmax_layer.configure(&_sub_add_output, &_sub_softmax_output);
+        _softmax_layer.configure(&_sub_qk_bmm_output, &_sub_softmax_output);
         _q_softmax_layer.configure(&_sub_softmax_output, &_sub_softmax_q_result);
         _sub_softmax_q_result.info()->set_are_values_constant(false);
         _sub_transpose_v_result.info()->set_are_values_constant(false);
@@ -555,6 +564,10 @@ namespace BatmanInfer {
     }
 
     void BINEAttentionLowpLayer::run() {
+        BIIOFormatInfo format;
+        format.element_delim = ", "; // 元素之间用逗号分隔
+        format.row_delim = "\n"; // 每行换行
+        format.align_columns = true; // 对齐列
         prepare(); // 内存分配管理
 
         // 运行计算
@@ -574,24 +587,14 @@ namespace BatmanInfer {
         _reshape_q_layer.run();
         _reshape_k_layer.run();
         _reshape_v_layer.run();
+        store_kv_cache();
+        concat_kv_cache();
+        // _sub_concat_reshape_k_states.print(std::cout, format);
+        // _sub_concat_reshape_v_states.print(std::cout, format);
         _transpose_q_layer.run();
         _transpose_k_layer.run();
         _transpose_v_layer.run();
         _qk_bmm_layer.run();
-
-        // 计算add之前先给add_weights值进行修改
-        BIWindow window;
-        window.use_tensor_dimensions(_sub_add_weights_info.tensor_shape());
-        BIIterator mask_it(&_sub_add_weights, window);
-        execute_window_loop(window, [&](const BICoordinates &id) {
-            auto x = id[0];
-            auto y = id[1];
-            *reinterpret_cast<float16_t *>(mask_it.ptr()) = (x <= y)
-                                                                ? 0
-                                                                : -std::numeric_limits<
-                                                                    float>::infinity();
-        }, mask_it);
-        _qk_add_layer.run();
         _softmax_layer.run();
         _q_softmax_layer.run();
         _pv_bmm_layer.run();
@@ -600,15 +603,6 @@ namespace BatmanInfer {
         _pv_dequantization_layer.run();
         _attn_o_gemm_layer.run();
         _c_copy_layer.run();
-
-        // BIIOFormatInfo format;
-        // format.element_delim = ", "; // 元素之间用逗号分隔
-        // format.row_delim = "\n"; // 每行换行
-        // format.align_columns = true; // 对齐列
-        // _sub_softmax_q_result.print(std::cout, format);
-        // _sub_transpose_v_result.print(std::cout, format);
-        // std::cout << "==================== sub_values" << std::endl;
-        // _sub_qk_bmm_output.print(std::cout, format);
     }
 
     void BINEAttentionLowpLayer::prepare() {
@@ -631,20 +625,75 @@ namespace BatmanInfer {
             _sub_reshape_q_states.allocator()->init(*_reshape_q_states.allocator(), _sub_reshape_q_info);
             _sub_reshape_v_states.allocator()->init(*_reshape_v_states.allocator(), _sub_reshape_v_info);
             _sub_reshape_k_states.allocator()->init(*_reshape_k_states.allocator(), _sub_reshape_k_info);
+            _sub_concat_reshape_k_states.allocator()->
+                    init(*_concat_reshape_k_states.allocator(), _sub_concat_reshape_k_info);
+            _sub_concat_reshape_v_states.allocator()->
+                    init(*_concat_reshape_v_states.allocator(), _sub_concat_reshape_v_info);
             _sub_transpose_q_result.allocator()->init(*_transpose_q_result.allocator(), _sub_transpose_q_info);
             _sub_transpose_k_result.allocator()->init(*_transpose_k_result.allocator(), _sub_transpose_k_info);
             _sub_transpose_v_result.allocator()->init(*_transpose_v_result.allocator(), _sub_transpose_v_info);
             _sub_qk_bmm_output.allocator()->init(*_qk_bmm_output.allocator(), _sub_qk_bmm_output_info);
-            _sub_add_weights.allocator()->init(*_add_weights.allocator(), _sub_add_weights_info);
-            _sub_add_output.allocator()->init(*_add_output.allocator(), _sub_add_output_info);
             _sub_softmax_output.allocator()->init(*_softmax_output.allocator(), _sub_softmax_output_info);
             _sub_softmax_q_result.allocator()->init(*_q_softmax_output.allocator(), _sub_softmax_q_result_info);
             _sub_pv_bmm_output.allocator()->init(*_pv_bmm_output.allocator(), _sub_pv_bmm_output_info);
             _sub_pv_transpose_output.allocator()->init(*_pv_perm_output.allocator(), _sub_pv_transpose_output_info);
-            _sub_pv_reshape_output.allocator()->init(*_pv_reshape_output.allocator(), _sub_pv_reshape_output_info);
+            _sub_pv_reshape_output.allocator()->init
+                    (*_pv_reshape_output.allocator(), _sub_pv_reshape_output_info);
             _sub_pv_deq_output.allocator()->init(*_pv_deq_output.allocator(), _sub_pv_deq_output_info);
             _sub_attn_o_output.allocator()->init(*_attn_o_output.allocator(), _sub_attn_o_output_info);
             _is_prepared = true;
         }
+    }
+
+    void BINEAttentionLowpLayer::store_kv_cache() {
+        _block_ids.clear(); // 如果首次的话只会存入<s>的首字符
+        if (_is_first_kv_cache) {
+            const auto root_id = KVCacheManager::getInstance().root_id();
+            KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_k_states.buffer(), root_id, true, true);
+            KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_v_states.buffer(), root_id, false, true);
+
+            _is_first_kv_cache = false;
+            _block_ids.emplace_back(root_id);
+            return;
+        }
+        // 判断当前的batch_size, 先根据batch size分配一组block_id
+        for (const auto &decode_list: _kv_decode_ids) {
+            auto block_ids = KVCacheManager::getInstance().alloc_decode_next(
+                decode_list[0], decode_list.size() - 1, decode_list);
+            // 进行内存值拷贝
+            for (const auto &block_id: block_ids) {
+                KVCacheManager::getInstance().
+                        memcpy_decode_buffer(_sub_reshape_k_states.buffer(), block_id, true, true);
+                KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_v_states.buffer(),
+                                                                   block_id,
+                                                                   false,
+                                                                   true);
+                _block_ids.emplace_back(block_id);
+            }
+        }
+    }
+
+    void BINEAttentionLowpLayer::concat_kv_cache() {
+        std::vector<PhysicalBlock *> blocks{};
+        for (const auto &decode_list: _kv_decode_ids) {
+            const auto block_id = decode_list[0];
+            std::vector<unsigned int> decode_ids{};
+            KVCacheManager::getInstance().decode_sequence_lst(block_id, decode_ids); // 获取合并的Decodes
+            KVCacheManager::getInstance().decode_sequence_blocks(decode_ids, blocks);
+        }
+        // if (_seq_len >= 1) {
+        //     BIIOFormatInfo format;
+        //     format.element_delim = ", "; // 元素之间用逗号分隔
+        //     format.row_delim = "\n"; // 每行换行
+        //     format.align_columns = true; // 对齐列
+        //     _sub_reshape_v_states.print(std::cout, format);
+        //     _sub_reshape_k_states.print(std::cout, format);
+        // }
+        BIITensorPack pack;
+        pack.add_tensor(ACL_SRC_0, &_sub_reshape_k_states);
+        pack.add_tensor(ACL_SRC_1, &_sub_reshape_v_states);
+        pack.add_tensor(ACL_DST_0, &_sub_concat_reshape_k_states);
+        pack.add_tensor(ACL_DST_1, &_sub_concat_reshape_v_states);
+        BINEScheduler::get().schedule_kv_concat(pack, blocks);
     }
 }

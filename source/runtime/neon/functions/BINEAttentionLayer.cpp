@@ -385,10 +385,10 @@ namespace BatmanInfer {
     }
 
     void BINEAttentionLayer::run() {
-        BIIOFormatInfo format;
-        format.element_delim = ", "; // 元素之间用逗号分隔
-        format.row_delim = "\n"; // 每行换行
-        format.align_columns = true; // 对齐列
+        // BIIOFormatInfo format;
+        // format.element_delim = ", "; // 元素之间用逗号分隔
+        // format.row_delim = "\n"; // 每行换行
+        // format.align_columns = true; // 对齐列
         prepare();
 
         // 执行函数
@@ -426,9 +426,9 @@ namespace BatmanInfer {
             _sub_reshape_k_states.allocator()->init(*_reshape_k_states.allocator(), _sub_reshape_qkv_info);
             _sub_reshape_v_states.allocator()->init(*_reshape_v_states.allocator(), _sub_reshape_qkv_info);
             _sub_concat_reshape_k_states.allocator()->
-                    init(*_concat_reshape_k_states.allocator(), _sub_reshape_qkv_info);
+                    init(*_concat_reshape_k_states.allocator(), _sub_concat_reshape_kv_info);
             _sub_concat_reshape_v_states.allocator()->
-                    init(*_concat_reshape_v_states.allocator(), _sub_reshape_qkv_info);
+                    init(*_concat_reshape_v_states.allocator(), _sub_concat_reshape_kv_info);
             _sub_transpose_q_states.allocator()->init(*_transpose_q_states.allocator(), _sub_transpose_q_info);
             _sub_transpose_k_states.allocator()->init(*_transpose_k_states.allocator(), _sub_transpose_k_info);
             _sub_transpose_v_states.allocator()->init(*_transpose_v_states.allocator(), _sub_transpose_v_info);

@@ -107,7 +107,14 @@ namespace BatmanInfer {
 
         void dynamic_configure(const BIITensor *input,
                                const size_t &seq_len,
-                               const size_t &batch_size);
+                               const size_t &batch_size,
+                               std::vector<std::vector<unsigned int> > &kv_caches_vec);
+
+        /**
+         * @brief 获取KV Cache的Block数组
+         * @param kv_block_ids
+         */
+        void get_kv_block_ids(std::vector<unsigned int> &kv_block_ids);
 
         /**
          * 验证函数
@@ -143,7 +150,6 @@ namespace BatmanInfer {
         BINEReshapeLayer _reshape_q_layer, _reshape_k_layer, _reshape_v_layer;
         BINEPermute _transpose_q_layer, _transpose_k_layer, _transpose_v_layer;
         BINEMatMul _qk_bmm_layer;
-        BINEArithmeticAddition _qk_add_layer;
         BINESoftmaxLayer _softmax_layer;
         BINEQuantizationLayer _q_softmax_layer;
         BINEMatMul _pv_bmm_layer;
@@ -170,12 +176,12 @@ namespace BatmanInfer {
         BITensor _sub_reshape_q_states;
         BITensor _sub_reshape_k_states;
         BITensor _sub_reshape_v_states;
+        BITensor _sub_concat_reshape_k_states;
+        BITensor _sub_concat_reshape_v_states;
         BITensor _sub_transpose_q_result;
         BITensor _sub_transpose_k_result;
         BITensor _sub_transpose_v_result;
         BITensor _sub_qk_bmm_output;
-        BITensor _sub_add_output;
-        BITensor _sub_add_weights; // Mask函数选择
         BITensor _sub_softmax_output;
         BITensor _sub_softmax_q_result;
         BITensor _sub_pv_bmm_output;
@@ -199,9 +205,9 @@ namespace BatmanInfer {
         BITensorInfo _sub_transpose_q_info;
         BITensorInfo _sub_transpose_k_info;
         BITensorInfo _sub_transpose_v_info;
+        BITensorInfo _sub_concat_reshape_k_info;
+        BITensorInfo _sub_concat_reshape_v_info;
         BITensorInfo _sub_qk_bmm_output_info;
-        BITensorInfo _sub_add_output_info;
-        BITensorInfo _sub_add_weights_info;
         BITensorInfo _sub_softmax_output_info;
         BITensorInfo _sub_softmax_q_result_info;
         BITensorInfo _sub_pv_bmm_output_info;
@@ -226,12 +232,12 @@ namespace BatmanInfer {
         BITensor _reshape_q_states;
         BITensor _reshape_k_states;
         BITensor _reshape_v_states;
+        BITensor _concat_reshape_k_states;
+        BITensor _concat_reshape_v_states;
         BITensor _transpose_q_result;
         BITensor _transpose_k_result;
         BITensor _transpose_v_result;
         BITensor _qk_bmm_output;
-        BITensor _add_output;
-        BITensor _add_weights;
         BITensor _softmax_output;
         BITensor _q_softmax_output;
         BITensor _pv_bmm_output;
@@ -249,5 +255,19 @@ namespace BatmanInfer {
         size_t _seq_len = 1;
         bool _is_prepared; // 是否已经完全初始化(预先把内存加载完)
         std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;
+        bool _is_first_kv_cache = true; // 是否第一次KV Cache
+        std::vector<std::vector<unsigned int> > _kv_decode_ids; // 进行kv cache的传递
+        std::vector<unsigned int> _block_ids{};
+
+    private:
+        /**
+         * @brief 存储每次计算的KV Caches
+         */
+        void store_kv_cache();
+
+        /**
+         * @brief 合并KV Cache缓存
+         */
+        void concat_kv_cache();
     };
 }

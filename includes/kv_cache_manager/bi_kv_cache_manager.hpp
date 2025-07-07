@@ -48,9 +48,13 @@ namespace BatmanInfer {
          * 根据输出的buffer值存储到对应的block_id里
          * @param source_buffer
          * @param block_id
-         * @param block_size
+         * @param is_k: 是不是key_states
+         * @param is_smooth_quant: 是不是SmoothQuant量化
          */
-        void memcpy_decode_buffer(const void *source_buffer, const int block_id, bool is_k = false) const;
+        void memcpy_decode_buffer(const void *source_buffer,
+                                  int block_id,
+                                  bool is_k = false,
+                                  bool is_smooth_quant = false) const;
 
         /**
          * 释放空的解码序列
@@ -78,7 +82,7 @@ namespace BatmanInfer {
         /**
          * @brief 每次解码之后对KV Cache的blocks进行释放
          */
-        void reset_decode_lst();
+        void reset_decode_lst() const;
 
     private:
         KVCacheManager();
