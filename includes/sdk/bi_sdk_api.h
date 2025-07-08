@@ -58,6 +58,7 @@ public:
     /**
      * 设置模型的输入
      * @param input_vec 模型输入
+     * @param kv_cache_id_map 推理时生成的 kv值存储地址
      * @return 返回码
      */
     virtual BIErrCode bi_set_input(std::vector< std::vector<unsigned int> >& input_vec, std::vector< std::vector<unsigned int> > &kv_cache_id_map) = 0;
@@ -68,7 +69,14 @@ public:
      * @param kv_block_ids 模型推理过程中的 kv cache block id 信息
      * @return 返回码
      */
-    virtual BIErrCode bi_run(std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids) = 0;
+    virtual BIErrCode bi_run(std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids, bool is_init) = 0;
+
+    /**
+     * "清空" kv_cache，将 kv_cache 指针指向 </s> 推理时的 kv值存储地址
+     * @param kv_cache_id </s> 推理时的 kv值存储地址
+     * @return 返回码
+     */
+    virtual BIErrCode bi_reset(unsigned int &kv_cache_id) = 0;
 
 };
 

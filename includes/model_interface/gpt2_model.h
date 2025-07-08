@@ -148,7 +148,8 @@ public:
 
     BIErrCode bi_init(const char *data_in, size_t data_size, std::vector< std::vector<float> > &output_vec, unsigned int &kv_cache_id) override;
     BIErrCode bi_set_input(std::vector< std::vector<unsigned int> > &input_vec, std::vector< std::vector<unsigned int> > &kv_cache_id_map) override;
-    BIErrCode bi_run(std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids) override;
+    BIErrCode bi_run(std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids, bool is_init) override;
+    BIErrCode bi_reset(unsigned int &kv_cache_id) override;
 
 private:
     /**
@@ -213,6 +214,8 @@ private:
      */
     BIErrCode dynamic_configure_all_layers(const std::vector<int> &tensor_shape, std::vector< std::vector<unsigned int> > &kv_cache_id_map);
 
+    void print_tensor(const BatmanInfer::BITensor &tensor, const std::string &name = "temp", const BatmanInfer::BIIOFormatInfo::PrintRegion region = BatmanInfer::BIIOFormatInfo::PrintRegion::Full);
+
 private:
     BIMemoryGroup                               _memory_group;
     std::unique_ptr<BIMemoryGroupResourceScope> _scope_manager;
@@ -222,6 +225,7 @@ private:
     BITensor _ori_gather_output_tensor;
     BITensor _ori_attn_rms_output_tensor;
     BITensor _ori_add_output_tensor;
+    BITensor _ori_split_add_output_tensor;
     BITensor _ori_attn_output_tensor;
     BITensor _ori_mlp_output_tensor;
     BITensor _ori_add_mlp_output_tensor;
@@ -247,6 +251,7 @@ private:
     BITensor _sub_gather_output_tensor;
     BITensor _sub_add_weight_tensor;
     BITensor _sub_add_output_tensor;
+    BITensor _sub_split_add_output_tensor;
     BITensor _sub_attn_output_tensor;
     BITensor _sub_mlp_input_tensor;
     BITensor _sub_mlp_output_tensor;
@@ -266,8 +271,10 @@ private:
     BINEGEMM               _lm_head_layer;
 
     // BIQuantizationInfo _c_fc_weight_q_info;
-    std::vector<int> _output_positions;
 
+    // std::vector<int> _output_positions;
+
+    BIITensorPack _pack;
     // AttnHyperParams _attn_hyper_params;
     // MLPHyperParams  _mlp_hyper_params;
 
