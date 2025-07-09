@@ -564,10 +564,10 @@ namespace BatmanInfer {
     }
 
     void BINEAttentionLowpLayer::run() {
-        BIIOFormatInfo format;
-        format.element_delim = ", "; // 元素之间用逗号分隔
-        format.row_delim = "\n"; // 每行换行
-        format.align_columns = true; // 对齐列
+        // BIIOFormatInfo format;
+        // format.element_delim = ", "; // 元素之间用逗号分隔
+        // format.row_delim = "\n"; // 每行换行
+        // format.align_columns = true; // 对齐列
         prepare(); // 内存分配管理
 
         // 运行计算
@@ -589,8 +589,6 @@ namespace BatmanInfer {
         _reshape_v_layer.run();
         store_kv_cache();
         concat_kv_cache();
-        // _sub_concat_reshape_k_states.print(std::cout, format);
-        // _sub_concat_reshape_v_states.print(std::cout, format);
         _transpose_q_layer.run();
         _transpose_k_layer.run();
         _transpose_v_layer.run();
