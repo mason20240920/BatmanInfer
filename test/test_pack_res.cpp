@@ -43,38 +43,47 @@ namespace res_pack {
         return true;
     }
 
+#ifdef FIX_VER
+    // 需要将 txt 明文数据进行读取并存储
     bool read_and_write_scales(int res_order, const std::string &path_prefix, const std::string &res_path,
         std::fstream &dst_file) {
-        std::ifstream in_file(path_prefix + res_path);
-        if (!in_file.is_open()) {
-            std::cout << "Cannot open file: " << path_prefix << res_path << "!" << std::endl;
-            return false;
+        std::ifstream scales_file(path_prefix + res_path);
+        float value;
+        std::vector<float> all_scales;
+        while (scales_file >> value) {
+            all_scales.push_back(value);
         }
 
-        std::vector<float> scales;
-        float one_scale;
-        while (in_file >> one_scale) {
-            scales.push_back(one_scale);
+        // 所有 scales都已经读取完成，需要进行数据构建并存储
+        size_t element_count = all_scales.size();
+        auto buffer = new float[element_count + 10];
+
+        for (auto j = 0; j < element_count; j++) {
+            buffer[j] = all_scales[j];
         }
-        in_file.close();
 
         GPT2ResHeader res_header;
         res_header.res_order = res_order;
-        res_header.data_length = static_cast<int>(scales.size() * sizeof(float));
-        res_header.shape[0] = static_cast<int>(scales.size());
-        for (int i = 1; i < tensor_max_dim; ++i) {
-            res_header.shape[i] = 1;
+        res_header.data_length = static_cast<int>(element_count * sizeof(float));
+        res_header.shape[0] = element_count;
+        for (auto j = 1; j < 6; j++) {
+            res_header.shape[j] = 1;
         }
+        const std::string f32_type_str = "<f4";
+        memcpy(res_header.data_type, f32_type_str.c_str(), f32_type_str.length());
 
         // 写入头信息
         dst_file.write(reinterpret_cast<char*>(&res_header), sizeof(res_header));
         // 写入具体数据
-        dst_file.write(reinterpret_cast<char*>(scales.data()), sizeof(float) * scales.size());
+        dst_file.write(reinterpret_cast<char*>(buffer), sizeof(float) * element_count);
+
+        delete[] buffer;
 
         return true;
     }
+#endif
 
-    // 本函数直接将 F32 转为 F16，对于需不需要转换，当前是全部需要的，所以不做判断。
+    // 本函数直接将 F32（未量化版本层） 转为 F16，若当前为量化版本，其中两 weight层为 int8类型，两 bias层为 int32类型，需要进行特殊处理
     bool read_and_write_npy(int res_order, const std::string &path_prefix, const std::string &res_path,
         std::fstream &dst_file) {
         std::ifstream in_file(path_prefix + res_path, std::ios::in | std::ios::binary);
@@ -146,7 +155,7 @@ namespace res_pack {
 
             delete[] buffer;
         }
-        // 通常情况下的数据拷贝
+        // 通常情况下的数据拷贝（包括 weight层量化[int8] 和 bias层量化[int32]）
         else {
             auto buffer = new char[element_count * element_size + 10];
 
@@ -174,10 +183,10 @@ namespace res_pack {
         return true;
     }
 
+#ifdef FIX_VER
     bool read_and_write_json(int res_order, const std::string &path_prefix, const std::string &res_path,
         std::fstream &dst_file) {
 
-        /*
         std::ifstream json_fin(path_prefix + res_path);
         if (!json_fin.is_open()) {
             std::cout << "Cannot open file: " << path_prefix << res_path << "!" << std::endl;
@@ -227,11 +236,10 @@ namespace res_pack {
         dst_file.write(reinterpret_cast<char*>(&res_header), sizeof(res_header));
         // 写入参数信息
         dst_file.write(reinterpret_cast<char*>(&params), sizeof(params));
-        */
 
         return true;
     }
-
+#endif
 } // namespace res_pack
 
 TEST(ResPack, PackGPT) {
@@ -239,7 +247,7 @@ TEST(ResPack, PackGPT) {
 
 
     std::map<GPT2ResOrder, std::string> res_paths;
-    std::string res_path_prefix = "./gpt2_res_all_float/", path_storage_file = "_all_res_paths.txt";
+    std::string res_path_prefix = "./gpt2-weights-ime/fix/", path_storage_file = "_all_res_paths.txt";
     ret = res_pack::load_res_paths(res_path_prefix, path_storage_file, res_paths);
     ASSERT_TRUE(ret);
 
@@ -276,22 +284,19 @@ TEST(ResPack, PackGPT) {
                     res_paths[cur_order], dst_file);
                 break;
             }
-            /*
+#ifdef FIX_VER
             case GPT2ResOrder::attn_qkv_weight_scale:
             case GPT2ResOrder::c_fc_weight_scale: {
                 ret = res_pack::read_and_write_scales(static_cast<int>(cur_order), res_path_prefix,
                     res_paths[cur_order], dst_file);
                 break;
             }
-            */
-            /*
             case GPT2ResOrder::decode_layer_scales: {
                 ret = res_pack::read_and_write_json(static_cast<int>(cur_order), res_path_prefix,
                     res_paths[cur_order], dst_file);
                 break;
             }
-            */
-
+#endif
             default: ;
         }
 
@@ -303,7 +308,3 @@ TEST(ResPack, PackGPT) {
     std::cout << "ResPack test passed!" << std::endl;
 
 }
-
-
-
-
