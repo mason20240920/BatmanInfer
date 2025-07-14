@@ -17,7 +17,7 @@
 using namespace BatmanInfer;
 
 constexpr int max_seq_len    = 16;
-constexpr int max_batch_size = 20;
+constexpr int max_batch_size = 50;
 constexpr int dict_size      = 6003;
 constexpr int hidden_size    = 768;
 constexpr int tensor_max_dim = 6;
