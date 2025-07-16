@@ -67,6 +67,11 @@ public:
      */
     virtual BIErrCode bi_run(std::vector< std::vector<float> > &output_vec) = 0;
 
+    /**
+     * 设置CPU占用核数
+     * @param num_threads 占用线程数
+     */
+    virtual void set_threads_num(unsigned int num_threads) = 0;
 };
 
 extern "C" {

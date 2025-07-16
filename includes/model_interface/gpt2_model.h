@@ -12,6 +12,7 @@
 #include "runtime/bi_tensor.hpp"
 #include "runtime/bi_memory_manager_on_demand.hpp"
 #include "runtime/bi_memory_group.hpp"
+#include "runtime/bi_scheduler.hpp"
 #include "utils/utils.hpp"
 
 using namespace BatmanInfer;
@@ -153,6 +154,7 @@ public:
     BIErrCode bi_init(const char *data_in, size_t data_size) override;
     BIErrCode bi_set_input(std::vector< std::vector<unsigned int> > &input_vec) override;
     BIErrCode bi_run(std::vector< std::vector<float> > &output_vec) override;
+    void set_threads_num(unsigned int num_threads) override;
 
 private:
     /**

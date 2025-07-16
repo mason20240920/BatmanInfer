@@ -185,6 +185,9 @@ BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec) {
     return ret;
 }
 
+void BIGPT2Model::set_threads_num(unsigned int num_threads) {
+    BIScheduler::get().set_num_threads(num_threads);
+};
 
 // ======================================== private function part ========================================
 
