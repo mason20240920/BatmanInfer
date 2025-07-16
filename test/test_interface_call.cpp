@@ -90,6 +90,8 @@ TEST(InterfaceCall, Gpt2Model)
 
     BIModelInterfaceBase *model_interface = CreateBIModelInterface(BIModelTypes::BIGpt2);
 
+    model_interface->set_threads_num(1);
+
     model_interface->bi_init(data_in, data_size);
     delete[] data_in;
 

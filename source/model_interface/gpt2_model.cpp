@@ -197,6 +197,10 @@ BIErrCode BIGPT2Model::bi_reset(unsigned int &kv_cache_id) {
     return ret;
 }
 
+void BIGPT2Model::set_threads_num(unsigned int num_threads) {
+    BIScheduler::get().set_num_threads(num_threads);
+};
+
 // ======================================== private function part ========================================
 
 template<typename T>
