@@ -64,30 +64,37 @@ namespace BatmanInfer {
     }
 
     /**
-     * 根据输出的buffer值存储到对应的block_id里
-     * @param source_buffer
-     * @param block_id
-     * @param is_k_cond
-     * @param is_smooth_quant
-     */
-    void KVCacheManager::memcpy_decode_buffer(const void *source_buffer,
+        * 根据输出的buffer值存储到对应的block_id里
+        * @param source_buffer
+        * @param block_id
+        * @param is_k_cond
+        * @param is_smooth_quant
+        */
+    void KVCacheManager::memcpy_decode_buffer(void *source_buffer,
                                               int block_id,
+                                              int batch_idx,
                                               bool is_k_cond,
                                               bool is_smooth_quant) const {
         auto [id, buffer] = manager_->blocks[block_id];
         unsigned long k_block_size, v_block_size;
+        char *k_src_buffer, *v_src_buffer;
         if (is_smooth_quant) {
             k_block_size = BLOCK_SIZE / 3 * 2;
             v_block_size = BLOCK_SIZE / 3;
+            k_src_buffer = batch_idx * k_block_size + static_cast<char *>(source_buffer);
+            v_src_buffer = batch_idx * v_block_size + static_cast<char *>(source_buffer);
         } else {
             k_block_size = v_block_size = BLOCK_SIZE / 2;
+            k_src_buffer = batch_idx * k_block_size + static_cast<char *>(source_buffer);
+            v_src_buffer = batch_idx * k_block_size + static_cast<char *>(source_buffer);
         }
 
+        // char *src_buffer = batch_idx * BLOCK_SIZE / 2 + static_cast<char *>(source_buffer);
         if (is_k_cond) {
-            memcpy(buffer, source_buffer, k_block_size);
+            memcpy(buffer, k_src_buffer, k_block_size);
             return;
         }
-        memcpy(static_cast<char *>(buffer) + k_block_size, source_buffer, v_block_size);
+        memcpy(static_cast<char *>(buffer) + k_block_size, v_src_buffer, v_block_size);
     }
 
     /**

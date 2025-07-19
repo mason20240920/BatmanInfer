@@ -455,23 +455,25 @@ namespace BatmanInfer {
         // 如果首次的话只会存入<s>的首字符
         if (_is_first_kv_cache) {
             const auto root_id = KVCacheManager::getInstance().root_id();
-            KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_k_states.buffer(), root_id, true);
-            KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_v_states.buffer(), root_id);
+            KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_k_states.buffer(), root_id, 0, true);
+            KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_v_states.buffer(), root_id, 0);
 
             _is_first_kv_cache = false;
             _block_ids.emplace_back(root_id);
             return;
         }
         // 判断当前的batch_size, 先根据batch size分配一组block_id
+        auto _batch_index = 0;
         for (const auto &decode_list: _kv_decode_ids) {
             auto block_ids = KVCacheManager::getInstance().alloc_decode_next(
                 decode_list[0], decode_list.size() - 1, decode_list);
             // 进行内存值拷贝
             for (const auto &block_id: block_ids) {
-                KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_k_states.buffer(), block_id, true);
-                KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_v_states.buffer(), block_id);
+                KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_k_states.buffer(), block_id, _batch_index, true);
+                KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_v_states.buffer(), block_id, _batch_index);
                 _block_ids.emplace_back(block_id);
             }
+            _batch_index++;
         }
     }
 
