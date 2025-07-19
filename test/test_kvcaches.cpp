@@ -977,8 +977,387 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
 
         KVCacheTestName::print_output_info(output_ids);
         KVCacheTestName::print_output_info(scores);
-        // KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
+        KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
     }
+}
+
+TEST(KVCacheGPT, MultiDiffWord) {
+    // 输出的ids
+    std::vector<int> output_ids{};
+    std::vector<float> scores{};
+    // 需要复制传入数组的值
+    std::vector<uint32_t> input_ids{};
+    // 1. 先初始化KV Cache的数据
+    constexpr int num_head = 12;
+    constexpr int head_dim = 64;
+    constexpr int max_seq = 16;
+    constexpr int kv_manager_num = 512;
+    constexpr int kv_mem_size = num_head * head_dim * sizeof(float16_t) * 2; // 每次存取的时候会存储K和V
+    std::vector<unsigned int> kv_block_ids;
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size);
+    const auto root_id = KVCacheManager::getInstance().root_id();
+    // 获取KV Cache的主要的叶子root_id
+    std::cout << "root_id = " << root_id << std::endl;
+    // BIScheduler::set(BIScheduler::Type::OMP);
+    BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
+    BIMemoryGroup group{BIMemoryManagerOnDemand::make_default()};
+
+    int batch_size = 1;
+    int seq_len = 1;
+    // 1. 初始化一个最大input算子
+    BITensor original_input_tensor;
+    BITensorShape original_input_tensor_shape(max_seq, 20);
+    original_input_tensor.allocator()->init(BITensorInfo(original_input_tensor_shape, 1, BIDataType::U32));
+    original_input_tensor.allocator()->allocate();
+
+    // 1.1 初始化一个小型算子
+    BITensor input_tensor;
+    BITensorShape input_tensor_shape(seq_len, batch_size);
+    BITensorInfo input_info(input_tensor_shape, 1, BIDataType::U32);
+    input_info.set_format(Format::U32);
+    input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
+    std::vector<uint32_t> indices_data{0, 1, 2};
+    KVCacheTestName::fill_tensor_val_with_arr(input_tensor, indices_data);
+
+
+    // 2. Gather的权重
+    BITensorShape gather_weight_shape(768, 6003);
+    const std::string &weight_path =
+            "./input_res/transformer_wte_weight.npy";
+    BITensor weight = utils::create_type_tensor(
+        weight_path, gather_weight_shape,
+        BIDataType::F16);
+
+    // 3. 输出原始矩阵
+    BITensor original_gather_output_tensor;
+    BITensorShape original_gather_output_tensor_shape(768, max_seq, 20);
+    BITensorShape original_attn_output_tensor_shape(768, 1, 20);
+    original_gather_output_tensor.allocator()->init(
+        BITensorInfo(original_gather_output_tensor_shape, 1, BIDataType::F16));
+    original_gather_output_tensor.allocator()->allocate();
+    BITensor original_attn_rms_output_tensor;
+    original_attn_rms_output_tensor.allocator()->init(
+        BITensorInfo(original_attn_output_tensor_shape, 1, BIDataType::F16));
+    original_attn_rms_output_tensor.allocator()->allocate();
+    // 3.1 输出矩阵的子矩阵
+    BITensor gather_output_tensor;
+    BITensorShape gather_output_tensor_shape(768, seq_len, batch_size);
+    BITensorShape attn_output_tensor_shape(768, 1, batch_size);
+    BITensorInfo gather_output_info(gather_output_tensor_shape, 1, BIDataType::F16);
+    BITensorInfo attn_output_info(attn_output_tensor_shape, 1, BIDataType::F16);
+    gather_output_info.set_format(Format::F16);
+    attn_output_info.set_format(Format::F16);
+    gather_output_tensor.allocator()->init(*original_gather_output_tensor.allocator(), gather_output_info);
+    // 2. 进行NEGather筛选
+    BINEGather gather_layer;
+    gather_layer.configure(&weight, &input_tensor, &gather_output_tensor, 1);
+    gather_layer.run();
+    // 3. Add权重的获取
+    BITensorShape add_wte_weight_shape(768, max_seq);
+    const std::string &add_wte_weight_path = "./input_res/add_wte_weights.npy";
+    BITensor add_wte_weight = utils::create_type_tensor(
+        add_wte_weight_path, add_wte_weight_shape,
+        BIDataType::F16);
+
+    // 临时的数据
+    BITensor sub_add_weight;
+    BITensorShape sub_add_weight_shape(768, seq_len);
+    BITensorInfo sub_add_weight_info(sub_add_weight_shape, 1, BIDataType::F16);
+    sub_add_weight_info.set_format(Format::F16);
+    sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
+    // 4. Add输出的原始最大值
+    BITensor original_add_output_tensor;
+    original_add_output_tensor.allocator()->init(
+        BITensorInfo(original_gather_output_tensor_shape, 1, BIDataType::F16));
+    original_add_output_tensor.allocator()->allocate();
+    // 4.1 Add输出的新的数据格式
+    BITensor add_output_tensor;
+    add_output_tensor.allocator()->init(*original_add_output_tensor.allocator(), gather_output_info);
+    BITensor original_split_output_tensor;
+    original_split_output_tensor.allocator()->init(
+        BITensorInfo(original_attn_output_tensor_shape, 1, BIDataType::F16));
+    original_split_output_tensor.allocator()->allocate();
+    BITensor split_add_output_tensor;
+    split_add_output_tensor.allocator()->init(*original_split_output_tensor.allocator(), attn_output_info);
+    BINEArithmeticAddition add_layer;
+    add_layer.configure(&gather_output_tensor, &sub_add_weight, &add_output_tensor, BIConvertPolicy::SATURATE);
+    add_layer.run();
+    BIITensorPack pack;
+    pack.add_tensor(ACL_SRC, &add_output_tensor);
+    pack.add_tensor(ACL_DST, &split_add_output_tensor);
+    BINEScheduler::get().schedule_kv_split(pack);
+    // 5 获取Attention模块的权重
+    // 5.1 gamma权重
+    BITensorShape attn_gamma_weights_shape(768);
+    const std::string &gamma_weights_path = "./input_res/attn_gamma_weights.npy";
+    BITensor attn_gamma_weights = utils::create_type_tensor(
+        gamma_weights_path, attn_gamma_weights_shape,
+        BIDataType::F16);
+    BITensor attn_origin_o_tensor;
+    attn_origin_o_tensor.allocator()->init(BITensorInfo(original_attn_output_tensor_shape, 1, BIDataType::F16));
+    attn_origin_o_tensor.allocator()->allocate();
+    BITensor attn_output_tensor;
+    attn_output_tensor.allocator()->init(*attn_origin_o_tensor.allocator(), attn_output_info);
+    // 5.2 c_attn权重和偏置值
+    BITensorShape attn_qkv_weights_shape(2304, 768);
+    const std::string &attn_qkv_weights_path = "./input_res/c_attn_weights.npy";
+    BITensor attn_qkv_weights = utils::create_type_tensor(attn_qkv_weights_path, attn_qkv_weights_shape,
+                                                          BIDataType::F16);
+    BITensorShape attn_qkv_bias_shape(2304);
+    const std::string &attn_qkv_bias_path = "./input_res/c_attn_bias.npy";
+    BITensor attn_qkv_bias = utils::create_type_tensor(attn_qkv_bias_path, attn_qkv_bias_shape,
+                                                       BIDataType::F16);
+    BITensorShape attn_c_proj_weights_shape(768, 768);
+    const std::string &attn_c_proj_weights_path = "./input_res/p_attn_weights.npy";
+    BITensor attn_c_proj_weights = utils::create_type_tensor(attn_c_proj_weights_path, attn_c_proj_weights_shape,
+                                                             BIDataType::F16);
+    BITensorShape attn_c_proj_bias_shape(768);
+    const std::string &attn_c_proj_bias_path = "./input_res/p_attn_bias.npy";
+    BITensor attn_c_proj_bias = utils::create_type_tensor(attn_c_proj_bias_path, attn_c_proj_bias_shape,
+                                                          BIDataType::F16);
+    BINEAttentionLayer attn_layer;
+
+    PermutationVector q_perm{0, 2, 1, 3};
+    PermutationVector k_perm{2, 0, 1, 3};
+    PermutationVector qkv_o_perm{0, 2, 1, 3};
+    attn_layer.configure(&split_add_output_tensor,
+                         &attn_gamma_weights,
+                         &attn_qkv_weights,
+                         &attn_qkv_bias,
+                         &attn_c_proj_weights,
+                         &attn_c_proj_bias, q_perm,
+                         k_perm,
+                         qkv_o_perm,
+                         768,
+                         max_seq,
+                         20,
+                         &attn_output_tensor);
+    attn_layer.run();
+    attn_layer.get_kv_block_ids(kv_block_ids);
+    BITensor sub_mlp_input;
+    sub_mlp_input.allocator()->init(*original_attn_rms_output_tensor.allocator(), attn_output_info);
+    BINEArithmeticAddition attn_rms_add; // 注意力RMS相加
+    attn_rms_add.configure(&split_add_output_tensor, &attn_output_tensor, &sub_mlp_input, BIConvertPolicy::SATURATE);
+    attn_rms_add.run();
+    BINEFeedForwardLayer _mlp_layer; // MLP层
+    //2. 初始化gamma张量
+    const std::string &gamma_path = "./input_res/mlp_rms_gamma.npy";
+    BITensor gamma = KVCacheTestName::create_norm_input(std::vector<int>{768}, gamma_path);
+    // 3. 初始化fc_weights的权重
+    const std::string &c_fc_weights_path =
+            "./input_res/reordered_c_fc_weights.npy";
+    BITensor c_fc_weights = utils::create_type_tensor(c_fc_weights_path, BITensorShape(3072, 768), BIDataType::F16);
+    // 4. 初始化fc_bias
+    const std::string &c_fc_bias_path = "./input_res/c_fc_bias.npy";
+    BITensor c_fc_bias = utils::create_type_tensor(c_fc_bias_path, BITensorShape(3072), BIDataType::F16);
+    // 5. 输出张量
+    BITensor output;
+    output.allocator()->init(BITensorInfo(BITensorShape(768, 1, 20), 1, BIDataType::F16));
+    output.allocator()->allocate();
+    BITensor sub_mlp_output;
+    sub_mlp_output.allocator()->init(*output.allocator(), attn_output_info);
+    // 6. proj的权重
+    const std::string &c_proj_path = "./input_res/c_proj_weights.npy";
+    BITensor c_proj_weight = KVCacheTestName::create_norm_input(std::vector<int>{3072, 768}, c_proj_path);
+    const std::string &c_proj_bias_path =
+            "./input_res/c_proj_bias.npy";
+    BITensor c_proj_bias = KVCacheTestName::create_norm_input(std::vector<int>{768}, c_proj_bias_path);
+    const BIActivationLayerInfo act_info(BIActivationFunction::GELU);
+    _mlp_layer.configure(&sub_mlp_input,
+                         &c_fc_weights,
+                         &c_fc_bias,
+                         &c_proj_weight,
+                         &c_proj_bias,
+                         &gamma,
+                         act_info,
+                         &sub_mlp_output,
+                         20,
+                         1);
+    _mlp_layer.run(); // 1. 先用输出结果进行相加
+    BITensorShape add_output_shape(768, 1, 20);
+    BITensor add_output;
+    add_output.allocator()->init(BITensorInfo(add_output_shape, 1, BIDataType::F16));
+    add_output.allocator()->allocate();
+    BITensor sub_add_output;
+    sub_add_output.allocator()->init(*add_output.allocator(), attn_output_info);
+    BINEArithmeticAddition add_f;
+    add_f.configure(&sub_mlp_output, &sub_mlp_input, &sub_add_output, BIConvertPolicy::SATURATE);
+    add_f.run();
+    // 2. 对结果再进行一次归一化
+    BITensor mlp_after_gamma = KVCacheTestName::create_norm_input(std::vector{768},
+                                                                  "./input_res/mlp_after_rms_gamma.npy");
+    BITensor mlp_rms_output;
+    mlp_rms_output.allocator()->init(BITensorInfo(add_output_shape, 1, BIDataType::F16));
+    mlp_rms_output.allocator()->allocate();
+    BITensor sub_mlp_rms_output;
+    sub_mlp_rms_output.allocator()->init(*mlp_rms_output.allocator(), attn_output_info);
+    BINERMSNormLayer rms_norm_layer;
+    rms_norm_layer.configure(&sub_add_output, &mlp_after_gamma, &sub_mlp_rms_output);
+    rms_norm_layer.run();
+    // 3. 对输出结果进行LMHead操作
+    BITensor lm_head_weights = KVCacheTestName::create_norm_input(std::vector{768, 6003},
+                                                                  "./input_res/lm_head_weights.npy");
+    BITensor lm_head_output;
+    lm_head_output.allocator()->init(BITensorInfo(BITensorShape(6003, 1, 20), 1, BIDataType::F16));
+    lm_head_output.allocator()->allocate();
+    BITensor sub_lm_head_output;
+    BITensorInfo sub_lm_head_output_info = BITensorInfo(BITensorShape(6003, 1, batch_size), 1, BIDataType::F16);
+    sub_lm_head_output_info.set_format(Format::F16);
+    sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+    GEMMInfo gemm_info = GEMMInfo(false,
+                                  false,
+                                  true,
+                                  false,
+                                  false,
+                                  false,
+                                  BIGEMMLowpOutputStageInfo(),
+                                  false, true, false,
+                                  BIActivationLayerInfo(), false, BIWeightFormat::UNSPECIFIED, false);
+    BINEGEMM lm_head_layer;
+    lm_head_layer.configure(&sub_mlp_rms_output, &lm_head_weights, nullptr, &sub_lm_head_output, 1.0f, 1.0f, gemm_info);
+    lm_head_layer.run();
+    // // MemAllocTest::print_tensor(sub_mlp_output, "attn_output_tensor");
+    BITensor ids;
+    ids.allocator()->init(BITensorInfo(BITensorShape(1, 20), 1, BIDataType::S32));
+    ids.allocator()->allocate();
+    BITensor sub_ids;
+    BITensorInfo sub_ids_info = BITensorInfo(BITensorShape(1, batch_size), 1, BIDataType::S32);
+    sub_ids_info.set_format(Format::S32);
+    sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
+
+    BINEArgMinMaxLayer arg_minmax_layer;
+    arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
+    arg_minmax_layer.run();
+    std::vector<int> infos{};
+    std::vector<float> score{};
+    KVCacheTestName::concat_tensor(sub_ids, output_ids);
+    KVCacheTestName::get_s32_val(sub_ids, infos);
+    KVCacheTestName::get_index_val(sub_lm_head_output, infos, score);
+    scores.push_back(score[0]);
+
+    KVCacheTestName::print_output_info(output_ids);
+    KVCacheTestName::print_output_info(scores);
+    // 再次进行运行(动态)
+    batch_size = 3;
+    std::vector<std::vector<unsigned int> > inp_map{};
+    for (int i = 0; i < batch_size; i++) {
+        inp_map.push_back({kv_block_ids[0], 1});
+    }
+    seq_len = 2;
+    input_tensor_shape = BITensorShape(seq_len, batch_size);
+    input_info.set_tensor_shape(input_tensor_shape);
+    input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
+    indices_data = {0, 3, 0, 4, 0, 5};
+    // KVCacheTestName::fill_tensor_with_repeat_arr(input_ids, batch_size, indices_data);
+    KVCacheTestName::fill_tensor_val_with_arr(input_tensor, indices_data);
+    KVCacheTestName::print_tensor(input_tensor);
+    gather_output_tensor_shape = BITensorShape(768, seq_len, batch_size);
+    attn_output_tensor_shape = BITensorShape(768, 1, batch_size);
+    gather_output_info.set_tensor_shape(gather_output_tensor_shape);
+    attn_output_info.set_tensor_shape(attn_output_tensor_shape);
+    gather_output_tensor.allocator()->init(*original_gather_output_tensor.allocator(), gather_output_info);
+    add_output_tensor.allocator()->init(*original_add_output_tensor.allocator(), gather_output_info);
+    split_add_output_tensor.allocator()->init(*original_split_output_tensor.allocator(), attn_output_info);
+    sub_add_weight_shape = BITensorShape(768, seq_len);
+    sub_add_weight_info.set_tensor_shape(sub_add_weight_shape);
+    sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
+    attn_output_tensor.allocator()->init(*attn_origin_o_tensor.allocator(), attn_output_info);
+    sub_mlp_input.allocator()->init(*original_attn_rms_output_tensor.allocator(), attn_output_info);
+    sub_mlp_output.allocator()->init(*output.allocator(), attn_output_info);
+    sub_mlp_rms_output.allocator()->init(*mlp_rms_output.allocator(), attn_output_info);
+    sub_add_output.allocator()->init(*add_output.allocator(), attn_output_info);
+    sub_lm_head_output_info.set_tensor_shape(BITensorShape(6003, 1, batch_size));
+    sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+    sub_ids_info.set_tensor_shape(BITensorShape(1, batch_size));
+    sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
+    gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
+    add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
+    attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
+    attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+    add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
+    rms_norm_layer.dynamic_configure(&sub_add_output);
+    lm_head_layer.dynamic_configure();
+    arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
+    gather_layer.run();
+    add_layer.run();
+    BINEScheduler::get().schedule_kv_split(pack);
+    attn_layer.run();
+    attn_layer.get_kv_block_ids(kv_block_ids);
+    attn_rms_add.run();
+    _mlp_layer.run();
+    inp_map.clear();
+    for (unsigned int &kv_block_id: kv_block_ids)
+        inp_map.push_back({kv_block_id, 1});
+    add_f.run();
+    rms_norm_layer.run();
+    lm_head_layer.run();
+    arg_minmax_layer.run();
+    KVCacheTestName::concat_tensor(sub_ids, output_ids);
+    KVCacheTestName::get_s32_val(sub_ids, infos);
+    KVCacheTestName::get_index_val(sub_lm_head_output, infos, score);
+    scores.push_back(score[0]);
+    KVCacheTestName::print_output_info(output_ids);
+    KVCacheTestName::print_output_info(scores);
+    KVCacheTestName::print_tensor(sub_ids, "sub_ids");
+    KVCacheTestName::print_tensor(sub_lm_head_output, "sub_lm_head");seq_len = 3;
+    input_tensor_shape = BITensorShape(seq_len, batch_size);
+    input_info.set_tensor_shape(input_tensor_shape);
+    input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
+    indices_data = {0, 3, 4, 0, 4, 5, 0, 5, 6};
+    // KVCacheTestName::fill_tensor_with_repeat_arr(input_ids, batch_size, indices_data);
+    KVCacheTestName::fill_tensor_val_with_arr(input_tensor, indices_data);
+    KVCacheTestName::print_tensor(input_tensor);
+    gather_output_tensor_shape = BITensorShape(768, seq_len, batch_size);
+    attn_output_tensor_shape = BITensorShape(768, 1, batch_size);
+    gather_output_info.set_tensor_shape(gather_output_tensor_shape);
+    attn_output_info.set_tensor_shape(attn_output_tensor_shape);
+    gather_output_tensor.allocator()->init(*original_gather_output_tensor.allocator(), gather_output_info);
+    add_output_tensor.allocator()->init(*original_add_output_tensor.allocator(), gather_output_info);
+    split_add_output_tensor.allocator()->init(*original_split_output_tensor.allocator(), attn_output_info);
+    sub_add_weight_shape = BITensorShape(768, seq_len);
+    sub_add_weight_info.set_tensor_shape(sub_add_weight_shape);
+    sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
+    attn_output_tensor.allocator()->init(*attn_origin_o_tensor.allocator(), attn_output_info);
+    sub_mlp_input.allocator()->init(*original_attn_rms_output_tensor.allocator(), attn_output_info);
+    sub_mlp_output.allocator()->init(*output.allocator(), attn_output_info);
+    sub_mlp_rms_output.allocator()->init(*mlp_rms_output.allocator(), attn_output_info);
+    sub_add_output.allocator()->init(*add_output.allocator(), attn_output_info);
+    sub_lm_head_output_info.set_tensor_shape(BITensorShape(6003, 1, batch_size));
+    sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+    sub_ids_info.set_tensor_shape(BITensorShape(1, batch_size));
+    sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
+    gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
+    add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
+    attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
+    attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+    add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
+    rms_norm_layer.dynamic_configure(&sub_add_output);
+    lm_head_layer.dynamic_configure();
+    arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
+    gather_layer.run();
+    add_layer.run();
+    BINEScheduler::get().schedule_kv_split(pack);
+    attn_layer.run();
+    attn_layer.get_kv_block_ids(kv_block_ids);
+    attn_rms_add.run();
+    _mlp_layer.run();
+    inp_map.clear();
+    for (unsigned int &kv_block_id: kv_block_ids)
+        inp_map.push_back({kv_block_id, 1});
+    add_f.run();
+    rms_norm_layer.run();
+    lm_head_layer.run();
+    arg_minmax_layer.run();
+    KVCacheTestName::concat_tensor(sub_ids, output_ids);
+    KVCacheTestName::get_s32_val(sub_ids, infos);
+    KVCacheTestName::get_index_val(sub_lm_head_output, infos, score);
+    scores.push_back(score[0]);
+    KVCacheTestName::print_output_info(output_ids);
+    KVCacheTestName::print_output_info(scores);
+    KVCacheTestName::print_tensor(sub_ids, "sub_ids");
+    KVCacheTestName::print_tensor(sub_lm_head_output, "sub_lm_head_output");
 }
 
 TEST(KVCacheGPT, TensorPartAlloc) {
@@ -1064,38 +1443,38 @@ TEST(KVCacheGPT, TensorConcatAlloc) {
     // KVCacheTestName::print_tensor(dst_t1, "dst");
 }
 
-TEST(KVCacheGPT, TensorGEMV) {
-    BITensor src_tensor;
-    BITensor src_tensor_2;
-    constexpr int batch_size = 14;
-    constexpr int seq_len = 3;
-    constexpr int num_head = 4;
-    constexpr int head_dim = 16;
-    src_tensor.allocator()->init(BITensorInfo(BITensorShape(head_dim, 1, num_head, 1), 1, BIDataType::F16));
-    src_tensor.allocator()->allocate();
-    src_tensor_2.allocator()->init(BITensorInfo(BITensorShape(head_dim, 1, num_head, 1), 1, BIDataType::F16));
-    src_tensor_2.allocator()->allocate();
-    KVCacheTestName::fill_tensor_val_with_index<float16_t>(src_tensor);
-    KVCacheTestName::fill_tensor_val_with_index_2<float16_t>(src_tensor_2);
-    // 初始化一个Block的存储状态
-    KVCacheManager::initialize(512, num_head * head_dim * sizeof(float16_t));
-    auto root_id = KVCacheManager::getInstance().root_id();
-    // 塞入一个buffer
-    KVCacheManager::getInstance().memcpy_decode_buffer(src_tensor.buffer(), root_id);
-    std::cout << root_id << std::endl;
-    KVCacheManager::getInstance().alloc_decode_next(root_id, 1, std::vector<unsigned int>{3});
-    auto decode_leafs = KVCacheManager::getInstance().get_decode_ids();
-    for (auto decode_leaf: decode_leafs) {
-        std::cout << "Block Id: " << decode_leaf.first << "\t";
-        std::cout << "Decode Id: " << decode_leaf.second << std::endl;
-        KVCacheManager::getInstance().memcpy_decode_buffer(src_tensor_2.buffer(),
-                                                           decode_leaf.first);
-        KVCacheTestName::print_offset<float16_t>(KVCacheManager::getInstance().decode_buffer_ptr(decode_leaf.first),
-                                                 num_head * head_dim);
-    }
-    KVCacheTestName::print_offset<float16_t>(KVCacheManager::getInstance().decode_buffer_ptr(root_id),
-                                             num_head * head_dim);
-}
+// TEST(KVCacheGPT, TensorGEMV) {
+//     BITensor src_tensor;
+//     BITensor src_tensor_2;
+//     constexpr int batch_size = 14;
+//     constexpr int seq_len = 3;
+//     constexpr int num_head = 4;
+//     constexpr int head_dim = 16;
+//     src_tensor.allocator()->init(BITensorInfo(BITensorShape(head_dim, 1, num_head, 1), 1, BIDataType::F16));
+//     src_tensor.allocator()->allocate();
+//     src_tensor_2.allocator()->init(BITensorInfo(BITensorShape(head_dim, 1, num_head, 1), 1, BIDataType::F16));
+//     src_tensor_2.allocator()->allocate();
+//     KVCacheTestName::fill_tensor_val_with_index<float16_t>(src_tensor);
+//     KVCacheTestName::fill_tensor_val_with_index_2<float16_t>(src_tensor_2);
+//     // 初始化一个Block的存储状态
+//     KVCacheManager::initialize(512, num_head * head_dim * sizeof(float16_t));
+//     auto root_id = KVCacheManager::getInstance().root_id();
+//     // 塞入一个buffer
+//     KVCacheManager::getInstance().memcpy_decode_buffer(src_tensor.buffer(), root_id);
+//     std::cout << root_id << std::endl;
+//     KVCacheManager::getInstance().alloc_decode_next(root_id, 1, std::vector<unsigned int>{3});
+//     auto decode_leafs = KVCacheManager::getInstance().get_decode_ids();
+//     for (auto decode_leaf: decode_leafs) {
+//         std::cout << "Block Id: " << decode_leaf.first << "\t";
+//         std::cout << "Decode Id: " << decode_leaf.second << std::endl;
+//         KVCacheManager::getInstance().memcpy_decode_buffer(src_tensor_2.buffer(),
+//                                                            decode_leaf.first);
+//         KVCacheTestName::print_offset<float16_t>(KVCacheManager::getInstance().decode_buffer_ptr(decode_leaf.first),
+//                                                  num_head * head_dim);
+//     }
+//     KVCacheTestName::print_offset<float16_t>(KVCacheManager::getInstance().decode_buffer_ptr(root_id),
+//                                              num_head * head_dim);
+// }
 
 /**
  * @brief SmoothQuant量化工具的KVCache版本

@@ -50,9 +50,10 @@ namespace BatmanInfer {
          * @param block_id
          * @param is_k: 是不是key_states
          * @param is_smooth_quant: 是不是SmoothQuant量化
-         */
-        void memcpy_decode_buffer(const void *source_buffer,
+          */
+        void memcpy_decode_buffer(void *source_buffer,
                                   int block_id,
+                                  int batch_idx,
                                   bool is_k = false,
                                   bool is_smooth_quant = false) const;
 
