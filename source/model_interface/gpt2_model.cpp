@@ -32,7 +32,11 @@ BIGPT2Model::BIGPT2Model() : BIGPT2Model(BIMemoryManagerOnDemand::make_default()
     // 创建 kvcache
     int num_head = 12;
     int head_dim = 64;
+#ifdef FLOAT_VER
     KVCacheManager::initialize(512, num_head * head_dim * sizeof(float16_t) * 2);
+#elifdef FIX_VER
+    KVCacheManager::initialize(512, num_head * head_dim * sizeof(int8_t) + num_head * head_dim * sizeof(float16_t));
+#endif
     kv_root_id = KVCacheManager::getInstance().root_id();
 }
 
@@ -106,45 +110,45 @@ BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec, std:
     auto ret = BIErrCode::BISuccess;
 
     try {
-        print_tensor(_sub_input_tensor, "_sub_input_tensor");
+        // print_tensor(_sub_input_tensor, "_sub_input_tensor");
 
         _gather_layer.run();
-        print_tensor(_sub_gather_output_tensor, "_sub_gather_output_tensor");
+        // print_tensor(_sub_gather_output_tensor, "_sub_gather_output_tensor");
 
         _add_layer.run();
-        print_tensor(_sub_add_output_tensor, "_sub_add_output_tensor");
+        // print_tensor(_sub_add_output_tensor, "_sub_add_output_tensor");
 
         if (is_init) {
             _pack.add_tensor(ACL_SRC, &_sub_add_output_tensor);
             _pack.add_tensor(ACL_DST, &_sub_split_add_output_tensor);
         }
         BINEScheduler::get().schedule_kv_split(_pack);
-        print_tensor(_sub_split_add_output_tensor, "_sub_split_add_output_tensor");
+        // print_tensor(_sub_split_add_output_tensor, "_sub_split_add_output_tensor");
 
 #ifdef FIX_VER
         _attn_lowp_layer.run();
         _attn_lowp_layer.get_kv_block_ids(kv_block_ids);
-        print_tensor(_sub_attn_output_tensor, "_sub_attn_output_tensor");
+        // print_tensor(_sub_attn_output_tensor, "_sub_attn_output_tensor");
 #elifdef FLOAT_VER
         _attn_layer.run();
         _attn_layer.get_kv_block_ids(kv_block_ids);
-        print_tensor(_sub_attn_output_tensor, "_sub_attn_output_tensor");
+        // print_tensor(_sub_attn_output_tensor, "_sub_attn_output_tensor");
 #endif
 
         _attn_rms_add_layer.run();
-        print_tensor(_sub_mlp_input_tensor, "_sub_mlp_input_tensor");
+        // print_tensor(_sub_mlp_input_tensor, "_sub_mlp_input_tensor");
 
         _mlp_layer.run();
-        print_tensor(_sub_mlp_output_tensor, "_sub_mlp_output_tensor");
+        // print_tensor(_sub_mlp_output_tensor, "_sub_mlp_output_tensor");
 
         _add_mlp_layer.run();
-        print_tensor(_sub_add_mlp_output_tensor, "_sub_add_mlp_output_tensor");
+        // print_tensor(_sub_add_mlp_output_tensor, "_sub_add_mlp_output_tensor");
 
         _rms_norm_layer.run();
-        print_tensor(_sub_mlp_rms_output_tensor, "_sub_mlp_rms_output_tensor");
+        // print_tensor(_sub_mlp_rms_output_tensor, "_sub_mlp_rms_output_tensor");
 
         _lm_head_layer.run();
-        print_tensor(_sub_lm_head_output_tensor, "_sub_lm_head_output_tensor");
+        // print_tensor(_sub_lm_head_output_tensor, "_sub_lm_head_output_tensor");
     } catch (std::runtime_error &e) {
         ret = BIErrCode::BIGeneralError;
         std::cout << std::string(__FUNCTION__) << " ERROR: " << e.what() << std::endl;
@@ -371,7 +375,7 @@ BIErrCode BIGPT2Model::load_hyper_params(OrderPtrMap &order2ptr) {
     _attn_hyper_params.proj_in_zp            = all_param->out_input_zp;
 
     _mlp_hyper_params.fc1_input_scale        = all_param->fc1_input_scale;
-    _mlp_hyper_params.fc1_output_zero_point  = all_param->fc1_output_zp;
+    _mlp_hyper_params.fc1_input_zero_point  = all_param->fc1_input_zp;
 
     _mlp_hyper_params.fc1_output_scale       = all_param->fc1_output_scale;
     _mlp_hyper_params.fc1_output_zero_point  = all_param->fc1_output_zp;
@@ -396,15 +400,15 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     const BITensorShape ori_gather_output_tensor_shape(hidden_size, max_seq_len, max_batch_size);
     _ori_gather_output_tensor.allocator()->init(BITensorInfo(ori_gather_output_tensor_shape, 1, BIDataType::F16));
 
-    _ori_attn_rms_output_tensor.allocator()->init(BITensorInfo(ori_gather_output_tensor_shape, 1, BIDataType::F16));
+    const BITensorShape ori_attn_output_tensor_shape(hidden_size, 1, max_batch_size);
+    _ori_attn_rms_output_tensor.allocator()->init(BITensorInfo(ori_attn_output_tensor_shape, 1, BIDataType::F16));
 
     const BITensorShape add_weight_tensor_shape(hidden_size, max_seq_len);
     _add_weight_tensor.allocator()->init(BITensorInfo(add_weight_tensor_shape, 1, BIDataType::F16));
 
     _ori_add_output_tensor.allocator()->init(BITensorInfo(ori_gather_output_tensor_shape, 1, BIDataType::F16));
 
-    const BITensorShape ori_split_add_output_tensor_shape(hidden_size, 1, max_batch_size);
-    _ori_split_add_output_tensor.allocator()->init(BITensorInfo(ori_split_add_output_tensor_shape, 1, BIDataType::F16));
+    _ori_split_add_output_tensor.allocator()->init(BITensorInfo(ori_attn_output_tensor_shape, 1, BIDataType::F16));
 
     const BITensorShape attn_gamma_weight_tensor_shape(hidden_size);
     _attn_gamma_weight_tensor.allocator()->init(BITensorInfo(attn_gamma_weight_tensor_shape, 1, BIDataType::F16));
@@ -448,7 +452,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     _c_fc_bias_tensor.allocator()->init(BITensorInfo(c_fc_bias_tensor_shape, 1, BIDataType::S32));
 #endif
 
-    const BITensorShape ori_mlp_outpu_tensor_shape(hidden_size, max_seq_len, max_batch_size);
+    const BITensorShape ori_mlp_outpu_tensor_shape(hidden_size, 1, max_batch_size);
     _ori_mlp_output_tensor.allocator()->init(BITensorInfo(ori_mlp_outpu_tensor_shape, 1, BIDataType::F16));
 
     const BITensorShape c_proj_weight_tensor_shape(hidden_size, hidden_size * 4);
@@ -457,7 +461,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     const BITensorShape c_proj_bias_tensor_shape(hidden_size);
     _c_proj_bias_tensor.allocator()->init(BITensorInfo(c_proj_bias_tensor_shape, 1, BIDataType::F16));
 
-    const BITensorShape ori_add_mlp_output_tensor_shape(hidden_size, max_seq_len, max_batch_size);
+    const BITensorShape ori_add_mlp_output_tensor_shape(hidden_size, 1, max_batch_size);
     _ori_add_mlp_output_tensor.allocator()->init(BITensorInfo(ori_add_mlp_output_tensor_shape, 1, BIDataType::F16));
 
     const BITensorShape rms_gamma_weight_tensor_shape(hidden_size);
@@ -468,7 +472,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     const BITensorShape lm_head_weight_tensor_shape(dict_size, hidden_size);
     _lm_head_weight_tensor.allocator()->init(BITensorInfo(lm_head_weight_tensor_shape, 1, BIDataType::F16));
 
-    const BITensorShape ori_lm_head_output_tensor_shape(dict_size, max_seq_len, max_batch_size);
+    const BITensorShape ori_lm_head_output_tensor_shape(dict_size, 1, max_batch_size);
     _ori_lm_head_output_tensor.allocator()->init(BITensorInfo(ori_lm_head_output_tensor_shape, 1, BIDataType::F16));
 
     // 内存统一管理
