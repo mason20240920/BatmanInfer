@@ -48,6 +48,7 @@ add_library(bat_infer_static STATIC
         ${C_SOURCES}
         ${COMMON_SOURCES}
         ${INTERFACE_SOURCES}
+        ${KV_CACHE_SOURCES}
 )
 
 # 设定 libbat_infer_static.a 在 release 模式下不生成调试符号
