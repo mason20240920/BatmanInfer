@@ -64,6 +64,12 @@ namespace BatmanInfer {
         void release_useless_decode_id(const unsigned int leaf_id) const;
 
         /**
+         * @brief 释放空的解码序列
+         * @param leaf_ids
+         */
+        void release_useless_decodes_id(const std::vector<unsigned int>& leaf_ids) const;
+
+        /**
          * 根据序列节点号，获取解码出来的解码K, V Cache结果
          * @param leaf_id
          * @param block_ids
@@ -84,6 +90,8 @@ namespace BatmanInfer {
          * @brief 每次解码之后对KV Cache的blocks进行释放
          */
         void reset_decode_lst() const;
+
+        size_t get_avaliable_block_count() const;
 
     private:
         KVCacheManager();

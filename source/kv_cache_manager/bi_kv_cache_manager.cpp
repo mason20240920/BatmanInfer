@@ -107,6 +107,13 @@ namespace BatmanInfer {
         release_blocks(manager_, release_ids.data(), release_ids.size());
     }
 
+    void KVCacheManager::release_useless_decodes_id(const std::vector<unsigned int> &leaf_ids) const {
+        std::vector<int> release_ids;
+        m_tree_->remove_decodes_lst(leaf_ids, release_ids);
+        release_blocks(manager_, release_ids.data(), release_ids.size());
+    }
+
+
     /**
      * 根据序列节点号，获取解码出来的解码K, V Cache结果
      * @param leaf_id
@@ -139,4 +146,9 @@ namespace BatmanInfer {
         m_tree_->reset();
         reset_block_manager(manager_);
     }
+
+    size_t KVCacheManager::get_avaliable_block_count() const {
+        return manager_->free_blocks;
+    }
+
 }

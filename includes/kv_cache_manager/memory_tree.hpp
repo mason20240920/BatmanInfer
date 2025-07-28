@@ -122,5 +122,24 @@ namespace BatmanInfer {
          * @param block_ids 需要进行内存管理器释放的block_ids
          */
         void remove_decode_lst(const unsigned int leaf_id, std::vector<int> &block_ids);
+
+        /**
+         * @brief 批量删除叶子节点
+         * @param leaf_ids
+         * @param block_ids
+         */
+        void remove_decodes_lst(const std::vector<unsigned int>& leaf_ids, std::vector<int> &block_ids);
+
+    private:
+        /**
+         * @brief 对节点删除的拓扑排序
+         * @param nodes_to_remove
+         * @param sorted_result
+         */
+        void topological_sort_for_removal(const std::unordered_set<unsigned int>& nodes_to_remove,
+                                          std::vector<unsigned int>& sorted_result) const;
+
+        int calculate_depth(const MemoryNode* node) const;
+
     };
 }
