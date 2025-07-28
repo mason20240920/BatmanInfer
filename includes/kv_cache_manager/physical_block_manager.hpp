@@ -133,7 +133,7 @@ namespace BatmanInfer {
      */
     inline MultiBlockAllocation acquire_block(PhysicalBlockManager *manager,
                                               const size_t request_count) {
-        // 边界检查
+        // 边界检查(查看申请的block数量是不是大于0)
         if (request_count == 0)
             return {nullptr, nullptr, 0};
 

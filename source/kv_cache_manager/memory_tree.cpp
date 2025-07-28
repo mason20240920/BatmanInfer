@@ -1,6 +1,7 @@
 //
 // Created by Mason on 2025/5/26.
 //
+#include <queue>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -231,5 +232,98 @@ namespace BatmanInfer {
         // 如果父节点也没有出度，则直接对父节点进行更新
         if (parent_node->children.empty())
             remove_decode_lst(parent_node->block_id, block_ids);
+    }
+
+    void MemoryTree::remove_decodes_lst(const std::vector<unsigned int> &leaf_ids,
+                                        std::vector<int> &block_ids)  {
+        if (leaf_ids.empty())
+            return;
+
+        std::unordered_set<unsigned int> to_remove;
+        std::queue<unsigned int> removal_queue;
+
+        // 1. 验证所有节点并加入删除队列
+        for (const auto &leaf_id: leaf_ids) {
+            const MemoryNode *node = find_node(leaf_id);
+            if (node && to_remove.find(leaf_id) == to_remove.end()) {
+                removal_queue.push(leaf_id);
+                to_remove.insert(leaf_id);
+            }
+        }
+
+        // 2. BFS遍历, 收集所有需要删除的节点(包括级联删除的父节点)
+        while (!removal_queue.empty()) {
+            const unsigned int current_id = removal_queue.front();
+            removal_queue.pop();
+
+            const MemoryNode *current_node = find_node(current_id);
+            if (!current_node) continue;
+
+            if (const auto parent_node = current_node->parent) {
+                // 检查父节点删除当前节点后还是否有其他未删除的子节点
+                bool has_remaining_children = false;
+                for (const auto& child_pair : parent_node->children) {
+                    if (to_remove.find(child_pair.first) == to_remove.end()) {
+                        has_remaining_children = true;
+                        break;
+                    }
+                }
+
+                // 如果父节点没有剩余子节点，则也需要删除父节点
+                if (!has_remaining_children && to_remove.find(parent_node->block_id) == to_remove.end()) {
+                    removal_queue.push(parent_node->block_id);
+                    to_remove.insert(parent_node->block_id);
+                }
+            }
+        }
+
+        // 3. 批量删除: 按层级从子到父的顺序删除
+        std::vector<unsigned int> sorted_removals;
+        topological_sort_for_removal(to_remove, sorted_removals);
+
+        // 4. 执行删除操作
+        for (const auto& node_id: sorted_removals) {
+            const MemoryNode *node = find_node(node_id);
+            if (!node) continue;
+
+            // 从父节点移除
+            if (node->parent)
+                node->parent->children.erase(node_id);
+
+            // 添加到block_ids
+            block_ids.emplace_back(node_id);
+
+            // 从容器中移除
+            leaf_nodes.erase(node_id);
+            node_map.erase(node_id);
+        }
+    }
+
+    void MemoryTree::topological_sort_for_removal(const std::unordered_set<unsigned int> &nodes_to_remove,
+        std::vector<unsigned int> &sorted_result) const {
+        std::unordered_map<unsigned int, int> depth_map;
+
+        // 计算每个待删除节点的深度
+        for (const auto & node_id: nodes_to_remove) {
+            const MemoryNode *node = find_node(node_id);
+            if (node)
+                depth_map[node_id] = calculate_depth(node);
+        }
+
+        // 按深度降序排序(深度大的先删除, 即子节点优先于父节点删除)
+        sorted_result.assign(nodes_to_remove.begin(), nodes_to_remove.end());
+        std::sort(sorted_result.begin(), sorted_result.end(), [&depth_map](unsigned int a, unsigned int b) {
+           return depth_map[a] > depth_map[b];
+        });
+    }
+
+    int MemoryTree::calculate_depth(const MemoryNode *node) const {
+        int depth = 0;
+        const MemoryNode *current = node;
+        while (current->parent) {
+            depth++;
+            current = current->parent;
+        }
+        return depth;
     }
 };
