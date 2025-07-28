@@ -72,6 +72,18 @@ public:
     virtual BIErrCode bi_run(std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids, bool is_init) = 0;
 
     /**
+     * kv_cache_block 在推理过程中，有大量无用节点产生，需要在每一步推理前将无用 kv_cache_block 释放掉
+     * @param kv_block_ids 需要被释放掉的 kv_block_ids 值 (当前仅传递被释放掉的叶子节点即可，根节点也会随之释放)
+     */
+    virtual void bi_release_kvcache_block(std::vector<unsigned int> &kv_block_ids) = 0;
+
+    /**
+     * 获取可用的 kv_cache_block 块数量
+     * @param avaliable_kvblock_count 记录可用的 kv_cache_block 块数量
+     */
+    virtual void bi_get_avaliable_kvblock_count(unsigned int &avaliable_kvblock_count) = 0;
+
+    /**
      * "清空" kv_cache，将 kv_cache 指针指向 </s> 推理时的 kv值存储地址
      * @param kv_cache_id </s> 推理时的 kv值存储地址
      * @return 返回码

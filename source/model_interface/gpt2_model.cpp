@@ -33,9 +33,9 @@ BIGPT2Model::BIGPT2Model() : BIGPT2Model(BIMemoryManagerOnDemand::make_default()
     int num_head = 12;
     int head_dim = 64;
 #ifdef FLOAT_VER
-    KVCacheManager::initialize(512, num_head * head_dim * sizeof(float16_t) * 2);
+    KVCacheManager::initialize(2048, num_head * head_dim * sizeof(float16_t) * 2);
 #elifdef FIX_VER
-    KVCacheManager::initialize(512, num_head * head_dim * sizeof(int8_t) + num_head * head_dim * sizeof(float16_t));
+    KVCacheManager::initialize(2048, num_head * head_dim * sizeof(int8_t) + num_head * head_dim * sizeof(float16_t));
 #endif
     kv_root_id = KVCacheManager::getInstance().root_id();
 }
@@ -190,6 +190,14 @@ BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec, std:
     }
 
     return ret;
+}
+
+void BIGPT2Model::bi_release_kvcache_block(std::vector<unsigned int> &kv_block_ids) {
+    KVCacheManager::getInstance().release_useless_decodes_id(kv_block_ids);
+}
+
+void BIGPT2Model::bi_get_avaliable_kvblock_count(unsigned int &avaliable_kvblock_count) {
+    avaliable_kvblock_count = KVCacheManager::getInstance().get_avaliable_block_count();
 }
 
 BIErrCode BIGPT2Model::bi_reset(unsigned int &kv_cache_id) {
