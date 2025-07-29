@@ -22,7 +22,7 @@ namespace BatmanInfer {
          */
         BI_COMPUTE_DISALLOW_COPY_ALLOW_MOVE(KVCacheManager);
 
-        static void initialize(size_t num_blocks, size_t block_size);
+        static void initialize(size_t num_blocks, size_t block_size, size_t max_seq_len);
 
         static KVCacheManager &getInstance();
 

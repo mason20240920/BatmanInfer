@@ -15,9 +15,10 @@ namespace BatmanInfer {
         return instance;
     }
 
-    void KVCacheManager::initialize(const size_t num_blocks, const size_t block_size) {
+    void KVCacheManager::initialize(const size_t num_blocks, const size_t block_size, size_t max_seq_len) {
         NUM_BLOCKS = num_blocks;
         BLOCK_SIZE = block_size;
+        MemoryTree::initialize(max_seq_len, block_size);
     }
 
 

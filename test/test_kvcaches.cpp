@@ -485,7 +485,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     constexpr int kv_manager_num = 512;
     constexpr int kv_mem_size = num_head * head_dim * sizeof(float16_t) * 2; // 每次存取的时候会存储K和V
     std::vector<unsigned int> kv_block_ids;
-    KVCacheManager::initialize(kv_manager_num, kv_mem_size);
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16);
     const auto root_id = KVCacheManager::getInstance().root_id();
     // 获取KV Cache的主要的叶子root_id
     std::cout << "root_id = " << root_id << std::endl;
@@ -994,7 +994,7 @@ TEST(KVCacheGPT, MultiDiffWord) {
     constexpr int kv_manager_num = 512;
     constexpr int kv_mem_size = num_head * head_dim * sizeof(float16_t) * 2; // 每次存取的时候会存储K和V
     std::vector<unsigned int> kv_block_ids;
-    KVCacheManager::initialize(kv_manager_num, kv_mem_size);
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16);
     const auto root_id = KVCacheManager::getInstance().root_id();
     // 获取KV Cache的主要的叶子root_id
     std::cout << "root_id = " << root_id << std::endl;
@@ -1493,7 +1493,7 @@ TEST(KVCacheGPT, SmoothQunatTest) {
     constexpr int kv_mem_size = num_head * head_dim * sizeof(int8_t) + num_head * head_dim * sizeof(float16_t);
     // 每次存取的时候会存储K和V
     std::vector<unsigned int> kv_block_ids;
-    KVCacheManager::initialize(kv_manager_num, kv_mem_size);
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16);
     const auto root_id = KVCacheManager::getInstance().root_id();
     // 获取KV Cache的主要的叶子root_id
     std::cout << "root_id = " << root_id << std::endl;
@@ -1993,39 +1993,47 @@ TEST(KVCacheGPT, KVDecperatedBlockTest) {
     constexpr int num_head = 12;
     constexpr int head_dim = 64;
     constexpr int max_seq = 16;
-    constexpr int kv_manager_num = 512;
+    constexpr int kv_manager_num = 2048;
     constexpr int kv_mem_size = num_head * head_dim * sizeof(int8_t) + num_head * head_dim * sizeof(float16_t);
     // 每次存取的时候会存储K和V
     std::vector<unsigned int> kv_block_ids;
-    KVCacheManager::initialize(kv_manager_num, kv_mem_size);
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16);
     std::vector<unsigned int> input_ids{1,  2, 3, 4, 5, 6, 7, 8, 9, 10};
+    KVCacheManager::getInstance();
     auto block_ids = KVCacheManager::getInstance().alloc_decode_next(
         KVCacheManager::getInstance().root_id(),
         10,
         input_ids);
-    std::vector<unsigned int> remove_ids{510, 509, 508};
+    std::vector<unsigned int> remove_ids{2046, 2045, 2044};
     KVCacheManager::getInstance().release_useless_decodes_id(remove_ids);
     auto decode = KVCacheManager::getInstance().get_decode_ids();
     block_ids = KVCacheManager::getInstance().alloc_decode_next(
-        507,
+        2043,
         5,
         input_ids);
     block_ids = KVCacheManager::getInstance().alloc_decode_next(
-                       506,
+                       2035,
                        5,
                        input_ids);
-    block_ids = KVCacheManager::getInstance().alloc_decode_next(
-        505,
-        5,
-                                      input_ids);
-    block_ids = KVCacheManager::getInstance().alloc_decode_next(
-                                          489,
-                                          5,
-                                          input_ids);
+    KVCacheTestName::print_output_info(block_ids);
+    // block_ids = KVCacheManager::getInstance().alloc_decode_next(
+    //     1015,
+    //     5,
+    //                                   input_ids);
+    // block_ids = KVCacheManager::getInstance().alloc_decode_next(
+    //                                       1001,
+    //                                       5,
+    //                                       input_ids);
+    // block_ids = KVCacheManager::getInstance().alloc_decode_next(
+    //                                           996,
+    //                                           5,
+    //                                           input_ids);
+    // // KVCacheTestName::print_output_info(block_ids);
     auto avail_num = KVCacheManager::getInstance().get_avaliable_block_count();
-    remove_ids = std::vector<unsigned int>(block_ids.begin(), block_ids.end());
+    std::cout << avail_num << std::endl;
+    remove_ids = {2046, 2045, 2044, 2036, 2034, 2033, 2032, 2031, 2030};
     KVCacheManager::getInstance().release_useless_decodes_id(remove_ids);
     decode = KVCacheManager::getInstance().get_decode_ids();
     avail_num = KVCacheManager::getInstance().get_avaliable_block_count();
-    std::cout << "Hello World" << std::endl;
+    std::cout << avail_num << std::endl;
 }
