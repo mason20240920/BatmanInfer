@@ -110,7 +110,15 @@ namespace BatmanInfer {
 
     void KVCacheManager::release_useless_decodes_id(const std::vector<unsigned int> &leaf_ids) const {
         std::vector<int> release_ids;
-        m_tree_->remove_decodes_lst(leaf_ids, release_ids);
+        const bool is_success = m_tree_->remove_decodes_lst(leaf_ids, release_ids);
+        BI_COMPUTE_ERROR_ON_MSG(!is_success, "Input is not leaf nodes"); // 判断是不是叶子节点
+        release_blocks(manager_, release_ids.data(), release_ids.size());
+    }
+
+    void KVCacheManager::release_end_symbol(const std::vector<unsigned int> &eos_ids) const {
+        std::vector<int>release_ids;
+        const bool is_success = m_tree_->remove_eos_lst(eos_ids, release_ids);
+        BI_COMPUTE_ERROR_ON_MSG(!is_success, "Input is not leaf nodes"); // 判断是不是叶子节点
         release_blocks(manager_, release_ids.data(), release_ids.size());
     }
 

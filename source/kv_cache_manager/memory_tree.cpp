@@ -241,10 +241,22 @@ namespace BatmanInfer {
             remove_decode_lst(parent_node->block_id, block_ids);
     }
 
-    void MemoryTree::remove_decodes_lst(const std::vector<unsigned int> &leaf_ids,
-                                        std::vector<int> &block_ids)  {
+    bool MemoryTree::is_leaf_nodes(const std::vector<unsigned int> &node_ids) const {
+        bool all_exist = std::all_of(node_ids.begin(), node_ids.end(),
+        [&](const unsigned int key) {
+            return leaf_nodes.count(key) > 0;
+        });
+        return all_exist;
+    }
+
+
+    bool MemoryTree::remove_decodes_lst(const std::vector<unsigned int> &leaf_ids,
+                                        std::vector<int> &block_ids) {
         if (leaf_ids.empty())
-            return;
+            return false;
+
+        if (!is_leaf_nodes(leaf_ids))
+            return false;
 
         std::unordered_set<unsigned int> to_remove;
         std::queue<unsigned int> removal_queue;
@@ -304,14 +316,55 @@ namespace BatmanInfer {
             leaf_nodes.erase(node_id);
             node_map.erase(node_id);
         }
+        return true;
     }
 
+    bool MemoryTree::remove_eos_lst(const std::vector<unsigned int> &leaf_ids, std::vector<int> &block_ids) {
+        if (leaf_ids.empty())
+            return false;
+
+        if (!is_leaf_nodes(leaf_ids))
+            return false;
+
+        std::unordered_set<unsigned int> to_remove;
+
+        // 1. 验证所有节点并加入删除队列
+        for (const auto &leaf_id: leaf_ids) {
+            const MemoryNode *node = find_node(leaf_id);
+            if (node && to_remove.find(leaf_id) == to_remove.end()) {
+                to_remove.insert(leaf_id);
+            }
+        }
+
+        // 4. 执行删除操作
+        for (const auto &node_id: to_remove) {
+            const MemoryNode *node = find_node(node_id);
+            if (!node) continue;
+
+            // 从父节点移除
+            if (node->parent)
+                node->parent->children.erase(node_id);
+
+            // 添加到block_ids
+            block_ids.emplace_back(node_id);
+
+            // 从容器中移除
+            leaf_nodes.erase(node_id);
+            node_map.erase(node_id);
+
+            // 更新叶子节点
+            leaf_nodes.insert({node->parent->block_id, node->parent->decode_id});
+        }
+        return true;
+    }
+
+
     void MemoryTree::topological_sort_for_removal(const std::unordered_set<unsigned int> &nodes_to_remove,
-        std::vector<unsigned int> &sorted_result) const {
+                                                  std::vector<unsigned int> &sorted_result) const {
         std::unordered_map<unsigned int, int> depth_map;
 
         // 计算每个待删除节点的深度
-        for (const auto & node_id: nodes_to_remove) {
+        for (const auto &node_id: nodes_to_remove) {
             const MemoryNode *node = find_node(node_id);
             if (node)
                 depth_map[node_id] = calculate_depth(node);

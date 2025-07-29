@@ -70,6 +70,12 @@ namespace BatmanInfer {
         void release_useless_decodes_id(const std::vector<unsigned int>& leaf_ids) const;
 
         /**
+         * @brief 停止截止符
+         * @param eos_ids
+         */
+        void release_end_symbol(const std::vector<unsigned int>& eos_ids) const;
+
+        /**
          * 根据序列节点号，获取解码出来的解码K, V Cache结果
          * @param leaf_id
          * @param block_ids
