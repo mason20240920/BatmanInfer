@@ -131,7 +131,22 @@ namespace BatmanInfer {
          * @param leaf_ids
          * @param block_ids
          */
-        void remove_decodes_lst(const std::vector<unsigned int>& leaf_ids, std::vector<int> &block_ids);
+        bool remove_decodes_lst(const std::vector<unsigned int>& leaf_ids, std::vector<int> &block_ids);
+
+        /**
+         * @brief 移除截止符
+         * @param leaf_ids
+         * @param block_ids
+         * @return
+         */
+        bool remove_eos_lst(const std::vector<unsigned int>& leaf_ids, std::vector<int> &block_ids);
+
+        /**
+         * @desc 判断是不是叶子节点
+         * @param node_ids
+         * @return
+         */
+        [[nodiscard]] bool is_leaf_nodes(const std::vector<unsigned int> &node_ids) const;
 
     private:
         /**
