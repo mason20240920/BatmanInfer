@@ -32,7 +32,8 @@ namespace BatmanInfer {
 
     private:
         // 预留节点容量, 减少refresh开销
-        static constexpr size_t DEFAULT_CAPACITY = 1024;
+        static size_t DEFAULT_CAPACITY;
+        static size_t MAX_SEQ_LEN;
 
         // 使用节点池管理内存, 提高内存局部性
         std::vector<std::unique_ptr<MemoryNode> > memory_pool;
@@ -48,6 +49,8 @@ namespace BatmanInfer {
     public:
         // 构造函数, 预分配内存
         explicit MemoryTree(const unsigned int root_id, unsigned int decode_id);
+
+        static void initialize(size_t max_seq, size_t max_capacity);
 
         /**
          * 获取根节点

@@ -13,7 +13,8 @@
  * 进行动态调整，同时不进行删除，只进行更新
  */
 namespace BatmanInfer {
-    constexpr size_t MAX_SEQ_LEN = 16;
+    size_t MemoryTree::DEFAULT_CAPACITY;
+    size_t MemoryTree::MAX_SEQ_LEN;
     /**
      * 内存树结构
      */
@@ -33,6 +34,12 @@ namespace BatmanInfer {
     MemoryTree::MemoryNode *MemoryTree::get_root() const {
         return root_node;
     }
+
+    void MemoryTree::initialize(size_t max_seq, size_t max_capacity) {
+        DEFAULT_CAPACITY = max_capacity;
+        MAX_SEQ_LEN = max_seq;
+    }
+
 
     /**
      * @brief 创建叶子节点
