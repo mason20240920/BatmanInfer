@@ -57,11 +57,26 @@ namespace BatmanInfer {
                                   bool is_k = false,
                                   bool is_smooth_quant = false) const;
 
+
+        /**
+         * 截止符KV Cache拷贝(一般是默认最后几个block id进行拷贝)
+         * @param source_buffer
+         * @param block_id
+         * @param seq_len
+         * @param is_k
+         * @param is_smooth_quant
+         */
+        void memcpy_init_eos_buffer(void *source_buffer,
+                                    int block_id,
+                                    int seq_len,
+                                    bool is_k = false,
+                                    bool is_smooth_quant = false) const;
+
         /**
          * 释放空的解码序列
          * @param leaf_id: 叶子节点id
          */
-        void release_useless_decode_id(const unsigned int leaf_id) const;
+        void release_useless_decode_id(unsigned int leaf_id) const;
 
         /**
          * @brief 释放空的解码序列
@@ -83,12 +98,21 @@ namespace BatmanInfer {
         void decode_sequence_lst(const unsigned int leaf_id, std::vector<unsigned int> &block_ids) const;
 
         /**
+         * @brief 获取当前的eos节点的Blocks
+         * @param block_mem_lst
+         * @param decode_seq
+         */
+        void decode_eos_lst(std::vector<PhysicalBlock *> &block_mem_lst, size_t decode_seq) const;
+
+        /**
          * 解码序列的内存Block数组
          * @param block_ids
          * @param block_mem_lst
+         * @param decode_seq 当前解码的长度
          */
         void decode_sequence_blocks(const std::vector<unsigned int> &block_ids,
-                                    std::vector<PhysicalBlock *> &block_mem_lst) const;
+                                    std::vector<PhysicalBlock *> &block_mem_lst,
+                                    size_t decode_seq) const;
 
         void *decode_buffer_ptr(unsigned int block_id) const;
 

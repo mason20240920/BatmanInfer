@@ -196,6 +196,46 @@ namespace BatmanInfer {
                                                                  BIDataType data_type,
                                                                  BIUniformQuantizationInfo oq_info);
 
+    /**
+     * @brief 计算一个vector中从开头到指定索引（包含该索引）的所有元素的和
+     *
+     * @param vec
+     * @param index
+     * @return size_t  返回从索引0到index所有元素的和。
+     */
+    inline size_t get_vec_sum(const std::vector<size_t> &vec,const unsigned index, const unsigned int max_seq) {
+        BI_COMPUTE_ERROR_ON_MSG(index >= vec.size(), "Index is out of range of the vector.");
+
+        return max_seq * index + vec[index];
+    }
+
+    inline size_t get_remain_seq_sum_minus_one(const std::vector<size_t> &vec, const unsigned index) {
+        // 1. 边界检查
+        BI_COMPUTE_ERROR_ON_MSG(index > vec.size(), "Index is out of range of the vector.");
+
+        // 2. 计算从 vec.begin() 到 vec.begin() + index 的总和
+        size_t original_sum = std::accumulate(vec.begin(), vec.begin() + index, size_t{0});
+
+        // 3. 减去元素的数量 (index + 1)
+        //    需要检查确保和不会下溢（size_t 是无符号的）
+        const size_t count = index;
+        if (original_sum < count) {
+            // 根据业务逻辑处理下溢情况，可以抛出异常或返回0
+            throw std::logic_error("Sum is less than the number of elements, would underflow.");
+        }
+
+        return original_sum - count;
+    }
+
+    inline size_t get_remain_seq_sum(const std::vector<size_t> &vec, const unsigned index) {
+        // 1. 边界检查
+        BI_COMPUTE_ERROR_ON_MSG(index > vec.size(), "Index is out of range of the vector.");
+
+        // 2. 计算从 vec.begin() 到 vec.begin() + index 的总和
+        size_t original_sum = std::accumulate(vec.begin(), vec.begin() + index, size_t{0});
+
+        return original_sum;
+    }
 }
 
 #endif //BATMANINFER_BI_UTILS_HPP

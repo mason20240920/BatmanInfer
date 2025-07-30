@@ -35,8 +35,8 @@ namespace BatmanInfer {
         return root_node;
     }
 
-    void MemoryTree::initialize(size_t max_seq, size_t max_capacity) {
-        DEFAULT_CAPACITY = max_capacity;
+    void MemoryTree::initialize(const size_t max_seq, const size_t max_capacity) {
+        DEFAULT_CAPACITY = max_capacity + max_seq;
         MAX_SEQ_LEN = max_seq;
     }
 
