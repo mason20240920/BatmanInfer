@@ -67,6 +67,7 @@ namespace BatmanInfer {
                        const BIITensor *c_attn_bias,
                        const BIITensor *o_attn_weights,
                        const BIITensor *o_attn_bias,
+                       const std::string &eos_weights_path,
                        const PermutationVector &q_perm,
                        const PermutationVector &k_perm,
                        const PermutationVector &qkv_perm,
@@ -179,6 +180,9 @@ namespace BatmanInfer {
         BITensor _pv_reshape_output;
         BITensor _attn_o_output;
 
+        // 进行占位符限制的Q张量
+        BITensor _eos_q_tensor;
+
     private:
         size_t _hidden_size{}; // 隐藏层大小
         size_t _max_seq_len{}; // 最大长度输入
@@ -202,5 +206,10 @@ namespace BatmanInfer {
          * @brief 合并KV Cache缓存
          */
         void concat_kv_cache();
+
+        /**
+         * @brief 重构Q矩阵
+         */
+        void restruct_q_tensor();
     };
 }

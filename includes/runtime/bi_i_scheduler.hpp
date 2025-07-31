@@ -203,6 +203,14 @@ namespace BatmanInfer {
         virtual void schedule_kv_full_fill(BIITensorPack &tensors, const std::vector<PhysicalBlock *>&mem_lst, const std::vector<size_t> &ava_len) = 0;
 
         /**
+         * @brief 调度修改Q矩阵
+         *
+         * @param tensors
+         * @param ava_len
+         */
+        virtual void schedule_change_q(BIITensorPack &tensors, const std::vector<size_t> &ava_len, const size_t max_seq_len) = 0;
+
+        /**
          * @brief 执行所有传递的工作负载
          *
          * @note 无法保证工作负载的执行顺序，也无法保证它们是否会并行执行。

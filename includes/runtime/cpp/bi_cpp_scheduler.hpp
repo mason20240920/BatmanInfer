@@ -50,6 +50,8 @@ namespace BatmanInfer {
 
         void schedule_kv_full_fill(BIITensorPack &tensors, const std::vector<PhysicalBlock *> &mem_lst, const std::vector<size_t> &ava_len) override;
 
+        void schedule_change_q(BIITensorPack &tensors, const std::vector<size_t> &ava_len, size_t max_seq_len) override;;
+
     protected:
         /**
          * @brief 将使用 num_threads 并行运行工作负载。

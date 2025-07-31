@@ -231,6 +231,76 @@ namespace BatmanInfer {
         run_workloads(workloads);
     }
 
+    void BIOMPScheduler::schedule_change_q(BIITensorPack &tensors, const std::vector<size_t> &ava_len, size_t max_seq_len) {
+        BI_COMPUTE_ERROR_ON_MSG(tensors.empty(), "Tensors are empty in this scheduler!");
+        BI_COMPUTE_ERROR_ON_MSG(tensors.get_tensor(ACL_SRC_0) == nullptr, "Tensors are empty in this scheduler!");
+        BI_COMPUTE_ERROR_ON_MSG(tensors.get_tensor(ACL_SRC_1) == nullptr, "Tensors are empty in this scheduler!");
+        auto *q_src = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_SRC_0));
+        auto *eos_src = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_SRC_1));
+        const auto q_type_size = q_src->info()->data_type() == BIDataType::F16 ? sizeof(float16_t) : sizeof(int8_t);
+        const size_t batch = q_src->info()->dimension(3);
+        const size_t num_head = q_src->info()->dimension(1);
+        const size_t dim_size = q_src->info()->dimension(0);
+        const size_t mm_dim_item_size = dim_size * q_type_size * num_head;
+        const size_t parallel_iter = batch;
+        // 按照batch进行切割
+        // 3. 获取当前并行数量
+        const size_t num_threads = std::min(parallel_iter, static_cast<size_t>(_num_threads));
+        // 4. round up 这些参数
+        const size_t middle_loop_num = parallel_iter / num_threads;
+        const size_t remain_loop_num = parallel_iter % num_threads;
+        // 5. 建立并行匿名函数
+        std::vector<BIWorkload> workloads(num_threads);
+        for (unsigned int t = 0; t < num_threads; t++) {
+            workloads[t] = [t,
+                        &middle_loop_num,
+                        &ava_len,
+                        &max_seq_len,
+                        &mm_dim_item_size,
+                        &remain_loop_num,
+                        &num_threads,
+                        &q_src,
+                        &eos_src](const ThreadInfo &info) {
+                        // 1. 先直接进行中循环遍历
+                        for (int m_r = 0; m_r < middle_loop_num; m_r++) {
+                            // 2. 对于全局张量的当前偏移量(每个线程偏移middle_loop_num的数量)
+                            const unsigned int batch_index = middle_loop_num * t + m_r;
+                            const auto seq_len = ava_len[batch_index];
+                            if (seq_len < max_seq_len) {
+                                // 1. 先获取原始矩阵当前的buffer位置
+                                // 拷贝大小长度
+                                const unsigned int q_src_offset = batch_index * mm_dim_item_size;
+                                auto q_src_buffer = q_src->allocator()->data(q_src_offset, mm_dim_item_size);
+                                // 2. 确定拷贝的eos矩阵位置
+                                const unsigned int eos_offset = seq_len * mm_dim_item_size;
+                                auto eos_src_buffer = eos_src->allocator()->data(eos_offset, mm_dim_item_size);
+                                memcpy(q_src_buffer, eos_src_buffer, mm_dim_item_size);
+                            }
+                        }
+                        // 如果是remain大小就进行remain计算
+                        if (t == num_threads - 1 && remain_loop_num > 0) {
+                            // 1. 先直接进行中循环遍历
+                            for (int m_r = 0; m_r <= remain_loop_num; m_r++) {
+                                // 2. 对于全局张量的当前偏移量(每个线程偏移middle_loop_num的数量)
+                                const unsigned int batch_index = middle_loop_num * t + m_r;
+                                auto seq_len = ava_len[batch_index];
+                                if (seq_len < max_seq_len) {
+                                    // 1. 先获取原始矩阵当前的buffer位置
+                                    // 拷贝大小长度
+                                    const unsigned int q_src_offset = batch_index * mm_dim_item_size;
+                                    auto q_src_buffer = q_src->allocator()->data(q_src_offset, mm_dim_item_size);
+                                    // 2. 确定拷贝的eos矩阵位置
+                                    const unsigned int eos_offset = seq_len * mm_dim_item_size;
+                                    auto eos_src_buffer = eos_src->allocator()->data(eos_offset, mm_dim_item_size);
+                                    memcpy(q_src_buffer, eos_src_buffer, mm_dim_item_size);
+                                }
+                            }
+                        }
+                    };
+        }
+        run_workloads(workloads);
+    }
+
 
     void BIOMPScheduler::schedule_kv_concat(BIITensorPack &tensors, const std::vector<PhysicalBlock *> &mem_lst,
                                             const std::vector<size_t> &ava_len) {
@@ -280,17 +350,22 @@ namespace BatmanInfer {
                             const unsigned int batch_index = middle_loop_num * t + m_r;
                             auto seq_len = ava_len[batch_index];
                             for (int seq = 0; seq < seq_len - 1; seq++) {
-                                const unsigned int mm_item_index = get_remain_seq_sum_minus_one(ava_len, batch_index) + seq;
-                                const unsigned int cur_k_mm_offset = (batch_index * max_seq_len + seq) * k_mm_dim_item_size;
-                                const unsigned int cur_v_mm_offset = (batch_index * max_seq_len + seq) * v_mm_dim_item_size;
+                                const unsigned int mm_item_index =
+                                        get_remain_seq_sum_minus_one(ava_len, batch_index) + seq;
+                                const unsigned int cur_k_mm_offset =
+                                        (batch_index * max_seq_len + seq) * k_mm_dim_item_size;
+                                const unsigned int cur_v_mm_offset =
+                                        (batch_index * max_seq_len + seq) * v_mm_dim_item_size;
                                 auto pb_gmem_addr = static_cast<char *>(mem_lst[mm_item_index]->buffer);
                                 auto k_dst_ptr = k_dst->allocator()->data(cur_k_mm_offset, k_mm_dim_item_size);
                                 auto v_dst_ptr = v_dst->allocator()->data(cur_v_mm_offset, v_mm_dim_item_size);
                                 memcpy(k_dst_ptr, pb_gmem_addr, k_mm_dim_item_size);
                                 memcpy(v_dst_ptr, pb_gmem_addr + k_mm_dim_item_size, v_mm_dim_item_size);
                             }
-                            const unsigned int t_k_mm_offset = (batch_index * max_seq_len + seq_len - 1) * k_mm_dim_item_size;
-                            const unsigned int t_v_mm_offset = (batch_index * max_seq_len + seq_len - 1) * v_mm_dim_item_size;
+                            const unsigned int t_k_mm_offset =
+                                    (batch_index * max_seq_len + seq_len - 1) * k_mm_dim_item_size;
+                            const unsigned int t_v_mm_offset =
+                                    (batch_index * max_seq_len + seq_len - 1) * v_mm_dim_item_size;
                             const unsigned int t_k_orin_offset = batch_index * k_mm_dim_item_size;
                             const unsigned int t_v_orin_offset = batch_index * v_mm_dim_item_size;
                             auto k_gmem_addr = k_src->allocator()->data(t_k_orin_offset, k_mm_dim_item_size);

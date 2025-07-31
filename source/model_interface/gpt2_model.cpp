@@ -704,19 +704,19 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
         //                            max_batch_size,
         //                            &_sub_attn_output_tensor);
 
-        _attn_layer.configure(&_sub_add_output_tensor,
-                              &_attn_gamma_weight_tensor,
-                              &_attn_qkv_weight_tensor,
-                              &_attn_qkv_bias_tensor,
-                              &_attn_c_proj_weight_tensor,
-                              &_attn_c_proj_bias_tensor,
-                              q_perm,
-                              k_perm,
-                              qkv_o_perm,
-                              hidden_size,
-                              max_seq_len,
-                              max_batch_size,
-                              &_sub_attn_output_tensor);
+        // _attn_layer.configure(&_sub_add_output_tensor,
+        //                       &_attn_gamma_weight_tensor,
+        //                       &_attn_qkv_weight_tensor,
+        //                       &_attn_qkv_bias_tensor,
+        //                       &_attn_c_proj_weight_tensor,
+        //                       &_attn_c_proj_bias_tensor,
+        //                       q_perm,
+        //                       k_perm,
+        //                       qkv_o_perm,
+        //                       hidden_size,
+        //                       max_seq_len,
+        //                       max_batch_size,
+        //                       &_sub_attn_output_tensor);
 
         _attn_rms_add_layer.configure(&_sub_add_output_tensor, &_sub_attn_output_tensor,
                                       &_sub_mlp_input_tensor, BIConvertPolicy::SATURATE);

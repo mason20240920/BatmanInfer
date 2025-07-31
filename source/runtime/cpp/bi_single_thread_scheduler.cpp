@@ -67,4 +67,11 @@ namespace BatmanInfer {
         BI_COMPUTE_UNUSED(mem_lst);
         BI_COMPUTE_UNUSED(ava_len);
     }
+
+    void BISingleThreadScheduler::schedule_change_q(BIITensorPack &tensors, const std::vector<size_t> &ava_len, size_t max_seq_len) {
+        BI_COMPUTE_UNUSED(tensors);
+        BI_COMPUTE_UNUSED(ava_len);
+        BI_COMPUTE_UNUSED(max_seq_len);
+    }
+
 }
