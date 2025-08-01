@@ -230,7 +230,7 @@ namespace BatmanInfer {
         // format.row_delim = "\n"; // 每行换行
         // format.align_columns = true; // 对齐列
         // std::cout << "==================== sub_values" << std::endl;
-        // _sub_proj_output.print(std::cout, format);
+        // _sub_norm_output.print(std::cout, format);
     }
 
     void BINEMLPLayer::prepare() {

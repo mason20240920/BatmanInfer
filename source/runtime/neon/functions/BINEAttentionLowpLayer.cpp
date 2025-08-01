@@ -16,6 +16,7 @@
 
 #include "data/core/utils/quantization/asymm_helpers.hpp"
 #include "kv_cache_manager/bi_kv_cache_manager.hpp"
+#include "utils/utils.hpp"
 
 namespace BatmanInfer {
     inline void invert_qinfo_offset(BITensor &t) {
@@ -188,8 +189,8 @@ namespace BatmanInfer {
         _c_copy_layer.dynamic_configure();
         _sub_softmax_q_result.info()->set_are_values_constant(false);
         _sub_transpose_v_result.info()->set_are_values_constant(false);
-        _pv_bmm_layer.configure(&_sub_softmax_q_result, &_sub_transpose_v_result, &_sub_pv_bmm_output, matmul_info,
-                                settings);
+        // _pv_bmm_layer.configure(&_sub_softmax_q_result, &_sub_transpose_v_result, &_sub_pv_bmm_output, matmul_info,
+        //                         settings);
     }
 
     void BINEAttentionLowpLayer::get_kv_block_ids(std::vector<unsigned int> &kv_block_ids) {
@@ -203,6 +204,7 @@ namespace BatmanInfer {
                                            const BIITensor *c_attn_bias,
                                            const BIITensor *o_attn_weights,
                                            const BIITensor *o_attn_bias,
+                                           const std::string &eos_weights_path,
                                            const float &gemm_i_scale,
                                            const int &gemm_i_zp,
                                            const float &attn_gemm_o_scale,
@@ -278,6 +280,8 @@ namespace BatmanInfer {
         // const auto _q_key_info = BIQuantizationInfo(key_q_scale, key_q_zp);
         // _q_key_states.allocator()->init(BITensorInfo(normal_shape, 1, BIDataType::QASYMM8_SIGNED, _q_key_info));
         const auto _q_value_info = BIQuantizationInfo(value_q_scale, value_q_zp);
+        _eos_q_smooth_tensor = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),
+                                                         BIDataType::F16);
         _q_value_states.allocator()->init(BITensorInfo(normal_shape, 1, BIDataType::QASYMM8_SIGNED, _q_value_info));
         _reshape_q_states.allocator()->
                 init(BITensorInfo(reshape_q_shape, 1, BIDataType::F16));
@@ -563,9 +567,6 @@ namespace BatmanInfer {
         _attn_o_gemm_layer.configure(&_sub_pv_deq_output, o_attn_weights, o_attn_bias, &_sub_attn_o_output, 1.0f, 1.0f,
                                      gemm_info);
         _c_copy_layer.configure(&_sub_attn_o_output, output);
-
-        // _dequantization_layer.configure(&_quantization_output, &_dequantization_output);
-        // _copy_f.configure(&_dequantization_output, output);
     }
 
     void BINEAttentionLowpLayer::run() {
@@ -594,6 +595,7 @@ namespace BatmanInfer {
         _reshape_v_layer.run();
         store_kv_cache();
         concat_kv_cache();
+        restruct_q_tensor();
         _transpose_q_layer.run();
         _transpose_k_layer.run();
         _transpose_v_layer.run();
@@ -681,25 +683,27 @@ namespace BatmanInfer {
 
     void BINEAttentionLowpLayer::concat_kv_cache() {
         std::vector<PhysicalBlock *> blocks{};
+        std::vector<PhysicalBlock *> eos_blocks{};
         for (const auto &decode_list: _kv_decode_ids) {
             const auto block_id = decode_list[0];
             std::vector<unsigned int> decode_ids{};
             KVCacheManager::getInstance().decode_sequence_lst(block_id, decode_ids); // 获取合并的Decodes
             KVCacheManager::getInstance().decode_sequence_blocks(decode_ids, blocks, _seq_len);
         }
-        // if (_seq_len >= 1) {
-        //     BIIOFormatInfo format;
-        //     format.element_delim = ", "; // 元素之间用逗号分隔
-        //     format.row_delim = "\n"; // 每行换行
-        //     format.align_columns = true; // 对齐列
-        //     _sub_reshape_v_states.print(std::cout, format);
-        //     _sub_reshape_k_states.print(std::cout, format);
-        // }
+        KVCacheManager::getInstance().decode_eos_lst(eos_blocks, _seq_len);
         BIITensorPack pack;
         pack.add_tensor(ACL_SRC_0, &_sub_reshape_k_states);
         pack.add_tensor(ACL_SRC_1, &_sub_reshape_v_states);
         pack.add_tensor(ACL_DST_0, &_sub_concat_reshape_k_states);
         pack.add_tensor(ACL_DST_1, &_sub_concat_reshape_v_states);
         BINEScheduler::get().schedule_kv_concat(pack, blocks, *_avail_len);
+        BINEScheduler::get().schedule_kv_full_fill(pack, eos_blocks, *_avail_len);
+    }
+
+    void BINEAttentionLowpLayer::restruct_q_tensor() {
+        BIITensorPack pack;
+        pack.add_tensor(ACL_SRC_0, &_sub_reshape_q_states);
+        pack.add_tensor(ACL_SRC_1, &_eos_q_smooth_tensor);
+        BINEScheduler::get().schedule_change_q(pack, *_avail_len, _seq_len);
     }
 }

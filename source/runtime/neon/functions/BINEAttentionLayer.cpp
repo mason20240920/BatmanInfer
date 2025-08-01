@@ -366,6 +366,7 @@ namespace BatmanInfer {
         store_kv_cache();
         concat_kv_cache();
         restruct_q_tensor();
+        // _sub_reshape_q_states.print(std::cout, format);
 
         _transpose_q_layer.run();
         _transpose_k_layer.run();

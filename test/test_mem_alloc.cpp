@@ -304,33 +304,33 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
     PermutationVector q_perm{0, 2, 1, 3};
     PermutationVector k_perm{2, 0, 1, 3};
     PermutationVector qkv_o_perm{0, 2, 1, 3};
-    attn_lowp_layer.configure(&add_output_tensor,
-                              &attn_gamma_weights,
-                              &attn_qkv_weights,
-                              &attn_qkv_bias,
-                              &attn_c_proj_weights,
-                              &attn_c_proj_bias,
-                              attn_gemm_i_scale,
-                              attn_gemm_i_zero,
-                              attn_gemm_o_scale,
-                              attn_gemm_o_zero,
-                              query_scale,
-                              query_zp,
-                              value_scale,
-                              value_zp,
-                              key_scale,
-                              key_zp,
-                              softmax_q_scale,
-                              softmax_zp,
-                              proj_in_scale,
-                              proj_in_zp,
-                              q_perm,
-                              k_perm,
-                              qkv_o_perm,
-                              768,
-                              16,
-                              20,
-                              &attn_output_tensor);
+    // attn_lowp_layer.configure(&add_output_tensor,
+    //                           &attn_gamma_weights,
+    //                           &attn_qkv_weights,
+    //                           &attn_qkv_bias,
+    //                           &attn_c_proj_weights,
+    //                           &attn_c_proj_bias,
+    //                           attn_gemm_i_scale,
+    //                           attn_gemm_i_zero,
+    //                           attn_gemm_o_scale,
+    //                           attn_gemm_o_zero,
+    //                           query_scale,
+    //                           query_zp,
+    //                           value_scale,
+    //                           value_zp,
+    //                           key_scale,
+    //                           key_zp,
+    //                           softmax_q_scale,
+    //                           softmax_zp,
+    //                           proj_in_scale,
+    //                           proj_in_zp,
+    //                           q_perm,
+    //                           k_perm,
+    //                           qkv_o_perm,
+    //                           768,
+    //                           16,
+    //                           20,
+    //                           &attn_output_tensor);
     attn_lowp_layer.run();
     BITensor sub_mlp_input;
     sub_mlp_input.allocator()->init(*original_attn_rms_output_tensor.allocator(), gather_output_info);
@@ -613,7 +613,6 @@ TEST(MemAllocGPT2, GPTAllocDynamic) {
 
 TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     using namespace BatmanInfer;
-    // BIScheduler::set(BIScheduler::Type::OMP);
     BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
     BIMemoryGroup group{BIMemoryManagerOnDemand::make_default()};
 
