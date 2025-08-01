@@ -9,6 +9,7 @@
 #include "memory_tree.hpp"
 #include "physical_block_manager.hpp"
 #include "data/core/common/bi_core_common_macros.hpp"
+#include "sdk/bi_sdk_api.h"
 
 namespace BatmanInfer {
     /**
@@ -67,13 +68,13 @@ namespace BatmanInfer {
          * @brief 释放空的解码序列
          * @param leaf_ids
          */
-        void release_useless_decodes_id(const std::vector<unsigned int>& leaf_ids) const;
+        BIErrCode release_useless_decodes_id(const std::vector<unsigned int>& leaf_ids) const;
 
         /**
          * @brief 停止截止符
          * @param eos_ids
          */
-        void release_end_symbol(const std::vector<unsigned int>& eos_ids) const;
+        BIErrCode release_end_symbol(const std::vector<unsigned int>& eos_ids) const;
 
         /**
          * 根据序列节点号，获取解码出来的解码K, V Cache结果

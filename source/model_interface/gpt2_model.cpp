@@ -192,12 +192,12 @@ BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec, std:
     return ret;
 }
 
-void BIGPT2Model::bi_release_kvcache_block(std::vector<unsigned int> &kv_block_ids) {
-    KVCacheManager::getInstance().release_useless_decodes_id(kv_block_ids);
+BIErrCode BIGPT2Model::bi_release_kvcache_block(std::vector<unsigned int> &kv_block_ids) {
+    return KVCacheManager::getInstance().release_useless_decodes_id(kv_block_ids);
 }
 
-void BIGPT2Model::bi_release_kvcache_leaf_block(std::vector<unsigned int> &kv_block_ids) {
-    KVCacheManager::getInstance().release_end_symbol(kv_block_ids);
+BIErrCode BIGPT2Model::bi_release_kvcache_leaf_block(std::vector<unsigned int> &kv_block_ids) {
+    return KVCacheManager::getInstance().release_end_symbol(kv_block_ids);
 }
 
 void BIGPT2Model::bi_get_avaliable_kvblock_count(unsigned int &avaliable_kvblock_count) {

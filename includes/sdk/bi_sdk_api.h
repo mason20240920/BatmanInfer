@@ -34,6 +34,7 @@ enum class BIErrCode {
     BIInvalidArgument,
     BIResDamaged,
     BIResNotExists,
+    BIKVCacheDelFailed,
 };
 
 #define CHECK_SUCCESS(ret) if (ret != BIErrCode::BISuccess) { return ret; }
@@ -75,13 +76,13 @@ public:
      * kv_cache_block 在推理过程中，有大量无用节点产生，需要在每一步推理前将无用 kv_cache_block 释放掉
      * @param kv_block_ids 需要被释放掉的 kv_block_ids 值 (当前仅传递被释放掉的叶子节点即可，根节点也会随之释放)
      */
-    virtual void bi_release_kvcache_block(std::vector<unsigned int> &kv_block_ids) = 0;
+    virtual BIErrCode bi_release_kvcache_block(std::vector<unsigned int> &kv_block_ids) = 0;
 
     /**
      * kv_cache_block 在推理过程中，可能存在额外向后推理 </s> 的操作，当下一次进行推理时需要将本次 kv_cache_block 释放掉但不能将其路径上所有节点都释放
      * @param kv_block_ids 需要被释放掉的 kv_block_ids 值 (当前仅传递被释放掉的叶子节点，仅叶子节点被释放)
      */
-    virtual void bi_release_kvcache_leaf_block(std::vector<unsigned int> &kv_block_ids) = 0;
+    virtual BIErrCode bi_release_kvcache_leaf_block(std::vector<unsigned int> &kv_block_ids) = 0;
     
     /**
      * 获取可用的 kv_cache_block 块数量
