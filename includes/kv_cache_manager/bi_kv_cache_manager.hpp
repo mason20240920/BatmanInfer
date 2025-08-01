@@ -36,6 +36,12 @@ namespace BatmanInfer {
         [[nodiscard]] unsigned int root_id() const;
 
         /**
+         * @brief 需要判断当前传递过来的 KV blockid 是否可用，防止异常调用
+         * @return 返回当前 decode_ids 是否都是有效的
+         */
+        bool vaild_decode_ids(const std::vector<unsigned int> &decode_ids) const;
+
+        /**
          * 根据需求动态请求新的KV Cache内存
          * @param parent_id
          * @param require_block_count

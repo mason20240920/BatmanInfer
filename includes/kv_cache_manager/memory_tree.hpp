@@ -66,6 +66,12 @@ namespace BatmanInfer {
         MemoryNode *create_node(unsigned int id, unsigned int decode_id);
 
         /**
+        * @brief 需要判断当前传递过来的 KV blockid 是否可用，防止异常调用
+        * @return 返回当前 decode_id 是否有效
+        */
+        bool vaild_decode_id(unsigned int decode_id);
+
+        /**
          * @brief 增加子节点
          * @param parent_id 父节点的创建
          * @param child_ids 子节点的id数组

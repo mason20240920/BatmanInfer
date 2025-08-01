@@ -65,6 +65,18 @@ namespace BatmanInfer {
     }
 
     /**
+        * @brief 需要判断当前传递过来的 KV blockid 是否可用，防止异常调用
+        * @return 返回当前 decode_id 是否有效
+        */
+    bool MemoryTree::vaild_decode_id(unsigned int decode_id) {
+        MemoryNode *node = find_node(decode_id);
+        if (!node) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * @brief 增加子节点
      * @param parent_id 父节点的创建
      * @param child_ids 子节点的id数组

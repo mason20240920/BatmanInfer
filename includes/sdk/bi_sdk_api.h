@@ -73,6 +73,13 @@ public:
     virtual BIErrCode bi_run(std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids, bool is_init) = 0;
 
     /**
+     * 使用 kv block id 前，需要先判断当前 kv block id 是否可用，防止意外发生
+     * @param kv_block_ids 需要检测的 kv block id 值
+     * @return 是否可用
+     */
+    virtual bool bi_valid_decode_ids(std::vector<unsigned int> &kv_block_ids) = 0;
+
+    /**
      * kv_cache_block 在推理过程中，有大量无用节点产生，需要在每一步推理前将无用 kv_cache_block 释放掉
      * @param kv_block_ids 需要被释放掉的 kv_block_ids 值 (当前仅传递被释放掉的叶子节点即可，根节点也会随之释放)
      */

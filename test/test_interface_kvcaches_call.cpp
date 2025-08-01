@@ -116,6 +116,21 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
     output_vec.clear();
     model_interface->bi_run(output_vec, kv_block_ids, false);
 
+
+    std::vector<unsigned int> decode_ids;
+    decode_ids = {2046, 2045, 2044, 2043, 2042};
+    bool vaild_decode_ids = model_interface->bi_valid_decode_ids(decode_ids);
+    decode_ids.clear();
+    decode_ids = {2047, 2046, 2045, 2044, 2043};
+    vaild_decode_ids = model_interface->bi_valid_decode_ids(decode_ids);
+    decode_ids.clear();
+    decode_ids = {1999, 1998, 1997, 1996, 1995};
+    vaild_decode_ids = model_interface->bi_valid_decode_ids(decode_ids);
+    decode_ids.clear();
+    decode_ids = {1, 2, 3, 4, 5};
+    vaild_decode_ids = model_interface->bi_valid_decode_ids(decode_ids);
+
+
     test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
     test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);
 

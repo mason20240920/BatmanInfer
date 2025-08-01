@@ -154,6 +154,7 @@ public:
     BIErrCode bi_init(const char *data_in, size_t data_size, std::vector< std::vector<float> > &output_vec, unsigned int &kv_cache_id) override;
     BIErrCode bi_set_input(std::vector< std::vector<unsigned int> > &input_vec, std::vector< std::vector<unsigned int> > &kv_cache_id_map) override;
     BIErrCode bi_run(std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids, bool is_init) override;
+    bool bi_valid_decode_ids(std::vector<unsigned int> &kv_block_ids) override;
     BIErrCode bi_release_kvcache_block(std::vector<unsigned int> &kv_block_ids) override;
     BIErrCode bi_release_kvcache_leaf_block(std::vector<unsigned int> &kv_block_ids) override;
     void bi_get_avaliable_kvblock_count(unsigned int &avaliable_kvblock_count) override;

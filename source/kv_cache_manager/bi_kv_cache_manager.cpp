@@ -46,6 +46,21 @@ namespace BatmanInfer {
     }
 
     /**
+     * @brief 需要判断当前传递过来的 KV blockid 是否可用，防止异常调用
+     * @return 返回当前 decode_ids 是否都是有效的
+     */
+    bool KVCacheManager::vaild_decode_ids(const std::vector<unsigned int> &decode_ids) const {
+        bool valid_data = true;
+        for (int i = 0; i < decode_ids.size(); i++) {
+            valid_data = m_tree_->vaild_decode_id(decode_ids[i]);
+            if (!valid_data) {
+                break;
+            }
+        }
+        return valid_data;
+    }
+
+    /**
      * 根据需求动态请求新的KV Cache内存
      * @param parent_id
      * @param require_block_count

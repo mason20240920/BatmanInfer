@@ -198,6 +198,10 @@ BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec, std:
     return ret;
 }
 
+bool BIGPT2Model::bi_valid_decode_ids(std::vector<unsigned int> &kv_block_ids) {
+    return KVCacheManager::getInstance().vaild_decode_ids(kv_block_ids);
+}
+
 BIErrCode BIGPT2Model::bi_release_kvcache_block(std::vector<unsigned int> &kv_block_ids) {
     return KVCacheManager::getInstance().release_useless_decodes_id(kv_block_ids);
 }
