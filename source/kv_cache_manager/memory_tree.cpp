@@ -71,12 +71,14 @@ namespace BatmanInfer {
      * @param decode_ids
      * @return 返回子节点
      */
-    void MemoryTree::add_children(const unsigned int parent_id,
+    bool MemoryTree::add_children(const unsigned int parent_id,
                                   const std::vector<unsigned int> &child_ids,
                                   const std::vector<unsigned int> &decode_ids) {
         MemoryNode *parent = find_node(parent_id);
-        if (!parent)
-            BI_COMPUTE_ERROR("Find Parent Node failure");
+        if (!parent) {
+            // BI_COMPUTE_ERROR("Find Parent Node failure");
+            return false;
+        }
 
         // 预留空间，避免Rehash
         parent->children.reserve(parent->children.size() + child_ids.size());
@@ -97,6 +99,7 @@ namespace BatmanInfer {
 
             parent->children[child_id] = child;
         }
+        return true;
     }
 
     /**

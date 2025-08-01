@@ -109,7 +109,7 @@ namespace BatmanInfer {
                                      const GEMMInfo &gemm_info = GEMMInfo());
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
         void prepare() override;
 

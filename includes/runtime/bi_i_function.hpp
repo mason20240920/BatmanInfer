@@ -32,7 +32,7 @@ namespace BatmanInfer {
          *   @note 如果尚未调用 prepare()，将在首次运行时调用该方法。
          *
          */
-        virtual void run() = 0;
+        // virtual BIErrCode run() = 0;
 
         /** 为执行准备函数
          *

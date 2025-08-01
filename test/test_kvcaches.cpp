@@ -2000,21 +2000,24 @@ TEST(KVCacheGPT, KVDecperatedBlockTest) {
     KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16);
     std::vector<unsigned int> input_ids{1,  2, 3, 4, 5, 6, 7, 8, 9, 10};
     KVCacheManager::getInstance();
-    auto block_ids = KVCacheManager::getInstance().alloc_decode_next(
+    std::vector<unsigned int> block_ids;
+    auto ret = KVCacheManager::getInstance().alloc_decode_next(
         KVCacheManager::getInstance().root_id(),
         10,
-        input_ids);
+        input_ids, block_ids);
     std::vector<unsigned int> remove_ids{2046, 2045, 2044};
     KVCacheManager::getInstance().release_useless_decodes_id(remove_ids);
     auto decode = KVCacheManager::getInstance().get_decode_ids();
-    block_ids = KVCacheManager::getInstance().alloc_decode_next(
+    ret = KVCacheManager::getInstance().alloc_decode_next(
         2043,
         5,
-        input_ids);
-    block_ids = KVCacheManager::getInstance().alloc_decode_next(
+        input_ids,
+        block_ids);
+    ret = KVCacheManager::getInstance().alloc_decode_next(
                        2035,
                        5,
-                       input_ids);
+                       input_ids,
+                       block_ids);
     KVCacheTestName::print_output_info(block_ids);
     // block_ids = KVCacheManager::getInstance().alloc_decode_next(
     //     1015,
@@ -2049,21 +2052,25 @@ TEST(KVCacheGPT, KVDecperatedEOSTest) {
     KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16);
     std::vector<unsigned int> input_ids{1,  2, 3, 4, 5, 6, 7, 8, 9, 10};
     KVCacheManager::getInstance();
-    auto block_ids = KVCacheManager::getInstance().alloc_decode_next(
+    std::vector<unsigned int> block_ids;
+    auto ret = KVCacheManager::getInstance().alloc_decode_next(
         KVCacheManager::getInstance().root_id(),
         10,
-        input_ids);
+        input_ids,
+        block_ids);
     std::vector<unsigned int> remove_ids{2046, 2045, 2044};
     KVCacheManager::getInstance().release_useless_decodes_id(remove_ids);
     auto decode = KVCacheManager::getInstance().get_decode_ids();
-    block_ids = KVCacheManager::getInstance().alloc_decode_next(
+    ret = KVCacheManager::getInstance().alloc_decode_next(
         2043,
         5,
-        input_ids);
-    block_ids = KVCacheManager::getInstance().alloc_decode_next(
+        input_ids,
+        block_ids);
+    ret = KVCacheManager::getInstance().alloc_decode_next(
                        2035,
                        5,
-                       input_ids);
+                       input_ids,
+                       block_ids);
     // block_ids = KVCacheManager::getInstance().alloc_decode_next(
     //     1015,
     //     5,
@@ -2076,26 +2083,31 @@ TEST(KVCacheGPT, KVDecperatedEOSTest) {
     //                                           996,
     //                                           5,
     //                                           input_ids);
-    block_ids = KVCacheManager::getInstance().alloc_decode_next(
+    ret = KVCacheManager::getInstance().alloc_decode_next(
         2034,
         1,
-        input_ids);
-    block_ids = KVCacheManager::getInstance().alloc_decode_next(
+        input_ids,
+        block_ids);
+    ret = KVCacheManager::getInstance().alloc_decode_next(
                            2033,
                            1,
-                           input_ids);
-    block_ids = KVCacheManager::getInstance().alloc_decode_next(
+                           input_ids,
+                           block_ids);
+    ret = KVCacheManager::getInstance().alloc_decode_next(
                            2032,
                            1,
-                           input_ids);
-    block_ids = KVCacheManager::getInstance().alloc_decode_next(
+                           input_ids,
+                           block_ids);
+    ret = KVCacheManager::getInstance().alloc_decode_next(
                            2031,
                            1,
-                           input_ids);
-    block_ids = KVCacheManager::getInstance().alloc_decode_next(
+                           input_ids,
+                           block_ids);
+    ret = KVCacheManager::getInstance().alloc_decode_next(
                            2030,
                            1,
-                           input_ids);
+                           input_ids,
+                           block_ids);
     // KVCacheTestName::print_output_info(block_ids);
     auto avail_num = KVCacheManager::getInstance().get_avaliable_block_count();
     std::cout << avail_num << std::endl;

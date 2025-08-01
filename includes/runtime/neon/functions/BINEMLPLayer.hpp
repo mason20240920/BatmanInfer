@@ -76,7 +76,7 @@ namespace BatmanInfer {
                                  const BIITensorInfo *gamma,
                                  const BIITensorInfo *output);
 
-        void run() override;
+        void run();
 
         void prepare() override;
 

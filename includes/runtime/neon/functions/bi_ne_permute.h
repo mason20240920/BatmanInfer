@@ -71,7 +71,7 @@ namespace BatmanInfer {
                                  const PermutationVector &perm);
 
         // Inherited methods overridden
-        void run() override;
+        void run();
 
     private:
         struct Impl;

@@ -14,6 +14,7 @@
 #include <runtime/bi_memory_group.hpp>
 #include <runtime/bi_tensor.hpp>
 #include "bi_ne_copy.hpp"
+#include "kv_cache_manager/bi_kv_cache_manager.hpp"
 
 namespace BatmanInfer {
     // 前向声明
@@ -94,7 +95,7 @@ namespace BatmanInfer {
          */
         void set_sequence_length(int seq_len);
 
-        void run() override;
+        BIErrCode run();
 
         void prepare() override;
 
@@ -193,7 +194,7 @@ namespace BatmanInfer {
         /**
          * @brief 存储每次计算的KV Caches
          */
-        void store_kv_cache();
+        BIErrCode store_kv_cache();
 
         /**
          * @brief 合并KV Cache缓存

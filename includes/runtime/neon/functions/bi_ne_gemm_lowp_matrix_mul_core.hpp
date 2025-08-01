@@ -101,7 +101,7 @@ namespace BatmanInfer {
          */
         void update_quantization_parameters();
 
-        void run() override;
+        void run();
 
         void prepare() override;
 

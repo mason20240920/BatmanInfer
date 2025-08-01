@@ -81,7 +81,7 @@ namespace BatmanInfer {
         validate(const BIITensorInfo *input, const BIITensorInfo *output, const BINormalizationLayerInfo &norm_info);
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
     private:
         BIMemoryGroup _memory_group; /**< Function memory group */

@@ -19,7 +19,7 @@ namespace BatmanInfer {
         BIICPPSimpleFunction();
 
         // Inherited methods overridden:
-        void run() override final;
+        void run();
 
     protected:
         std::unique_ptr<BIICPPKernel> _kernel; /**< Kernel to run */

@@ -41,9 +41,10 @@ namespace BatmanInfer {
          * @param require_block_count
          * @param inp_ids: 输入的解码ids
          */
-        [[nodiscard]] std::vector<unsigned int> alloc_decode_next(const unsigned int parent_id,
-                                                                  const int require_block_count,
-                                                                  const std::vector<unsigned int> &inp_ids) const;
+        BIErrCode alloc_decode_next(const unsigned int parent_id,
+            const int require_block_count,
+            const std::vector<unsigned int> &inp_ids,
+            std::vector<unsigned int> &block_ids) const;
 
         /**
          * 根据输出的buffer值存储到对应的block_id里

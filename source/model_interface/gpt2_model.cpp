@@ -126,11 +126,17 @@ BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec, std:
         // print_tensor(_sub_split_add_output_tensor, "_sub_split_add_output_tensor");
 
 #ifdef FIX_VER
-        _attn_lowp_layer.run();
+        ret = _attn_lowp_layer.run();
+        if (ret != BIErrCode::BISuccess) {
+            return ret;
+        }
         _attn_lowp_layer.get_kv_block_ids(kv_block_ids);
         // print_tensor(_sub_attn_output_tensor, "_sub_attn_output_tensor");
 #elifdef FLOAT_VER
-        _attn_layer.run();
+        ret = _attn_layer.run();
+        if (ret != BIErrCode::BISuccess) {
+            return ret;
+        }
         _attn_layer.get_kv_block_ids(kv_block_ids);
         // print_tensor(_sub_attn_output_tensor, "_sub_attn_output_tensor");
 #endif

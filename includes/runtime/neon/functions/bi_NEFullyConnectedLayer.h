@@ -150,7 +150,7 @@ namespace BatmanInfer {
                                      const BIWeightsInfo             &weights_info);
 
         //Inherited methods override
-        void run() override;
+        void run();
         void prepare() override;
 
     private:

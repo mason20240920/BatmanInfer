@@ -70,7 +70,7 @@ namespace BatmanInfer {
         validate(const std::vector<const BIITensorInfo *> &inputs_vector, const BIITensorInfo *output, size_t axis);
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
     private:
         struct Impl;

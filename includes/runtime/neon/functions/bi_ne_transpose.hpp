@@ -57,7 +57,7 @@ namespace BatmanInfer {
          */
         static BIStatus validate(const BIITensorInfo *input, const BIITensorInfo *output);
 
-        void run() override;
+        void run();
 
     private:
         struct Impl;

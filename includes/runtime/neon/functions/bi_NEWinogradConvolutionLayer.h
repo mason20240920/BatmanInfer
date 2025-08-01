@@ -80,7 +80,7 @@ namespace BatmanInfer {
                        bool                         enable_fast_math = false);
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
         void prepare() override;
 
         /** Static function to check if given info will lead to a valid configuration of @ref NEWinogradConvolutionLayer

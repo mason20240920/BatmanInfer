@@ -78,7 +78,7 @@ namespace BatmanInfer {
                  const BICoordinates &ends);
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
         /**
          * @brief 动态配置初始化input

@@ -80,7 +80,7 @@ namespace BatmanInfer {
                                  bool keep_dims = true);
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
     private:
         BIMemoryGroup _memory_group;

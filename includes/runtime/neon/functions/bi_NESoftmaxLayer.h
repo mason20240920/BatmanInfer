@@ -83,7 +83,7 @@ namespace BatmanInfer {
         validate(const BIITensorInfo *input, const BIITensorInfo *output, float beta = 1.0f, int32_t axis = 0);
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
     private:
         struct Impl;

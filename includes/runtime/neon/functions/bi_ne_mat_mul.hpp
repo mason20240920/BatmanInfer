@@ -111,7 +111,7 @@ namespace BatmanInfer {
                                  const BICpuMatMulSettings &settings,
                                  const BIActivationLayerInfo &act_info = BIActivationLayerInfo());
 
-        void run() override;
+        void run();
 
     private:
         struct Impl;

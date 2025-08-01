@@ -14,7 +14,6 @@
 
 #include <common/utils/bi_log.hpp>
 
-#include "kv_cache_manager/bi_kv_cache_manager.hpp"
 
 namespace BatmanInfer {
     BINEAttentionLayer::~BINEAttentionLayer() = default;
@@ -384,7 +383,7 @@ namespace BatmanInfer {
         _c_copy_layer.configure(&_sub_attn_o_output, output);
     }
 
-    void BINEAttentionLayer::run() {
+    BIErrCode BINEAttentionLayer::run() {
         // BIIOFormatInfo format;
         // format.element_delim = ", "; // 元素之间用逗号分隔
         // format.row_delim = "\n"; // 每行换行
@@ -398,7 +397,10 @@ namespace BatmanInfer {
         _reshape_q_layer.run();
         _reshape_k_layer.run();
         _reshape_v_layer.run();
-        store_kv_cache();
+        auto ret = store_kv_cache();
+        if (ret != BIErrCode::BISuccess) {
+            return ret;
+        }
         concat_kv_cache();
 
         _transpose_q_layer.run();
@@ -411,6 +413,7 @@ namespace BatmanInfer {
         _pv_reshape_layer.run();
         _attn_o_gemm_layer.run();
         _c_copy_layer.run();
+        return BIErrCode::BISuccess;
     }
 
     void BINEAttentionLayer::prepare() {
@@ -450,7 +453,7 @@ namespace BatmanInfer {
     }
 
 
-    void BINEAttentionLayer::store_kv_cache() {
+    BIErrCode BINEAttentionLayer::store_kv_cache() {
         _block_ids.clear();
         // 如果首次的话只会存入<s>的首字符
         if (_is_first_kv_cache) {
@@ -460,13 +463,18 @@ namespace BatmanInfer {
 
             _is_first_kv_cache = false;
             _block_ids.emplace_back(root_id);
-            return;
+            return BIErrCode::BISuccess;
         }
         // 判断当前的batch_size, 先根据batch size分配一组block_id
         auto _batch_index = 0;
         for (const auto &decode_list: _kv_decode_ids) {
-            auto block_ids = KVCacheManager::getInstance().alloc_decode_next(
-                decode_list[0], decode_list.size() - 1, decode_list);
+            std::vector<unsigned int>  block_ids;
+            auto ret = KVCacheManager::getInstance().alloc_decode_next(
+                decode_list[0], decode_list.size() - 1, decode_list, block_ids);
+            if (ret != BIErrCode::BISuccess) {
+                return ret;
+            }
+
             // 进行内存值拷贝
             for (const auto &block_id: block_ids) {
                 KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_k_states.buffer(), block_id, _batch_index, true);
@@ -475,6 +483,7 @@ namespace BatmanInfer {
             }
             _batch_index++;
         }
+        return BIErrCode::BISuccess;
     }
 
     void BINEAttentionLayer::concat_kv_cache() {

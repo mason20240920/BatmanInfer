@@ -29,7 +29,7 @@ namespace BatmanInfer {
         static BIStatus validate(const BIITensorInfo *input, const BIITensorInfo *output, BIConvertPolicy policy);
 
         // Inherited methods overridden
-        void run() override;
+        void run();
 
     private:
         struct Impl;

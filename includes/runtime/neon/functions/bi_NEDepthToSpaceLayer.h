@@ -58,7 +58,7 @@ namespace BatmanInfer {
          */
         static BIStatus validate(const BIITensorInfo *input, const BIITensorInfo *output, int32_t block_shape);
 
-        void run() override;
+        void run();
 
     private:
         std::unique_ptr<BINEDepthToSpaceLayerKernel> _kernel;

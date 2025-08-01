@@ -174,7 +174,7 @@ namespace BatmanInfer {
             const BIActivationLayerInfo &act_info         = BIActivationLayerInfo(),
             bool                         enable_fast_math = false);
         // Inherited methods overridden:
-        void run() override;
+        void run();
         void prepare() override;
 
     private:

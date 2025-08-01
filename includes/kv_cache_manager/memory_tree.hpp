@@ -71,7 +71,7 @@ namespace BatmanInfer {
          * @param child_ids 子节点的id数组
          * @return 返回子节点
          */
-        void add_children(unsigned int parent_id, const std::vector<unsigned int> &child_ids,
+        bool add_children(unsigned int parent_id, const std::vector<unsigned int> &child_ids,
                           const std::vector<unsigned int> &decode_ids);
 
         /**

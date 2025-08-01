@@ -83,7 +83,7 @@ namespace BatmanInfer {
                                  const BIActivationLayerInfo &act_info);
 
         // Inherited methods overridden
-        void run() override;
+        void run();
 
     private:
         struct Impl;

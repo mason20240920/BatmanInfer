@@ -50,18 +50,22 @@ namespace BatmanInfer {
      * @param parent_id
      * @param require_block_count
      */
-    std::vector<unsigned int> KVCacheManager::alloc_decode_next(const unsigned int parent_id,
-                                                                const int require_block_count,
-                                                                const std::vector<unsigned int> &inp_ids) const {
+     BIErrCode KVCacheManager::alloc_decode_next(const unsigned int parent_id,
+                                                const int require_block_count,
+                                                const std::vector<unsigned int> &inp_ids,
+                                                std::vector<unsigned int> &block_ids) const {
         const auto block_alloc = acquire_block(manager_, require_block_count);
-        std::vector<unsigned int> block_ids;
+        // std::vector<unsigned int> block_ids;
         block_ids.reserve(require_block_count);
         // 构建新的内存树
         for (int i = 1; i <= require_block_count; i++) {
             block_ids.emplace_back(block_alloc.block_ids[i - 1]);
         }
-        m_tree_->add_children(parent_id, block_ids, inp_ids);
-        return block_ids;
+        bool ret = m_tree_->add_children(parent_id, block_ids, inp_ids);
+        if (!ret) {
+            return BIErrCode::BIGeneralError;
+        }
+        return BIErrCode::BISuccess;
     }
 
     /**

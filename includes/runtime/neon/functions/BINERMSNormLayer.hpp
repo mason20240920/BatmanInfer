@@ -67,7 +67,7 @@ namespace BatmanInfer {
         static BIStatus
         validate(const BIITensorInfo *input, const BIITensorInfo *gamma, const BIITensorInfo *output);
 
-        void run() override;
+        void run();
 
     private:
         std::unique_ptr<cpu::BINERMSNormLayerKernel> _rms_norm_kernel; /**<RMS Normalization layer kernel */

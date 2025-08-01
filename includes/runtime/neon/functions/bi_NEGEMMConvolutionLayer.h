@@ -208,7 +208,7 @@ namespace BatmanInfer {
         void update_quantization_parameters();
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
         void prepare() override;
 
     private:

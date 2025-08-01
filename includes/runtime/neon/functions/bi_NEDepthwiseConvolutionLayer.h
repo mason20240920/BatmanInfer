@@ -99,7 +99,7 @@ namespace BatmanInfer {
                                  const Size2D                &dilation         = Size2D(1U, 1U));
 
         // Inherited methods overriden:
-        void run() override;
+        void run();
         void prepare() override;
 
     private:
@@ -176,7 +176,7 @@ namespace BatmanInfer {
                                      const Size2D                &dilation         = Size2D(1U, 1U));
 
             // Inherited methods overriden:
-            void run() override;
+            void run();
             void prepare() override;
 
         private:
@@ -252,7 +252,7 @@ namespace BatmanInfer {
                                      const Size2D                &dilation         = Size2D(1U, 1U));
 
             // Inherited methods overriden:
-            void run() override;
+            void run();
 
         private:
             struct Impl;

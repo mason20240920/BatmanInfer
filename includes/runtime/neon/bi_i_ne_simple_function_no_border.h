@@ -38,7 +38,7 @@ namespace BatmanInfer {
         ~BIINESimpleFunctionNoBorder();
 
         // Inherited methods overridden:
-        void run() override final;
+        void run();
 
     protected:
         std::unique_ptr<INEKernel> _kernel; /**< Kernel to run */

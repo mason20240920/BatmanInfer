@@ -30,6 +30,6 @@ namespace BatmanInfer {
         * |All            |All            |
         *
         */
-        void run() override;
+        void run();
     };
 }

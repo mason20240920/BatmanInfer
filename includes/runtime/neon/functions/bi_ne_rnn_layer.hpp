@@ -84,7 +84,7 @@ namespace BatmanInfer {
                                  const BIActivationLayerInfo &info);
 
         // 继承函数
-        void run() override;
+        void run();
 
         void prepare() override;
 

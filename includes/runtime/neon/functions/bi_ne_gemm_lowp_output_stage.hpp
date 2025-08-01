@@ -83,7 +83,7 @@ namespace BatmanInfer {
                                  const BIGEMMLowpOutputStageInfo &info);
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
     private:
         struct Impl;

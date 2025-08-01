@@ -92,7 +92,7 @@ namespace BatmanInfer {
                                  BIActivationLayerInfo act_info = BIActivationLayerInfo());
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
     private:
         std::unique_ptr<BINEBatchNormalizationLayerKernel> _norm_kernel; /**< Batch normalization layer kernel */

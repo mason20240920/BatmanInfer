@@ -67,7 +67,7 @@ namespace BatmanInfer {
                                  const BITensorShape &original_input_shape,
                                  BIDataLayout data_layout);
 
-        void run() override;
+        void run();
 
     private:
         struct Impl;

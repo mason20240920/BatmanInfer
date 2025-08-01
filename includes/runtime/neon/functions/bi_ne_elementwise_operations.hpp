@@ -77,7 +77,7 @@ namespace BatmanInfer {
                                  const BIActivationLayerInfo &act_info = BIActivationLayerInfo());
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
     private:
         struct Impl;
@@ -149,7 +149,7 @@ namespace BatmanInfer {
                                  const BIActivationLayerInfo &act_info = BIActivationLayerInfo());
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
     private:
         struct Impl;
@@ -221,7 +221,7 @@ namespace BatmanInfer {
                                  const BIActivationLayerInfo &act_info = BIActivationLayerInfo());
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
     private:
         struct Impl;
@@ -289,7 +289,7 @@ namespace BatmanInfer {
                                  const BIActivationLayerInfo &act_info = BIActivationLayerInfo());
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
     private:
         struct Impl;
@@ -358,7 +358,7 @@ namespace BatmanInfer {
                                  const BIActivationLayerInfo &act_info = BIActivationLayerInfo());
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
     private:
         struct Impl;
@@ -427,7 +427,7 @@ namespace BatmanInfer {
                  ComparisonOperation op);
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
     private:
         struct Impl;
@@ -479,7 +479,7 @@ namespace BatmanInfer {
         static BIStatus validate(const BIITensorInfo *input1, const BIITensorInfo *input2, const BIITensorInfo *output);
 
         // Inherited methods overridden:
-        void run() override;
+        void run();
 
     private:
         struct Impl;

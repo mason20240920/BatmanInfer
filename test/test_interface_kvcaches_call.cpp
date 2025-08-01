@@ -337,7 +337,7 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
     unsigned int  avaliable_kvblock_count = 0;
     model_interface->bi_get_avaliable_kvblock_count(avaliable_kvblock_count);
     std::vector<unsigned int> remove_kvblockid{11, 12, 13};
-    model_interface->bi_release_kvcache_block(remove_kvblockid);
+    auto sub_ret = model_interface->bi_release_kvcache_block(remove_kvblockid);
     model_interface->bi_get_avaliable_kvblock_count(avaliable_kvblock_count);
 
 
