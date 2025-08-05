@@ -13,57 +13,13 @@
 #include <runtime/neon/bi_ne_scheduler.hpp>
 
 #include <common/utils/bi_log.hpp>
-
+#include "utils/utils.hpp"
 
 namespace BatmanInfer {
     BINEAttentionLayer::~BINEAttentionLayer() = default;
 
     BINEAttentionLayer::BINEAttentionLayer(std::shared_ptr<BIIMemoryManager> memory_manager) : _memory_group(
-            std::move(memory_manager)),
-
-        // _rms_norm_layer(),
-        // _c_attn_layer(),
-        // _norm_output(),
-        // _gemm_state_f(),
-        // _split_layer(),
-        // _reshape_1_f(),
-        // _transpose_1_f(),
-        // _reshape_2_f(),
-        // _transpose_2_f(),
-        // _reshape_3_f(),
-        // _transpose_3_f(),
-        // _mul_1_f(),
-        // _mul_2_f(),
-        // _matmul_1_f(),
-        // _matmul_2_f(),
-        // _add_f(),
-        // _softmax_layer(),
-        // _transpose_final_f(),
-        // _reshape_final_f(),
-        // _gemm_final_f(),
-        // _norm_output(),
-        // _gemm_output(),
-        // _split_result_0(),
-        // _split_result_1(),
-        // _split_result_2(),
-        // _reshape_1_output(),
-        // _transpose_1_output(),
-        // _reshape_2_output(),
-        // _transpose_2_output(),
-        // _reshape_3_output(),
-        // _transpose_3_output(),
-        // _mul_1_output(),
-        // _mul_2_output(),
-        // _matmul_1_output(),
-        // _add_output(),
-        // _softmax_output(),
-        // _matmul_2_output(),
-        // _transpose_final_output(),
-        // _reshape_final_output(),
-        // _gemm_final_output(),
-        _is_prepared(
-            false
-        ) {
+        std::move(memory_manager)),_is_prepared(false) {
     }
 
     BIStatus
@@ -179,6 +135,7 @@ namespace BatmanInfer {
                                        const BIITensor *c_attn_bias,
                                        const BIITensor *o_attn_weights,
                                        const BIITensor *o_attn_bias,
+                                       const std::string &eos_weights_path,
                                        const PermutationVector &q_perm,
                                        const PermutationVector &k_perm,
                                        const PermutationVector &qkv_perm,
@@ -207,6 +164,8 @@ namespace BatmanInfer {
         const auto transpose_v_shape = BITensorShape(64, _max_seq_len, 12, _max_batch_size);
         const auto transpose_k_shape = BITensorShape(_max_seq_len, 64, 12, _max_batch_size);
         auto qk_bmm_output_shape = BITensorShape(_max_seq_len, 1, 12, _max_batch_size);
+
+        _eos_q_tensor = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),  BIDataType::F16);
 
         _norm_output.allocator()->init(BITensorInfo(rms_norm_shape, 1, BIDataType::F16));
         _c_attn_output.allocator()->init(BITensorInfo(c_attn_shape, 1, BIDataType::F16));
@@ -406,6 +365,7 @@ namespace BatmanInfer {
             return ret;
         }
         concat_kv_cache();
+        restruct_q_tensor();
 
         _transpose_q_layer.run();
         _transpose_k_layer.run();
@@ -417,7 +377,7 @@ namespace BatmanInfer {
         _pv_reshape_layer.run();
         _attn_o_gemm_layer.run();
         _c_copy_layer.run();
-        _sub_pv_reshape_output.print(std::cout, format);
+        // _sub_pv_reshape_output.print(std::cout, format);
         return BIErrCode::BISuccess;
     }
 
@@ -513,19 +473,12 @@ namespace BatmanInfer {
         pack.add_tensor(ACL_DST_1, &_sub_concat_reshape_v_states);
         BINEScheduler::get().schedule_kv_concat(pack, blocks, *_avail_len);
         BINEScheduler::get().schedule_kv_full_fill(pack, eos_blocks, *_avail_len);
-        // BIIOFormatInfo format;
-        // format.element_delim = ", "; // 元素之间用逗号分隔
-        // format.row_delim = "\n"; // 每行换行
-        // format.align_columns = true; // 对齐列
+    }
 
-        // if (_seq_len == 9) {
-        //     std::cout << "打印Attention" << std::endl;
-        //     _sub_concat_reshape_v_states.print(std::cout, format);
-        // }
-
-        // // _sub_reshape_k_states.print(std::cout, format);
-        // _sub_concat_reshape_k_states.print(std::cout, format);
-        // std::cout << "================================================================" << std::endl;
-        // _sub_concat_reshape_v_states.print(std::cout, format);
+    void BINEAttentionLayer::restruct_q_tensor() {
+        BIITensorPack pack;
+        pack.add_tensor(ACL_SRC_0, &_sub_reshape_q_states);
+        pack.add_tensor(ACL_SRC_1, &_eos_q_tensor);
+        BINEScheduler::get().schedule_change_q(pack, *_avail_len, _seq_len);
     }
 }

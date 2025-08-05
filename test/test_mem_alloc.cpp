@@ -687,6 +687,7 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     BINEArithmeticAddition add_layer;
     add_layer.configure(&gather_output_tensor, &sub_add_weight, &add_output_tensor, BIConvertPolicy::SATURATE);
     add_layer.run();
+    const std::string &eos_weights_path = "./input_res/eos_q_o.npy";
     // 5 获取Attention模块的权重
     // 5.1 gamma权重
     BITensorShape attn_gamma_weights_shape(768);
@@ -727,7 +728,9 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
                          &attn_qkv_weights,
                          &attn_qkv_bias,
                          &attn_c_proj_weights,
-                         &attn_c_proj_bias, q_perm,
+                         &attn_c_proj_bias,
+                         eos_weights_path,
+                         q_perm,
                          k_perm,
                          qkv_o_perm,
                          768,
