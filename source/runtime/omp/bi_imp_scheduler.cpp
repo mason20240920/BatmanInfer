@@ -99,7 +99,7 @@ namespace BatmanInfer {
         }
     }
 
-    void BIOMPScheduler::schedule_kv_split(BIITensorPack &tensors) {
+    void BIOMPScheduler::schedule_kv_split(BIITensorPack &tensors, const std::vector<size_t> &ava_len) {
         // 最后一个维度的数量
         BI_COMPUTE_ERROR_ON_MSG(tensors.empty(), "Tensors are empty in this scheduler!");
         BI_COMPUTE_ERROR_ON_MSG(tensors.get_tensor(ACL_SRC) == nullptr,
@@ -108,7 +108,7 @@ namespace BatmanInfer {
         auto *tensor = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_SRC));
         auto *dst = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_DST));
         const unsigned int batch = tensor->info()->dimension(2); // batch
-        const unsigned int sequence_length = tensor->info()->dimension(1);
+        const unsigned int max_seq_len = tensor->info()->dimension(1);
         const unsigned int hidden_size = tensor->info()->dimension(0);
         // 序列长度
         const unsigned int num_iterations = batch;
@@ -122,29 +122,29 @@ namespace BatmanInfer {
         const unsigned int remain_usage = num_iterations % num_threads;
         std::vector<BIIScheduler::BIWorkload> workloads(num_windows);
         for (unsigned int t = 0; t < num_windows; t++) {
-            workloads[t] = [t, &tensor,&dst, &num_windows, &remain_usage, & total_usage, &hidden_size, &sequence_length
-                    ](const ThreadInfo &info) {
+            const unsigned int data_type = sizeof(float16_t);
+            workloads[t] = [t, &tensor,&dst, &num_windows, &remain_usage, & total_usage,&data_type, &hidden_size, &ava_len, &max_seq_len](const ThreadInfo &info) {
                         // 当前全局的起始节点
-                        for (int split_i = 1; split_i <= total_usage; split_i++) {
+                        for (int split_i = 0; split_i < total_usage; split_i++) {
                             unsigned int current_gmem_index = total_usage * t + split_i;
                             // 获取当前坐标
                             // TODO: 当前默认是float16, 所以最后乘以2
-                            unsigned int offset = (sequence_length * current_gmem_index - 1) * hidden_size * 2;
-                            unsigned int dst_offset = (current_gmem_index - 1) * hidden_size * 2;
-                            unsigned int data_size = hidden_size * 2;
+                            unsigned int offset = (get_vec_sum(ava_len, current_gmem_index, max_seq_len) - 1)*hidden_size * data_type;
+                            unsigned int dst_offset = current_gmem_index * hidden_size * data_type;
+                            unsigned int data_size = hidden_size * data_type;
                             auto data = tensor->allocator()->data(offset, data_size);
                             auto dst_ptr = dst->allocator()->data(dst_offset, data_size);
                             memcpy(dst_ptr, data, data_size);
                         }
                         // 计算需要Split开始的起点
                         if (t == num_windows - 1 && remain_usage > 0) {
-                            for (int split_i = 1; split_i <= remain_usage; split_i++) {
+                            for (int split_i = 0; split_i < remain_usage; split_i++) {
                                 unsigned int current_gmem_index = total_usage * (t + 1) + split_i;
                                 // 获取当前坐标
                                 // TODO: 当前默认是float16, 所以最后乘以2
-                                unsigned int offset = (sequence_length * current_gmem_index - 1) * hidden_size * 2;
-                                unsigned int dst_offset = (current_gmem_index - 1) * hidden_size * 2;
-                                unsigned int data_size = hidden_size * 2;
+                                unsigned int offset = (get_vec_sum(ava_len, current_gmem_index, max_seq_len) - 1) * hidden_size * data_type;
+                                unsigned int dst_offset = current_gmem_index * hidden_size * data_type;
+                                unsigned int data_size = hidden_size * data_type;
                                 auto data = tensor->allocator()->data(offset, data_size);
                                 auto dst_ptr = dst->allocator()->data(dst_offset, data_size);
                                 memcpy(dst_ptr, data, data_size);
@@ -156,20 +156,18 @@ namespace BatmanInfer {
         run_workloads(workloads);
     }
 
-    void BIOMPScheduler::schedule_kv_concat(BIITensorPack &tensors, const std::vector<PhysicalBlock *> &mem_lst) {
+    void BIOMPScheduler::schedule_kv_full_fill(BIITensorPack &tensors, const std::vector<PhysicalBlock *> &mem_lst, const std::vector<size_t> &ava_len) {
         // 1. 最后一个维度的数量
         BI_COMPUTE_ERROR_ON_MSG(tensors.empty(), "Tensors are empty in this scheduler!");
         BI_COMPUTE_ERROR_ON_MSG(tensors.get_tensor(ACL_SRC) == nullptr, "Tensors are empty in this scheduler!");
         BI_COMPUTE_ERROR_ON_MSG(tensors.get_tensor(ACL_DST) == nullptr, "Tensors are empty in this scheduler!");
-        auto *k_src = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_SRC_0));
-        auto *v_src = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_SRC_1));
         auto *k_dst = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_DST_0));
         auto *v_dst = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_DST_1));
-        const auto k_type_size = k_src->info()->data_type() == BIDataType::F16 ? sizeof(float16_t) : sizeof(int8_t);
-        const auto v_type_size = v_src->info()->data_type() == BIDataType::F16 ? sizeof(float16_t) : sizeof(int8_t);
+        const auto k_type_size = k_dst->info()->data_type() == BIDataType::F16 ? sizeof(float16_t) : sizeof(int8_t);
+        const auto v_type_size = v_dst->info()->data_type() == BIDataType::F16 ? sizeof(float16_t) : sizeof(int8_t);
         // 2. 先确定当前的并行数量
         const size_t batch = v_dst->info()->dimension(3);
-        const size_t seq_len = v_dst->info()->dimension(2);
+        const size_t max_seq_len = v_dst->info()->dimension(2);
         const size_t num_head = v_dst->info()->dimension(1);
         const size_t dim_size = v_dst->info()->dimension(0);
         const size_t k_mm_dim_item_size = dim_size * k_type_size * num_head;
@@ -186,8 +184,86 @@ namespace BatmanInfer {
         for (unsigned int t = 0; t < num_threads; t++) {
             workloads[t] = [t,
                         &middle_loop_num,
-                        &seq_len,
-                        &dim_size,
+                        &ava_len,
+                        &max_seq_len,
+                        &k_dst,
+                        &v_dst,
+                        &k_mm_dim_item_size,
+                        &v_mm_dim_item_size,
+                        &remain_loop_num,
+                        &num_threads,
+                        &mem_lst](const ThreadInfo &info) {
+                        // 1. 先直接进行中循环遍历
+                        for (int m_r = 0; m_r < middle_loop_num; m_r++) {
+                            // 2. 对于全局张量的当前偏移量(每个线程偏移middle_loop_num的数量)
+                            const unsigned int batch_index = middle_loop_num * t + m_r;
+                            auto seq_len = ava_len[batch_index];
+                            for (size_t seq_index = seq_len; seq_index < max_seq_len; seq_index++) {
+                                const unsigned int cur_k_mm_offset = (batch_index * max_seq_len + seq_index) * k_mm_dim_item_size;
+                                const unsigned int cur_v_mm_offset = (batch_index * max_seq_len + seq_index) * v_mm_dim_item_size;
+                                auto pb_gmem_addr = static_cast<char *>(mem_lst[seq_index]->buffer);
+                                auto k_dst_ptr = k_dst->allocator()->data(cur_k_mm_offset, k_mm_dim_item_size);
+                                auto v_dst_ptr = v_dst->allocator()->data(cur_v_mm_offset, v_mm_dim_item_size);
+                                memcpy(k_dst_ptr, pb_gmem_addr, k_mm_dim_item_size);
+                                memcpy(v_dst_ptr, pb_gmem_addr + k_mm_dim_item_size, v_mm_dim_item_size);
+                            }
+                        }
+                        // 如果是remain大小就进行remain计算
+                        if (t == num_threads - 1 && remain_loop_num > 0) {
+                            // 1. 先直接进行中循环遍历
+                            for (int m_r = 0; m_r <= remain_loop_num; m_r++) {// 2. 对于全局张量的当前偏移量(每个线程偏移middle_loop_num的数量)
+                                const unsigned int batch_index = middle_loop_num * t + m_r;
+                                auto seq_len = ava_len[batch_index];
+                                for (size_t seq = seq_len; seq < max_seq_len; seq++) {
+                                    const unsigned int cur_k_mm_offset = (batch_index * max_seq_len + seq) * k_mm_dim_item_size;
+                                    const unsigned int cur_v_mm_offset = (batch_index * max_seq_len + seq) * v_mm_dim_item_size;
+                                    auto pb_gmem_addr = static_cast<char *>(mem_lst[seq]->buffer);
+                                    auto k_dst_ptr = k_dst->allocator()->data(cur_k_mm_offset, k_mm_dim_item_size);
+                                    auto v_dst_ptr = v_dst->allocator()->data(cur_v_mm_offset, v_mm_dim_item_size);
+                                    memcpy(k_dst_ptr, pb_gmem_addr, k_mm_dim_item_size);
+                                    memcpy(v_dst_ptr, pb_gmem_addr + k_mm_dim_item_size, v_mm_dim_item_size);
+                                }
+                            }
+                        }
+                    };
+        }
+        // 执行并行操作
+        run_workloads(workloads);
+    }
+
+    void BIOMPScheduler::schedule_kv_concat(BIITensorPack &tensors, const std::vector<PhysicalBlock *> &mem_lst,
+                                            const std::vector<size_t> &ava_len) {
+        // 1. 最后一个维度的数量
+        BI_COMPUTE_ERROR_ON_MSG(tensors.empty(), "Tensors are empty in this scheduler!");
+        BI_COMPUTE_ERROR_ON_MSG(tensors.get_tensor(ACL_SRC) == nullptr, "Tensors are empty in this scheduler!");
+        BI_COMPUTE_ERROR_ON_MSG(tensors.get_tensor(ACL_DST) == nullptr, "Tensors are empty in this scheduler!");
+        auto *k_src = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_SRC_0));
+        auto *v_src = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_SRC_1));
+        auto *k_dst = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_DST_0));
+        auto *v_dst = reinterpret_cast<BITensor *>(tensors.get_tensor(ACL_DST_1));
+        const auto k_type_size = k_src->info()->data_type() == BIDataType::F16 ? sizeof(float16_t) : sizeof(int8_t);
+        const auto v_type_size = v_src->info()->data_type() == BIDataType::F16 ? sizeof(float16_t) : sizeof(int8_t);
+        // 2. 先确定当前的并行数量
+        const size_t batch = v_dst->info()->dimension(3);
+        const size_t max_seq_len = v_dst->info()->dimension(2);
+        const size_t num_head = v_dst->info()->dimension(1);
+        const size_t dim_size = v_dst->info()->dimension(0);
+        const size_t k_mm_dim_item_size = dim_size * k_type_size * num_head;
+        const size_t v_mm_dim_item_size = dim_size * v_type_size * num_head;
+        const size_t parallel_iter = batch; // 按照batch进行切割
+        // 3. 获取当前并行数量
+        const size_t num_threads = std::min(parallel_iter, static_cast<size_t>(_num_threads));
+        // 4. round up 这些参数
+        const size_t middle_loop_num = parallel_iter / num_threads;
+        const size_t remain_loop_num = parallel_iter % num_threads;
+        // 5. 建立并行匿名函数
+        std::vector<BIWorkload> workloads(num_threads);
+        // 一般来说是10个线程
+        for (unsigned int t = 0; t < num_threads; t++) {
+            workloads[t] = [t,
+                        &middle_loop_num,
+                        &ava_len,
+                        &max_seq_len,
                         &k_dst,
                         &v_dst,
                         &k_mm_dim_item_size,
@@ -201,18 +277,19 @@ namespace BatmanInfer {
                         for (int m_r = 0; m_r < middle_loop_num; m_r++) {
                             // 2. 对于全局张量的当前偏移量(每个线程偏移middle_loop_num的数量)
                             const unsigned int batch_index = middle_loop_num * t + m_r;
+                            auto seq_len = ava_len[batch_index];
                             for (int seq = 0; seq < seq_len - 1; seq++) {
-                                const unsigned int mm_item_index = batch_index * (seq_len - 1) + seq;
-                                const unsigned int cur_k_mm_offset = (batch_index * seq_len + seq) * k_mm_dim_item_size;
-                                const unsigned int cur_v_mm_offset = (batch_index * seq_len + seq) * v_mm_dim_item_size;
+                                const unsigned int mm_item_index = get_remain_seq_sum_minus_one(ava_len, batch_index) + seq;
+                                const unsigned int cur_k_mm_offset = (batch_index * max_seq_len + seq) * k_mm_dim_item_size;
+                                const unsigned int cur_v_mm_offset = (batch_index * max_seq_len + seq) * v_mm_dim_item_size;
                                 auto pb_gmem_addr = static_cast<char *>(mem_lst[mm_item_index]->buffer);
                                 auto k_dst_ptr = k_dst->allocator()->data(cur_k_mm_offset, k_mm_dim_item_size);
                                 auto v_dst_ptr = v_dst->allocator()->data(cur_v_mm_offset, v_mm_dim_item_size);
                                 memcpy(k_dst_ptr, pb_gmem_addr, k_mm_dim_item_size);
                                 memcpy(v_dst_ptr, pb_gmem_addr + k_mm_dim_item_size, v_mm_dim_item_size);
                             }
-                            const unsigned int t_k_mm_offset = ((batch_index + 1) * seq_len - 1) * k_mm_dim_item_size;
-                            const unsigned int t_v_mm_offset = ((batch_index + 1) * seq_len - 1) * v_mm_dim_item_size;
+                            const unsigned int t_k_mm_offset = (batch_index * max_seq_len + seq_len - 1) * k_mm_dim_item_size;
+                            const unsigned int t_v_mm_offset = (batch_index * max_seq_len + seq_len - 1) * v_mm_dim_item_size;
                             const unsigned int t_k_orin_offset = batch_index * k_mm_dim_item_size;
                             const unsigned int t_v_orin_offset = batch_index * v_mm_dim_item_size;
                             auto k_gmem_addr = k_src->allocator()->data(t_k_orin_offset, k_mm_dim_item_size);
@@ -228,22 +305,22 @@ namespace BatmanInfer {
                             for (int m_r = 0; m_r <= remain_loop_num; m_r++) {
                                 // 2. 对于全局张量的当前偏移量(每个线程偏移middle_loop_num的数量)
                                 const unsigned int batch_index = middle_loop_num * t + m_r;
+                                auto seq_len = ava_len[batch_index];
                                 for (int seq = 0; seq < seq_len - 1; seq++) {
-                                    const unsigned int mm_item_index = batch_index * (seq_len - 1) + seq;
+                                    const unsigned int mm_item_index = get_remain_seq_sum_minus_one(
+                                                                           ava_len, batch_index) + seq;
                                     const unsigned int cur_k_mm_offset =
-                                            (batch_index * seq_len + seq) * k_mm_dim_item_size;
+                                            (get_remain_seq_sum(ava_len, batch_index) + seq) * k_mm_dim_item_size;
                                     const unsigned int cur_v_mm_offset =
-                                            (batch_index * seq_len + seq) * v_mm_dim_item_size;
+                                            (get_remain_seq_sum(ava_len, batch_index) + seq) * v_mm_dim_item_size;
                                     auto pb_gmem_addr = static_cast<char *>(mem_lst[mm_item_index]->buffer);
                                     auto k_dst_ptr = k_dst->allocator()->data(cur_k_mm_offset, k_mm_dim_item_size);
                                     auto v_dst_ptr = v_dst->allocator()->data(cur_v_mm_offset, v_mm_dim_item_size);
                                     memcpy(k_dst_ptr, pb_gmem_addr, k_mm_dim_item_size);
                                     memcpy(v_dst_ptr, pb_gmem_addr + k_mm_dim_item_size, v_mm_dim_item_size);
                                 }
-                                const unsigned int t_k_mm_offset =
-                                        ((batch_index + 1) * seq_len - 1) * k_mm_dim_item_size;
-                                const unsigned int t_v_mm_offset =
-                                        ((batch_index + 1) * seq_len - 1) * v_mm_dim_item_size;
+                                const unsigned int t_k_mm_offset = (batch_index  * max_seq_len + seq_len) * k_mm_dim_item_size;
+                                const unsigned int t_v_mm_offset = (batch_index  * max_seq_len + seq_len) * v_mm_dim_item_size;
                                 const unsigned int t_k_orin_offset = batch_index * k_mm_dim_item_size;
                                 const unsigned int t_v_orin_offset = batch_index * v_mm_dim_item_size;
                                 auto k_gmem_addr = k_src->allocator()->data(t_k_orin_offset, k_mm_dim_item_size);

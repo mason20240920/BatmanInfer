@@ -50,6 +50,10 @@ namespace BatmanInfer {
         return BIStatus{};
     }
 
+    void BINEAttentionLowpLayer::set_avail_lens(std::vector<size_t> *lens) {
+        _avail_len = lens;
+    }
+
     void BINEAttentionLowpLayer::dynamic_configure(const BIITensor *input,
                                                    const size_t &seq_len,
                                                    const size_t &batch_size,
@@ -689,7 +693,7 @@ namespace BatmanInfer {
             const auto block_id = decode_list[0];
             std::vector<unsigned int> decode_ids{};
             KVCacheManager::getInstance().decode_sequence_lst(block_id, decode_ids); // 获取合并的Decodes
-            KVCacheManager::getInstance().decode_sequence_blocks(decode_ids, blocks);
+            KVCacheManager::getInstance().decode_sequence_blocks(decode_ids, blocks, _seq_len);
         }
         // if (_seq_len >= 1) {
         //     BIIOFormatInfo format;
@@ -704,6 +708,6 @@ namespace BatmanInfer {
         pack.add_tensor(ACL_SRC_1, &_sub_reshape_v_states);
         pack.add_tensor(ACL_DST_0, &_sub_concat_reshape_k_states);
         pack.add_tensor(ACL_DST_1, &_sub_concat_reshape_v_states);
-        BINEScheduler::get().schedule_kv_concat(pack, blocks);
+        BINEScheduler::get().schedule_kv_concat(pack, blocks, *_avail_len);
     }
 }

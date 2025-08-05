@@ -16,7 +16,7 @@ namespace BatmanInfer {
     }
 
     void KVCacheManager::initialize(const size_t num_blocks, const size_t block_size, size_t max_seq_len) {
-        NUM_BLOCKS = num_blocks;
+        NUM_BLOCKS = num_blocks + max_seq_len; // 默认KV Cache的blocks和最大长度的EOS
         BLOCK_SIZE = block_size;
         MemoryTree::initialize(max_seq_len, block_size);
     }
@@ -117,6 +117,17 @@ namespace BatmanInfer {
         memcpy(static_cast<char *>(buffer) + k_block_size, v_src_buffer, v_block_size);
     }
 
+    void KVCacheManager::memcpy_init_eos_buffer(void *source_buffer,
+                                                int block_id,
+                                                int seq_len,
+                                                bool is_k,
+                                                bool is_smooth_quant) const {
+        BI_COMPUTE_ERROR_ON_MSG(block_id + 1 - seq_len != 0, "KV Cache Store EOS Buffer Len is not right");
+        for (int i = 0; i < seq_len; i++) {
+            memcpy_decode_buffer(source_buffer, i, i, is_k, is_smooth_quant);
+        }
+    }
+
     /**
      * 释放空的解码序列
      * @param leaf_id: 叶子节点id
@@ -160,11 +171,19 @@ namespace BatmanInfer {
      * 解码序列的内存Block数组
      * @param block_ids
      * @param block_mem_lst
+     * @param decode_seq
      */
     void KVCacheManager::decode_sequence_blocks(const std::vector<unsigned int> &block_ids,
-                                                std::vector<PhysicalBlock *> &block_mem_lst) const {
+                                                std::vector<PhysicalBlock *> &block_mem_lst,
+                                                const size_t decode_seq) const {
         for (const unsigned int block_id: block_ids) {
             block_mem_lst.emplace_back(&manager_->blocks[block_id]);
+        }
+    }
+
+    void KVCacheManager::decode_eos_lst(std::vector<PhysicalBlock *> &block_mem_lst, const size_t decode_seq) const {
+        for (int i = 0; i < decode_seq; i++) {
+            block_mem_lst.emplace_back(&manager_->blocks[i]);
         }
     }
 

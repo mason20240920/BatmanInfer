@@ -181,15 +181,26 @@ namespace BatmanInfer {
         /**
          * @brief 调度kv cache的切分拷贝
          * @param tensors 张量信息
+         * @param ava_len 可用长度
          */
-        virtual void schedule_kv_split(BIITensorPack &tensors) = 0;
+        virtual void schedule_kv_split(BIITensorPack &tensors, const std::vector<size_t>& ava_len) = 0;
 
         /**
          * @brief 调度KV Cache Manager的合并接口
          * @param tensors 张量信息
          * @param mem_lst 内存块数组 - 默认内存块大小(N, num heads, sequence length, head dim)
+         * @param ava_len 有效长度 - 有效长度: 后面需要填充进去
          */
-        virtual void schedule_kv_concat(BIITensorPack &tensors, const std::vector<PhysicalBlock *> &mem_lst) = 0;
+        virtual void schedule_kv_concat(BIITensorPack &tensors, const std::vector<PhysicalBlock *> &mem_lst, const std::vector<size_t> &ava_len) = 0;
+
+        /**
+         * @brief 填充Tensor中有eos部分的张量
+         *
+         * @param tensors
+         * @param mem_lst
+         * @param ava_len
+         */
+        virtual void schedule_kv_full_fill(BIITensorPack &tensors, const std::vector<PhysicalBlock *>&mem_lst, const std::vector<size_t> &ava_len) = 0;
 
         /**
          * @brief 执行所有传递的工作负载

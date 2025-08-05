@@ -79,6 +79,10 @@ namespace BatmanInfer {
         return BIStatus{};
     }
 
+    void BINEAttentionLayer::set_avail_lens(std::vector<size_t> *lens) {
+        _avail_len = lens;
+    }
+
     void BINEAttentionLayer::dynamic_configure(const BIITensor *input,
                                                const size_t &seq_len,
                                                const size_t &batch_size,
@@ -384,10 +388,10 @@ namespace BatmanInfer {
     }
 
     BIErrCode BINEAttentionLayer::run() {
-        // BIIOFormatInfo format;
-        // format.element_delim = ", "; // 元素之间用逗号分隔
-        // format.row_delim = "\n"; // 每行换行
-        // format.align_columns = true; // 对齐列
+        BIIOFormatInfo format;
+        format.element_delim = ", "; // 元素之间用逗号分隔
+        format.row_delim = "\n"; // 每行换行
+        format.align_columns = true; // 对齐列
         prepare();
 
         // 执行函数
@@ -413,6 +417,7 @@ namespace BatmanInfer {
         _pv_reshape_layer.run();
         _attn_o_gemm_layer.run();
         _c_copy_layer.run();
+        _sub_pv_reshape_output.print(std::cout, format);
         return BIErrCode::BISuccess;
     }
 
@@ -493,22 +498,25 @@ namespace BatmanInfer {
         // 1. 根据前面的叶子节点,先进行合并
         // TODO: 后续根据Sequence进行动态reserve
         std::vector<PhysicalBlock *> blocks{};
+        std::vector<PhysicalBlock *> eos_blocks{};
         for (const auto &decode_list: _kv_decode_ids) {
             const auto block_id = decode_list[0];
             std::vector<unsigned int> decode_ids{};
             KVCacheManager::getInstance().decode_sequence_lst(block_id, decode_ids); // 获取合并的Decodes
-            KVCacheManager::getInstance().decode_sequence_blocks(decode_ids, blocks);
+            KVCacheManager::getInstance().decode_sequence_blocks(decode_ids, blocks, _seq_len);
         }
+        KVCacheManager::getInstance().decode_eos_lst(eos_blocks, _seq_len);
         BIITensorPack pack;
         pack.add_tensor(ACL_SRC_0, &_sub_reshape_k_states);
         pack.add_tensor(ACL_SRC_1, &_sub_reshape_v_states);
         pack.add_tensor(ACL_DST_0, &_sub_concat_reshape_k_states);
         pack.add_tensor(ACL_DST_1, &_sub_concat_reshape_v_states);
-        BINEScheduler::get().schedule_kv_concat(pack, blocks);
-        BIIOFormatInfo format;
-        format.element_delim = ", "; // 元素之间用逗号分隔
-        format.row_delim = "\n"; // 每行换行
-        format.align_columns = true; // 对齐列
+        BINEScheduler::get().schedule_kv_concat(pack, blocks, *_avail_len);
+        BINEScheduler::get().schedule_kv_full_fill(pack, eos_blocks, *_avail_len);
+        // BIIOFormatInfo format;
+        // format.element_delim = ", "; // 元素之间用逗号分隔
+        // format.row_delim = "\n"; // 每行换行
+        // format.align_columns = true; // 对齐列
 
         // if (_seq_len == 9) {
         //     std::cout << "打印Attention" << std::endl;

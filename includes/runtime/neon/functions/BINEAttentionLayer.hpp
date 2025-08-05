@@ -42,6 +42,8 @@ namespace BatmanInfer {
                                const size_t &batch_size,
                                std::vector<std::vector<unsigned int> > &kv_caches_vec);
 
+        void set_avail_lens(std::vector<size_t> *lens);
+
         /**
         * 初始化函数
         * Valid data layouts:
@@ -189,6 +191,7 @@ namespace BatmanInfer {
         bool _is_first_kv_cache = true; // 是否第一次KV Cache
         std::vector<std::vector<unsigned int> > _kv_decode_ids; // 进行kv cache的传递
         std::vector<unsigned int> _block_ids{};
+        std::vector<size_t> *_avail_len;
 
     private:
         /**
