@@ -291,13 +291,13 @@ namespace QATTest {
         output_stage.run();
         print_tensor(s32_output, "output");
 
-        // BITensor fp16_output;
-        // auto fp16_info = BITensorInfo(output_shape, 1, BIDataType::F16);
-        // fp16_output.allocator()->init(fp16_info);
-        // fp16_output.allocator()->allocate();
-        // BINEDequantizationLayer dequantization_layer;
-        // dequantization_layer.configure(&int8_output, &fp16_output);
-        // dequantization_layer.run();
+        BITensor fp16_output;
+        auto fp16_info = BITensorInfo(output_shape, 1, BIDataType::F16);
+        fp16_output.allocator()->init(fp16_info);
+        fp16_output.allocator()->allocate();
+        BINEDequantizationLayer dequantization_layer;
+        dequantization_layer.configure(&int8_output, &fp16_output);
+        dequantization_layer.run();
         //
         // print_tensor(fp16_output, "output");
 

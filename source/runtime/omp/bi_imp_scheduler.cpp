@@ -272,7 +272,7 @@ namespace BatmanInfer {
                                 const unsigned int q_src_offset = batch_index * mm_dim_item_size;
                                 auto q_src_buffer = q_src->allocator()->data(q_src_offset, mm_dim_item_size);
                                 // 2. 确定拷贝的eos矩阵位置
-                                const unsigned int eos_offset = seq_len * mm_dim_item_size;
+                                const unsigned int eos_offset = (max_seq_len - 1) * mm_dim_item_size;
                                 auto eos_src_buffer = eos_src->allocator()->data(eos_offset, mm_dim_item_size);
                                 memcpy(q_src_buffer, eos_src_buffer, mm_dim_item_size);
                             }
@@ -290,7 +290,7 @@ namespace BatmanInfer {
                                     const unsigned int q_src_offset = batch_index * mm_dim_item_size;
                                     auto q_src_buffer = q_src->allocator()->data(q_src_offset, mm_dim_item_size);
                                     // 2. 确定拷贝的eos矩阵位置
-                                    const unsigned int eos_offset = seq_len * mm_dim_item_size;
+                                    const unsigned int eos_offset =  (max_seq_len - 1) * mm_dim_item_size;
                                     auto eos_src_buffer = eos_src->allocator()->data(eos_offset, mm_dim_item_size);
                                     memcpy(q_src_buffer, eos_src_buffer, mm_dim_item_size);
                                 }
