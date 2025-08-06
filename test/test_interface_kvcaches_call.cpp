@@ -136,10 +136,27 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
     // 进行第四步推理
     input_vec.clear();
     kv_cache_id_map.clear();
-    input_vec = {{0,3,8,3}};
+    input_vec = {{0,3,8,4}};
     for (int i = 0; i < input_vec.size(); ++i) {
         kv_cache_id_map.push_back({kv_block_ids[i], 1});
         std::cout << "4kv_cache_id: " << kv_block_ids[i] << std::endl;
+    }
+    model_interface->bi_set_input(input_vec, kv_cache_id_map);
+
+    kv_block_ids.clear();
+    output_vec.clear();
+    model_interface->bi_run(output_vec, kv_block_ids, false);
+    test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
+    test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);
+
+
+    // 进行第五步推理
+    input_vec.clear();
+    kv_cache_id_map.clear();
+    input_vec = {{0,3,8,4,8}};
+    for (int i = 0; i < input_vec.size(); ++i) {
+        kv_cache_id_map.push_back({kv_block_ids[i], 1});
+        std::cout << "5kv_cache_id: " << kv_block_ids[i] << std::endl;
     }
     model_interface->bi_set_input(input_vec, kv_cache_id_map);
 
