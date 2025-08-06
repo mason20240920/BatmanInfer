@@ -770,7 +770,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
@@ -832,7 +832,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
@@ -891,7 +891,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
@@ -950,7 +950,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
         add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
         attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
         attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
-        _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+        _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
         add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
         rms_norm_layer.dynamic_configure(&sub_add_output);
         lm_head_layer.dynamic_configure();
@@ -1284,7 +1284,7 @@ TEST(KVCacheGPT, MultiDiffWord) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
@@ -1342,7 +1342,7 @@ TEST(KVCacheGPT, MultiDiffWord) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
@@ -2971,7 +2971,7 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
@@ -3037,7 +3037,7 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
@@ -3102,7 +3102,7 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();

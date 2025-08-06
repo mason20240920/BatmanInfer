@@ -9,12 +9,13 @@
 #include <runtime/bi_i_weights_manager.hpp>
 #include <runtime/bi_memory_manager_on_demand.hpp>
 #include <function_info/bi_GEMMInfo.h>
-#include <runtime/neon/bi_ne_functions.h>
 
-#include <data/core/bi_types.hpp>
 #include <runtime/bi_memory_group.hpp>
 #include <runtime/bi_tensor.hpp>
+
+#include "BINELayerNormLayer.hpp"
 #include "bi_ne_copy.hpp"
+#include "bi_ne_gemm.hpp"
 
 
 namespace BatmanInfer {
@@ -25,22 +26,22 @@ namespace BatmanInfer {
      * 3. 进行激活函数操作（合并Gemm）
      * 4. 再进行恢复维度（恢复维度）
      */
-    class BINEFeedForwardLayer : public BIIFunction {
+    class BINEIntentFFNLayer : public BIIFunction {
     public:
-        explicit BINEFeedForwardLayer(std::shared_ptr<BIIMemoryManager> memory_manager);
+        explicit BINEIntentFFNLayer(std::shared_ptr<BIIMemoryManager> memory_manager);
 
-        BINEFeedForwardLayer() : BINEFeedForwardLayer(BIMemoryManagerOnDemand::make_default()) {
+        BINEIntentFFNLayer() : BINEIntentFFNLayer(BIMemoryManagerOnDemand::make_default()) {
         }
 
-        BINEFeedForwardLayer(const BINEFeedForwardLayer &) = delete;
+        BINEIntentFFNLayer(const BINEIntentFFNLayer &) = delete;
 
-        BINEFeedForwardLayer(BINEFeedForwardLayer &&) = delete;
+        BINEIntentFFNLayer(BINEIntentFFNLayer &&) = delete;
 
-        BINEFeedForwardLayer &operator=(const BINEFeedForwardLayer &) = delete;
+        BINEIntentFFNLayer &operator=(const BINEIntentFFNLayer &) = delete;
 
-        BINEFeedForwardLayer &operator=(BINEFeedForwardLayer &&) = delete;
+        BINEIntentFFNLayer &operator=(BINEIntentFFNLayer &&) = delete;
 
-        ~BINEFeedForwardLayer() override;
+        ~BINEIntentFFNLayer() override;
 
         void dynamic_configure(const BIITensor *input,
                                const size_t &batch_size,
@@ -64,6 +65,7 @@ namespace BatmanInfer {
                        const BIITensor *proj_weights,
                        const BIITensor *proj_bias,
                        const BIITensor *gamma,
+                       const BIITensor *ln_2_bias,
                        const BIActivationLayerInfo &act_info,
                        BIITensor *output,
                        const size_t &max_batch_size,
@@ -88,7 +90,7 @@ namespace BatmanInfer {
         std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;
 
         // 算子操作
-        BINERMSNormLayer _rms_layer; // 用于执行归一操作的层
+        BINELayerNormLayer _layer_norm_layer; // 用于执行归一操作的层
 
         BINEGEMM _c_fc_fuse_act; // 用于进行扩展维度 (融合激活函数)
 

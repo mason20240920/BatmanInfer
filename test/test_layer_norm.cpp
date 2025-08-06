@@ -393,3 +393,35 @@ TEST(LayerNorm, NELayerNormOp) {
 
     OperatorTest::print_tensor(output);
 }
+
+TEST(LayerNorm, TestMemoryHold) {
+    using namespace BatmanInfer;
+    // BIScheduler::get().set_num_threads(1);
+    // BITensorShape gather_weight_shape(768);
+    // const std::string &weight_path = "./gpt2_res/gamma.npy";
+    // const std::string &beta_path = "./gpt2_res/beta.npy";
+    // BITensor weight = utils::create_type_tensor(weight_path,
+    //                                             gather_weight_shape,
+    //                                             BIDataType::F16);
+    // BITensor bias = utils::create_type_tensor(beta_path,
+    //                                           gather_weight_shape,
+    //                                           BIDataType::F16);
+    //
+    // const std::string &input_path = "./gpt2_res/input.npy";
+    // BITensorShape input_tensor_shape(768, 16, 20);
+    // BITensor input = utils::create_type_tensor(input_path, input_tensor_shape, BIDataType::F16);
+    //
+    // BITensor output;
+    // output.allocator()->init(BITensorInfo(input_tensor_shape, 1, BIDataType::F16));
+    // output.allocator()->allocate();
+
+    // BINELayerNormLayer layer_norm;
+    // layer_norm.configure(&input, &weight, &bias, &output);
+    //
+    while (true) {
+        std::cout << "--- <UNK> ---" << std::endl;
+        // OperatorTest::print_tensor(output);
+    }
+
+    // OperatorTest::print_tensor(output);
+}
