@@ -17,135 +17,195 @@
 
 namespace BatmanInfer {
     /**
-     * LayerNorm 核心计算函数 (Arm Compute Library改造版)
-     * @note 改造要点：
-     *       - 移除局部响应相关参数，专注特征维度归一化
-     *       - 集成可学习参数gamma/beta
-     *       - 优化均值和方差计算策略
-     * @warning 这个版本仅仅适配默认[1, sequence length, hidden size]数据格式
-     *        - 数据的布局: [Hidden Size, Sequence Length]
-     * @tparam T
-     * @tparam S
-     * @tparam axis
+     * LayerNorm 核心计算函数
+     *
      * @param window
-     * @param input Layout: [H, S]
+     * @param input
      * @param output
-     * @param gemma 可选的缩放参数 [H]
-     * @param beta 可选的平移参数 [H]
-     * @param epsilon  防止除零的小量
+     * @param gamma 缩放参数 [H]
+     * @param beta 偏移参数 [H]
+     * @param epsilon 防止0的小数
      */
-    template<typename T, unsigned int S, bool use_beta_gamma>
-    void layer_norm(const BIWindow &window,
-                    const BIITensor *input,
-                    BIITensor *output,
-                    const BIITensor *scale,
-                    const BIITensor *beta,
-                    float epsilon) {
-        using ExactTagType = typename wrapper::traits::neon_vector<T, S>::tag_type;
+    inline void layer_norm_fp16(const BIWindow &window,
+                                const BIITensor *input,
+                                const BIITensor *output,
+                                const BIITensor *gamma,
+                                const BIITensor *beta,
+                                const float epsilon = 1e-5) {
+        // 1. 创建窗口
+        BIWindow win(window);
+        win.set(BIWindow::DimX, BIWindow::BIDimension(0, 1, 1));
 
-        // 配置窗口: 每个线程处理一列[单个序列位置的所有隐藏单元]
-        BIWindow win = window;
-        win.set(BIWindow::DimX, BIWindow::BIDimension(0, 1, 1)); // 隐藏维度展开
-        win.set(BIWindow::DimY, BIWindow::BIDimension(0, 1, 1)); // 序列维度展开
-
-        BIWindow scale_win = BIWindow{};
-        scale_win.set(BIWindow::DimX, BIWindow::BIDimension(0, scale->info()->dimension(0)));
-
-        BIWindow beta_win = BIWindow{};
-        beta_win.set(BIWindow::DimX, BIWindow::BIDimension(0, beta->info()->dimension(0)));
-
-        BIIterator in_iter(input, win);
-        BIIterator out_iter(output, win);
-        BIIterator scale_iter(scale, scale_win);
-        BIIterator beta_iter(beta, beta_win);
-
-        const int hidden_size = input->info()->dimension(0);
-//        const int seq_length = input->info()->dimension(1);
-        const int vec_step = S;
-        const int h_stride = input->info()->strides_in_bytes()[0] / sizeof(T); // 隐藏层维度步长
+        BIIterator input_it(input, win);
+        BIIterator output_it(output, win);
 
         execute_window_loop(win, [&](const BICoordinates &id) {
-            const int seq_index = id[1]; // 当前序列位置
-            const T *in_base = reinterpret_cast<const T *>(input->ptr_to_element(
-                    BICoordinates(0, seq_index))); // 输入的Tensor指针
-            T *out_base = reinterpret_cast<T *>(output->ptr_to_element(
-                    BICoordinates(0, seq_index))); // 输出的Tensor指针
+            auto in_ptr = reinterpret_cast<const float16_t *>(input_it.ptr());
+            auto out_ptr = reinterpret_cast<float16_t *>(output_it.ptr());
+            auto gamma_ptr = reinterpret_cast<const float16_t *>(gamma->buffer());
+            auto beta_ptr = reinterpret_cast<const float16_t *>(beta->buffer());
 
-            // Phase 1: 计算统计量（跨隐藏维度）
-            T sum = 0, square_sum = 0;
-            int h = 0;
+            const int N = gamma->info()->dimension(0);
 
-            // 向量化累加
-            for (; h <= hidden_size - vec_step; h += vec_step) {
-                const auto data = wrapper::vloadq(in_base + h * h_stride);
+            float32x4_t sum_v0 = vdupq_n_f32(0.0f);
+            float32x4_t sum_v1 = vdupq_n_f32(0.0f);
+            int i = 0;
 
-                // 第一步：将 float16x8_t 拆分成两个 float16x4_t
-                auto low = wrapper::vgetlow(data);
-                auto high = wrapper::vgethigh(data);
+            for (; i <= N - 64; i += 64) {
+                __builtin_prefetch(in_ptr + i + 64);
 
-                // 第二步：使用成对加法逐级归约
-                auto sum2 = wrapper::vpadd(low, high); // [a0+a1, a2+a3, a4+a5, a6+a7]
-                auto sum1 = wrapper::vpadd(sum2, sum2); // [(a0+a1)+(a2+a3), (a4+a5)+(a6+a7), ...]
-                auto sum0 = wrapper::vpadd(sum1, sum1); // [总和, 总和, ...]
+                // 加载8个向量(64个fp16元素)
+                float16x8_t x0 = vld1q_f16(in_ptr + i);
+                float16x8_t x1 = vld1q_f16(in_ptr + i + 8);
+                float16x8_t x2 = vld1q_f16(in_ptr + i + 16);
+                float16x8_t x3 = vld1q_f16(in_ptr + i + 24);
+                float16x8_t x4 = vld1q_f16(in_ptr + i + 32);
+                float16x8_t x5 = vld1q_f16(in_ptr + i + 40);
+                float16x8_t x6 = vld1q_f16(in_ptr + i + 48);
+                float16x8_t x7 = vld1q_f16(in_ptr + i + 56);
 
-                sum += wrapper::vgetlane(sum0, 0);
+                sum_v0 = vaddq_f32(sum_v0, vcvt_f32_f16(vget_low_f16(x0)));
+                sum_v0 = vaddq_f32(sum_v0, vcvt_f32_f16(vget_high_f16(x0)));
+                sum_v1 = vaddq_f32(sum_v1, vcvt_f32_f16(vget_low_f16(x1)));
+                sum_v1 = vaddq_f32(sum_v1, vcvt_f32_f16(vget_high_f16(x1)));
 
-                // 平方和计算同理
-                auto sq_low = wrapper::vmul(low, low);
-                auto sq_high = wrapper::vmul(high, high);
-                auto sq_sum2 = wrapper::vpadd(sq_low, sq_high);
-                auto sq_sum1 = wrapper::vpadd(sq_sum2, sq_sum2);
-                auto sq_sum0 = wrapper::vpadd(sq_sum1, sq_sum1);
-                square_sum += wrapper::vgetlane(sq_sum0, 0);
+                sum_v0 = vaddq_f32(sum_v0, vcvt_f32_f16(vget_low_f16(x2)));
+                sum_v0 = vaddq_f32(sum_v0, vcvt_f32_f16(vget_high_f16(x2)));
+                sum_v1 = vaddq_f32(sum_v1, vcvt_f32_f16(vget_low_f16(x3)));
+                sum_v1 = vaddq_f32(sum_v1, vcvt_f32_f16(vget_high_f16(x3)));
+
+                sum_v0 = vaddq_f32(sum_v0, vcvt_f32_f16(vget_low_f16(x4)));
+                sum_v0 = vaddq_f32(sum_v0, vcvt_f32_f16(vget_high_f16(x4)));
+                sum_v1 = vaddq_f32(sum_v1, vcvt_f32_f16(vget_low_f16(x5)));
+                sum_v1 = vaddq_f32(sum_v1, vcvt_f32_f16(vget_high_f16(x5)));
+
+                sum_v0 = vaddq_f32(sum_v0, vcvt_f32_f16(vget_low_f16(x6)));
+                sum_v0 = vaddq_f32(sum_v0, vcvt_f32_f16(vget_high_f16(x6)));
+                sum_v1 = vaddq_f32(sum_v1, vcvt_f32_f16(vget_low_f16(x7)));
+                sum_v1 = vaddq_f32(sum_v1, vcvt_f32_f16(vget_high_f16(x7)));
             }
 
-            // 标量处理尾部
-            for (; h < hidden_size; ++h) {
-                const T val = in_base[h * h_stride];
-                sum += val;
-                square_sum += val * val;
+            float scalar_sum = 0.0f;
+            for (; i < N; i++)
+                scalar_sum += (float) in_ptr[i];
+
+            sum_v0 = vaddq_f32(sum_v0, sum_v1);
+            const float32x2_t sum_half = vadd_f32(vget_low_f32(sum_v0), vget_high_f32(sum_v0));
+            const float total_sum = vget_lane_f32(vpadd_f32(sum_half, sum_half), 0) + scalar_sum;
+
+            const float mean = total_sum / N;
+            const float16_t mean_f16 = (float16_t) mean;
+            const float16x8_t mean_v = vdupq_n_f16(mean_f16);
+
+            float32x4_t sum_sq_v0 = vdupq_n_f32(0.0f);
+            float32x4_t sum_sq_v1 = vdupq_n_f32(0.0f);
+
+            i = 0;
+
+            for (; i <= N - 64; i += 64) {
+                __builtin_prefetch(in_ptr + i + 64);
+
+                float16x8_t x0 = vld1q_f16(in_ptr + i);
+                float16x8_t x1 = vld1q_f16(in_ptr + i + 8);
+                float16x8_t x2 = vld1q_f16(in_ptr + i + 16);
+                float16x8_t x3 = vld1q_f16(in_ptr + i + 24);
+                float16x8_t x4 = vld1q_f16(in_ptr + i + 32);
+                float16x8_t x5 = vld1q_f16(in_ptr + i + 40);
+                float16x8_t x6 = vld1q_f16(in_ptr + i + 48);
+                float16x8_t x7 = vld1q_f16(in_ptr + i + 56);
+
+                float16x8_t diff0 = vsubq_f16(x0, mean_v);
+                float16x8_t diff1 = vsubq_f16(x1, mean_v);
+                float16x8_t diff2 = vsubq_f16(x2, mean_v);
+                float16x8_t diff3 = vsubq_f16(x3, mean_v);
+                float16x8_t diff4 = vsubq_f16(x4, mean_v);
+                float16x8_t diff5 = vsubq_f16(x5, mean_v);
+                float16x8_t diff6 = vsubq_f16(x6, mean_v);
+                float16x8_t diff7 = vsubq_f16(x7, mean_v);
+
+                sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_low_f16(diff0)), vcvt_f32_f16(vget_low_f16(diff0)));
+                sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_high_f16(diff0)),
+                                      vcvt_f32_f16(vget_high_f16(diff0)));
+                sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_low_f16(diff1)), vcvt_f32_f16(vget_low_f16(diff1)));
+                sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_high_f16(diff1)),
+                                      vcvt_f32_f16(vget_high_f16(diff1)));
+
+                sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_low_f16(diff2)), vcvt_f32_f16(vget_low_f16(diff2)));
+                sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_high_f16(diff2)),
+                                      vcvt_f32_f16(vget_high_f16(diff2)));
+                sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_low_f16(diff3)), vcvt_f32_f16(vget_low_f16(diff3)));
+                sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_high_f16(diff3)),
+                                      vcvt_f32_f16(vget_high_f16(diff3)));
+
+                sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_low_f16(diff4)), vcvt_f32_f16(vget_low_f16(diff4)));
+                sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_high_f16(diff4)),
+                                      vcvt_f32_f16(vget_high_f16(diff4)));
+                sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_low_f16(diff5)), vcvt_f32_f16(vget_low_f16(diff5)));
+                sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_high_f16(diff5)),
+                                      vcvt_f32_f16(vget_high_f16(diff5)));
+
+                sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_low_f16(diff6)), vcvt_f32_f16(vget_low_f16(diff6)));
+                sum_sq_v0 = vfmaq_f32(sum_sq_v0, vcvt_f32_f16(vget_high_f16(diff6)),
+                                      vcvt_f32_f16(vget_high_f16(diff6)));
+                sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_low_f16(diff7)), vcvt_f32_f16(vget_low_f16(diff7)));
+                sum_sq_v1 = vfmaq_f32(sum_sq_v1, vcvt_f32_f16(vget_high_f16(diff7)),
+                                      vcvt_f32_f16(vget_high_f16(diff7)));
             }
 
-            const T mean = sum / hidden_size;
-            const T var = (square_sum / hidden_size) - (mean * mean);
-            const T inv_std = 1.f / std::sqrt(var + epsilon);
-
-            const auto mean_vec = wrapper::vdup_n(mean, ExactTagType{});
-            const auto inv_std_vec = wrapper::vdup_n(inv_std, ExactTagType{});
-
-            // Phase 2: 向量归一化
-            h = 0;
-            for (; h <= hidden_size - vec_step; h += vec_step) {
-                const T *h_ptr = in_base + h * h_stride;
-                T *out_ptr = out_base + h * h_stride;
-
-                auto data = wrapper::vloadq(h_ptr);
-                data = wrapper::vsub(data, mean_vec);
-                data = wrapper::vmul(data, inv_std_vec);
-
-                if (use_beta_gamma) {
-                    const T *gamma_ptr = reinterpret_cast<const T *>(scale->ptr_to_element(BICoordinates(h)));
-                    const T *beta_ptr = reinterpret_cast<const T *>(beta->ptr_to_element(BICoordinates(h)));
-                    const auto gamma_v = wrapper::vloadq(gamma_ptr);
-                    const auto beta_v = wrapper::vloadq(beta_ptr);
-                    data = wrapper::vmla(beta_v, data, gamma_v);
-                }
-
-                wrapper::vstore(out_ptr, data);
+            float scalar_sum_sq = 0.0f;
+            for (; i < N; i++) {
+                float diff = (float) in_ptr[i] - mean;
+                scalar_sum_sq += diff * diff;
             }
 
-            // 处理尾部元素
-            for (; h < hidden_size; ++h) {
-                const T *h_ptr = in_base + h * h_stride;
-                T *out_ptr = out_base + h * h_stride;
+            sum_sq_v0 = vaddq_f32(sum_sq_v0, sum_sq_v1);
+            const float32x2_t sum_sq_half = vadd_f32(vget_low_f32(sum_sq_v0), vget_high_f32(sum_sq_v0));
+            const float total_sum_sq = vget_lane_f32(vpadd_f32(sum_sq_half, sum_sq_half), 0) + scalar_sum_sq;
 
-                T val = (*h_ptr - mean) * inv_std;
-                if (use_beta_gamma) {
-                    val = val * static_cast<T>(scale->ptr_to_element(BICoordinates(h))[0])
-                          + static_cast<T>(beta->ptr_to_element(BICoordinates(h))[0]);
-                }
-                *out_ptr = val;
+            const float variance = total_sum_sq / N;
+            const float rstd = 1.0f / sqrtf(variance + epsilon);
+            const float16_t rstd_f16 = (float16_t) rstd;
+            const float16x8_t rstd_v = vdupq_n_f16(rstd_f16);
+
+            i = 0;
+            for (; i <= N - 32; i += 32) {
+                float16x8_t x0 = vld1q_f16(in_ptr + i);
+                float16x8_t g0 = vld1q_f16(gamma_ptr + i);
+                float16x8_t b0 = vld1q_f16(beta_ptr + i);
+
+                float16x8_t x1 = vld1q_f16(in_ptr + i + 8);
+                float16x8_t g1 = vld1q_f16(gamma_ptr + i + 8);
+                float16x8_t b1 = vld1q_f16(beta_ptr + i + 8);
+
+                float16x8_t x2 = vld1q_f16(in_ptr + i + 16);
+                float16x8_t g2 = vld1q_f16(gamma_ptr + i + 16);
+                float16x8_t b2 = vld1q_f16(beta_ptr + i + 16);
+
+                float16x8_t x3 = vld1q_f16(in_ptr + i + 24);
+                float16x8_t g3 = vld1q_f16(gamma_ptr + i + 24);
+                float16x8_t b3 = vld1q_f16(beta_ptr + i + 24);
+
+                float16x8_t norm0 = vmulq_f16(vsubq_f16(x0, mean_v), rstd_v);
+                float16x8_t norm1 = vmulq_f16(vsubq_f16(x1, mean_v), rstd_v);
+                float16x8_t norm2 = vmulq_f16(vsubq_f16(x2, mean_v), rstd_v);
+                float16x8_t norm3 = vmulq_f16(vsubq_f16(x3, mean_v), rstd_v);
+
+                vst1q_f16(out_ptr + i, vaddq_f16(vmulq_f16(norm0, g0), b0));
+                vst1q_f16(out_ptr + i + 8, vaddq_f16(vmulq_f16(norm1, g1), b1));
+                vst1q_f16(out_ptr + i + 16, vaddq_f16(vmulq_f16(norm2, g2), b2));
+                vst1q_f16(out_ptr + i + 24, vaddq_f16(vmulq_f16(norm3, g3), b3));
             }
-        }, in_iter, out_iter);
+
+            for (; i < N; i++) {
+                float x = static_cast<float>(in_ptr[i]);
+                float gamma_val = static_cast<float>(gamma_ptr[i]);
+                float beta_val = static_cast<float>(beta_ptr[i]);
+
+                float normalized = (x - mean) * rstd;
+                float output_val = normalized * gamma_val + beta_val;
+
+                out_ptr[i] = static_cast<float16_t>(output_val);
+            }
+        }, input_it, output_it);
     }
 }

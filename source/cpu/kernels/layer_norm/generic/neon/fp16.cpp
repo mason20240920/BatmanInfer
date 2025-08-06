@@ -8,13 +8,18 @@
 
 namespace BatmanInfer {
     namespace cpu {
-        void neon_layer_norm_float16_8_0_2D(
-                const BIWindow &window,
-                const BIITensor *in,
-                const BIITensor *scale,
-                const BIITensor *beta,
-                BIITensor *out) {
-            layer_norm<float16_t, 8, true>(window, in, out, scale, beta, 1e-5f);
+        void neon_layer_norm_float16(const BIWindow &window,
+                                     const BIITensor *input,
+                                     BIITensor *output,
+                                     const BIITensor *gamma,
+                                     const BIITensor *beta,
+                                     float epsilon) {
+            layer_norm_fp16(window,
+                            input,
+                            output,
+                            gamma,
+                            beta,
+                            epsilon);
         }
     }
 }

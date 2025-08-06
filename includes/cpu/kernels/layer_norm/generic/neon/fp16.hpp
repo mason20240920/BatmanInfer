@@ -11,12 +11,12 @@ namespace BatmanInfer {
 
     class BIWindow;
     namespace cpu {
-        void neon_layer_norm_float16_8_0_2D(
-                const BIWindow &window,
-                const BIITensor *in,
-                const BIITensor *scale,
-                const BIITensor *beta,
-                BIITensor *out);
+        void neon_layer_norm_float16(const BIWindow &window,
+                                     const BIITensor *input,
+                                     BIITensor *output,
+                                     const BIITensor *gamma,
+                                     const BIITensor *beta,
+                                     float epsilon);
     }
 }
 

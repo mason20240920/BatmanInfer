@@ -816,11 +816,12 @@ TEST(NEONOperator, LayerNorm) {
     window.set(0, BIWindow::BIDimension(0, hidden_size));
     window.set(1, BIWindow::BIDimension(0, seq_length));
 
-    cpu::neon_layer_norm_float16_8_0_2D(window,
-                                        &input, // ACL Tensor 会自动转换为 ITensor 接口
-                                        &gamma,
-                                        &beta,
-                                        &output);
+    //
+    // cpu::neon_layer_norm_float16_8_0_2D(window,
+    //                                     &input, // ACL Tensor 会自动转换为 ITensor 接口
+    //                                     &gamma,
+    //                                     &beta,
+    //                                     &output);
 
 
     // 输入格式

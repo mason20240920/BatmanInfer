@@ -2450,19 +2450,27 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
 
 
     /*
-     * 第二轮的计算
+     * ============================================================
+     * ======================== 第二轮的计算 ========================
+     * ============================================================
     */
-    batch_size = 2;
+    batch_size = 20;
     std::vector<std::vector<unsigned int> > inp_map{};
     for (int i = 0; i < batch_size; i++) {
         inp_map.push_back({kv_block_ids[0], 1});
     }
-    avail_lens = {2, 2};
+    avail_lens = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
     seq_len = 2;
     sub_i_shape = BITensorShape(seq_len, batch_size);
     sub_input_info.set_tensor_shape(sub_i_shape);
     sub_i_t.allocator()->init(*input_tensor.allocator(), sub_input_info);
-    indices_data = {0, 3, 0, 4};
+    indices_data = {0, 3, 0, 4, 0, 5,
+                    0, 3, 0, 4, 0, 5,
+                    0, 3, 0, 4, 0, 5,
+                    0, 3, 0, 4, 0, 5,
+                    0, 3, 0, 4, 0, 5,
+                    0, 3, 0, 4, 0, 5,
+                    0, 3, 0, 4};
     KVCacheTestName::fill_tensor_val_with_arr(sub_i_t, indices_data);
     sub_wte_o_tensor_shape = BITensorShape(hidden_size, seq_len, batch_size);
     sub_kv_attn_o_shape = BITensorShape(hidden_size, 1, batch_size);
@@ -2518,14 +2526,20 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
     KVCacheTestName::print_output_info(output_ids);
     KVCacheTestName::print_output_info(scores);
     KVCacheTestName::print_tensor(sub_ids, "sub_ids");
-    KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
+    // KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
 
-    avail_lens = {3, 3};
+    avail_lens = {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
     seq_len = 3;
     sub_i_shape = BITensorShape(seq_len, batch_size);
     sub_input_info.set_tensor_shape(sub_i_shape);
     sub_i_t.allocator()->init(*input_tensor.allocator(), sub_input_info);
-    indices_data = {0, 3, 4, 0, 4, 5};
+    indices_data = {0, 3, 4, 0, 4, 5, 0, 5, 6,
+    0, 3, 4, 0, 4, 5, 0, 5, 6,
+    0, 3, 4, 0, 4, 5, 0, 5, 6,
+    0, 3, 4, 0, 4, 5, 0, 5, 6,
+    0, 3, 4, 0, 4, 5, 0, 5, 6,
+    0, 3, 4, 0, 4, 5, 0, 5, 6,
+    0, 3, 4, 0, 4, 5};
     KVCacheTestName::fill_tensor_val_with_arr(sub_i_t, indices_data);
     sub_wte_o_tensor_shape = BITensorShape(hidden_size, seq_len, batch_size);
     sub_kv_attn_o_shape = BITensorShape(hidden_size, 1, batch_size);
@@ -2581,15 +2595,33 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
     KVCacheTestName::print_output_info(output_ids);
     KVCacheTestName::print_output_info(scores);
     KVCacheTestName::print_tensor(sub_ids, "sub_ids");
-    KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
+    // KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
 
     inp_map[0] = {527, 1};
-    avail_lens = {2, 4};
+    inp_map[3] = {527, 1};
+    inp_map[6] = {527, 1};
+    inp_map[9] = {527, 1};
+    inp_map[12] = {527, 1};
+    inp_map[15] = {527, 1};
+    inp_map[18] = {527, 1};
+    avail_lens = {2, 4, 4,
+        2, 4, 4,
+        2, 4, 4,
+        2, 4, 4,
+        2, 4, 4,
+        2, 4, 4,
+        2, 4};
     seq_len = 4;
     sub_i_shape = BITensorShape(seq_len, batch_size);
     sub_input_info.set_tensor_shape(sub_i_shape);
     sub_i_t.allocator()->init(*input_tensor.allocator(), sub_input_info);
-    indices_data = {0, 5, 2, 2, 0, 4, 5,6};
+    indices_data = {0, 5, 2, 2,  0, 4, 5, 6, 0, 5, 6, 7,
+    0, 5, 2, 2,  0, 4, 5, 6, 0, 5, 6, 7,
+    0, 5, 2, 2,  0, 4, 5, 6, 0, 5, 6, 7,
+    0, 5, 2, 2,  0, 4, 5, 6, 0, 5, 6, 7,
+    0, 5, 2, 2,  0, 4, 5, 6, 0, 5, 6, 7,
+    0, 5, 2, 2,  0, 4, 5, 6, 0, 5, 6, 7,
+    0, 5, 2, 2,  0, 4, 5, 6};
     KVCacheTestName::fill_tensor_val_with_arr(sub_i_t, indices_data);
     sub_wte_o_tensor_shape = BITensorShape(hidden_size, seq_len, batch_size);
     sub_kv_attn_o_shape = BITensorShape(hidden_size, 1, batch_size);
@@ -2644,8 +2676,8 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
 
     KVCacheTestName::print_output_info(output_ids);
     KVCacheTestName::print_output_info(scores);
-    KVCacheTestName::print_tensor(sub_ids, "sub_ids");
-    KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
+    // KVCacheTestName::print_tensor(sub_ids, "sub_ids");
+    // KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
 }
 
 TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
