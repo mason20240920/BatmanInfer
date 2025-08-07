@@ -365,10 +365,10 @@ namespace BatmanInfer {
     }
 
     void BINEIntentAttention::run() {
-        BIIOFormatInfo format;
-        format.element_delim = ", "; // 元素之间用逗号分隔
-        format.row_delim = "\n"; // 每行换行
-        format.align_columns = true; // 对齐列
+        // BIIOFormatInfo format;
+        // format.element_delim = ", "; // 元素之间用逗号分隔
+        // format.row_delim = "\n"; // 每行换行
+        // format.align_columns = true; // 对齐列
         prepare();
 
         // 执行函数
@@ -402,7 +402,7 @@ namespace BatmanInfer {
         _pv_transpose_layer.run();
         _pv_reshape_layer.run();
         _attn_o_gemm_layer.run();
-        _sub_pv_reshape_output.print(std::cout, format);
+        // _sub_attn_o_output.print(std::cout, format);
         _c_copy_layer.run();
     }
 
