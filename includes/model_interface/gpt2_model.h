@@ -129,6 +129,9 @@ enum class GPT2ResOrder {
 #ifdef FIX_VER
     decode_layer_scales,
 #endif
+    eos_k_smooth_o,
+    eos_q_smooth_o,
+    eos_v_smooth_o,
     all_res_count,
 };
 
@@ -153,7 +156,7 @@ public:
 
     BIErrCode bi_init(const char *data_in, size_t data_size, std::vector< std::vector<float> > &output_vec, unsigned int &kv_cache_id) override;
     BIErrCode bi_set_input(std::vector< std::vector<unsigned int> > &input_vec, std::vector< std::vector<unsigned int> > &kv_cache_id_map) override;
-    BIErrCode bi_run(std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids, bool is_init) override;
+    BIErrCode bi_run(std::vector<size_t> &avail_lens, std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids, bool is_init) override;
     bool bi_valid_decode_ids(std::vector<unsigned int> &kv_block_ids) override;
     BIErrCode bi_release_kvcache_block(std::vector<unsigned int> &kv_block_ids) override;
     BIErrCode bi_release_kvcache_leaf_block(std::vector<unsigned int> &kv_block_ids) override;
@@ -256,6 +259,9 @@ private:
     BITensor _c_proj_bias_tensor;
     BITensor _rms_gamma_weight_tensor;
     BITensor _lm_head_weight_tensor;
+    BITensor _eos_k_smooth_o_tensor;
+    BITensor _eos_q_smooth_o_tensor;
+    BITensor _eos_v_smooth_o_tensor;
 
     BITensor _sub_input_tensor;
     BITensor _sub_gather_output_tensor;

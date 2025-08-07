@@ -135,7 +135,7 @@ namespace BatmanInfer {
                                        const BIITensor *c_attn_bias,
                                        const BIITensor *o_attn_weights,
                                        const BIITensor *o_attn_bias,
-                                       const std::string &eos_weights_path,
+                                       BIITensor *eos_weights,
                                        const PermutationVector &q_perm,
                                        const PermutationVector &k_perm,
                                        const PermutationVector &qkv_perm,
@@ -165,7 +165,8 @@ namespace BatmanInfer {
         const auto transpose_k_shape = BITensorShape(_max_seq_len, 64, 12, _max_batch_size);
         auto qk_bmm_output_shape = BITensorShape(_max_seq_len, 1, 12, _max_batch_size);
 
-        _eos_q_tensor = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),  BIDataType::F16);
+        _q_pack.add_tensor(ACL_SRC_1, eos_weights);
+        // _eos_q_tensor = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),  BIDataType::F16);
 
         _norm_output.allocator()->init(BITensorInfo(rms_norm_shape, 1, BIDataType::F16));
         _c_attn_output.allocator()->init(BITensorInfo(c_attn_shape, 1, BIDataType::F16));
@@ -477,9 +478,7 @@ namespace BatmanInfer {
     }
 
     void BINEAttentionLayer::restruct_q_tensor() {
-        BIITensorPack pack;
-        pack.add_tensor(ACL_SRC_0, &_sub_reshape_q_states);
-        pack.add_tensor(ACL_SRC_1, &_eos_q_tensor);
-        BINEScheduler::get().schedule_change_q(pack, *_avail_len, _seq_len);
+        _q_pack.add_tensor(ACL_SRC_0, &_sub_reshape_q_states);
+        BINEScheduler::get().schedule_change_q(_q_pack, *_avail_len, _seq_len);
     }
 }

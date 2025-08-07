@@ -84,7 +84,7 @@ namespace BatmanInfer {
                        const BIITensor *c_attn_bias,
                        const BIITensor *o_attn_weights,
                        const BIITensor *o_attn_bias,
-                       const std::string &eos_weights_path,
+                       BIITensor *eos_weights,
                        const float &gemm_i_scale,
                        const int &gemm_i_zp,
                        const float &attn_gemm_o_scale,
@@ -251,7 +251,7 @@ namespace BatmanInfer {
         BITensor _attn_o_output;
 
         // 进行占位限制的Q张量
-        BITensor _eos_q_smooth_tensor;
+        BIITensorPack _q_pack;
 
     private:
         // 是否已经完全初始化

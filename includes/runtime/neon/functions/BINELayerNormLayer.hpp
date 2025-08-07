@@ -68,7 +68,7 @@ namespace BatmanInfer {
                                  const BIITensor *beta,
                                  const BIITensorInfo *output);
 
-        void run() override;
+        void run();
 
     private:
         std::unique_ptr<cpu::BINELayerNormLayerKernel> _layer_norm_kernel; /**<Layer Normalization layer kernel */

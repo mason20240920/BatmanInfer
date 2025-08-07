@@ -72,7 +72,7 @@ namespace test_interface_kvcaches_call
 TEST(InterfaceKvcachesCall, Gpt2Model)
 {
     bool ret = true;
-    std::string gpt2_res_path = "./gpt2_res_all_float/gpt2_final.bin";
+    std::string gpt2_res_path = "./fix-fake/gpt2_final.bin";
 
     std::ifstream fin(gpt2_res_path, std::ios::in | std::ios::binary);
     if (!fin.is_open()) {
@@ -112,10 +112,13 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
     }
     model_interface->bi_set_input(input_vec, kv_cache_id_map);
 
+    std::vector<size_t> avail_lens;
     std::vector<unsigned int> kv_block_ids;
     output_vec.clear();
-    model_interface->bi_run(output_vec, kv_block_ids, false);
-
+    for (int i = 0; i < input_vec.size(); ++i) {
+        avail_lens.emplace_back(input_vec[i].size());
+    }
+    model_interface->bi_run(avail_lens, output_vec, kv_block_ids, false);
 
     std::vector<unsigned int> decode_ids;
     decode_ids = {2046, 2045, 2044, 2043, 2042};
@@ -148,7 +151,11 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
 
     output_vec.clear();
     kv_block_ids.clear();
-    model_interface->bi_run(output_vec, kv_block_ids, false);
+    avail_lens.clear();
+    for (int i = 0; i < input_vec.size(); ++i) {
+        avail_lens.emplace_back(input_vec[i].size());
+    }
+    model_interface->bi_run(avail_lens, output_vec, kv_block_ids, false);
 
     test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
     test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);
@@ -168,7 +175,11 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
 
     output_vec.clear();
     kv_block_ids.clear();
-    model_interface->bi_run(output_vec, kv_block_ids, false);
+    avail_lens.clear();
+    for (int i = 0; i < input_vec.size(); ++i) {
+        avail_lens.emplace_back(input_vec[i].size());
+    }
+    model_interface->bi_run(avail_lens, output_vec, kv_block_ids, false);
 
     test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
     test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);
@@ -193,7 +204,11 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
 
     output_vec.clear();
     kv_block_ids.clear();
-    model_interface->bi_run(output_vec, kv_block_ids, false);
+    avail_lens.clear();
+    for (int i = 0; i < input_vec.size(); ++i) {
+        avail_lens.emplace_back(input_vec[i].size());
+    }
+    model_interface->bi_run(avail_lens, output_vec, kv_block_ids, false);
 
     test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
     test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);
@@ -218,7 +233,11 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
 
     output_vec.clear();
     kv_block_ids.clear();
-    model_interface->bi_run(output_vec, kv_block_ids, false);
+    avail_lens.clear();
+    for (int i = 0; i < input_vec.size(); ++i) {
+        avail_lens.emplace_back(input_vec[i].size());
+    }
+    model_interface->bi_run(avail_lens, output_vec, kv_block_ids, false);
 
     test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
     test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);
@@ -243,7 +262,11 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
 
     output_vec.clear();
     kv_block_ids.clear();
-    model_interface->bi_run(output_vec, kv_block_ids, false);
+    avail_lens.clear();
+    for (int i = 0; i < input_vec.size(); ++i) {
+        avail_lens.emplace_back(input_vec[i].size());
+    }
+    model_interface->bi_run(avail_lens, output_vec, kv_block_ids, false);
 
     test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
     test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);
@@ -268,7 +291,11 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
 
     output_vec.clear();
     kv_block_ids.clear();
-    model_interface->bi_run(output_vec, kv_block_ids, false);
+    avail_lens.clear();
+    for (int i = 0; i < input_vec.size(); ++i) {
+        avail_lens.emplace_back(input_vec[i].size());
+    }
+    model_interface->bi_run(avail_lens, output_vec, kv_block_ids, false);
 
     test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
     test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);
@@ -293,7 +320,11 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
 
     output_vec.clear();
     kv_block_ids.clear();
-    model_interface->bi_run(output_vec, kv_block_ids, false);
+    avail_lens.clear();
+    for (int i = 0; i < input_vec.size(); ++i) {
+        avail_lens.emplace_back(input_vec[i].size());
+    }
+    model_interface->bi_run(avail_lens, output_vec, kv_block_ids, false);
 
     test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
     test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);
@@ -318,7 +349,11 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
 
     output_vec.clear();
     kv_block_ids.clear();
-    model_interface->bi_run(output_vec, kv_block_ids, false);
+    avail_lens.clear();
+    for (int i = 0; i < input_vec.size(); ++i) {
+        avail_lens.emplace_back(input_vec[i].size());
+    }
+    model_interface->bi_run(avail_lens, output_vec, kv_block_ids, false);
 
     test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
     test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);
@@ -343,7 +378,11 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
 
     output_vec.clear();
     kv_block_ids.clear();
-    model_interface->bi_run(output_vec, kv_block_ids, false);
+    avail_lens.clear();
+    for (int i = 0; i < input_vec.size(); ++i) {
+        avail_lens.emplace_back(input_vec[i].size());
+    }
+    model_interface->bi_run(avail_lens, output_vec, kv_block_ids, false);
 
     test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
     test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);
@@ -374,7 +413,11 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
 
     output_vec.clear();
     kv_block_ids.clear();
-    model_interface->bi_run(output_vec, kv_block_ids, false);
+    avail_lens.clear();
+    for (int i = 0; i < input_vec.size(); ++i) {
+        avail_lens.emplace_back(input_vec[i].size());
+    }
+    model_interface->bi_run(avail_lens, output_vec, kv_block_ids, false);
 
     test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
     test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);
@@ -393,7 +436,11 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
     model_interface->bi_set_input(input_vec, kv_cache_id_map);
     output_vec.clear();
     kv_block_ids.clear();
-    model_interface->bi_run(output_vec, kv_block_ids, false);
+    avail_lens.clear();
+    for (int i = 0; i < input_vec.size(); ++i) {
+        avail_lens.emplace_back(input_vec[i].size());
+    }
+    model_interface->bi_run(avail_lens, output_vec, kv_block_ids, false);
 
     test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
     test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);
@@ -407,7 +454,11 @@ TEST(InterfaceKvcachesCall, Gpt2Model)
 
     output_vec.clear();
     kv_block_ids.clear();
-    model_interface->bi_run(output_vec, kv_block_ids, false);
+    avail_lens.clear();
+    for (int i = 0; i < input_vec.size(); ++i) {
+        avail_lens.emplace_back(input_vec[i].size());
+    }
+    model_interface->bi_run(avail_lens, output_vec, kv_block_ids, false);
 
     test_interface_kvcaches_call::find_and_print_top_n(output_vec, 20);
     test_interface_kvcaches_call::find_and_print_top_n_softmax_log(output_vec, 20);

@@ -66,11 +66,12 @@ public:
 
     /**
      * 调用模型的推理过程
+     * @param avail_lens 每一个 batch 对应的有效输入长度
      * @param output_vec 模型输出
      * @param kv_block_ids 模型推理过程中的 kv cache block id 信息
      * @return 返回码
      */
-    virtual BIErrCode bi_run(std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids, bool is_init) = 0;
+    virtual BIErrCode bi_run(std::vector<size_t> &avail_lens, std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids, bool is_init) = 0;
 
     /**
      * 使用 kv block id 前，需要先判断当前 kv block id 是否可用，防止意外发生

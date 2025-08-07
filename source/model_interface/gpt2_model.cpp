@@ -69,8 +69,9 @@ BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size, std::vecto
     fill_tensor_data_2D(_sub_input_tensor, tmp_input_vec, 1);
     // _output_positions = {1};
 
+    std::vector<size_t> avail_lens{1};
     std::vector<unsigned int> kv_block_ids;
-    ret = bi_run(output_vec, kv_block_ids, true);
+    ret = bi_run(avail_lens, output_vec, kv_block_ids, true);
     kv_cache_id = kv_block_ids[0];
     CHECK_SUCCESS(ret);
 
@@ -106,7 +107,7 @@ BIErrCode BIGPT2Model::bi_set_input(std::vector<std::vector<unsigned int> > &inp
     return ret;
 }
 
-BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids, bool is_init) {
+BIErrCode BIGPT2Model::bi_run(std::vector<size_t> &avail_lens, std::vector<std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids, bool is_init) {
     auto ret = BIErrCode::BISuccess;
 
     try {
@@ -122,9 +123,10 @@ BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec, std:
             _pack.add_tensor(ACL_SRC, &_sub_add_output_tensor);
             _pack.add_tensor(ACL_DST, &_sub_split_add_output_tensor);
         }
-        BINEScheduler::get().schedule_kv_split(_pack);
+        BINEScheduler::get().schedule_kv_split(_pack, avail_lens);
         // print_tensor(_sub_split_add_output_tensor, "_sub_split_add_output_tensor");
 
+        _attn_lowp_layer.set_avail_lens(&avail_lens);
 #ifdef FIX_VER
         ret = _attn_lowp_layer.run();
         if (ret != BIErrCode::BISuccess) {
@@ -497,6 +499,13 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     const BITensorShape ori_lm_head_output_tensor_shape(dict_size, 1, max_batch_size);
     _ori_lm_head_output_tensor.allocator()->init(BITensorInfo(ori_lm_head_output_tensor_shape, 1, BIDataType::F16));
 
+    const BITensorShape eos_qkv_smooth_o_tensor_shape(64, 12, 16);
+    _eos_k_smooth_o_tensor.allocator()->init(BITensorInfo(eos_qkv_smooth_o_tensor_shape, 1, BIDataType::F16));
+
+    _eos_q_smooth_o_tensor.allocator()->init(BITensorInfo(eos_qkv_smooth_o_tensor_shape, 1, BIDataType::F16));
+
+    _eos_v_smooth_o_tensor.allocator()->init(BITensorInfo(eos_qkv_smooth_o_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
+
     // 内存统一管理
     _memory_group.manage(&_ori_input_tensor);
     _memory_group.manage(&_gather_weight_tensor);
@@ -522,6 +531,9 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     _memory_group.manage(&_ori_mlp_rms_output_tensor);
     _memory_group.manage(&_lm_head_weight_tensor);
     _memory_group.manage(&_ori_lm_head_output_tensor);
+    _memory_group.manage(&_eos_k_smooth_o_tensor);
+    _memory_group.manage(&_eos_q_smooth_o_tensor);
+    _memory_group.manage(&_eos_v_smooth_o_tensor);
 
     _ori_input_tensor.allocator()->allocate();
     _gather_weight_tensor.allocator()->allocate();
@@ -547,6 +559,9 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     _ori_mlp_rms_output_tensor.allocator()->allocate();
     _lm_head_weight_tensor.allocator()->allocate();
     _ori_lm_head_output_tensor.allocator()->allocate();
+    _eos_k_smooth_o_tensor.allocator()->allocate();
+    _eos_q_smooth_o_tensor.allocator()->allocate();
+    _eos_v_smooth_o_tensor.allocator()->allocate();
 
     _scope_manager = std::make_unique<BIMemoryGroupResourceScope>(_memory_group);
 
@@ -621,6 +636,20 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     // load lm head weight
     ret = load_weight_tensor(_lm_head_weight_tensor, GPT2ResOrder::lm_head_weight, order2ptr);
     CHECK_SUCCESS(ret);
+
+    // load eos_k_smooth_o weight
+    ret = load_weight_tensor(_eos_k_smooth_o_tensor, GPT2ResOrder::eos_k_smooth_o, order2ptr);
+    CHECK_SUCCESS(ret);
+    KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_k_smooth_o_tensor.buffer(), max_seq_len - 1, max_seq_len, true, true);
+
+    // load eos_q_smooth_o weight
+    ret = load_weight_tensor(_eos_q_smooth_o_tensor, GPT2ResOrder::eos_q_smooth_o, order2ptr);
+    CHECK_SUCCESS(ret);
+
+    // load eos_v_smooth_o weight
+    ret = load_weight_tensor(_eos_v_smooth_o_tensor, GPT2ResOrder::eos_v_smooth_o, order2ptr);
+    CHECK_SUCCESS(ret);
+    KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_v_smooth_o_tensor.buffer(), max_seq_len - 1, max_seq_len, false, true);
 
 #ifdef FIX_VER
     // load hyper parameters
@@ -705,6 +734,7 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
                                    &_attn_qkv_bias_tensor,
                                    &_attn_c_proj_weight_tensor,
                                    &_attn_c_proj_bias_tensor,
+                                   &_eos_q_smooth_o_tensor,
                                    _attn_hyper_params.attn_gemm_i_scale,
                                    _attn_hyper_params.attn_gemm_i_zero,
                                    _attn_hyper_params.attn_gemm_o_scale,
@@ -733,6 +763,7 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
                               &_attn_qkv_bias_tensor,
                               &_attn_c_proj_weight_tensor,
                               &_attn_c_proj_bias_tensor,
+                              &_eos_q_smooth_o_tensor,
                               q_perm,
                               k_perm,
                               qkv_o_perm,

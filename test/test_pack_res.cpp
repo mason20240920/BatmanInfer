@@ -247,7 +247,7 @@ TEST(ResPack, PackGPT) {
 
 
     std::map<GPT2ResOrder, std::string> res_paths;
-    std::string res_path_prefix = "./gpt2-weights-ime/fix/", path_storage_file = "_all_res_paths.txt";
+    std::string res_path_prefix = "./fix-fake/", path_storage_file = "_all_res_paths.txt";
     ret = res_pack::load_res_paths(res_path_prefix, path_storage_file, res_paths);
     ASSERT_TRUE(ret);
 
@@ -279,7 +279,10 @@ TEST(ResPack, PackGPT) {
             case GPT2ResOrder::c_proj_weight:
             case GPT2ResOrder::c_proj_bias:
             case GPT2ResOrder::rms_gamma_weight:
-            case GPT2ResOrder::lm_head_weight: {
+            case GPT2ResOrder::lm_head_weight:
+            case GPT2ResOrder::eos_k_smooth_o:
+            case GPT2ResOrder::eos_q_smooth_o:
+            case GPT2ResOrder::eos_v_smooth_o: {
                 ret = res_pack::read_and_write_npy(static_cast<int>(cur_order), res_path_prefix,
                     res_paths[cur_order], dst_file);
                 break;
