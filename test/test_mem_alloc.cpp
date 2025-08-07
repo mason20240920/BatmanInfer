@@ -717,6 +717,8 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     const std::string &attn_c_proj_bias_path = "./input_res/p_attn_bias.npy";
     BITensor attn_c_proj_bias = utils::create_type_tensor(attn_c_proj_bias_path, attn_c_proj_bias_shape,
                                                           BIDataType::F16);
+
+    BITensor eos_weights = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),  BIDataType::F16);
     BINEAttentionLayer attn_layer;
 
     PermutationVector q_perm{0, 2, 1, 3};
@@ -728,7 +730,7 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
                          &attn_qkv_bias,
                          &attn_c_proj_weights,
                          &attn_c_proj_bias,
-                         eos_weights_path,
+                         &eos_weights,
                          q_perm,
                          k_perm,
                          qkv_o_perm,

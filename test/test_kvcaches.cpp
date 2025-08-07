@@ -610,6 +610,8 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     const std::string &attn_c_proj_bias_path = "./input_res/p_attn_bias.npy";
     BITensor attn_c_proj_bias = utils::create_type_tensor(attn_c_proj_bias_path, attn_c_proj_bias_shape,
                                                           BIDataType::F16);
+
+    BITensor eos_weights = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),  BIDataType::F16);
     BINEAttentionLayer attn_layer;
 
     PermutationVector q_perm{0, 2, 1, 3};
@@ -621,7 +623,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
                          &attn_qkv_bias,
                          &attn_c_proj_weights,
                          &attn_c_proj_bias,
-                         eos_weights_path,
+                         &eos_weights,
                          q_perm,
                          k_perm,
                          qkv_o_perm,
@@ -1128,13 +1130,14 @@ TEST(KVCacheGPT, MultiDiffWord) {
     PermutationVector q_perm{0, 2, 1, 3};
     PermutationVector k_perm{2, 0, 1, 3};
     PermutationVector qkv_o_perm{0, 2, 1, 3};
+    BITensor eos_weights = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),  BIDataType::F16);
     attn_layer.configure(&split_add_output_tensor,
                          &attn_gamma_weights,
                          &attn_qkv_weights,
                          &attn_qkv_bias,
                          &attn_c_proj_weights,
                          &attn_c_proj_bias,
-                         eos_weights_path,
+                         &eos_weights,
                          q_perm,
                          k_perm,
                          qkv_o_perm,
@@ -2269,6 +2272,7 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
     constexpr float proj_in_scale = 0.06920977199778837f;
     constexpr int proj_in_zp = 2;
     BINEAttentionLowpLayer attn_lowp_layer;
+    BITensor eos_weights = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16), BIDataType::F16);
 
     PermutationVector q_perm{0, 2, 1, 3};
     PermutationVector k_perm{2, 0, 1, 3};
@@ -2283,7 +2287,7 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
                               &attn_qkv_bias,
                               &attn_c_proj_weights,
                               &attn_c_proj_bias,
-                              eos_weights_path,
+                              &eos_weights,
                               attn_i_scale,
                               attn_i_zp,
                               attn_gemm_o_scale,
@@ -2815,13 +2819,14 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     PermutationVector q_perm{0, 2, 1, 3};
     PermutationVector k_perm{2, 0, 1, 3};
     PermutationVector qkv_o_perm{0, 2, 1, 3};
+    BITensor eos_weights = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),  BIDataType::F16);
     attn_layer.configure(&split_add_output_tensor,
                          &attn_gamma_weights,
                          &attn_qkv_weights,
                          &attn_qkv_bias,
                          &attn_c_proj_weights,
                          &attn_c_proj_bias,
-                         eos_weights_path,
+                         &eos_weights,
                          q_perm,
                          k_perm,
                          qkv_o_perm,

@@ -67,7 +67,7 @@ namespace BatmanInfer {
                        const BIITensor *c_attn_bias,
                        const BIITensor *o_attn_weights,
                        const BIITensor *o_attn_bias,
-                       const std::string &eos_weights_path,
+                       BIITensor *eos_weights,
                        const PermutationVector &q_perm,
                        const PermutationVector &k_perm,
                        const PermutationVector &qkv_perm,
@@ -181,7 +181,7 @@ namespace BatmanInfer {
         BITensor _attn_o_output;
 
         // 进行占位符限制的Q张量
-        BITensor _eos_q_tensor;
+        BIITensorPack _q_pack;
 
     private:
         size_t _hidden_size{}; // 隐藏层大小

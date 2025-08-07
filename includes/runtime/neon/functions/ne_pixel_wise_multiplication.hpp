@@ -82,6 +82,8 @@ namespace BatmanInfer {
                        BIRoundingPolicy rounding_policy,
                        const BIActivationLayerInfo &act_info = BIActivationLayerInfo());
 
+        void dynamic_configure() const;
+
         /** Static function to check if given info will lead to a valid configuration of @ref NEPixelWiseMultiplication
          *
          * @note For @p scale equal to 1/255 only round to nearest even (implemented as round half up) is supported.

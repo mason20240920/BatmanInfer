@@ -14,28 +14,27 @@
 
 #include "bi_NEArithmeticAddition.h"
 #include "bi_ne_copy.hpp"
-#include "kv_cache_manager/block/physical_block.hpp"
 
 namespace BatmanInfer {
     // Forward declaration
     class BIITensor;
 
-    class BINEIntentGPT2Block : public BIIFunction {
+    class BINEIntentGPTBlock final : public BIIFunction {
     public:
-        explicit BINEIntentGPT2Block(std::shared_ptr<BIIMemoryManager> memory_manager);
+        explicit BINEIntentGPTBlock(std::shared_ptr<BIIMemoryManager> memory_manager);
 
-        BINEIntentGPT2Block() : BINEIntentGPT2Block(BIMemoryManagerOnDemand::make_default()) {
+        BINEIntentGPTBlock() : BINEIntentGPTBlock(BIMemoryManagerOnDemand::make_default()) {
         }
 
-        BINEIntentGPT2Block(const BINEIntentGPT2Block &) = delete;
+        BINEIntentGPTBlock(const BINEIntentGPTBlock &) = delete;
 
-        BINEIntentGPT2Block(BINEIntentGPT2Block &&) = delete;
+        BINEIntentGPTBlock(BINEIntentGPTBlock &&) = delete;
 
-        BINEIntentGPT2Block &operator=(const BINEIntentGPT2Block &) = delete;
+        BINEIntentGPTBlock &operator=(const BINEIntentGPTBlock &) = delete;
 
-        BINEIntentGPT2Block &operator=(BINEIntentGPT2Block &&) = delete;
+        BINEIntentGPTBlock &operator=(BINEIntentGPTBlock &&) = delete;
 
-        ~BINEIntentGPT2Block() override;
+        ~BINEIntentGPTBlock() override;
 
         void configure(BIITensor *input,
                        const BIITensor *ln_1_weight,
@@ -57,6 +56,8 @@ namespace BatmanInfer {
                        const size_t &hidden_size,
                        const size_t &max_seq_len,
                        const size_t &max_batch_size,
+                       const size_t &seq_len,
+                       const size_t &batch_size,
                        const int layer_idx,
                        BIITensor *output);
 

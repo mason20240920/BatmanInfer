@@ -204,7 +204,7 @@ namespace BatmanInfer {
                                            const BIITensor *c_attn_bias,
                                            const BIITensor *o_attn_weights,
                                            const BIITensor *o_attn_bias,
-                                           const std::string &eos_weights_path,
+                                           BIITensor *eos_weights,
                                            const float &gemm_i_scale,
                                            const int &gemm_i_zp,
                                            const float &attn_gemm_o_scale,
@@ -280,8 +280,10 @@ namespace BatmanInfer {
         // const auto _q_key_info = BIQuantizationInfo(key_q_scale, key_q_zp);
         // _q_key_states.allocator()->init(BITensorInfo(normal_shape, 1, BIDataType::QASYMM8_SIGNED, _q_key_info));
         const auto _q_value_info = BIQuantizationInfo(value_q_scale, value_q_zp);
-        _eos_q_smooth_tensor = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),
-                                                         BIDataType::F16);
+        _q_pack.add_tensor(ACL_SRC_1, eos_weights);
+
+        // _eos_q_smooth_tensor = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),
+        //                                                  BIDataType::F16);
         _q_value_states.allocator()->init(BITensorInfo(normal_shape, 1, BIDataType::QASYMM8_SIGNED, _q_value_info));
         _reshape_q_states.allocator()->
                 init(BITensorInfo(reshape_q_shape, 1, BIDataType::F16));
@@ -701,9 +703,7 @@ namespace BatmanInfer {
     }
 
     void BINEAttentionLowpLayer::restruct_q_tensor() {
-        BIITensorPack pack;
-        pack.add_tensor(ACL_SRC_0, &_sub_reshape_q_states);
-        pack.add_tensor(ACL_SRC_1, &_eos_q_smooth_tensor);
-        BINEScheduler::get().schedule_change_q(pack, *_avail_len, _seq_len);
+        _q_pack.add_tensor(ACL_SRC_0, &_sub_reshape_q_states);
+        BINEScheduler::get().schedule_change_q(_q_pack, *_avail_len, _seq_len);
     }
 }

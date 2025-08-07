@@ -37,6 +37,7 @@ add_executable(BatmanInfer main.cpp
         test/test_kvcaches.cpp
         test/gemm_lowp_outputstage_test.cpp
         test/test_layer_norm.cpp
+        test/test_bugs.cpp
 )
 
 # 生成 libbat_infer_static.a 静态库

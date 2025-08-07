@@ -54,6 +54,9 @@ namespace BatmanInfer {
                                BIConvertPolicy overflow_policy,
                                BIRoundingPolicy rounding_policy);
 
+
+                void dynamic_configure(BIITensorInfo *src);
+
                 /** Static function to check if given info will lead to a valid configuration
                  *
                  * Similar to @ref CpuMulKernel::configure()

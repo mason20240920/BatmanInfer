@@ -16,12 +16,16 @@ namespace BatmanInfer {
     void BINEIntentMGPTBlock::configure(BIITensor *input,
                                       const std::vector<BIGPTLayerConfig> &layer_configs,
                                       const BIGPTGlobalConfig &global_config,
+                                      const size_t cur_batch_size,
+                                      const size_t cur_seq_len,
                                       BIITensor *output) {
         // 1. 处理层数(查看多少层)
         _layer_num = layer_configs.size();
         _hidden_size = global_config.hidden_size;
         _max_batch_size = global_config.max_batch_size;
         _max_seq_len = global_config.max_seq_len;
+        _seq_len = cur_seq_len;
+        _batch_size = cur_batch_size;
         // 2. 创建中间张量(创建中间张量)
         _intermediate_tensors.reserve(_layer_num - 1);
         // 张量信息
@@ -37,7 +41,7 @@ namespace BatmanInfer {
         _sub_intermediate_tensor_info.set_format(Format::F16);
         // 如果层数只有一层
         if (_layer_num == 1) {
-            auto gpt_block = std::make_unique<BINEIntentGPT2Block>();
+            auto gpt_block = std::make_unique<BINEIntentGPTBlock>();
             gpt_block->configure(input,
                                  layer_configs[0].ln_1_weight,
                                  layer_configs[0].ln_1_bias,
@@ -58,6 +62,8 @@ namespace BatmanInfer {
                                  global_config.hidden_size,
                                  global_config.max_seq_len,
                                  global_config.max_batch_size,
+                                 _seq_len,
+                                 _batch_size,
                                  0,
                                  output);
             _layer_blocks.emplace_back(std::move(gpt_block));
@@ -81,7 +87,7 @@ namespace BatmanInfer {
                 intermediate_t.allocator()->allocate();
             }
             for (size_t i = 0; i < _layer_num; i++) {
-                auto gpt_block = std::make_unique<BINEIntentGPT2Block>();
+                auto gpt_block = std::make_unique<BINEIntentGPTBlock>();
                 if (i == 0) {
                     gpt_block->configure(input,
                                          layer_configs[i].ln_1_weight,
@@ -103,6 +109,8 @@ namespace BatmanInfer {
                                          global_config.hidden_size,
                                          global_config.max_seq_len,
                                          global_config.max_batch_size,
+                                         _seq_len,
+                                         _batch_size,
                                          i,
                                          &_sub_intermediate_tensors.at(i));
                 } else if (i == _layer_num - 1) {
@@ -127,17 +135,11 @@ namespace BatmanInfer {
                                          global_config.hidden_size,
                                          global_config.max_seq_len,
                                          global_config.max_batch_size,
+                                         _seq_len,
+                                         _batch_size,
                                          i,
                                          output);
                 } else {
-                    // 先确定第一层的参数
-                    BITensor block_o_tensor;
-                    _intermediate_tensors.push_back(std::move(block_o_tensor));
-                    _intermediate_tensors[i].allocator()->init(intermediate_tensor_info);
-
-                    BITensor sub_block_o_tensor;
-                    sub_block_o_tensor.allocator()->init(_sub_intermediate_tensor_info);
-                    _sub_intermediate_tensors.emplace_back(std::move(sub_block_o_tensor));
                     gpt_block->configure(&_sub_intermediate_tensors.at(i - 1),
                                          layer_configs[i].ln_1_weight,
                                          layer_configs[i].ln_1_bias,
@@ -158,6 +160,8 @@ namespace BatmanInfer {
                                          global_config.hidden_size,
                                          global_config.max_seq_len,
                                          global_config.max_batch_size,
+                                         _seq_len,
+                                         _batch_size,
                                          i,
                                          &_sub_intermediate_tensors.at(i));
                 }
@@ -172,7 +176,7 @@ namespace BatmanInfer {
                                             const BIGPTGlobalConfig &global_config,
                                             BIITensor *output) {
         std::vector<BIGPTLayerConfig> configs(layer_configs.begin(), layer_configs.end());
-        configure(input, configs, global_config, output);
+        configure(input, configs, global_config,1, 1, output);
     }
 
     void BINEIntentMGPTBlock::dynamic_configure(const BIITensor *input,
