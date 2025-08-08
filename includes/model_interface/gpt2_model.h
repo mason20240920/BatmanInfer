@@ -125,7 +125,7 @@ enum class GPT2ResOrder {
     c_proj_weight,
     c_proj_bias,
     rms_gamma_weight,
-    lm_head_weight,
+    // lm_head_weight,
 #ifdef FIX_VER
     decode_layer_scales,
 #endif
@@ -198,7 +198,7 @@ private:
 
     BIErrCode parse_model_data(const char *data_in, size_t data_size, OrderPtrMap &order2ptr);
 
-    BIErrCode load_weight_tensor(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr);
+    BIErrCode load_weight_tensor(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr, bool need_transpose);
 
     BIErrCode load_scale_vector(std::vector<float> &scales, GPT2ResOrder res_order, OrderPtrMap &order2ptr);
 

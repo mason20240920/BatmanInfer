@@ -308,7 +308,7 @@ BIErrCode BIGPT2Model::parse_model_data(const char *data_in, size_t data_size, O
     return BIErrCode::BISuccess;
 }
 
-BIErrCode BIGPT2Model::load_weight_tensor(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr) {
+BIErrCode BIGPT2Model::load_weight_tensor(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr, bool need_transpose) {
     if (order2ptr.find(res_order) == order2ptr.end()) {
         return BIErrCode::BIResNotExists;
     }
@@ -317,32 +317,77 @@ BIErrCode BIGPT2Model::load_weight_tensor(BITensor &tensor, GPT2ResOrder res_ord
 
     auto header = reinterpret_cast<GPT2ResHeader *>(tmp_ptr);
 
-    // 检查 shape 是否对得上
-    for (size_t i = 0; i < tensor.info()->num_dimensions(); ++i) {
-        if (tensor.info()->tensor_shape()[i] != header->shape[i]) {
+    // 如果当前张量需要进行转置，需要先将数据接收张量进行转置(当前只有二维张量进行转置，且需要转置的张量数据为 f16类型)，数据接收完毕后还需要将张量转置回去
+    BITensor tensor_tmp;
+    if (need_transpose) {
+        auto tensor_num_dim = tensor.info()->num_dimensions();
+        if (tensor_num_dim != 2) {
             return BIErrCode::BIResDamaged;
         }
-    }
-    for (auto i = tensor.info()->num_dimensions(); i < tensor_max_dim; ++i) {
-        if (header->shape[i] != 1) {
+
+        tensor_tmp.allocator()->init(BITensorInfo(BITensorShape(tensor.info()->tensor_shape()[1], tensor.info()->tensor_shape()[0]), 1, tensor.info()->data_type()));
+        tensor_tmp.allocator()->allocate();
+
+        // 检查 shape是否对得上
+        for (size_t i = 0; i < tensor_tmp.info()->num_dimensions(); ++i) {
+            if (tensor_tmp.info()->tensor_shape()[i] != header->shape[i]) {
+                return BIErrCode::BIResDamaged;
+            }
+        }
+        for (auto i = tensor_tmp.info()->num_dimensions(); i < tensor_max_dim; ++i) {
+            if (header->shape[i] != 1) {
+                return BIErrCode::BIResDamaged;
+            }
+        }
+
+        // shape 检查完，其实这一步可以不用再检查了，但是保险起见还是再检查一遍
+        if (tensor_tmp.info()->total_size() != header->data_length) {
             return BIErrCode::BIResDamaged;
         }
-    }
 
-    // shape 检查完，其实这一步可以不用再检查了，但是保险起见还是再检查一遍
-    if (tensor.info()->total_size() != header->data_length) {
-        return BIErrCode::BIResDamaged;
-    }
+        // 检查类型是否对得上
+        std::string tensor_type_str = BatmanInfer::utils::get_typestring(tensor_tmp.info()->data_type());
+        if (tensor_type_str != std::string(header->data_type)) {
+            return BIErrCode::BIResDamaged;
+        }
 
-    // 检查类型是否对得上
-    std::string tensor_type_str = BatmanInfer::utils::get_typestring(tensor.info()->data_type());
-    if (tensor_type_str != std::string(header->data_type)) {
-        return BIErrCode::BIResDamaged;
-    }
+        // 拷贝具体数据
+        tmp_ptr += sizeof(GPT2ResHeader);
+        memcpy(reinterpret_cast<char *>(tensor_tmp.buffer()), tmp_ptr, header->data_length);
 
-    // 拷贝具体数据
-    tmp_ptr += sizeof(GPT2ResHeader);
-    memcpy(reinterpret_cast<char *>(tensor.buffer()), tmp_ptr, header->data_length);
+        // 数据拷贝完成，需要将数据进行转置
+        BINETranspose transpose;
+        transpose.configure(&tensor_tmp, &tensor);
+        transpose.run();
+    }
+    else {
+        // 检查 shape 是否对得上
+        for (size_t i = 0; i < tensor.info()->num_dimensions(); ++i) {
+            if (tensor.info()->tensor_shape()[i] != header->shape[i]) {
+                return BIErrCode::BIResDamaged;
+            }
+        }
+        for (auto i = tensor.info()->num_dimensions(); i < tensor_max_dim; ++i) {
+            if (header->shape[i] != 1) {
+                return BIErrCode::BIResDamaged;
+            }
+        }
+
+        // shape 检查完，其实这一步可以不用再检查了，但是保险起见还是再检查一遍
+        if (tensor.info()->total_size() != header->data_length) {
+            return BIErrCode::BIResDamaged;
+        }
+
+        // 检查类型是否对得上
+        std::string tensor_type_str = BatmanInfer::utils::get_typestring(tensor.info()->data_type());
+        if (tensor_type_str != std::string(header->data_type)) {
+            return BIErrCode::BIResDamaged;
+        }
+
+        // 拷贝具体数据
+        tmp_ptr += sizeof(GPT2ResHeader);
+        memcpy(reinterpret_cast<char *>(tensor.buffer()), tmp_ptr, header->data_length);
+    }
 
     return BIErrCode::BISuccess;
 }
@@ -566,19 +611,19 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     _scope_manager = std::make_unique<BIMemoryGroupResourceScope>(_memory_group);
 
     // load gather weight
-    ret = load_weight_tensor(_gather_weight_tensor, GPT2ResOrder::gather_weight, order2ptr);
+    ret = load_weight_tensor(_gather_weight_tensor, GPT2ResOrder::gather_weight, order2ptr, false);
     CHECK_SUCCESS(ret);
 
     // load add weight
-    ret = load_weight_tensor(_add_weight_tensor, GPT2ResOrder::add_weight, order2ptr);
+    ret = load_weight_tensor(_add_weight_tensor, GPT2ResOrder::add_weight, order2ptr, false);
     CHECK_SUCCESS(ret);
 
     // load gamma weight
-    ret = load_weight_tensor(_attn_gamma_weight_tensor, GPT2ResOrder::attn_gamma_weight, order2ptr);
+    ret = load_weight_tensor(_attn_gamma_weight_tensor, GPT2ResOrder::attn_gamma_weight, order2ptr, false);
     CHECK_SUCCESS(ret);
 
     // load attn qkiv weight
-    ret = load_weight_tensor(_attn_qkv_weight_tensor, GPT2ResOrder::attn_qkv_weight, order2ptr);
+    ret = load_weight_tensor(_attn_qkv_weight_tensor, GPT2ResOrder::attn_qkv_weight, order2ptr, false);
     CHECK_SUCCESS(ret);
 #ifdef FIX_VER
     // load attn qkv scales
@@ -589,23 +634,23 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
 #endif
 
     // load qkv bias
-    ret = load_weight_tensor(_attn_qkv_bias_tensor, GPT2ResOrder::attn_qkv_bias, order2ptr);
+    ret = load_weight_tensor(_attn_qkv_bias_tensor, GPT2ResOrder::attn_qkv_bias, order2ptr, false);
     CHECK_SUCCESS(ret);
 
     // load attn c proj weight
-    ret = load_weight_tensor(_attn_c_proj_weight_tensor, GPT2ResOrder::attn_c_proj_weight, order2ptr);
+    ret = load_weight_tensor(_attn_c_proj_weight_tensor, GPT2ResOrder::attn_c_proj_weight, order2ptr, false);
     CHECK_SUCCESS(ret);
 
     // load attn c proj bias
-    ret = load_weight_tensor(_attn_c_proj_bias_tensor, GPT2ResOrder::attn_c_proj_bias, order2ptr);
+    ret = load_weight_tensor(_attn_c_proj_bias_tensor, GPT2ResOrder::attn_c_proj_bias, order2ptr, false);
     CHECK_SUCCESS(ret);
 
     // load mlp gamma weight
-    ret = load_weight_tensor(_mlp_gamma_weight_tensor, GPT2ResOrder::mlp_gamma_weight, order2ptr);
+    ret = load_weight_tensor(_mlp_gamma_weight_tensor, GPT2ResOrder::mlp_gamma_weight, order2ptr, false);
     CHECK_SUCCESS(ret);
 
     // load c fc weight
-    ret = load_weight_tensor(_c_fc_weight_tensor, GPT2ResOrder::c_fc_weight, order2ptr);
+    ret = load_weight_tensor(_c_fc_weight_tensor, GPT2ResOrder::c_fc_weight, order2ptr, false);
     CHECK_SUCCESS(ret);
 #ifdef FIX_VER
     std::vector<float> c_fc_weight_scales;
@@ -618,36 +663,36 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
 #endif
 
     // load c fc bias
-    ret = load_weight_tensor(_c_fc_bias_tensor, GPT2ResOrder::c_fc_bias, order2ptr);
+    ret = load_weight_tensor(_c_fc_bias_tensor, GPT2ResOrder::c_fc_bias, order2ptr, false);
     CHECK_SUCCESS(ret);
 
     // load c proj weight
-    ret = load_weight_tensor(_c_proj_weight_tensor, GPT2ResOrder::c_proj_weight, order2ptr);
+    ret = load_weight_tensor(_c_proj_weight_tensor, GPT2ResOrder::c_proj_weight, order2ptr, false);
     CHECK_SUCCESS(ret);
 
     // load c proj bias
-    ret = load_weight_tensor(_c_proj_bias_tensor, GPT2ResOrder::c_proj_bias, order2ptr);
+    ret = load_weight_tensor(_c_proj_bias_tensor, GPT2ResOrder::c_proj_bias, order2ptr, false);
     CHECK_SUCCESS(ret);
 
     // load rms gamma weight
-    ret = load_weight_tensor(_rms_gamma_weight_tensor, GPT2ResOrder::rms_gamma_weight, order2ptr);
+    ret = load_weight_tensor(_rms_gamma_weight_tensor, GPT2ResOrder::rms_gamma_weight, order2ptr, false);
     CHECK_SUCCESS(ret);
 
-    // load lm head weight
-    ret = load_weight_tensor(_lm_head_weight_tensor, GPT2ResOrder::lm_head_weight, order2ptr);
+    // load lm head weight (lm head weight 和 gather_weight 数据相同，但需要进行转置)
+    ret = load_weight_tensor(_lm_head_weight_tensor, GPT2ResOrder::gather_weight, order2ptr, true);
     CHECK_SUCCESS(ret);
 
     // load eos_k_smooth_o weight
-    ret = load_weight_tensor(_eos_k_smooth_o_tensor, GPT2ResOrder::eos_k_smooth_o, order2ptr);
+    ret = load_weight_tensor(_eos_k_smooth_o_tensor, GPT2ResOrder::eos_k_smooth_o, order2ptr, false);
     CHECK_SUCCESS(ret);
     KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_k_smooth_o_tensor.buffer(), max_seq_len - 1, max_seq_len, true, true);
 
     // load eos_q_smooth_o weight
-    ret = load_weight_tensor(_eos_q_smooth_o_tensor, GPT2ResOrder::eos_q_smooth_o, order2ptr);
+    ret = load_weight_tensor(_eos_q_smooth_o_tensor, GPT2ResOrder::eos_q_smooth_o, order2ptr, false);
     CHECK_SUCCESS(ret);
 
     // load eos_v_smooth_o weight
-    ret = load_weight_tensor(_eos_v_smooth_o_tensor, GPT2ResOrder::eos_v_smooth_o, order2ptr);
+    ret = load_weight_tensor(_eos_v_smooth_o_tensor, GPT2ResOrder::eos_v_smooth_o, order2ptr, false);
     CHECK_SUCCESS(ret);
     KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_v_smooth_o_tensor.buffer(), max_seq_len - 1, max_seq_len, false, true);
 

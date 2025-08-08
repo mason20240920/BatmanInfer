@@ -279,7 +279,7 @@ TEST(ResPack, PackGPT) {
             case GPT2ResOrder::c_proj_weight:
             case GPT2ResOrder::c_proj_bias:
             case GPT2ResOrder::rms_gamma_weight:
-            case GPT2ResOrder::lm_head_weight:
+            // case GPT2ResOrder::lm_head_weight:
             case GPT2ResOrder::eos_k_smooth_o:
             case GPT2ResOrder::eos_q_smooth_o:
             case GPT2ResOrder::eos_v_smooth_o: {
