@@ -395,6 +395,21 @@ TEST(LayerNorm, NELayerNormOp) {
 
 TEST(LayerNorm, TestMultiGPTBlock) {
     using namespace BatmanInfer;
+    int thread_num = std::thread::hardware_concurrency(), seq_len = 1;
+    std::cout << "Mobile Thread = " << thread_num << std::endl;
+    if (auto num_thread_op = OperatorTest::readIntegerFromFile("config.txt", 1)) {
+        thread_num = std::min(*num_thread_op, thread_num);
+        std::cout << "thread_num = " << thread_num << std::endl;
+    } else {
+        return;
+    }
+    std::cout << "Sequence length = " << seq_len << std::endl;
+    if (auto num_thread_op = OperatorTest::readIntegerFromFile("seq.txt", 1)) {
+        seq_len = *num_thread_op;
+        std::cout << "sequence = " << seq_len << std::endl;
+    } else {
+        return;
+    }
     // 前置参数
     std::vector<int> output_ids{};
     std::vector<float> scores{};
@@ -407,11 +422,11 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     constexpr int max_batch_size = 1;
     constexpr int max_seq = 64;
     constexpr int block_layer_num = 6;
-    BIScheduler::get().set_num_threads(std::thread::hardware_concurrency());
+    BIScheduler::get().set_num_threads(thread_num);
 
     // 开始的
     int batch_size = 1;
-    int seq_len = 12;
+    // int seq_len = 12;
     // 1. 初始化一个最大input算子
     BITensor input_tensor;
     const BITensorShape input_tensor_shape(max_seq, max_batch_size);
@@ -899,62 +914,128 @@ TEST(LayerNorm, TestMultiGPTBlock) {
                                     seq_len,
                                     &sub_multi_gpt_o_t);
     gpt_multi_block_layer.run();
-    //
-    // // OperatorTest::print_tensor(sub_multi_gpt_o_t, "output");
-    //
-    // // 6. 进行后续的GPT结果解码(先进行RMSNorm操作)
-    // BITensor ln_f_o_tensor, sub_ln_f_o_tensor;
-    // BITensor ln_f_weights = OperatorTest::create_norm_input(std::vector{768},
-    //                                                            "./intent_res/ln_f_weights.npy");
-    // BITensor ln_f_bias = OperatorTest::create_norm_input(std::vector{768},
-    //                                                                "./intent_res/ln_f_bias.npy");
-    // ln_f_o_tensor.allocator()->init(BITensorInfo(gpt_o_tensor_shape, 1, BIDataType::F16));
-    // ln_f_o_tensor.allocator()->allocate();
-    // sub_ln_f_o_tensor.allocator()->init(*ln_f_o_tensor.allocator(), sub_gpt_o_t_info);
-    // BINELayerNormLayer ln_f_layer;
-    // ln_f_layer.configure(&sub_multi_gpt_o_t, &ln_f_weights, &ln_f_bias, &sub_ln_f_o_tensor);
-    // ln_f_layer.run();
-    //
-    // // OperatorTest::print_tensor(sub_ln_f_o_tensor);
-    //
-    // // 7. 进行LMHead操作
-    // BITensor lm_head_weights = OperatorTest::create_norm_input(std::vector{768, 21128},
-    //                                                            "./intent_res/lm_head_weights.npy");
-    // BITensor lm_head_output;
-    // lm_head_output.allocator()->init(BITensorInfo(BITensorShape(21128, max_seq, max_batch_size), 1, BIDataType::F16));
-    // lm_head_output.allocator()->allocate();
-    // BITensor sub_lm_head_output;
-    // BITensorInfo sub_lm_head_output_info = BITensorInfo(BITensorShape(21128, seq_len, batch_size), 1, BIDataType::F16);
-    // sub_lm_head_output_info.set_format(Format::F16);
-    // sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
-    // GEMMInfo gemm_info = GEMMInfo(false,
-    //                               false,
-    //                               true,
-    //                               false,
-    //                               false,
-    //                               false,
-    //                               BIGEMMLowpOutputStageInfo(),
-    //                               false, true, false,
-    //                               BIActivationLayerInfo(), false, BIWeightFormat::UNSPECIFIED, false);
-    // BINEGEMM lm_head_layer;
-    // lm_head_layer.configure(&sub_ln_f_o_tensor, &lm_head_weights, nullptr, &sub_lm_head_output, 1.0f, 1.0f, gemm_info);
-    // lm_head_layer.run();
+
+    // OperatorTest::print_tensor(sub_multi_gpt_o_t, "output");
+
+    // 6. 进行后续的GPT结果解码(先进行RMSNorm操作)
+    BITensor ln_f_o_tensor, sub_ln_f_o_tensor;
+    BITensor ln_f_weights = OperatorTest::create_norm_input(std::vector{768},
+                                                               "./intent_res/ln_f_weights.npy");
+    BITensor ln_f_bias = OperatorTest::create_norm_input(std::vector{768},
+                                                                   "./intent_res/ln_f_bias.npy");
+    ln_f_o_tensor.allocator()->init(BITensorInfo(gpt_o_tensor_shape, 1, BIDataType::F16));
+    ln_f_o_tensor.allocator()->allocate();
+    sub_ln_f_o_tensor.allocator()->init(*ln_f_o_tensor.allocator(), sub_gpt_o_t_info);
+    BINELayerNormLayer ln_f_layer;
+    ln_f_layer.configure(&sub_multi_gpt_o_t, &ln_f_weights, &ln_f_bias, &sub_ln_f_o_tensor);
+    ln_f_layer.run();
+
+    // OperatorTest::print_tensor(sub_ln_f_o_tensor);
+
+    // 7. 进行LMHead操作
+    BITensor lm_head_weights = OperatorTest::create_norm_input(std::vector{768, 21128},
+                                                               "./intent_res/lm_head_weights.npy");
+    BITensor lm_head_output;
+    lm_head_output.allocator()->init(BITensorInfo(BITensorShape(21128, max_seq, max_batch_size), 1, BIDataType::F16));
+    lm_head_output.allocator()->allocate();
+    BITensor sub_lm_head_output;
+    BITensorInfo sub_lm_head_output_info = BITensorInfo(BITensorShape(21128, seq_len, batch_size), 1, BIDataType::F16);
+    sub_lm_head_output_info.set_format(Format::F16);
+    sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+    GEMMInfo gemm_info = GEMMInfo(false,
+                                  false,
+                                  true,
+                                  false,
+                                  false,
+                                  false,
+                                  BIGEMMLowpOutputStageInfo(),
+                                  false, true, false,
+                                  BIActivationLayerInfo(), false, BIWeightFormat::UNSPECIFIED, false);
+    BINEGEMM lm_head_layer;
+    lm_head_layer.configure(&sub_ln_f_o_tensor, &lm_head_weights, nullptr, &sub_lm_head_output, 1.0f, 1.0f, gemm_info);
+    lm_head_layer.run();
+
+    // 8. 设置分类器
+    BITensor score_o, sub_score_o, score_weight;
+    score_o.allocator()->init(BITensorInfo(BITensorShape(5, max_seq, max_batch_size), 1, BIDataType::F16));
+    score_o.allocator()->allocate();
+    score_weight.allocator()->init(BITensorInfo(BITensorShape(5, 21128), 1, BIDataType::F16));
+    score_weight.allocator()->allocate();
+    BITensorInfo sub_score_info = BITensorInfo(BITensorShape(5, seq_len, batch_size), 1, BIDataType::F16);
+    sub_score_info.set_format(Format::F16);
+    sub_score_o.allocator()->init(*score_o.allocator(), sub_score_info);
+    BINEGEMM score_layer;
+    score_layer.configure(&sub_lm_head_output, &score_weight, nullptr, &sub_score_o, 1.0f, 1.0f, gemm_info);
+    score_layer.run();
+
     // OperatorTest::print_tensor(sub_lm_head_output);
 
     // seq_len = 64;
-    // batch_size = 1;
-    // input_info.set_tensor_shape(BITensorShape(seq_len, batch_size));
-    // sub_input_tensor.allocator()->init(*input_tensor.allocator(), input_info);
-    // sub_gather_info.set_tensor_shape(BITensorShape(hidden_size, seq_len, batch_size));
-    // sub_gather_o_tensor.allocator()->init(*gather_o_tensor.allocator(), sub_gather_info);
-    // sub_wte_o_tensor.allocator()->init(*wte_o_tensor.allocator(), sub_gather_info);
-    // sub_add_weight_info.set_tensor_shape(BITensorShape(hidden_size, seq_len));
-    // sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
-    // sub_gpt_o_t_info.set_tensor_shape(BITensorShape(hidden_size, 1, batch_size));
-    // sub_multi_gpt_o_t.allocator()->init(*multi_gpt_o_t.allocator(), sub_gpt_o_t_info);
-    // sub_ln_f_o_tensor.allocator()->init(*ln_f_o_tensor.allocator(), sub_gpt_o_t_info);
-    // sub_lm_head_output_info.set_tensor_shape(BITensorShape(6003, 1, batch_size));
-    // sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+    batch_size = 1;
+    input_info.set_tensor_shape(BITensorShape(seq_len, batch_size));
+    sub_input_tensor.allocator()->init(*input_tensor.allocator(), input_info);
+    sub_gather_info.set_tensor_shape(BITensorShape(hidden_size, seq_len, batch_size));
+    sub_gather_o_tensor.allocator()->init(*gather_o_tensor.allocator(), sub_gather_info);
+    sub_wte_o_tensor.allocator()->init(*wte_o_tensor.allocator(), sub_gather_info);
+    sub_add_weight_info.set_tensor_shape(BITensorShape(hidden_size, seq_len));
+    sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
+    sub_gpt_o_t_info.set_tensor_shape(BITensorShape(hidden_size, seq_len, batch_size));
+    sub_score_info.set_tensor_shape(BITensorShape(5, seq_len, batch_size));
+    sub_multi_gpt_o_t.allocator()->init(*multi_gpt_o_t.allocator(), sub_gpt_o_t_info);
+    sub_ln_f_o_tensor.allocator()->init(*ln_f_o_tensor.allocator(), sub_gpt_o_t_info);
+    sub_lm_head_output_info.set_tensor_shape(BITensorShape(6003, seq_len, batch_size));
+    sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+    sub_score_o.allocator()->init(*score_o.allocator(), sub_score_info);
+    gather_layer.dynamic_configure(&sub_input_tensor, &sub_gather_o_tensor);
+    wte_layer.dynamic_configure(&sub_gather_o_tensor, &sub_add_weight, true);
+    gpt_multi_block_layer.dynamic_configure(&sub_wte_o_tensor, seq_len, batch_size);
+    ln_f_layer.dynamic_configure(&sub_multi_gpt_o_t);
+    lm_head_layer.dynamic_configure();
+    score_layer.dynamic_configure();
+    gather_layer.run();
+    wte_layer.run();
+    gpt_multi_block_layer.run();
+    ln_f_layer.run();
+    lm_head_layer.run();
+    score_layer.run();
+    double total_duration = 0.0, max_duration = 0.0;
+    for (int seq_run = 0; seq_run < 100; seq_run++) {
+        auto start = std::chrono::high_resolution_clock::now();
+        batch_size = 1;
+        // seq_len = 64;
+        input_info.set_tensor_shape(BITensorShape(seq_len, batch_size));
+        sub_input_tensor.allocator()->init(*input_tensor.allocator(), input_info);
+        sub_gather_info.set_tensor_shape(BITensorShape(hidden_size, seq_len, batch_size));
+        sub_gather_o_tensor.allocator()->init(*gather_o_tensor.allocator(), sub_gather_info);
+        sub_wte_o_tensor.allocator()->init(*wte_o_tensor.allocator(), sub_gather_info);
+        sub_add_weight_info.set_tensor_shape(BITensorShape(hidden_size, seq_len));
+        sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
+        sub_gpt_o_t_info.set_tensor_shape(BITensorShape(hidden_size, seq_len, batch_size));
+        sub_score_info.set_tensor_shape(BITensorShape(5, seq_len, batch_size));
+        sub_multi_gpt_o_t.allocator()->init(*multi_gpt_o_t.allocator(), sub_gpt_o_t_info);
+        sub_ln_f_o_tensor.allocator()->init(*ln_f_o_tensor.allocator(), sub_gpt_o_t_info);
+        sub_lm_head_output_info.set_tensor_shape(BITensorShape(6003, seq_len, batch_size));
+        sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+        sub_score_o.allocator()->init(*score_o.allocator(), sub_score_info);
+        gather_layer.dynamic_configure(&sub_input_tensor, &sub_gather_o_tensor);
+        wte_layer.dynamic_configure(&sub_gather_o_tensor, &sub_add_weight, true);
+        gpt_multi_block_layer.dynamic_configure(&sub_wte_o_tensor, seq_len, batch_size);
+        ln_f_layer.dynamic_configure(&sub_multi_gpt_o_t);
+        lm_head_layer.dynamic_configure();
+        score_layer.dynamic_configure();
+        gather_layer.run();
+        wte_layer.run();
+        gpt_multi_block_layer.run();
+        ln_f_layer.run();
+        lm_head_layer.run();
+        score_layer.run();
+        auto end = std::chrono::high_resolution_clock::now();
+        double duration = std::chrono::duration<double, std::milli>(end - start).count();
+        max_duration = std::max(max_duration, duration);
+        total_duration += duration;
+    }
+    std::cout << "Average Performance Report:" << total_duration / 100 << std::endl;
+    std::cout << "Max Performance Report:" << max_duration << std::endl;
 
 
     //
@@ -964,7 +1045,7 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     // ids.allocator()->allocate();
     // BITensor sub_ids;
     // BITensorInfo sub_ids_info = BITensorInfo(BITensorShape(1, batch_size), 1, BIDataType::S32);
-    // sub_ids_info.set_format(Format::S32);
+    // sub_ids_info.set_format(Format::S32)
     // sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
     //
     // BINEArgMinMaxLayer arg_minmax_layer;

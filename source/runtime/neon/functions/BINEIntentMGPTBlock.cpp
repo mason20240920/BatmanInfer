@@ -183,8 +183,9 @@ namespace BatmanInfer {
                                               const size_t &seq_len,
                                               const size_t &batch_size) {
         _batch_size = batch_size;
+        _seq_len = seq_len;
         _sub_intermediate_tensor_info.set_tensor_shape(BITensorShape(_hidden_size,
-                                                                     1,
+                                                                     _seq_len,
                                                                      _batch_size));
         for (int i = 0; i < _sub_intermediate_tensors.size(); i++) {
             _sub_intermediate_tensors[i].allocator()->init(*_intermediate_tensors[i].allocator(),
