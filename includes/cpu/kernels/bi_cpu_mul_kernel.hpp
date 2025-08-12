@@ -55,7 +55,7 @@ namespace BatmanInfer {
                                BIRoundingPolicy rounding_policy);
 
 
-                void dynamic_configure(BIITensorInfo *src);
+                void dynamic_configure(BIITensorInfo *src1, BIITensorInfo *src2);
 
                 /** Static function to check if given info will lead to a valid configuration
                  *

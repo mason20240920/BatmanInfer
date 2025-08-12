@@ -600,18 +600,20 @@ TEST(QUANTIZE_TE2ST, QUAN_EXAM) {
 
 TEST(QUANTIZE_TEST, DEQUANT) {
     // 1. 获取量化的per channel
-    const std::vector<int8_t> weights_vec = {-17, -16, 17, 52, 127, -127};
+    const std::vector<int8_t> weights_vec = {-127, -127,  127,  -1,  -84,   81};
     const std::vector<float> weights_scale = {
-        0.0118, 0.0252
+        0.0223, 0.0101, 0.0095
     };
+
     BIQuantizationInfo weight_info = BIQuantizationInfo(weights_scale);
-    BITensorShape weights_shape(2, 3); // [K, N]
+    BITensorShape weights_shape(3, 2); // [K, N]
     BITensor weights;
     auto weights_info = BITensorInfo(
         weights_shape, 1, BIDataType::QSYMM8_PER_CHANNEL, weight_info);
     weights.allocator()->init(weights_info);
     weights.allocator()->allocate();
     std::memcpy(weights.buffer(), weights_vec.data(), weights.info()->total_size());
+    QATTest::print_tensor(weights, "weights");
     BITensor output;
     BITensorInfo input_info{
         weights_shape,
