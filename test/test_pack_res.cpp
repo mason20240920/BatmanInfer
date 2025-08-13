@@ -2,6 +2,7 @@
 // Created by holynova on 25-4-23.
 //
 
+#include <cstdint>
 #include <thread>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -43,7 +44,7 @@ namespace res_pack {
         return true;
     }
 
-#ifdef FIX_VER
+#if defined(FIX_VER) || defined(AWQ_VER)
     // 需要将 txt 明文数据进行读取并存储
     bool read_and_write_scales(int res_order, const std::string &path_prefix, const std::string &res_path,
         std::fstream &dst_file) {
@@ -183,6 +184,83 @@ namespace res_pack {
         return true;
     }
 
+#ifdef AWQ_VER
+    // 本函数将 int8(有符号) 转为 int4(有符号) 进行存储使用
+    int read_and_write_npy_int8toint4(int res_order, const std::string &path_prefix, const std::string &res_path,
+        std::fstream &dst_file) {
+        std::ifstream in_file(path_prefix + res_path, std::ios::in | std::ios::binary);
+        if (!in_file.is_open()) {
+            std::cout << "Cannot open file: " << path_prefix << res_path << "!" << std::endl;
+            return false;
+        }
+        in_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+        // 读取 numpy 文件头信息
+        npy::header_t header = utils::parse_npy_header(in_file);
+
+        // 模型层的 shape 不能大于 6 维
+        if (header.shape.size() > tensor_max_dim) {
+            std::cout << "Wrong shape!" << std::endl;
+            return false;
+        }
+
+        size_t element_count = 1, element_size = header.dtype.itemsize;
+        for (auto i : header.shape) {
+            element_count *= i;
+        }
+
+        // 验证文件完整性
+        const size_t current_position = in_file.tellg();
+        in_file.seekg(0, std::ios_base::end);
+        const size_t end_position = in_file.tellg();
+        in_file.seekg(current_position, std::ios_base::beg);
+
+        if ((end_position - current_position) != (element_count * element_size)) {
+            std::cout << "File size mismatch! " << path_prefix << res_path << std::endl;
+            return false;
+        }
+
+        // 被打包文件数据个数是偶数，安全起见进行相关判断
+        if (element_count % 2 != 0) {
+            std::cout << "element_count % 2 != 0" << std::endl;
+            return false;
+        }
+
+        auto buffer = new uint8_t[element_count];
+
+        for (int j = 0; j < element_count/2; ++j) {
+            uint8_t uint8_val1;
+            uint8_t uint8_val2;
+            in_file.read(reinterpret_cast<char*>(&uint8_val1), sizeof(uint8_val1));
+            in_file.read(reinterpret_cast<char*>(&uint8_val2), sizeof(uint8_val2));
+            buffer[j] = (((uint8_val1 & 0x0F) << 4) | (uint8_val2 & 0x0F));
+        }
+
+        GPT2ResHeader res_header;
+        res_header.res_order = res_order;
+        res_header.data_length = static_cast<int>(element_count/2 * sizeof(uint8_t));
+        for (auto k = 0; k < header.shape.size(); ++k) {
+            res_header.shape[k] = static_cast<int>(header.shape[k]);
+        }
+        for (auto k = header.shape.size(); k < tensor_max_dim; ++k) {
+            res_header.shape[k] = 1;
+        }
+
+        // npy不支持存储为 int4，这里类型为自定义类型
+        const std::string int4_type_str = "int4";
+        memcpy(res_header.data_type, int4_type_str.c_str(), int4_type_str.length());
+
+        // 写入头信息
+        dst_file.write(reinterpret_cast<char*>(&res_header), sizeof(res_header));
+        // 写入具体数据
+        dst_file.write(reinterpret_cast<char*>(buffer), sizeof(uint8_t) * element_count/2);
+
+        delete[] buffer;
+
+        return true;
+    }
+#endif
+
 #ifdef FIX_VER
     bool read_and_write_json(int res_order, const std::string &path_prefix, const std::string &res_path,
         std::fstream &dst_file) {
@@ -247,7 +325,7 @@ TEST(ResPack, PackGPT) {
 
 
     std::map<GPT2ResOrder, std::string> res_paths;
-    std::string res_path_prefix = "./fix-fake/", path_storage_file = "_all_res_paths.txt";
+    std::string res_path_prefix = "./awq/", path_storage_file = "_all_res_paths.txt";
     ret = res_pack::load_res_paths(res_path_prefix, path_storage_file, res_paths);
     ASSERT_TRUE(ret);
 
@@ -269,12 +347,16 @@ TEST(ResPack, PackGPT) {
             case GPT2ResOrder::gather_weight:
             case GPT2ResOrder::add_weight:
             case GPT2ResOrder::attn_gamma_weight:
+#if defined(FLOAT_VER) || defined(FIX_VER)
             case GPT2ResOrder::attn_qkv_weight:
+#endif
             case GPT2ResOrder::attn_qkv_bias:
             case GPT2ResOrder::attn_c_proj_weight:
             case GPT2ResOrder::attn_c_proj_bias:
             case GPT2ResOrder::mlp_gamma_weight:
+#if defined(FLOAT_VER) || defined(FIX_VER)
             case GPT2ResOrder::c_fc_weight:
+#endif
             case GPT2ResOrder::c_fc_bias:
             case GPT2ResOrder::c_proj_weight:
             case GPT2ResOrder::c_proj_bias:
@@ -287,13 +369,23 @@ TEST(ResPack, PackGPT) {
                     res_paths[cur_order], dst_file);
                 break;
             }
-#ifdef FIX_VER
+#ifdef AWQ_VER
+            case GPT2ResOrder::attn_qkv_weight:
+            case GPT2ResOrder::c_fc_weight: {
+                ret = res_pack::read_and_write_npy_int8toint4(static_cast<int>(cur_order), res_path_prefix,
+                    res_paths[cur_order], dst_file);
+                break;
+            }
+#endif
+#if defined(FIX_VER) || defined(AWQ_VER)
             case GPT2ResOrder::attn_qkv_weight_scale:
             case GPT2ResOrder::c_fc_weight_scale: {
                 ret = res_pack::read_and_write_scales(static_cast<int>(cur_order), res_path_prefix,
                     res_paths[cur_order], dst_file);
                 break;
             }
+#endif
+#ifdef FIX_VER
             case GPT2ResOrder::decode_layer_scales: {
                 ret = res_pack::read_and_write_json(static_cast<int>(cur_order), res_path_prefix,
                     res_paths[cur_order], dst_file);

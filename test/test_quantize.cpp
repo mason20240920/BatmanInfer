@@ -625,6 +625,30 @@ TEST(QUANTIZE_TEST, DEQUANT) {
     dequantization_layer.configure(&weights, &output);
     dequantization_layer.run();
     QATTest::print_tensor(output, "weights");
+
+
+
+
+    // BITensorShape weights_shape(2, 3); // [K, N]
+    // BITensor weights;
+    // weights.allocator()->init(BITensorInfo(weights_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
+    // weights.allocator()->allocate();
+    //
+    // const std::vector<int8_t> weights_vec = {-17, -16, 17, 52, 127, -127};
+    // std::memcpy(weights.buffer(), weights_vec.data(), weights.info()->total_size());
+    //
+    // const std::vector<float> weights_scale = {0.0118, 0.0252};
+    // weights.info()->set_quantization_info(weights_scale);
+    //
+    // BITensor output;
+    // output.allocator()->init(BITensorInfo(weights_shape, 1, BIDataType::F16));
+    // output.allocator()->allocate();
+    //
+    // // 2. 进行反量化
+    // BINEDequantizationLayer dequantization_layer;
+    // dequantization_layer.configure(&weights, &output);
+    // dequantization_layer.run();
+    // QATTest::print_tensor(output, "weights");
 }
 
 TEST(QUANTIZE_MATMUL, MATMULQ) {

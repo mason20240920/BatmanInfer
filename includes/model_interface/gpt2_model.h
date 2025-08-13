@@ -110,7 +110,7 @@ enum class GPT2ResOrder {
     add_weight,
     attn_gamma_weight,
     attn_qkv_weight,
-#ifdef FIX_VER
+#if defined(FIX_VER) || defined(AWQ_VER)
     attn_qkv_weight_scale,
 #endif
     attn_qkv_bias,
@@ -118,7 +118,7 @@ enum class GPT2ResOrder {
     attn_c_proj_bias,
     mlp_gamma_weight,
     c_fc_weight,
-#ifdef FIX_VER
+#if defined(FIX_VER) || defined(AWQ_VER)
     c_fc_weight_scale,
 #endif
     c_fc_bias,
@@ -200,6 +200,8 @@ private:
 
     BIErrCode load_weight_tensor(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr, bool need_transpose);
 
+    BIErrCode load_weight_tensor_and_dequantization(BITensor &tensor, BITensor &tensor_output, GPT2ResOrder res_order, OrderPtrMap &order2ptr, std::vector<float> &scales);
+
     BIErrCode load_scale_vector(std::vector<float> &scales, GPT2ResOrder res_order, OrderPtrMap &order2ptr);
 
     BIErrCode load_hyper_params(OrderPtrMap &order2ptr);
@@ -229,6 +231,7 @@ private:
 
     void print_tensor(const BatmanInfer::BITensor &tensor, const std::string &name = "temp", const BatmanInfer::BIIOFormatInfo::PrintRegion region = BatmanInfer::BIIOFormatInfo::PrintRegion::Full);
 
+    std::pair<int8_t, int8_t> unpack_int8_to_int4(int8_t packed);
 private:
     BIMemoryGroup                               _memory_group;
     std::unique_ptr<BIMemoryGroupResourceScope> _scope_manager;
@@ -248,11 +251,18 @@ private:
     BITensor _gather_weight_tensor;
     BITensor _add_weight_tensor;
     BITensor _attn_gamma_weight_tensor;
+#ifdef AWQ_VER
+    // AWQ量化时，attn_qkv_weight是两个 int8数据拼接成一个 int8数据进行存储的，此处需要先将数据拆分为 int8进行存储，然后再反量化为 fp16数据
+    BITensor _attn_qkv_awq_weight_tensor;
+#endif
     BITensor _attn_qkv_weight_tensor;
     BITensor _attn_qkv_bias_tensor;
     BITensor _attn_c_proj_weight_tensor;
     BITensor _attn_c_proj_bias_tensor;
     BITensor _mlp_gamma_weight_tensor;
+#ifdef AWQ_VER
+    BITensor _c_fc_awq_weight_tensor;
+#endif
     BITensor _c_fc_weight_tensor;
     BITensor _c_fc_bias_tensor;
     BITensor _c_proj_weight_tensor;
@@ -279,13 +289,13 @@ private:
     BINEArithmeticAddition _add_layer;
 #ifdef FIX_VER
     BINEAttentionLowpLayer _attn_lowp_layer;
-#elifdef FLOAT_VER
+#elif defined(FLOAT_VER) || defined(AWQ_VER)
     BINEAttentionLayer     _attn_layer;
 #endif
     BINEArithmeticAddition _attn_rms_add_layer;
-#ifdef FIX_VER
+#if defined(FIX_VER)
     BINEMLPLayer           _mlp_layer;
-#elifdef FLOAT_VER
+#elif defined(FLOAT_VER) || defined(AWQ_VER)
     BINEFeedForwardLayer   _mlp_layer;
 #endif
     BINEArithmeticAddition _add_mlp_layer;

@@ -10,15 +10,20 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif ()
 option(ENABLE_BENCHMARK "For enable benchmark" OFF)
 
-# 指定当前编译版本是浮点模型还是定点量化模型，两者必须二选一开启
-option(FLOAT_VER "float version" ON)
+# 指定当前编译版本是浮点模型还是定点量化模型还是AWQ量化模型，两者必须二选一开启
+option(FLOAT_VER "float version" OFF)
 option(FIX_VER "fix version" OFF)
+option(AWQ_VER "awq version" ON)
+
 if(FLOAT_VER)
     add_definitions(-DFLOAT_VER)
 endif()
 if(FIX_VER)
     add_definitions(-DFIX_VER)
 endif ()
+if(AWQ_VER)
+    add_definitions(-DAWQ_VER)
+endif()
 
 # 检查目标平台
 if (ANDROID)
