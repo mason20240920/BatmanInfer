@@ -5,17 +5,16 @@
 
 #pragma once
 
-#include <runtime/neon/functions/BINEIntentGPTBlock.hpp>
+#include <runtime/neon/functions/BINEGPT2Block.hpp>
 #include <runtime/bi_memory_manager_on_demand.hpp>
 
 namespace BatmanInfer {
     /**
      * @brief 单层权重张量
      */
-    struct BIIntentGPTLayerConfig {
+    struct BIGPTLayerConfig {
         // 每层的权重张量
         const BIITensor *ln_1_weight;
-        const BIITensor *ln_1_bias;
         const BIITensor *c_attn_weights;
         const BIITensor *c_attn_bias;
         const BIITensor *o_attn_weights;
@@ -25,29 +24,28 @@ namespace BatmanInfer {
         const BIITensor *proj_weights;
         const BIITensor *proj_bias;
         const BIITensor *ln_2_weight;
-        const BIITensor *ln_2_bias;
 
         // 每层有不同的配置
         BIActivationLayerInfo act_info;
         int layer_idx;
 
         // 构造函数
-        BIIntentGPTLayerConfig(): ln_1_weight(nullptr), ln_1_bias(nullptr), c_attn_weights(nullptr),
+        BIGPTLayerConfig(): ln_1_weight(nullptr), c_attn_weights(nullptr),
                             c_attn_bias(nullptr), o_attn_weights(nullptr),
                             o_attn_bias(nullptr), fc_weights(nullptr),
                             fc_bias(nullptr), proj_weights(nullptr),
-                            proj_bias(nullptr), ln_2_weight(nullptr), ln_2_bias(nullptr), layer_idx(0) {
+                            proj_bias(nullptr), ln_2_weight(nullptr), layer_idx(0) {
         }
 
         // 验证配置
-        [[nodiscard]] bool is_valid() const {
+        bool is_valid() const {
             return ln_1_weight && c_attn_weights && c_attn_bias &&
                    o_attn_weights && o_attn_bias && fc_weights &&
                    fc_bias && proj_weights && proj_bias && ln_2_weight;
         }
     };
 
-    struct BIIntentGPTGlobalConfig {
+    struct BIGPTGlobalConfig {
         PermutationVector q_perm;
         PermutationVector k_perm;
         PermutationVector qkv_perm;
@@ -55,29 +53,29 @@ namespace BatmanInfer {
         size_t max_seq_len;
         size_t max_batch_size;
 
-        BIIntentGPTGlobalConfig() : hidden_size(0), max_seq_len(0), max_batch_size(0) {
+        BIGPTGlobalConfig() : hidden_size(0), max_seq_len(0), max_batch_size(0) {
         }
     };
 
     // Forward declaration
     class BIITensor;
 
-    class BINEIntentMGPTBlock final : public BIIFunction {
+    class BINEMultiGPTBlock final : public BIIFunction {
     public:
-        explicit BINEIntentMGPTBlock(std::shared_ptr<BIIMemoryManager> memory_manager);
+        explicit BINEMultiGPTBlock(std::shared_ptr<BIIMemoryManager> memory_manager);
 
-        BINEIntentMGPTBlock(): BINEIntentMGPTBlock(BIMemoryManagerOnDemand::make_default()) {
+        BINEMultiGPTBlock(): BINEMultiGPTBlock(BIMemoryManagerOnDemand::make_default()) {
         }
 
-        BINEIntentMGPTBlock(const BINEIntentMGPTBlock &other) = delete;
+        BINEMultiGPTBlock(const BINEMultiGPTBlock &other) = delete;
 
-        BINEIntentMGPTBlock &operator=(const BINEIntentMGPTBlock &other) = delete;
+        BINEMultiGPTBlock &operator=(const BINEMultiGPTBlock &other) = delete;
 
-        BINEIntentMGPTBlock(BINEIntentMGPTBlock &&other) = delete;
+        BINEMultiGPTBlock(BINEMultiGPTBlock &&other) = delete;
 
-        BINEIntentMGPTBlock &operator=(BINEIntentMGPTBlock &&other) = delete;
+        BINEMultiGPTBlock &operator=(BINEMultiGPTBlock &&other) = delete;
 
-        ~BINEIntentMGPTBlock() override;
+        ~BINEMultiGPTBlock() override;
 
         /**
          * @brief 多层配置接口 - 使用vector存储每层配置
@@ -87,10 +85,9 @@ namespace BatmanInfer {
          * @param output
          */
         void configure(BIITensor *input,
-                       const std::vector<BIIntentGPTLayerConfig> &layer_configs,
-                       const BIIntentGPTGlobalConfig &global_config,
-                       size_t cur_batch_size,
-                       size_t cur_seq_len,
+                       const std::vector<BIGPTLayerConfig> &layer_configs,
+                       const BIGPTGlobalConfig &global_config,
+                       BIITensor *eos_weights,
                        BIITensor *output);
 
         /**
@@ -98,13 +95,23 @@ namespace BatmanInfer {
          */
         template<size_t NumLayers>
         void configure_fixed(BIITensor *input,
-                             const std::array<BIIntentGPTLayerConfig, NumLayers> &layer_configs,
-                             const BIIntentGPTGlobalConfig &global_config,
+                             const std::array<BIGPTLayerConfig, NumLayers> &layer_configs,
+                             const BIGPTGlobalConfig &global_config,
+                             BIITensor *eos_weights,
                              BIITensor *output);
 
         void dynamic_configure(const BIITensor *input,
                                const size_t &seq_len,
-                               const size_t &batch_size);
+                               const size_t &batch_size,
+                               const std::vector<std::vector<unsigned int> > &kv_caches_vec);
+
+        /**
+         * @brief 更新KV Blocks
+         * @param kv_block_ids
+         */
+        void get_kv_block_ids(std::vector<unsigned int> &kv_block_ids);
+
+        void set_avail_lens(std::vector<size_t> *avail_lens) const;
 
         void run() override;
 
@@ -113,7 +120,7 @@ namespace BatmanInfer {
     private:
         BIMemoryGroup _memory_group;
 
-        std::vector<std::unique_ptr<BINEIntentGPTBlock> > _layer_blocks;
+        std::vector<std::unique_ptr<BINEGPT2Block> > _layer_blocks;
         std::vector<BITensor> _intermediate_tensors; // 中间张量
 
         std::vector<BITensor> _sub_intermediate_tensors; // 中间张量的子张量
@@ -128,7 +135,18 @@ namespace BatmanInfer {
         size_t _seq_len = 1;
         size_t _layer_num = 1; // GPT Block的层数
         bool _is_prepared; // 是否已经完全初始化(预先把内存加载完)
-        std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;;
+        std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;
+        bool _is_first_kv_cache = true; // 是否第一次KV Cache
+        std::vector<std::vector<unsigned int> > _kv_decode_ids; // 进行kv cache的传递
+        std::vector<std::vector<unsigned int> > _kv_history_ids; // 历史ids
+        std::vector<unsigned int> _block_ids{};
+        std::vector<PhysicalBlock *> _physic_blocks;
+
+
+    private:
+        void store_kv_cache();
+
+        void concat_kv_cache();
     };
 }
 

@@ -75,6 +75,7 @@ namespace BatmanInfer {
         * @param hidden_size
         * @param max_seq_len
         * @param batch_size
+        * @param layer_idx
         * @param output 输出张量，形状为 [num_units, batch_size]
         */
         void configure(const BIITensor *input,
@@ -104,6 +105,7 @@ namespace BatmanInfer {
                        const size_t &hidden_size,
                        const size_t &max_seq_len,
                        const size_t &batch_size,
+                       int layer_idx,
                        BIITensor *output);
 
         void dynamic_configure(const BIITensor *input,
@@ -259,6 +261,7 @@ namespace BatmanInfer {
         size_t _max_batch_size{}; // 一块的大小
         size_t _batch_size = 1;
         size_t _seq_len = 1;
+        size_t _layer_idx = 0;
         bool _is_prepared; // 是否已经完全初始化(预先把内存加载完)
         std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;
         bool _is_first_kv_cache = true; // 是否第一次KV Cache

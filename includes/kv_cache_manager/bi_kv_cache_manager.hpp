@@ -22,7 +22,7 @@ namespace BatmanInfer {
          */
         BI_COMPUTE_DISALLOW_COPY_ALLOW_MOVE(KVCacheManager);
 
-        static void initialize(size_t num_blocks, size_t block_size, size_t max_seq_len);
+        static void initialize(size_t num_blocks, size_t block_size, size_t max_seq_len, size_t num_layers);
 
         static KVCacheManager &getInstance();
 
@@ -53,7 +53,9 @@ namespace BatmanInfer {
           */
         void memcpy_decode_buffer(void *source_buffer,
                                   int block_id,
+                                  int layer_idx,
                                   int batch_idx,
+                                  int batch_size,
                                   bool is_k = false,
                                   bool is_smooth_quant = false) const;
 
@@ -138,5 +140,6 @@ namespace BatmanInfer {
         PhysicalBlockManager *manager_; // 物理内存块管理器
         static size_t NUM_BLOCKS;
         static size_t BLOCK_SIZE; // 4KB per block
+        static size_t PER_LAYER_BS;
     };
 }

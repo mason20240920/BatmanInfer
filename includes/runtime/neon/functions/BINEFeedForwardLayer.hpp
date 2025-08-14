@@ -9,12 +9,13 @@
 #include <runtime/bi_i_weights_manager.hpp>
 #include <runtime/bi_memory_manager_on_demand.hpp>
 #include <function_info/bi_GEMMInfo.h>
-#include <runtime/neon/bi_ne_functions.h>
-
 #include <data/core/bi_types.hpp>
 #include <runtime/bi_memory_group.hpp>
 #include <runtime/bi_tensor.hpp>
+
+#include "BINERMSNormLayer.hpp"
 #include "bi_ne_copy.hpp"
+#include "bi_ne_gemm.hpp"
 
 
 namespace BatmanInfer {

@@ -488,7 +488,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     constexpr int kv_mem_size = num_head * head_dim * sizeof(float16_t) * 2; // 每次存取的时候会存储K和V
     std::vector<size_t> avail_lens{1, 1};
     std::vector<unsigned int> kv_block_ids;
-    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16);
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16, 1);
     const auto root_id = KVCacheManager::getInstance().root_id();
     // 获取KV Cache的主要的叶子root_id
     std::cout << "root_id = " << root_id << std::endl;
@@ -611,29 +611,29 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     BITensor attn_c_proj_bias = utils::create_type_tensor(attn_c_proj_bias_path, attn_c_proj_bias_shape,
                                                           BIDataType::F16);
 
-    BITensor eos_weights = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),  BIDataType::F16);
+    BITensor eos_weights = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16), BIDataType::F16);
     BINEAttentionLayer attn_layer;
 
     PermutationVector q_perm{0, 2, 1, 3};
     PermutationVector k_perm{2, 0, 1, 3};
     PermutationVector qkv_o_perm{0, 2, 1, 3};
-    attn_layer.configure(&split_add_output_tensor,
-                         &attn_gamma_weights,
-                         &attn_qkv_weights,
-                         &attn_qkv_bias,
-                         &attn_c_proj_weights,
-                         &attn_c_proj_bias,
-                         &eos_weights,
-                         q_perm,
-                         k_perm,
-                         qkv_o_perm,
-                         768,
-                         max_seq,
-                         20,
-                         &attn_output_tensor);
+    // attn_layer.configure(&split_add_output_tensor,
+    //                      &attn_gamma_weights,
+    //                      &attn_qkv_weights,
+    //                      &attn_qkv_bias,
+    //                      &attn_c_proj_weights,
+    //                      &attn_c_proj_bias,
+    //                      &eos_weights,
+    //                      q_perm,
+    //                      k_perm,
+    //                      qkv_o_perm,
+    //                      768,
+    //                      max_seq,
+    //                      20,
+    //                      &attn_output_tensor);
     attn_layer.set_avail_lens(&avail_lens);
     attn_layer.run();
-    attn_layer.get_kv_block_ids(kv_block_ids);
+    // attn_layer.get_kv_block_ids(kv_block_ids);
     BITensor sub_mlp_input;
     sub_mlp_input.allocator()->init(*original_attn_rms_output_tensor.allocator(), attn_output_info);
     BINEArithmeticAddition attn_rms_add; // 注意力RMS相加
@@ -772,7 +772,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-    attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
+    // attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
     _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
@@ -784,7 +784,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     add_layer.run();
     BINEScheduler::get().schedule_kv_split(pack, avail_lens);
     attn_layer.run();
-    attn_layer.get_kv_block_ids(kv_block_ids);
+    // attn_layer.get_kv_block_ids(kv_block_ids);
     attn_rms_add.run();
     _mlp_layer.run();
     inp_map.clear();
@@ -801,7 +801,6 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
 
     KVCacheTestName::print_output_info(output_ids);
     KVCacheTestName::print_output_info(scores);
-
 
 
     KVCacheManager::getInstance().reset_decode_lst();
@@ -838,7 +837,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-    attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
+    // attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_layer.set_avail_lens(&avail_lens);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
     _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
@@ -850,7 +849,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     add_layer.run();
     BINEScheduler::get().schedule_kv_split(pack, avail_lens);
     attn_layer.run();
-    attn_layer.get_kv_block_ids(kv_block_ids);
+    // attn_layer.get_kv_block_ids(kv_block_ids);
     attn_rms_add.run();
     _mlp_layer.run();
     inp_map.clear();
@@ -899,7 +898,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-    attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
+    // attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
     _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
@@ -910,7 +909,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     add_layer.run();
     BINEScheduler::get().schedule_kv_split(pack, avail_lens);
     attn_layer.run();
-    attn_layer.get_kv_block_ids(kv_block_ids);
+    // attn_layer.get_kv_block_ids(kv_block_ids);
     attn_rms_add.run();
     _mlp_layer.run();
     inp_map.clear();
@@ -1011,7 +1010,7 @@ TEST(KVCacheGPT, MultiDiffWord) {
     constexpr int kv_manager_num = 512;
     constexpr int kv_mem_size = num_head * head_dim * sizeof(float16_t) * 2; // 每次存取的时候会存储K和V
     std::vector<unsigned int> kv_block_ids;
-    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16);
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16, 6);
     const auto root_id = KVCacheManager::getInstance().root_id();
     // 获取KV Cache的主要的叶子root_id
     std::cout << "root_id = " << root_id << std::endl;
@@ -1138,23 +1137,23 @@ TEST(KVCacheGPT, MultiDiffWord) {
     PermutationVector q_perm{0, 2, 1, 3};
     PermutationVector k_perm{2, 0, 1, 3};
     PermutationVector qkv_o_perm{0, 2, 1, 3};
-    BITensor eos_weights = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),  BIDataType::F16);
-    attn_layer.configure(&split_add_output_tensor,
-                         &attn_gamma_weights,
-                         &attn_qkv_weights,
-                         &attn_qkv_bias,
-                         &attn_c_proj_weights,
-                         &attn_c_proj_bias,
-                         &eos_weights,
-                         q_perm,
-                         k_perm,
-                         qkv_o_perm,
-                         768,
-                         max_seq,
-                         20,
-                         &attn_output_tensor);
+    BITensor eos_weights = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16), BIDataType::F16);
+    // attn_layer.configure(&split_add_output_tensor,
+    //                      &attn_gamma_weights,
+    //                      &attn_qkv_weights,
+    //                      &attn_qkv_bias,
+    //                      &attn_c_proj_weights,
+    //                      &attn_c_proj_bias,
+    //                      &eos_weights,
+    //                      q_perm,
+    //                      k_perm,
+    //                      qkv_o_perm,
+    //                      768,
+    //                      max_seq,
+    //                      20,
+    //                      &attn_output_tensor);
     attn_layer.run();
-    attn_layer.get_kv_block_ids(kv_block_ids);
+    // attn_layer.get_kv_block_ids(kv_block_ids);
     BITensor sub_mlp_input;
     sub_mlp_input.allocator()->init(*original_attn_rms_output_tensor.allocator(), attn_output_info);
     BINEArithmeticAddition attn_rms_add; // 注意力RMS相加
@@ -1293,7 +1292,7 @@ TEST(KVCacheGPT, MultiDiffWord) {
     sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-    attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
+    // attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
     _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
@@ -1304,7 +1303,7 @@ TEST(KVCacheGPT, MultiDiffWord) {
     add_layer.run();
     BINEScheduler::get().schedule_kv_split(pack, avail_lens);
     attn_layer.run();
-    attn_layer.get_kv_block_ids(kv_block_ids);
+    // attn_layer.get_kv_block_ids(kv_block_ids);
     attn_rms_add.run();
     _mlp_layer.run();
     inp_map.clear();
@@ -1351,7 +1350,7 @@ TEST(KVCacheGPT, MultiDiffWord) {
     sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-    attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
+    // attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
     _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
@@ -1362,7 +1361,7 @@ TEST(KVCacheGPT, MultiDiffWord) {
     add_layer.run();
     BINEScheduler::get().schedule_kv_split(pack, avail_lens);
     attn_layer.run();
-    attn_layer.get_kv_block_ids(kv_block_ids);
+    // attn_layer.get_kv_block_ids(kv_block_ids);
     attn_rms_add.run();
     _mlp_layer.run();
     inp_map.clear();
@@ -1517,7 +1516,7 @@ TEST(KVCacheGPT, SmoothQunatTest) {
     constexpr int kv_mem_size = num_head * head_dim * sizeof(int8_t) + num_head * head_dim * sizeof(float16_t);
     // 每次存取的时候会存储K和V
     std::vector<unsigned int> kv_block_ids;
-    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16);
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16, 6);
     const auto root_id = KVCacheManager::getInstance().root_id();
     // 获取KV Cache的主要的叶子root_id
     std::cout << "root_id = " << root_id << std::endl;
@@ -1891,7 +1890,7 @@ TEST(KVCacheGPT, SmoothQunatTest) {
     KVCacheTestName::print_output_info(output_ids);
     KVCacheTestName::print_output_info(scores);
 
-    avail_lens = {3, 3, 3, 3, 3, 3, 3, 3, 3, 3,3, 3, 3, 3, 3,3, 3, 3, 3, 3};
+    avail_lens = {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
     seq_len = 3;
     input_tensor_shape = BITensorShape(seq_len, batch_size);
     input_info.set_tensor_shape(input_tensor_shape);
@@ -2023,7 +2022,7 @@ TEST(KVCacheGPT, KVDecperatedBlockTest) {
     constexpr int kv_mem_size = num_head * head_dim * sizeof(int8_t) + num_head * head_dim * sizeof(float16_t);
     // 每次存取的时候会存储K和V
     std::vector<unsigned int> kv_block_ids;
-    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16);
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16, 6);
     std::vector<unsigned int> input_ids{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
     KVCacheManager::getInstance();
     auto block_ids = KVCacheManager::getInstance().alloc_decode_next(
@@ -2072,7 +2071,7 @@ TEST(KVCacheGPT, KVDecperatedEOSTest) {
     constexpr int kv_mem_size = num_head * head_dim * sizeof(int8_t) + num_head * head_dim * sizeof(float16_t);
     // 每次存取的时候会存储K和V
     std::vector<unsigned int> kv_block_ids;
-    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16);
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size, 16, 6);
     std::vector<unsigned int> input_ids{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
     KVCacheManager::getInstance();
     auto block_ids = KVCacheManager::getInstance().alloc_decode_next(
@@ -2150,7 +2149,7 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
     // 每次存取的时候会存储K和V
     std::vector<unsigned int> kv_block_ids;
     // ======================== 0. 拷贝初始化占位符 ========================
-    KVCacheManager::initialize(kv_manager_num, kv_mem_size, max_seq);
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size, max_seq, 6);
     BITensorShape eos_tensor_shape(head_dim, num_head, max_seq);
     const std::string &eos_k_tensor_path = "./quant_res/eos_k_smooth_o.npy";
     BITensor eos_k_weights = utils::create_type_tensor(eos_k_tensor_path, eos_tensor_shape, BIDataType::F16);
@@ -2271,7 +2270,7 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
     constexpr int attn_gemm_o_zero = 2;
     constexpr float query_scale = 0.03962391498042088f;
     constexpr int query_zp = 0;
-    constexpr float value_scale =  0.06920977199778837f;
+    constexpr float value_scale = 0.06920977199778837f;
     constexpr int value_zp = 2;
     constexpr float key_scale = 0.03963086932313208f;
     constexpr int key_zp = 5;
@@ -2289,34 +2288,34 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
     attn_o_tensor.allocator()->init(BITensorInfo(kv_attn_o_shape, 1, BIDataType::F16));
     attn_o_tensor.allocator()->allocate();
     sub_attn_o_tensor.allocator()->init(*attn_o_tensor.allocator(), sub_kv_attn_o_info);
-    attn_lowp_layer.configure(&sub_kv_split_o_tensor,
-                              &attn_ln_1_weight,
-                              &attn_qkv_weights,
-                              &attn_qkv_bias,
-                              &attn_c_proj_weights,
-                              &attn_c_proj_bias,
-                              &eos_weights,
-                              attn_i_scale,
-                              attn_i_zp,
-                              attn_gemm_o_scale,
-                              attn_gemm_o_zero,
-                              query_scale,
-                              query_zp,
-                              value_scale,
-                              value_zp,
-                              key_scale,
-                              key_zp,
-                              softmax_q_scale,
-                              softmax_zp,
-                              proj_in_scale,
-                              proj_in_zp,
-                              q_perm,
-                              k_perm,
-                              qkv_o_perm,
-                              768,
-                              max_seq,
-                              20,
-                              &sub_attn_o_tensor);
+    // attn_lowp_layer.configure(&sub_kv_split_o_tensor,
+    //                           &attn_ln_1_weight,
+    //                           &attn_qkv_weights,
+    //                           &attn_qkv_bias,
+    //                           &attn_c_proj_weights,
+    //                           &attn_c_proj_bias,
+    //                           &eos_weights,
+    //                           attn_i_scale,
+    //                           attn_i_zp,
+    //                           attn_gemm_o_scale,
+    //                           attn_gemm_o_zero,
+    //                           query_scale,
+    //                           query_zp,
+    //                           value_scale,
+    //                           value_zp,
+    //                           key_scale,
+    //                           key_zp,
+    //                           softmax_q_scale,
+    //                           softmax_zp,
+    //                           proj_in_scale,
+    //                           proj_in_zp,
+    //                           q_perm,
+    //                           k_perm,
+    //                           qkv_o_perm,
+    //                           768,
+    //                           max_seq,
+    //                           20,
+    //                           &sub_attn_o_tensor);
     attn_lowp_layer.set_avail_lens(&avail_lens);
     attn_lowp_layer.run();
     attn_lowp_layer.get_kv_block_ids(kv_block_ids);
@@ -2329,9 +2328,9 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
     sub_con_attn_mlp_tensor.allocator()->init(*con_attn_mlp_tensor.allocator(), sub_kv_attn_o_info);
     BINEArithmeticAddition con_add_1_layer;
     con_add_1_layer.configure(&sub_kv_split_o_tensor,
-                                     &sub_attn_o_tensor,
-                                     &sub_con_attn_mlp_tensor,
-                                     BIConvertPolicy::SATURATE);
+                              &sub_attn_o_tensor,
+                              &sub_con_attn_mlp_tensor,
+                              BIConvertPolicy::SATURATE);
     con_add_1_layer.run();
 
     // ======================== 7. 进行MLP层的计算 =====================
@@ -2350,36 +2349,36 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
                                                                 c_fc_weight_qinfo, c_fc_weights_path);
     const std::string &c_fc_bias_path = "./quant_res/c_fc_bias.npy";
     BITensor c_fc_bias = KVCacheTestName::create_norm_bias(3072, c_fc_bias_path);
-    BITensor mlp_output,sub_mlp_output;
+    BITensor mlp_output, sub_mlp_output;
     mlp_output.allocator()->init(BITensorInfo(con_attn_mlp_shape, 1, BIDataType::F16));
     mlp_output.allocator()->allocate();
     sub_mlp_output.allocator()->init(*mlp_output.allocator(), sub_kv_attn_o_info);
     const std::string &c_proj_path = "./quant_res/c_proj_weights.npy";
     BITensor c_proj_weight = KVCacheTestName::create_norm_input(std::vector<int>{3072, hidden_size}, c_proj_path);
-    const std::string &c_proj_bias_path =  "./quant_res/c_proj_bias.npy";
+    const std::string &c_proj_bias_path = "./quant_res/c_proj_bias.npy";
     BITensor c_proj_bias = KVCacheTestName::create_norm_input(std::vector<int>{hidden_size}, c_proj_bias_path);
-    float fc1_input_scale =  0.007606653839934106f;
+    float fc1_input_scale = 0.007606653839934106f;
     int fc1_input_zero_point = 14;
     float fc1_output_scale = 0.2595925574209176f;
     int fc1_output_zero_point = -10;
     float gelu_output_scale = 0.14033655150263918f;
     int gelu_output_zero_point = -127;
     _mlp_layer.configure(&sub_con_attn_mlp_tensor,
-                               fc1_input_scale,
-                               fc1_input_zero_point,
-                               &c_fc_weights,
-                               &c_fc_bias,
-                               &c_fc_weight_qinfo,
-                               fc1_output_scale,
-                               fc1_output_zero_point,
-                               gelu_output_scale,
-                               gelu_output_zero_point,
-                               &c_proj_weight,
-                               &c_proj_bias,
-                               &ln_2_weight,
-                               &sub_mlp_output,
-                               max_batch_size,
-                               1);
+                         fc1_input_scale,
+                         fc1_input_zero_point,
+                         &c_fc_weights,
+                         &c_fc_bias,
+                         &c_fc_weight_qinfo,
+                         fc1_output_scale,
+                         fc1_output_zero_point,
+                         gelu_output_scale,
+                         gelu_output_zero_point,
+                         &c_proj_weight,
+                         &c_proj_bias,
+                         &ln_2_weight,
+                         &sub_mlp_output,
+                         max_batch_size,
+                         1);
     _mlp_layer.run();
 
     // ======================== 8. MLP层输出和输入进行二次归一化 =====================
@@ -2395,7 +2394,8 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
     con_add_2_layer.run();
 
     // ======================== 9. 进行输出后的RMSNorm =====================
-    BITensor ln_f_weights = KVCacheTestName::create_norm_input(std::vector{hidden_size},"./quant_res/mlp_after_rms_gamma.npy");
+    BITensor ln_f_weights = KVCacheTestName::create_norm_input(std::vector{hidden_size},
+                                                               "./quant_res/mlp_after_rms_gamma.npy");
     BITensor ln_f_output, sub_ln_f_output;
     ln_f_output.allocator()->init(BITensorInfo(con_attn_mlp_shape, 1, BIDataType::F16));
     ln_f_output.allocator()->allocate();
@@ -2405,7 +2405,8 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
     ln_f_layer.run();
 
     // ======================== 10. 进行LM Head头操作 =====================
-    BITensor lm_head_weights = KVCacheTestName::create_norm_input(std::vector{hidden_size, 6003},"./quant_res/lm_head_weights.npy");
+    BITensor lm_head_weights = KVCacheTestName::create_norm_input(std::vector{hidden_size, 6003},
+                                                                  "./quant_res/lm_head_weights.npy");
     BITensor lm_head_output, sub_lm_head_output;
     lm_head_output.allocator()->init(BITensorInfo(BITensorShape(6003, 1, max_batch_size), 1, BIDataType::F16));
     lm_head_output.allocator()->allocate();
@@ -2426,7 +2427,7 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
     lm_head_layer.run();
 
     // ======================== 11. 最终的结果id过滤 =====================
-    BITensor ids,sub_ids;
+    BITensor ids, sub_ids;
     ids.allocator()->init(BITensorInfo(BITensorShape(1, max_batch_size), 1, BIDataType::S32));
     ids.allocator()->allocate();
     BITensorInfo sub_ids_info = BITensorInfo(BITensorShape(1, batch_size), 1, BIDataType::S32);
@@ -2463,13 +2464,15 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
     sub_i_shape = BITensorShape(seq_len, batch_size);
     sub_input_info.set_tensor_shape(sub_i_shape);
     sub_i_t.allocator()->init(*input_tensor.allocator(), sub_input_info);
-    indices_data = {0, 3, 0, 4, 0, 5,
-                    0, 3, 0, 4, 0, 5,
-                    0, 3, 0, 4, 0, 5,
-                    0, 3, 0, 4, 0, 5,
-                    0, 3, 0, 4, 0, 5,
-                    0, 3, 0, 4, 0, 5,
-                    0, 3, 0, 4};
+    indices_data = {
+        0, 3, 0, 4, 0, 5,
+        0, 3, 0, 4, 0, 5,
+        0, 3, 0, 4, 0, 5,
+        0, 3, 0, 4, 0, 5,
+        0, 3, 0, 4, 0, 5,
+        0, 3, 0, 4, 0, 5,
+        0, 3, 0, 4
+    };
     KVCacheTestName::fill_tensor_val_with_arr(sub_i_t, indices_data);
     sub_wte_o_tensor_shape = BITensorShape(hidden_size, seq_len, batch_size);
     sub_kv_attn_o_shape = BITensorShape(hidden_size, 1, batch_size);
@@ -2532,13 +2535,15 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
     sub_i_shape = BITensorShape(seq_len, batch_size);
     sub_input_info.set_tensor_shape(sub_i_shape);
     sub_i_t.allocator()->init(*input_tensor.allocator(), sub_input_info);
-    indices_data = {0, 3, 4, 0, 4, 5, 0, 5, 6,
-    0, 3, 4, 0, 4, 5, 0, 5, 6,
-    0, 3, 4, 0, 4, 5, 0, 5, 6,
-    0, 3, 4, 0, 4, 5, 0, 5, 6,
-    0, 3, 4, 0, 4, 5, 0, 5, 6,
-    0, 3, 4, 0, 4, 5, 0, 5, 6,
-    0, 3, 4, 0, 4, 5};
+    indices_data = {
+        0, 3, 4, 0, 4, 5, 0, 5, 6,
+        0, 3, 4, 0, 4, 5, 0, 5, 6,
+        0, 3, 4, 0, 4, 5, 0, 5, 6,
+        0, 3, 4, 0, 4, 5, 0, 5, 6,
+        0, 3, 4, 0, 4, 5, 0, 5, 6,
+        0, 3, 4, 0, 4, 5, 0, 5, 6,
+        0, 3, 4, 0, 4, 5
+    };
     KVCacheTestName::fill_tensor_val_with_arr(sub_i_t, indices_data);
     sub_wte_o_tensor_shape = BITensorShape(hidden_size, seq_len, batch_size);
     sub_kv_attn_o_shape = BITensorShape(hidden_size, 1, batch_size);
@@ -2603,24 +2608,28 @@ TEST(KVCacheGPT, FloatDiffLenTest) {
     inp_map[12] = {527, 1};
     inp_map[15] = {527, 1};
     inp_map[18] = {527, 1};
-    avail_lens = {2, 4, 4,
+    avail_lens = {
         2, 4, 4,
         2, 4, 4,
         2, 4, 4,
         2, 4, 4,
         2, 4, 4,
-        2, 4};
+        2, 4, 4,
+        2, 4
+    };
     seq_len = 4;
     sub_i_shape = BITensorShape(seq_len, batch_size);
     sub_input_info.set_tensor_shape(sub_i_shape);
     sub_i_t.allocator()->init(*input_tensor.allocator(), sub_input_info);
-    indices_data = {0, 5, 2, 2,  0, 4, 5, 6, 0, 5, 6, 7,
-    0, 5, 2, 2,  0, 4, 5, 6, 0, 5, 6, 7,
-    0, 5, 2, 2,  0, 4, 5, 6, 0, 5, 6, 7,
-    0, 5, 2, 2,  0, 4, 5, 6, 0, 5, 6, 7,
-    0, 5, 2, 2,  0, 4, 5, 6, 0, 5, 6, 7,
-    0, 5, 2, 2,  0, 4, 5, 6, 0, 5, 6, 7,
-    0, 5, 2, 2,  0, 4, 5, 6};
+    indices_data = {
+        0, 5, 2, 2, 0, 4, 5, 6, 0, 5, 6, 7,
+        0, 5, 2, 2, 0, 4, 5, 6, 0, 5, 6, 7,
+        0, 5, 2, 2, 0, 4, 5, 6, 0, 5, 6, 7,
+        0, 5, 2, 2, 0, 4, 5, 6, 0, 5, 6, 7,
+        0, 5, 2, 2, 0, 4, 5, 6, 0, 5, 6, 7,
+        0, 5, 2, 2, 0, 4, 5, 6, 0, 5, 6, 7,
+        0, 5, 2, 2, 0, 4, 5, 6
+    };
     KVCacheTestName::fill_tensor_val_with_arr(sub_i_t, indices_data);
     sub_wte_o_tensor_shape = BITensorShape(hidden_size, seq_len, batch_size);
     sub_kv_attn_o_shape = BITensorShape(hidden_size, 1, batch_size);
@@ -2693,7 +2702,7 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     constexpr int kv_manager_num = 512;
     constexpr int kv_mem_size = num_head * head_dim * sizeof(float16_t) * 2; // 每次存取的时候会存储K和V
     std::vector<unsigned int> kv_block_ids;
-    KVCacheManager::initialize(kv_manager_num, kv_mem_size, max_seq);
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size, max_seq, 6);
     const auto root_id = KVCacheManager::getInstance().root_id();
     // 获取KV Cache的根节点root_id
     std::cout << "root_id = " << root_id << std::endl;
@@ -2827,24 +2836,24 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     PermutationVector q_perm{0, 2, 1, 3};
     PermutationVector k_perm{2, 0, 1, 3};
     PermutationVector qkv_o_perm{0, 2, 1, 3};
-    BITensor eos_weights = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),  BIDataType::F16);
-    attn_layer.configure(&split_add_output_tensor,
-                         &attn_gamma_weights,
-                         &attn_qkv_weights,
-                         &attn_qkv_bias,
-                         &attn_c_proj_weights,
-                         &attn_c_proj_bias,
-                         &eos_weights,
-                         q_perm,
-                         k_perm,
-                         qkv_o_perm,
-                         768,
-                         max_seq,
-                         20,
-                         &attn_output_tensor);
+    BITensor eos_weights = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16), BIDataType::F16);
+    // attn_layer.configure(&split_add_output_tensor,
+    //                      &attn_gamma_weights,
+    //                      &attn_qkv_weights,
+    //                      &attn_qkv_bias,
+    //                      &attn_c_proj_weights,
+    //                      &attn_c_proj_bias,
+    //                      &eos_weights,
+    //                      q_perm,
+    //                      k_perm,
+    //                      qkv_o_perm,
+    //                      768,
+    //                      max_seq,
+    //                      20,
+    //                      &attn_output_tensor);
     attn_layer.set_avail_lens(&avail_lens);
     attn_layer.run();
-    attn_layer.get_kv_block_ids(kv_block_ids);
+    // attn_layer.get_kv_block_ids(kv_block_ids);
     BITensor sub_mlp_input;
     sub_mlp_input.allocator()->init(*original_attn_rms_output_tensor.allocator(), attn_output_info);
     BINEArithmeticAddition attn_rms_add; // 注意力RMS相加
@@ -2855,7 +2864,7 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     const std::string &gamma_path = "./input_res/mlp_rms_gamma.npy";
     BITensor gamma = KVCacheTestName::create_norm_input(std::vector<int>{768}, gamma_path);
     // 3. 初始化fc_weights的权重
-    const std::string &c_fc_weights_path =  "./input_res/reordered_c_fc_weights.npy";
+    const std::string &c_fc_weights_path = "./input_res/reordered_c_fc_weights.npy";
     BITensor c_fc_weights = utils::create_type_tensor(c_fc_weights_path, BITensorShape(3072, 768), BIDataType::F16);
     // 4. 初始化fc_bias
     const std::string &c_fc_bias_path = "./input_res/c_fc_bias.npy";
@@ -2982,7 +2991,7 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-    attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
+    // attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
     _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
@@ -2994,7 +3003,7 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     add_layer.run();
     BINEScheduler::get().schedule_kv_split(pack, avail_lens);
     attn_layer.run();
-    attn_layer.get_kv_block_ids(kv_block_ids);
+    // attn_layer.get_kv_block_ids(kv_block_ids);
     attn_rms_add.run();
     _mlp_layer.run();
     inp_map.clear();
@@ -3048,7 +3057,7 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-    attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
+    // attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
     _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
@@ -3060,7 +3069,7 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     add_layer.run();
     BINEScheduler::get().schedule_kv_split(pack, avail_lens);
     attn_layer.run();
-    attn_layer.get_kv_block_ids(kv_block_ids);
+    // attn_layer.get_kv_block_ids(kv_block_ids);
     attn_rms_add.run();
     _mlp_layer.run();
     inp_map.clear();
@@ -3089,7 +3098,7 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     input_tensor_shape = BITensorShape(seq_len, batch_size);
     input_info.set_tensor_shape(input_tensor_shape);
     input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
-    indices_data = {0, 3, 2, 2, 0, 4, 5,6};
+    indices_data = {0, 3, 2, 2, 0, 4, 5, 6};
     // KVCacheTestName::fill_tensor_with_repeat_arr(input_ids, batch_size, indices_data);
     KVCacheTestName::fill_tensor_val_with_arr(input_tensor, indices_data);
     gather_output_tensor_shape = BITensorShape(768, seq_len, batch_size);
@@ -3113,7 +3122,7 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-    attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
+    // attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
     _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
@@ -3125,7 +3134,7 @@ TEST(KVCacheGPT, GPT2OriginKVCacheMultiDiff) {
     add_layer.run();
     BINEScheduler::get().schedule_kv_split(pack, avail_lens);
     attn_layer.run();
-    attn_layer.get_kv_block_ids(kv_block_ids);
+    // attn_layer.get_kv_block_ids(kv_block_ids);
     attn_rms_add.run();
     _mlp_layer.run();
     inp_map.clear();
@@ -3282,4 +3291,373 @@ TEST(DiffLen, DiffLenComp) {
     std::vector<size_t> inputs{3, 4};
     auto num = get_remain_seq_sum(inputs, 2);
     std::cout << num << std::endl;
+}
+TEST(KVCacheGPT, MultiGPTBlockTest) {
+    std::vector<size_t> avail_lens{1};
+    const std::string &eos_weights_path = "./input_res/eos_q_o.npy";
+    BITensor eos_weights = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16), BIDataType::F16);
+    // 前置参数
+    std::vector<int> output_ids{};
+    std::vector<float> scores{};
+    // 需要复制传入数组的值
+    std::vector<uint32_t> input_ids{};
+    // 1. 先初始化KV Cache的数据
+    constexpr int num_head = 12;
+    constexpr int head_dim = 64;
+    constexpr int hidden_size = 768;
+    constexpr int max_batch_size = 20;
+    constexpr int max_seq = 16;
+    constexpr int kv_manager_num = 512;
+    constexpr int block_layer_num = 3;
+    constexpr int kv_mem_size = num_head * head_dim * sizeof(float16_t) * 2 * block_layer_num; // 每次存取的时候会存储K和V
+    std::vector<unsigned int> kv_block_ids;
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size,max_seq, block_layer_num);
+    const auto root_id = KVCacheManager::getInstance().root_id();
+    BIScheduler::get().set_num_threads(2);
+
+    // 开始的
+    int batch_size = 1;
+    int seq_len = 1;
+    // 1. 初始化一个最大input算子
+    BITensor input_tensor;
+    const BITensorShape input_tensor_shape(max_seq, max_batch_size);
+    input_tensor.allocator()->init(BITensorInfo(input_tensor_shape, 1, BIDataType::U32));
+    input_tensor.allocator()->allocate();
+
+    // 1.1 初始化sub input
+    BITensor sub_input_tensor;
+    BITensorShape sub_input_tensor_shape(seq_len, batch_size);
+    BITensorInfo input_info(sub_input_tensor_shape, 1, BIDataType::U32);
+    input_info.set_format(Format::U32);
+    sub_input_tensor.allocator()->init(*input_tensor.allocator(), input_info);
+    std::vector<uint32_t> indices_data{0};
+    KVCacheTestName::fill_tensor_val_with_arr(sub_input_tensor, indices_data);
+
+    // 2. 转换token的Gather, Gather权重
+    BITensorShape gather_weight_shape(768, 6003);
+    const std::string &weight_path = "./input_res/transformer_wte_weight.npy";
+    BITensor weight = utils::create_type_tensor(weight_path,
+                                                gather_weight_shape,
+                                                BIDataType::F16);
+
+    // 2.1 Gather的输出
+    BITensor gather_o_tensor, sub_gather_o_tensor;
+    BITensorShape gather_o_tensor_shape(hidden_size, max_seq, max_batch_size);
+    BITensorShape sub_gather_o_shape(hidden_size, seq_len, batch_size);
+
+    gather_o_tensor.allocator()->init(BITensorInfo(gather_o_tensor_shape,
+                                                   1,
+                                                   BIDataType::F16));
+    gather_o_tensor.allocator()->allocate();
+    BITensorInfo sub_gather_info(sub_gather_o_shape, 1, BIDataType::F16);
+    sub_gather_info.set_format(Format::F16);
+    sub_gather_o_tensor.allocator()->init(*gather_o_tensor.allocator(), sub_gather_info);
+
+    // 2.2 Gather运行
+    BINEGather gather_layer;
+    gather_layer.configure(&weight, &sub_input_tensor, &sub_gather_o_tensor, 1);
+    gather_layer.run();
+
+    // 3. 位置信息编码信息
+    BITensorShape add_wte_weight_shape(hidden_size, max_seq);
+    const std::string &add_wte_weight_path = "./input_res/add_wte_weights.npy";
+    BITensor add_wte_weight = utils::create_type_tensor(add_wte_weight_path,
+                                                        add_wte_weight_shape,
+                                                        BIDataType::F16);
+    BITensor sub_add_weight;
+    BITensorShape sub_add_weight_shape(768, seq_len);
+    BITensorInfo sub_add_weight_info(sub_add_weight_shape, 1, BIDataType::F16);
+    sub_add_weight_info.set_format(Format::F16);
+    sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
+
+    // 3.1 位置编码输出矩阵
+    BITensor wte_o_tensor, sub_wte_o_tensor;
+    wte_o_tensor.allocator()->init(BITensorInfo(gather_o_tensor_shape, 1, BIDataType::F16));
+    wte_o_tensor.allocator()->allocate();
+    sub_wte_o_tensor.allocator()->init(*wte_o_tensor.allocator(), sub_gather_info);
+
+    BINEArithmeticAddition wte_layer;
+    wte_layer.configure(&sub_gather_o_tensor, &sub_add_weight, &sub_wte_o_tensor, BIConvertPolicy::SATURATE);
+    wte_layer.run();
+
+
+    // 4 分割输出结果
+    BITensorShape gpt_o_tensor_shape(hidden_size, 1, max_batch_size);
+    BITensorShape sub_gpt_o_tensor_shape(hidden_size, 1, batch_size);
+    BITensorInfo sub_gpt_o_t_info = BITensorInfo(sub_gpt_o_tensor_shape, 1, BIDataType::F16);
+    sub_gpt_o_t_info.set_format(Format::F16);
+    BITensor split_gpt_input_t, sub_split_gpt_input_t;
+    split_gpt_input_t.allocator()->init(BITensorInfo(gpt_o_tensor_shape, 1, BIDataType::F16));
+    split_gpt_input_t.allocator()->allocate();
+    sub_split_gpt_input_t.allocator()->init(*split_gpt_input_t.allocator(), sub_gpt_o_t_info);
+    BIITensorPack pack;
+    pack.add_tensor(ACL_SRC, &sub_wte_o_tensor);
+    pack.add_tensor(ACL_DST, &sub_split_gpt_input_t);
+    BINEScheduler::get().schedule_kv_split(pack, avail_lens);
+
+    // 5. GPT Block的结构输出
+    BITensorShape gpt_ln_1_weight_shape(hidden_size);
+    const std::string &gamma_weights_path = "./input_res/attn_gamma_weights.npy";
+    BITensor gpt_ln_1_weights = utils::create_type_tensor(gamma_weights_path,
+                                                          gpt_ln_1_weight_shape,
+                                                          BIDataType::F16);
+    BITensorShape gpt_c_attn_weights_shape(hidden_size * 3, hidden_size);
+    const std::string &gpt_c_attn_weights_path = "./input_res/c_attn_weights.npy";
+    BITensor gpt_c_attn_weights = utils::create_type_tensor(gpt_c_attn_weights_path,
+                                                            gpt_c_attn_weights_shape,
+                                                            BIDataType::F16);
+    BITensorShape gpt_c_attn_bias_shape(hidden_size * 3);
+    const std::string &gpt_c_attn_bias_path = "./input_res/c_attn_bias.npy";
+    BITensor gpt_c_attn_bias = utils::create_type_tensor(gpt_c_attn_bias_path,
+                                                         gpt_c_attn_bias_shape,
+                                                         BIDataType::F16);
+    BITensorShape attn_c_proj_weights_shape(hidden_size, hidden_size);
+    const std::string &attn_c_proj_weights_path = "./input_res/p_attn_weights.npy";
+    BITensor attn_c_proj_weights = utils::create_type_tensor(attn_c_proj_weights_path, attn_c_proj_weights_shape,
+                                                             BIDataType::F16);
+    BITensorShape attn_c_proj_bias_shape(768);
+    const std::string &attn_c_proj_bias_path = "./input_res/p_attn_bias.npy";
+    BITensor attn_c_proj_bias = utils::create_type_tensor(attn_c_proj_bias_path, attn_c_proj_bias_shape,
+                                                          BIDataType::F16);
+
+    PermutationVector q_perm{0, 2, 1, 3};
+    PermutationVector k_perm{2, 0, 1, 3};
+    PermutationVector qkv_o_perm{0, 2, 1, 3};
+
+    // MLP 层权重
+    const std::string &gpt_ln_2_path = "./input_res/mlp_rms_gamma.npy";
+    BITensor gpt_ln_2_weight = KVCacheTestName::create_norm_input(std::vector<int>{768}, gpt_ln_2_path);
+    // 初始化fc_weights的权重
+    const std::string &c_fc_weights_path =
+            "./input_res/reordered_c_fc_weights.npy";
+    BITensor c_fc_weights = utils::create_type_tensor(c_fc_weights_path, BITensorShape(3072, 768), BIDataType::F16);
+    // 初始化fc_bias
+    const std::string &c_fc_bias_path = "./input_res/c_fc_bias.npy";
+    BITensor c_fc_bias = utils::create_type_tensor(c_fc_bias_path, BITensorShape(3072), BIDataType::F16);
+    // 6. proj的权重
+    const std::string &c_proj_path = "./input_res/c_proj_weights.npy";
+    BITensor c_proj_weight = KVCacheTestName::create_norm_input(std::vector<int>{3072, 768}, c_proj_path);
+    const std::string &c_proj_bias_path = "./input_res/c_proj_bias.npy";
+    BITensor c_proj_bias = KVCacheTestName::create_norm_input(std::vector<int>{768}, c_proj_bias_path);
+    const BIActivationLayerInfo act_info(BIActivationFunction::GELU);
+
+    // 合并Config
+    BIGPTGlobalConfig gpt_block_config;
+    gpt_block_config.q_perm = q_perm;
+    gpt_block_config.k_perm = k_perm;
+    gpt_block_config.qkv_perm = qkv_o_perm;
+    gpt_block_config.hidden_size = hidden_size;
+    gpt_block_config.max_seq_len = max_seq;
+    gpt_block_config.max_batch_size = max_batch_size;
+
+    std::vector<BIGPTLayerConfig> layer_config{};
+    layer_config.reserve(block_layer_num);
+    BIGPTLayerConfig gpt_layer_config_1, gpt_layer_config_2, gpt_layer_config_3;
+    gpt_layer_config_1.ln_1_weight = &gpt_ln_1_weights;
+    gpt_layer_config_1.c_attn_weights = &gpt_c_attn_weights;
+    gpt_layer_config_1.c_attn_bias = &gpt_c_attn_bias;
+    gpt_layer_config_1.o_attn_weights = &attn_c_proj_weights;
+    gpt_layer_config_1.o_attn_bias = &attn_c_proj_bias;
+    gpt_layer_config_1.fc_weights = &c_fc_weights;
+    gpt_layer_config_1.fc_bias = &c_fc_bias;
+    gpt_layer_config_1.ln_2_weight = &gpt_ln_2_weight;
+    gpt_layer_config_1.proj_weights = &c_proj_weight;
+    gpt_layer_config_1.proj_bias = &c_proj_bias;
+    gpt_layer_config_1.act_info = act_info;
+    gpt_layer_config_1.layer_idx = 0;
+    layer_config.push_back(gpt_layer_config_1);
+
+    gpt_layer_config_2.ln_1_weight = &gpt_ln_1_weights;
+    gpt_layer_config_2.c_attn_weights = &gpt_c_attn_weights;
+    gpt_layer_config_2.c_attn_bias = &gpt_c_attn_bias;
+    gpt_layer_config_2.o_attn_weights = &attn_c_proj_weights;
+    gpt_layer_config_2.o_attn_bias = &attn_c_proj_bias;
+    gpt_layer_config_2.fc_weights = &c_fc_weights;
+    gpt_layer_config_2.fc_bias = &c_fc_bias;
+    gpt_layer_config_2.ln_2_weight = &gpt_ln_2_weight;
+    gpt_layer_config_2.proj_weights = &c_proj_weight;
+    gpt_layer_config_2.proj_bias = &c_proj_bias;
+    gpt_layer_config_2.act_info = act_info;
+    gpt_layer_config_2.layer_idx = 1;
+    layer_config.push_back(gpt_layer_config_2);
+
+    gpt_layer_config_3.ln_1_weight = &gpt_ln_1_weights;
+    gpt_layer_config_3.c_attn_weights = &gpt_c_attn_weights;
+    gpt_layer_config_3.c_attn_bias = &gpt_c_attn_bias;
+    gpt_layer_config_3.o_attn_weights = &attn_c_proj_weights;
+    gpt_layer_config_3.o_attn_bias = &attn_c_proj_bias;
+    gpt_layer_config_3.fc_weights = &c_fc_weights;
+    gpt_layer_config_3.fc_bias = &c_fc_bias;
+    gpt_layer_config_3.ln_2_weight = &gpt_ln_2_weight;
+    gpt_layer_config_3.proj_weights = &c_proj_weight;
+    gpt_layer_config_3.proj_bias = &c_proj_bias;
+    gpt_layer_config_3.act_info = act_info;
+    gpt_layer_config_3.layer_idx = 2;
+    layer_config.push_back(gpt_layer_config_3);
+
+    BITensor multi_gpt_o_t, sub_multi_gpt_o_t;
+    multi_gpt_o_t.allocator()->init(BITensorInfo(gpt_o_tensor_shape, 1, BIDataType::F16));
+    multi_gpt_o_t.allocator()->allocate();
+    sub_multi_gpt_o_t.allocator()->init(*multi_gpt_o_t.allocator(), sub_gpt_o_t_info);
+
+
+    BINEMultiGPTBlock gpt_multi_block_layer;
+    gpt_multi_block_layer.configure(&sub_split_gpt_input_t,
+                                    layer_config,
+                                    gpt_block_config,
+                                    &eos_weights,
+                                    &sub_multi_gpt_o_t);
+    gpt_multi_block_layer.set_avail_lens(&avail_lens);
+    gpt_multi_block_layer.run();
+    gpt_multi_block_layer.get_kv_block_ids(kv_block_ids);
+
+    // KVCacheTestName::print_tensor(sub_multi_gpt_o_t, "output");
+
+    // 6. 进行后续的GPT结果解码(先进行RMSNorm操作)
+    BITensor ln_f_o_tensor, sub_ln_f_o_tensor;
+    BITensor ln_f_weights = KVCacheTestName::create_norm_input(std::vector{768},
+                                                               "./input_res/mlp_after_rms_gamma.npy");
+    ln_f_o_tensor.allocator()->init(BITensorInfo(gpt_o_tensor_shape, 1, BIDataType::F16));
+    ln_f_o_tensor.allocator()->allocate();
+    sub_ln_f_o_tensor.allocator()->init(*ln_f_o_tensor.allocator(), sub_gpt_o_t_info);
+    BINERMSNormLayer ln_f_layer;
+    ln_f_layer.configure(&sub_multi_gpt_o_t, &ln_f_weights, &sub_ln_f_o_tensor);
+    ln_f_layer.run();
+
+    // 7. 进行LMHead操作
+    BITensor lm_head_weights = KVCacheTestName::create_norm_input(std::vector{768, 6003},
+                                                                  "./input_res/lm_head_weights.npy");
+    BITensor lm_head_output;
+    lm_head_output.allocator()->init(BITensorInfo(BITensorShape(6003, 1, max_batch_size), 1, BIDataType::F16));
+    lm_head_output.allocator()->allocate();
+    BITensor sub_lm_head_output;
+    BITensorInfo sub_lm_head_output_info = BITensorInfo(BITensorShape(6003, 1, batch_size), 1, BIDataType::F16);
+    sub_lm_head_output_info.set_format(Format::F16);
+    sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+    GEMMInfo gemm_info = GEMMInfo(false,
+                                  false,
+                                  true,
+                                  false,
+                                  false,
+                                  false,
+                                  BIGEMMLowpOutputStageInfo(),
+                                  false, true, false,
+                                  BIActivationLayerInfo(), false, BIWeightFormat::UNSPECIFIED, false);
+    BINEGEMM lm_head_layer;
+    lm_head_layer.configure(&sub_ln_f_o_tensor, &lm_head_weights, nullptr, &sub_lm_head_output, 1.0f, 1.0f, gemm_info);
+    lm_head_layer.run();
+
+    // 8. 最后生成结果
+    BITensor ids;
+    ids.allocator()->init(BITensorInfo(BITensorShape(1, max_batch_size), 1, BIDataType::S32));
+    ids.allocator()->allocate();
+    BITensor sub_ids;
+    BITensorInfo sub_ids_info = BITensorInfo(BITensorShape(1, batch_size), 1, BIDataType::S32);
+    sub_ids_info.set_format(Format::S32);
+    sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
+
+    BINEArgMinMaxLayer arg_minmax_layer;
+    arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
+    arg_minmax_layer.run();
+    std::vector<int> infos{};
+    std::vector<float> score{};
+    KVCacheTestName::concat_tensor(sub_ids, output_ids);
+    KVCacheTestName::get_s32_val(sub_ids, infos);
+    KVCacheTestName::get_index_val(sub_lm_head_output, infos, score);
+    scores.push_back(score[0]);
+
+    KVCacheTestName::print_output_info(output_ids);
+    KVCacheTestName::print_output_info(scores);
+
+    // ============================== 进行动态更新  ========================================
+    // // 1. 先更新batch size和KV Cache
+    // batch_size = 20;
+    // std::vector<std::vector<unsigned int> > inp_map{};
+    // for (int i = 0; i < batch_size; i++) {
+    //     inp_map.push_back({kv_block_ids[0], 1});
+    // }
+    // seq_len = 2;
+    // input_info.set_tensor_shape(BITensorShape(seq_len, batch_size));
+    // sub_input_tensor.allocator()->init(*input_tensor.allocator(), input_info);
+    // indices_data = {0, 3};
+    // KVCacheTestName::fill_tensor_with_repeat_arr(input_ids, batch_size, indices_data);
+    // KVCacheTestName::fill_tensor_val_with_arr(input_tensor, input_ids);
+    // sub_gather_info.set_tensor_shape(BITensorShape(hidden_size, seq_len, batch_size));
+    // sub_gather_o_tensor.allocator()->init(*gather_o_tensor.allocator(), sub_gather_info);
+    // sub_wte_o_tensor.allocator()->init(*wte_o_tensor.allocator(), sub_gather_info);
+    // sub_add_weight_info.set_tensor_shape(BITensorShape(hidden_size, seq_len));
+    // sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
+    // sub_gpt_o_t_info.set_tensor_shape(BITensorShape(hidden_size, 1, batch_size));
+    // sub_split_gpt_input_t.allocator()->init(*split_gpt_input_t.allocator(), sub_gpt_o_t_info);
+    // sub_multi_gpt_o_t.allocator()->init(*multi_gpt_o_t.allocator(), sub_gpt_o_t_info);
+    // sub_ln_f_o_tensor.allocator()->init(*ln_f_o_tensor.allocator(), sub_gpt_o_t_info);
+    // sub_lm_head_output_info.set_tensor_shape(BITensorShape(6003, 1, batch_size));
+    // sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+    // sub_ids_info.set_tensor_shape(BITensorShape(1, batch_size));
+    // sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
+    // gather_layer.dynamic_configure(&sub_input_tensor, &sub_gather_o_tensor);
+    // wte_layer.dynamic_configure(&sub_gather_o_tensor, &sub_add_weight, true);
+    // gpt_multi_block_layer.dynamic_configure(&sub_split_gpt_input_t, seq_len, batch_size, inp_map);
+    // ln_f_layer.dynamic_configure(&sub_multi_gpt_o_t);
+    // lm_head_layer.dynamic_configure();
+    // arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
+    // gather_layer.run();
+    // wte_layer.run();
+    // BINEScheduler::get().schedule_kv_split(pack);
+    // gpt_multi_block_layer.run();
+    // ln_f_layer.run();
+    // lm_head_layer.run();
+    // arg_minmax_layer.run();
+    // KVCacheTestName::concat_tensor(sub_ids, output_ids);
+    // KVCacheTestName::get_s32_val(sub_ids, infos);
+    // KVCacheTestName::get_index_val(sub_lm_head_output, infos, score);
+    // scores.push_back(score[0]);
+    //
+    // KVCacheTestName::print_output_info(output_ids);
+    // KVCacheTestName::print_output_info(scores);
+    // KVCacheTestName::print_tensor(sub_ids, "sub_ids");
+    // // KVCacheTestName::print_tensor(sub_lm_head_output, "sub_lm_head");
+    //
+    // for (int i = 0; i < batch_size; i++) {
+    //     inp_map.push_back({kv_block_ids[0], 1});
+    // }
+    // seq_len = 3;
+    // input_info.set_tensor_shape(BITensorShape(seq_len, batch_size));
+    // sub_input_tensor.allocator()->init(*input_tensor.allocator(), input_info);
+    // indices_data = {0, 3, 4};
+    // KVCacheTestName::fill_tensor_with_repeat_arr(input_ids, batch_size, indices_data);
+    // KVCacheTestName::fill_tensor_val_with_arr(input_tensor, input_ids);
+    // sub_gather_info.set_tensor_shape(BITensorShape(hidden_size, seq_len, batch_size));
+    // sub_gather_o_tensor.allocator()->init(*gather_o_tensor.allocator(), sub_gather_info);
+    // sub_wte_o_tensor.allocator()->init(*wte_o_tensor.allocator(), sub_gather_info);
+    // sub_add_weight_info.set_tensor_shape(BITensorShape(hidden_size, seq_len));
+    // sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
+    // sub_gpt_o_t_info.set_tensor_shape(BITensorShape(hidden_size, 1, batch_size));
+    // sub_split_gpt_input_t.allocator()->init(*split_gpt_input_t.allocator(), sub_gpt_o_t_info);
+    // sub_multi_gpt_o_t.allocator()->init(*multi_gpt_o_t.allocator(), sub_gpt_o_t_info);
+    // sub_ln_f_o_tensor.allocator()->init(*ln_f_o_tensor.allocator(), sub_gpt_o_t_info);
+    // sub_lm_head_output_info.set_tensor_shape(BITensorShape(6003, 1, batch_size));
+    // sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+    // sub_ids_info.set_tensor_shape(BITensorShape(1, batch_size));
+    // sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
+    // gather_layer.dynamic_configure(&sub_input_tensor, &sub_gather_o_tensor);
+    // wte_layer.dynamic_configure(&sub_gather_o_tensor, &sub_add_weight, true);
+    // gpt_multi_block_layer.dynamic_configure(&sub_split_gpt_input_t, seq_len, batch_size, inp_map);
+    // ln_f_layer.dynamic_configure(&sub_multi_gpt_o_t);
+    // lm_head_layer.dynamic_configure();
+    // arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
+    // gather_layer.run();
+    // wte_layer.run();
+    // BINEScheduler::get().schedule_kv_split(pack);
+    // gpt_multi_block_layer.run();
+    // ln_f_layer.run();
+    // lm_head_layer.run();
+    // arg_minmax_layer.run();
+    // KVCacheTestName::concat_tensor(sub_ids, output_ids);
+    // KVCacheTestName::get_s32_val(sub_ids, infos);
+    // KVCacheTestName::get_index_val(sub_lm_head_output, infos, score);
+    // scores.push_back(score[0]);
+    //
+    // KVCacheTestName::print_output_info(output_ids);
+    // KVCacheTestName::print_output_info(scores);
 }

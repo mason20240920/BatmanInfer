@@ -225,8 +225,10 @@ namespace BatmanInfer {
                                            const size_t &hidden_size,
                                            const size_t &max_seq_len,
                                            const size_t &batch_size,
+                                           const int layer_idx,
                                            BIITensor *output
     ) {
+        _layer_idx = layer_idx;
         // // 结果判断
         // BI_COMPUTE_ERROR_ON_NULLPTR(input, weights, bias, gamma, output); // 输入的参数是否为空
         // BI_COMPUTE_ERROR_THROW_ON(BINEAttentionLowpLayer::validate(input->info(), weights->info(),
@@ -698,7 +700,7 @@ namespace BatmanInfer {
         pack.add_tensor(ACL_SRC_1, &_sub_reshape_v_states);
         pack.add_tensor(ACL_DST_0, &_sub_concat_reshape_k_states);
         pack.add_tensor(ACL_DST_1, &_sub_concat_reshape_v_states);
-        BINEScheduler::get().schedule_kv_concat(pack, blocks, *_avail_len);
+        BINEScheduler::get().schedule_kv_concat(pack, blocks, *_avail_len, _layer_idx);
         BINEScheduler::get().schedule_kv_full_fill(pack, eos_blocks, *_avail_len);
     }
 

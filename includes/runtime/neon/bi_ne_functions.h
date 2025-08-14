@@ -47,4 +47,4 @@
 #include <runtime/neon/functions/BINEArgMinMaxLayer.hpp>
 #include <runtime/neon/functions/BINELayerNormLayer.hpp>
 #include <runtime/neon/functions/BINEIntentGPTBlock.hpp>
-// #include <runtime/neon/functions/BINEIntentMGPTBlock.hpp>
+#include <runtime/neon/functions/BINEMultiGPTBlock.hpp>

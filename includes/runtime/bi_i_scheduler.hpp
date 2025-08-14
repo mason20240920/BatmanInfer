@@ -190,8 +190,12 @@ namespace BatmanInfer {
          * @param tensors 张量信息
          * @param mem_lst 内存块数组 - 默认内存块大小(N, num heads, sequence length, head dim)
          * @param ava_len 有效长度 - 有效长度: 后面需要填充进去
+         * @param layer_idx 层的索引
          */
-        virtual void schedule_kv_concat(BIITensorPack &tensors, const std::vector<PhysicalBlock *> &mem_lst, const std::vector<size_t> &ava_len) = 0;
+        virtual void schedule_kv_concat(BIITensorPack &tensors,
+                                        const std::vector<PhysicalBlock *> &mem_lst,
+                                        const std::vector<size_t> &ava_len,
+                                        int layer_idx) = 0;
 
         /**
          * @brief 填充Tensor中有eos部分的张量

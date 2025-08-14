@@ -302,8 +302,10 @@ namespace BatmanInfer {
     }
 
 
-    void BIOMPScheduler::schedule_kv_concat(BIITensorPack &tensors, const std::vector<PhysicalBlock *> &mem_lst,
-                                            const std::vector<size_t> &ava_len) {
+    void BIOMPScheduler::schedule_kv_concat(BIITensorPack &tensors,
+                                            const std::vector<PhysicalBlock *> &mem_lst,
+                                            const std::vector<size_t> &ava_len,
+                                            int layer_idx) {
         // 1. 最后一个维度的数量
         BI_COMPUTE_ERROR_ON_MSG(tensors.empty(), "Tensors are empty in this scheduler!");
         BI_COMPUTE_ERROR_ON_MSG(tensors.get_tensor(ACL_SRC) == nullptr, "Tensors are empty in this scheduler!");
@@ -321,6 +323,7 @@ namespace BatmanInfer {
         const size_t dim_size = v_dst->info()->dimension(0);
         const size_t k_mm_dim_item_size = dim_size * k_type_size * num_head;
         const size_t v_mm_dim_item_size = dim_size * v_type_size * num_head;
+        const size_t per_layer_mm_size = k_mm_dim_item_size + v_mm_dim_item_size;
         const size_t parallel_iter = batch; // 按照batch进行切割
         // 3. 获取当前并行数量
         const size_t num_threads = std::min(parallel_iter, static_cast<size_t>(_num_threads));
@@ -340,10 +343,12 @@ namespace BatmanInfer {
                         &k_mm_dim_item_size,
                         &v_mm_dim_item_size,
                         &remain_loop_num,
+                        &per_layer_mm_size,
                         &num_threads,
                         &mem_lst,
                         &k_src,
-                        &v_src](const ThreadInfo &info) {
+                        &v_src,
+                        &layer_idx](const ThreadInfo &info) {
                         // 1. 先直接进行中循环遍历
                         for (int m_r = 0; m_r < middle_loop_num; m_r++) {
                             // 2. 对于全局张量的当前偏移量(每个线程偏移middle_loop_num的数量)
@@ -356,7 +361,7 @@ namespace BatmanInfer {
                                         (batch_index * max_seq_len + seq) * k_mm_dim_item_size;
                                 const unsigned int cur_v_mm_offset =
                                         (batch_index * max_seq_len + seq) * v_mm_dim_item_size;
-                                auto pb_gmem_addr = static_cast<char *>(mem_lst[mm_item_index]->buffer);
+                                auto pb_gmem_addr = static_cast<char *>(mem_lst[mm_item_index]->buffer) + per_layer_mm_size * layer_idx;
                                 auto k_dst_ptr = k_dst->allocator()->data(cur_k_mm_offset, k_mm_dim_item_size);
                                 auto v_dst_ptr = v_dst->allocator()->data(cur_v_mm_offset, v_mm_dim_item_size);
                                 memcpy(k_dst_ptr, pb_gmem_addr, k_mm_dim_item_size);
@@ -389,7 +394,7 @@ namespace BatmanInfer {
                                             (get_remain_seq_sum(ava_len, batch_index) + seq) * k_mm_dim_item_size;
                                     const unsigned int cur_v_mm_offset =
                                             (get_remain_seq_sum(ava_len, batch_index) + seq) * v_mm_dim_item_size;
-                                    auto pb_gmem_addr = static_cast<char *>(mem_lst[mm_item_index]->buffer);
+                                    auto pb_gmem_addr = static_cast<char *>(mem_lst[mm_item_index]->buffer) + per_layer_mm_size * layer_idx;
                                     auto k_dst_ptr = k_dst->allocator()->data(cur_k_mm_offset, k_mm_dim_item_size);
                                     auto v_dst_ptr = v_dst->allocator()->data(cur_v_mm_offset, v_mm_dim_item_size);
                                     memcpy(k_dst_ptr, pb_gmem_addr, k_mm_dim_item_size);
