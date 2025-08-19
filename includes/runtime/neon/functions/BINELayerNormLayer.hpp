@@ -20,9 +20,9 @@ namespace BatmanInfer {
         class BINELayerNormLayerKernel;
     }
 
-    /** Basic function to compute a RMS normalization layer. This function calls the following kernels:
+    /** Basic function to compute a LayerNorm normalization layer. This function calls the following kernels:
      *
-     * -# @ref BINERMSNormLayerKernel
+     * -# @ref BINELayerNormLayerKernel
      *
      */
     class BINELayerNormLayer final : public BIIFunction {
@@ -59,7 +59,10 @@ namespace BatmanInfer {
          * @param[in] gamma
         * @param[out] output    Destination with the same dimensions, data type, data layout and number of channels of  @p input
         */
-        void configure(const BIITensor *input, const BIITensor *gamma, const BIITensor *beta, BIITensor *output);
+        void configure(const BIITensor *input,
+                        const BIITensor *gamma,
+                        const BIITensor *beta,
+                        BIITensor *output);
 
         void dynamic_configure(const BIITensor *input) const;
 

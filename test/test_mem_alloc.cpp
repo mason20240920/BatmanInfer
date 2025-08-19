@@ -869,7 +869,7 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     std::vector<std::vector<unsigned int> > decodes_vec{{1, 2, 3}};
     attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size, decodes_vec);
     attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
@@ -915,7 +915,7 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size, decodes_vec);
     attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
@@ -959,7 +959,7 @@ TEST(MemAllocGPT2Origin, GPT2AlloctOrigin) {
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&add_output_tensor, seq_len, batch_size, decodes_vec);
     attn_rms_add.dynamic_configure(&add_output_tensor, &attn_output_tensor, true);
-    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size);
+    _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
