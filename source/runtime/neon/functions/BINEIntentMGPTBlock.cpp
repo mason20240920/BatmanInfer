@@ -30,11 +30,11 @@ namespace BatmanInfer {
         _intermediate_tensors.reserve(_layer_num - 1);
         // 张量信息
         auto intermediate_tensor_info = BITensorInfo(
-            BITensorShape(global_config.hidden_size, 1, global_config.max_batch_size),
+            BITensorShape(global_config.hidden_size, _max_seq_len, global_config.max_batch_size),
             1,
             BIDataType::F16);
         _sub_intermediate_tensor_info = BITensorInfo(BITensorShape(global_config.hidden_size,
-                                                                   1,
+                                                                   _seq_len,
                                                                    _batch_size),
                                                      1,
                                                      BIDataType::F16);
