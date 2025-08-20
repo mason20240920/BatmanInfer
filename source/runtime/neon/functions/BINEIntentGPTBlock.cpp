@@ -13,13 +13,13 @@
 #include <common/utils/bi_log.hpp>
 
 namespace BatmanInfer {
-    BINEIntentGPT2Block::~BINEIntentGPT2Block() = default;
+    BINEIntentGPTBlock::~BINEIntentGPTBlock() = default;
 
-    BINEIntentGPT2Block::BINEIntentGPT2Block(std::shared_ptr<BIIMemoryManager> memory_manager) : _memory_group(
+    BINEIntentGPTBlock::BINEIntentGPTBlock(std::shared_ptr<BIIMemoryManager> memory_manager) : _memory_group(
             std::move(memory_manager)), _is_prepared(false), _layer_idx(0) {
     }
 
-    void BINEIntentGPT2Block::configure(BIITensor *input,
+    void BINEIntentGPTBlock::configure(BIITensor *input,
                                         const BIITensor *ln_1_weight,
                                         const BIITensor *ln_1_bias,
                                         const BIITensor *c_attn_weights,
@@ -39,6 +39,8 @@ namespace BatmanInfer {
                                         const size_t &hidden_size,
                                         const size_t &max_seq_len,
                                         const size_t &max_batch_size,
+                                        const size_t &seq_len,
+                                        const size_t &batch_size,
                                         const int layer_idx,
                                         BIITensor *output) {
         _layer_idx = layer_idx;
@@ -49,8 +51,10 @@ namespace BatmanInfer {
         _max_seq_len = max_seq_len; // 最大的值
         _hidden_size = hidden_size; // 隐藏层长度
         _max_batch_size = max_batch_size; // 最大块
+        _seq_len = seq_len;
+        _batch_size = batch_size;
 
-        const auto common_shape = BITensorShape(_hidden_size, 1, _max_batch_size);
+        const auto common_shape = BITensorShape(_hidden_size, _max_seq_len, _max_batch_size);
         _attn_output.allocator()->init(BITensorInfo(common_shape, 1, BIDataType::F16));
         _attn_add_output.allocator()->init(BITensorInfo(common_shape, 1, BIDataType::F16));
         _mlp_output.allocator()->init(BITensorInfo(common_shape, 1, BIDataType::F16));
@@ -68,7 +72,7 @@ namespace BatmanInfer {
         _block_output.allocator()->allocate();
 
         // 子张量管理
-        const auto sub_common_shape = BITensorShape(_hidden_size, 1, _batch_size);
+        const auto sub_common_shape = BITensorShape(_hidden_size, _seq_len, _batch_size);
         _sub_attn_output_info = BITensorInfo(sub_common_shape, 1, BIDataType::F16);
         _sub_attn_output_info.set_format(Format::F16);
         _sub_attn_output.allocator()->init(_sub_attn_output_info);
@@ -98,6 +102,8 @@ namespace BatmanInfer {
                               hidden_size,
                               max_seq_len,
                               max_batch_size,
+                              _batch_size,
+                              _seq_len,
                               &_sub_attn_output);
         _add_layer.configure(input,
                              &_sub_attn_output,
@@ -113,12 +119,14 @@ namespace BatmanInfer {
                              act_info,
                              &_sub_mlp_output,
                              max_batch_size,
-                             1);
+                             max_seq_len,
+                             _batch_size,
+                             _seq_len);
 
         _add_2_layer.configure(&_sub_add_output, &_sub_mlp_output, output, BIConvertPolicy::SATURATE);
     }
 
-    void BINEIntentGPT2Block::run() {
+    void BINEIntentGPTBlock::run() {
         prepare();
 
         _attn_layer.run();
@@ -129,7 +137,7 @@ namespace BatmanInfer {
         _add_2_layer.run();
     }
 
-    void BINEIntentGPT2Block::dynamic_configure(const BIITensor *input,
+    void BINEIntentGPTBlock::dynamic_configure(const BIITensor *input,
                                                 const size_t &seq_len,
                                                 const size_t &batch_size) {
         _batch_size = batch_size;
@@ -155,7 +163,7 @@ namespace BatmanInfer {
     }
 
 
-    void BINEIntentGPT2Block::prepare() {
+    void BINEIntentGPTBlock::prepare() {
         if (!_is_prepared) {
             // 1. 先调用内存管理组(再进行sub tensor的内存分布, 申请开辟连续内存)
             _scope_mg = std::make_unique<BIMemoryGroupResourceScope>(_memory_group);

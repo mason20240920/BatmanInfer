@@ -7,13 +7,19 @@
 #include <runtime/neon/functions/bi_ne_reshape_layer.hpp>
 #include <runtime/neon/functions/bi_ne_gemm.hpp>
 #include <runtime/bi_memory_manager_on_demand.hpp>
-#include <runtime/neon/bi_ne_functions.h>
 #include <runtime/neon/functions/bi_ne_mat_mul.hpp>
 
 #include <data/core/bi_types.hpp>
 #include <runtime/bi_memory_group.hpp>
 #include <runtime/bi_tensor.hpp>
+
+#include "BINELayerNormLayer.hpp"
+#include "bi_NEArithmeticAddition.h"
+#include "bi_NESoftmaxLayer.h"
 #include "bi_ne_copy.hpp"
+#include "bi_ne_permute.h"
+#include "bi_ne_split.hpp"
+#include "ne_pixel_wise_multiplication.hpp"
 
 namespace BatmanInfer {
     // 前向声明
@@ -56,13 +62,12 @@ namespace BatmanInfer {
         * @param c_attn_bias
         * @param o_attn_weights
         * @param o_attn_bias
-        * @param eos_weights_path
         * @param q_perm
         * @param k_perm
         * @param qkv_perm
         * @param hidden_size
         * @param max_seq_len
-        * @param batch_size
+        * @param max_batch_size
         * @param output
         */
         void configure(BIITensor *input,
@@ -77,7 +82,9 @@ namespace BatmanInfer {
                        const PermutationVector &qkv_perm,
                        const size_t &hidden_size,
                        const size_t &max_seq_len,
-                       const size_t &batch_size,
+                       const size_t &max_batch_size,
+                       const size_t &current_batch_size,
+                       const size_t &current_seq_size,
                        BIITensor *output);
 
         /**
@@ -108,6 +115,8 @@ namespace BatmanInfer {
         BINEReshapeLayer _reshape_q_layer, _reshape_k_layer, _reshape_v_layer;
         BINEPermute _transpose_q_layer, _transpose_k_layer, _transpose_v_layer;
         BINEMatMul _qk_bmm_layer;
+        BINEArithmeticAddition _qk_add_layer;
+        BINEPixelWiseMultiplication _divide_layer;
         BINESoftmaxLayer _softmax_layer;
         BINEMatMul _pv_bmm_layer;
         BINEPermute _pv_transpose_layer;
@@ -128,11 +137,14 @@ namespace BatmanInfer {
         BITensor _sub_transpose_k_states;
         BITensor _sub_transpose_v_states;
         BITensor _sub_qk_bmm_output;
+        BITensor _sub_add_output;
+        BITensor _sub_add_weights;
         BITensor _sub_softmax_output;
         BITensor _sub_pv_bmm_output;
         BITensor _sub_pv_perm_output;
         BITensor _sub_pv_reshape_output;
         BITensor _sub_attn_o_output;
+        BITensor _sub_divide_output;
 
         // 张量信息
         BITensorInfo _sub_norm_info;
@@ -143,12 +155,13 @@ namespace BatmanInfer {
         BITensorInfo _sub_transpose_k_info;
         BITensorInfo _sub_transpose_v_info;
         BITensorInfo _sub_qk_bmm_output_info;
-        // BITensorInfo _sub_add_weights_info;
+        BITensorInfo _sub_add_weights_info;
         BITensorInfo _sub_softmax_output_info;
         BITensorInfo _sub_pv_bmm_output_info;
         BITensorInfo _sub_pv_transpose_output_info;
         BITensorInfo _sub_pv_reshape_output_info;
         BITensorInfo _sub_attn_o_output_info;
+        BITensorInfo _sub_add_output_info;
 
         // 中间内存管理的张量输出
         BITensor _norm_output; // 归一化输出值
@@ -163,13 +176,15 @@ namespace BatmanInfer {
         BITensor _transpose_k_states;
         BITensor _transpose_v_states;
         BITensor _qk_bmm_output;
-        // BITensor _add_output;
-        // BITensor _add_weights;
+        BITensor _add_output;
+        BITensor _add_weights;
         BITensor _softmax_output;
         BITensor _pv_bmm_output;
         BITensor _pv_perm_output;
         BITensor _pv_reshape_output;
         BITensor _attn_o_output;
+        BITensor _divide_output;
+        BITensor _scale_tensor;
 
     private:
         size_t _hidden_size{}; // 隐藏层大小

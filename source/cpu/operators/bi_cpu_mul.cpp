@@ -34,6 +34,12 @@ namespace BatmanInfer {
             _kernel = std::move(k);
         }
 
+        void BICpuMul::dynamic_configure(BIITensorInfo *src) const {
+            auto k = reinterpret_cast<kernels::BICpuMulKernel *>(_kernel.get());
+            k->dynamic_configure(src);
+        }
+
+
         void BICpuMul::run(BatmanInfer::BIITensorPack &tensors) {
             BI_COMPUTE_ERROR_ON_MSG(tensors.empty(), "No inputs provided");
             auto split_dimension = static_cast<kernels::BICpuMulKernel *>(_kernel.get())->get_split_dimension_hint();

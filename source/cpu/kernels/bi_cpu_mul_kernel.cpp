@@ -1637,6 +1637,13 @@ namespace BatmanInfer {
                 BIICpuKernel::configure(win);
             }
 
+            void BICpuMulKernel::dynamic_configure(BIITensorInfo *src) {
+                BIWindow win = BIICpuKernel::window();
+                dynamic_calculate_squashed_or_max_window(*src, win);
+                BIICpuKernel::configure(win);
+            }
+
+
             size_t BICpuMulKernel::get_mws(const CPUInfo &platform, size_t thread_count) const {
                 BI_COMPUTE_UNUSED(thread_count);
 

@@ -40,7 +40,7 @@ namespace BatmanInfer {
         }
 
         // 验证配置
-        bool is_valid() const {
+        [[nodiscard]] bool is_valid() const {
             return ln_1_weight && c_attn_weights && c_attn_bias &&
                    o_attn_weights && o_attn_bias && fc_weights &&
                    fc_bias && proj_weights && proj_bias && ln_2_weight;
@@ -89,6 +89,8 @@ namespace BatmanInfer {
         void configure(BIITensor *input,
                        const std::vector<BIGPTLayerConfig> &layer_configs,
                        const BIGPTGlobalConfig &global_config,
+                       size_t cur_batch_size,
+                       size_t cur_seq_len,
                        BIITensor *output);
 
         /**
@@ -111,7 +113,7 @@ namespace BatmanInfer {
     private:
         BIMemoryGroup _memory_group;
 
-        std::vector<std::unique_ptr<BINEIntentGPT2Block> > _layer_blocks;
+        std::vector<std::unique_ptr<BINEIntentGPTBlock> > _layer_blocks;
         std::vector<BITensor> _intermediate_tensors; // 中间张量
 
         std::vector<BITensor> _sub_intermediate_tensors; // 中间张量的子张量

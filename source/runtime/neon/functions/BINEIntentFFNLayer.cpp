@@ -72,8 +72,10 @@ namespace BatmanInfer {
                                          const BIITensor *ln_2_bias,
                                          const BatmanInfer::BIActivationLayerInfo &act_info,
                                          BatmanInfer::BIITensor *output,
-                                         const size_t &batch_size,
-                                         const size_t &seq_len) {
+                                         const size_t &max_batch_size,
+                                         const size_t &max_seq_len,
+                                         const size_t &cur_batch_size,
+                                         const size_t &cur_seq_size) {
         BI_COMPUTE_ERROR_ON_NULLPTR(input, fc_weights, fc_bias, proj_weights, proj_bias, output); // 输入的参数是否为空
 
         BI_COMPUTE_ERROR_THROW_ON(
@@ -87,13 +89,15 @@ namespace BatmanInfer {
 
         BI_COMPUTE_LOG_PARAMS(input, fc_weights, fc_bias, proj_weights, proj_bias, gamma, act_info, output); // 获取log的参数
 
-        _max_batch = batch_size;
-        _max_seq = seq_len;
+        _max_batch = max_batch_size;
+        _max_seq = max_seq_len;
+        _seq_len = cur_seq_size;
+        _batch_size = cur_batch_size;
 
         // 中间变量输出的形状
-        BITensorShape norm_output_shape = BITensorShape(768, seq_len, batch_size); // 归一化输出
-        BITensorShape fc_fuse_output_shape = BITensorShape(3072, seq_len, batch_size); // Gemm + GeLU 融合操作
-        BITensorShape proj_output_shape = BITensorShape(768, seq_len, batch_size); // 最后降解的操作
+        BITensorShape norm_output_shape = BITensorShape(768, _max_seq, _max_batch); // 归一化输出
+        BITensorShape fc_fuse_output_shape = BITensorShape(3072, _max_seq, _max_batch); // Gemm + GeLU 融合操作
+        BITensorShape proj_output_shape = BITensorShape(768, _max_seq, _max_batch); // 最后降解的操作
 
         // 初始化中间变量
         _norm_output.allocator()->init(BITensorInfo(norm_output_shape, 1, BIDataType::F16));
@@ -109,12 +113,12 @@ namespace BatmanInfer {
         _fuse_output.allocator()->allocate();
         _proj_output.allocator()->allocate();
 
-        const auto sub_norm_output_shape = BITensorShape(768, _max_seq, _batch_size);
+        const auto sub_norm_output_shape = BITensorShape(768, _seq_len, _batch_size);
         _sub_norm_output_info = BITensorInfo(sub_norm_output_shape, 1, BIDataType::F16);
         _sub_norm_output_info.set_format(Format::F16);
         _sub_norm_output.allocator()->init(_sub_norm_output_info);
 
-        const auto sub_fc_fuse_output_shape = BITensorShape(3072, _max_seq, _batch_size);
+        const auto sub_fc_fuse_output_shape = BITensorShape(3072, _seq_len, _batch_size);
         _sub_fuse_output_info = BITensorInfo(sub_fc_fuse_output_shape, 1, BIDataType::F16);
         _sub_fuse_output_info.set_format(Format::F16);
         _sub_fuse_output.allocator()->init(_sub_fuse_output_info);

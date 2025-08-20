@@ -46,6 +46,11 @@ namespace BatmanInfer {
                              act_info);
     }
 
+    void BINEPixelWiseMultiplication::dynamic_configure() const {
+        _impl->op->dynamic_configure(_impl->src_0->info());
+    }
+
+
     void BINEPixelWiseMultiplication::run() {
         BIITensorPack pack;
         pack.add_tensor(BITensorType::ACL_SRC_0, _impl->src_0);

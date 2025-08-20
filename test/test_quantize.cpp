@@ -1389,13 +1389,29 @@ TEST(DynamicTensor, DynamicGeLU) {
     activation_layer.dynamic_configure(&input);
     activation_layer.run();
     QATTest::print_tensor(output, "output2");
-    // BITensor deq_output;
-    // deq_output.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
-    // deq_output.allocator()->allocate();
-    // dequantization_layer.configure(&output, &deq_output);
+    BITensor deq_output;
+    deq_output.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
+    deq_output.allocator()->allocate();
+    dequantization_layer.configure(&output, &deq_output);
     // dequantization_layer.run();
     //
     // QATTest::print_tensor(deq_output, "output2");
+}
+
+TEST(Quantizate, Testcase1) {
+    // 1. 初始化
+    BITensorShape input_shape = BITensorShape(3072, 3, 1);
+    BITensor input, output;
+    BIQuantizationInfo qout_info = BIQuantizationInfo(0.1137f, -127);
+    input.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::QASYMM8_SIGNED, qout_info));
+    input.allocator()->allocate();
+
+    output.allocator()->init(BITensorInfo(input_shape, 1, BIDataType::F16));
+    output.allocator()->allocate();
+
+    BINEDequantizationLayer dequantization_layer;
+    dequantization_layer.configure(&input, &output);
+    dequantization_layer.run();
 }
 
 TEST(DynamicTensor, NOquantDynamicGeLU) {

@@ -69,7 +69,9 @@ namespace BatmanInfer {
                        const BIActivationLayerInfo &act_info,
                        BIITensor *output,
                        const size_t &max_batch_size,
-                       const size_t &max_seq_len);
+                       const size_t &max_seq_len,
+                       const size_t &batch_size,
+                       const size_t &seq_size);
 
         static BIStatus validate(const BIITensorInfo *input,
                                  const BIITensorInfo *fc_weights,

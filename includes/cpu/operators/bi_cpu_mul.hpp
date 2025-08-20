@@ -49,6 +49,8 @@ namespace BatmanInfer {
                            BIRoundingPolicy rounding_policy,
                            const BIActivationLayerInfo &act_info = BIActivationLayerInfo());
 
+            void dynamic_configure(BIITensorInfo *src) const;
+
             /** Static function to check if given info will lead to a valid configuration
              *
              * Similar to @ref CpuMul::configure()
