@@ -164,7 +164,7 @@ namespace BatmanInfer {
         const auto reshape_qkv_shape = BITensorShape(64, 12, _max_seq_len, _max_batch_size);
         const auto transpose_q_shape = BITensorShape(64, _max_seq_len, 12, _max_batch_size);
         const auto transpose_k_shape = BITensorShape(_max_seq_len, 64, 12, _max_batch_size);
-        auto qk_bmm_output_shape = BITensorShape(_max_seq_len, 1, 12, _max_batch_size);
+        auto qk_bmm_output_shape = BITensorShape(_max_seq_len, _max_seq_len, 12, _max_batch_size);
         const auto add_weights_shape = BITensorShape(_max_seq_len, _max_seq_len);
 
         _norm_output.allocator()->init(BITensorInfo(rms_norm_shape, 1, BIDataType::F16));
