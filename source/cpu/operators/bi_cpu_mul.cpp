@@ -34,9 +34,9 @@ namespace BatmanInfer {
             _kernel = std::move(k);
         }
 
-        void BICpuMul::dynamic_configure(BIITensorInfo *src) const {
+        void BICpuMul::dynamic_configure(BIITensorInfo *src1, BIITensorInfo *src2) const {
             auto k = reinterpret_cast<kernels::BICpuMulKernel *>(_kernel.get());
-            k->dynamic_configure(src);
+            k->dynamic_configure(src1, src2);
         }
 
 

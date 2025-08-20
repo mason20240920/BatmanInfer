@@ -91,6 +91,7 @@ namespace BatmanInfer {
         _sub_add_output_info.set_tensor_shape(BITensorShape(_seq_len, _seq_len, 12, _batch_size));
         _sub_add_output.allocator()->init(*_add_output.allocator(), _sub_add_output_info);
 
+        _sub_divide_output.allocator()->init(*_divide_output.allocator(), _sub_qk_bmm_output_info);
 
 
         std::vector<BIITensor *> outputs = {
@@ -108,7 +109,6 @@ namespace BatmanInfer {
         _transpose_q_layer.dynamic_configure(&_sub_reshape_q_states, &_sub_transpose_q_states);
         _transpose_k_layer.dynamic_configure(&_sub_reshape_k_states, &_sub_transpose_k_states);
         _transpose_v_layer.dynamic_configure(&_sub_reshape_v_states, &_sub_transpose_v_states);
-        _sub_divide_output.allocator()->init(_sub_qk_bmm_output_info);
         BIMatMulInfo matmul_info; // No transpose for lhs or rhs
         matmul_info.adj_lhs(false).adj_rhs(false);
         // Define CpuMatMulSettings

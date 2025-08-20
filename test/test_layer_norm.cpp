@@ -421,7 +421,7 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     constexpr int hidden_size = 768;
     constexpr int max_batch_size = 1;
     constexpr int max_seq = 64;
-    constexpr int block_layer_num = 6;
+    constexpr int block_layer_num = 1;
     BIScheduler::get().set_num_threads(thread_num);
 
     // 开始的
@@ -969,8 +969,8 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     score_layer.run();
 
     // OperatorTest::print_tensor(sub_lm_head_output);
-
-    // seq_len = 64;
+    //
+    // // seq_len = 64;
     batch_size = 1;
     input_info.set_tensor_shape(BITensorShape(seq_len, batch_size));
     sub_input_tensor.allocator()->init(*input_tensor.allocator(), input_info);
@@ -1000,6 +1000,7 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     score_layer.run();
     double total_duration = 0.0, max_duration = 0.0;
     for (int seq_run = 0; seq_run < 100; seq_run++) {
+    // while (true) {
         auto start = std::chrono::high_resolution_clock::now();
         batch_size = 1;
         // seq_len = 64;

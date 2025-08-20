@@ -1637,9 +1637,9 @@ namespace BatmanInfer {
                 BIICpuKernel::configure(win);
             }
 
-            void BICpuMulKernel::dynamic_configure(BIITensorInfo *src) {
+            void BICpuMulKernel::dynamic_configure(BIITensorInfo *src1, BIITensorInfo *src2) {
                 BIWindow win = BIICpuKernel::window();
-                dynamic_calculate_squashed_or_max_window(*src, win);
+                std::tie(win, _split_dimension) = calculate_squashed_or_max_window(*src1, *src2);
                 BIICpuKernel::configure(win);
             }
 

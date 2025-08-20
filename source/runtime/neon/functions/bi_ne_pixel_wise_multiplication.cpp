@@ -47,7 +47,7 @@ namespace BatmanInfer {
     }
 
     void BINEPixelWiseMultiplication::dynamic_configure() const {
-        _impl->op->dynamic_configure(_impl->src_0->info());
+        _impl->op->dynamic_configure(_impl->src_0->info(),  _impl->src_1->info());
     }
 
 
