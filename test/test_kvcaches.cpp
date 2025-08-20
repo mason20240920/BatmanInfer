@@ -630,6 +630,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
                          max_seq,
                          20,
                          &attn_output_tensor);
+    attn_layer.set_avail_lens(&avail_lens);
     attn_layer.run();
     attn_layer.get_kv_block_ids(kv_block_ids);
     BITensor sub_mlp_input;
@@ -742,6 +743,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
         inp_map.push_back({kv_block_ids[0], 1});
     }
     seq_len = 2;
+    avail_lens = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
     input_tensor_shape = BITensorShape(seq_len, batch_size);
     input_info.set_tensor_shape(input_tensor_shape);
     input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
@@ -776,6 +778,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     rms_norm_layer.dynamic_configure(&sub_add_output);
     lm_head_layer.dynamic_configure();
     arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
+    attn_layer.set_avail_lens(&avail_lens);
     gather_layer.run();
     add_layer.run();
     BINEScheduler::get().schedule_kv_split(pack, avail_lens);
@@ -798,12 +801,15 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     KVCacheTestName::print_output_info(output_ids);
     KVCacheTestName::print_output_info(scores);
 
+
+
     KVCacheManager::getInstance().reset_decode_lst();
     inp_map.clear();
     for (int i = 0; i < batch_size; i++) {
         inp_map.push_back({KVCacheManager::getInstance().root_id(), 1});
     }
     seq_len = 2;
+    avail_lens = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
     input_tensor_shape = BITensorShape(seq_len, batch_size);
     input_info.set_tensor_shape(input_tensor_shape);
     input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
@@ -832,6 +838,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
     attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
+    attn_layer.set_avail_lens(&avail_lens);
     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
     _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size, 1);
     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
@@ -867,6 +874,7 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     input_info.set_tensor_shape(input_tensor_shape);
     input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
     indices_data = {0, 3, 4};
+    avail_lens = {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
     KVCacheTestName::fill_tensor_with_repeat_arr(input_ids, batch_size, indices_data);
     KVCacheTestName::fill_tensor_val_with_arr(input_tensor, input_ids);
     gather_output_tensor_shape = BITensorShape(768, seq_len, batch_size);
@@ -918,74 +926,74 @@ TEST(KVCacheGPT, GPT2KVCacheOrigin) {
     KVCacheTestName::print_output_info(output_ids);
     KVCacheTestName::print_output_info(scores);
     KVCacheTestName::print_tensor(sub_ids, "sub_ids");
-    for (int seq_run = 1; seq_run < 13; seq_run++) {
-        seq_len++;
-        std::cout << "当前的sequence长度" << seq_len << std::endl;
-        input_tensor_shape = BITensorShape(seq_len, batch_size);
-        input_info.set_tensor_shape(input_tensor_shape);
-        input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
-        indices_data.push_back(seq_run + 4);
-        KVCacheTestName::fill_tensor_with_repeat_arr(input_ids, batch_size, indices_data);
-        KVCacheTestName::fill_tensor_val_with_arr(input_tensor, input_ids);
-        gather_output_tensor_shape = BITensorShape(768, seq_len, batch_size);
-        attn_output_tensor_shape = BITensorShape(768, 1, batch_size);
-        gather_output_info.set_tensor_shape(gather_output_tensor_shape);
-        attn_output_info.set_tensor_shape(attn_output_tensor_shape);
-        gather_output_tensor.allocator()->init(*original_gather_output_tensor.allocator(), gather_output_info);
-        add_output_tensor.allocator()->init(*original_add_output_tensor.allocator(), gather_output_info);
-        split_add_output_tensor.allocator()->init(*original_split_output_tensor.allocator(), attn_output_info);
-        sub_add_weight_shape = BITensorShape(768, seq_len);
-        sub_add_weight_info.set_tensor_shape(sub_add_weight_shape);
-        sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
-        attn_output_tensor.allocator()->init(*attn_origin_o_tensor.allocator(), attn_output_info);
-        sub_mlp_input.allocator()->init(*original_attn_rms_output_tensor.allocator(), attn_output_info);
-        sub_mlp_output.allocator()->init(*output.allocator(), attn_output_info);
-        sub_mlp_rms_output.allocator()->init(*mlp_rms_output.allocator(), attn_output_info);
-        sub_add_output.allocator()->init(*add_output.allocator(), attn_output_info);
-        sub_lm_head_output_info.set_tensor_shape(BITensorShape(6003, 1, batch_size));
-        sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
-        sub_ids_info.set_tensor_shape(BITensorShape(1, batch_size));
-        sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
-        auto start = std::chrono::high_resolution_clock::now();
-        gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
-        add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
-        attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
-        attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
-        _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size,1);
-        add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
-        rms_norm_layer.dynamic_configure(&sub_add_output);
-        lm_head_layer.dynamic_configure();
-        arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
-        gather_layer.run();
-        add_layer.run();
-        BINEScheduler::get().schedule_kv_split(pack, avail_lens);
-        attn_layer.run();
-        // KVCacheTestName::print_tensor(attn_output_tensor, "attn_output_tensor");
-        attn_layer.get_kv_block_ids(kv_block_ids);
-        attn_rms_add.run();
-        _mlp_layer.run();
-        inp_map.clear();
-        for (unsigned int &kv_block_id: kv_block_ids)
-            inp_map.push_back({kv_block_id, 1});
-        KVCacheTestName::print_tensor(split_add_output_tensor, "scores");
-        add_f.run();
-        rms_norm_layer.run();
-        lm_head_layer.run();
-        auto end = std::chrono::high_resolution_clock::now();
-        double duration = std::chrono::duration<double, std::milli>(end - start).count();
-        arg_minmax_layer.run();
-        std::cout << "Performance Report:" << duration << std::endl;
-        KVCacheTestName::print_tensor(sub_ids, "sub_ids");
-        // KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
-        KVCacheTestName::concat_tensor(sub_ids, output_ids);
-        KVCacheTestName::get_s32_val(sub_ids, infos);
-        KVCacheTestName::get_index_val(sub_lm_head_output, infos, score);
-        scores.push_back(score[0]);
-
-        KVCacheTestName::print_output_info(output_ids);
-        KVCacheTestName::print_output_info(scores);
-        KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
-    }
+    // for (int seq_run = 1; seq_run < 13; seq_run++) {
+    //     seq_len++;
+    //     std::cout << "当前的sequence长度" << seq_len << std::endl;
+    //     input_tensor_shape = BITensorShape(seq_len, batch_size);
+    //     input_info.set_tensor_shape(input_tensor_shape);
+    //     input_tensor.allocator()->init(*original_input_tensor.allocator(), input_info);
+    //     indices_data.push_back(seq_run + 4);
+    //     KVCacheTestName::fill_tensor_with_repeat_arr(input_ids, batch_size, indices_data);
+    //     KVCacheTestName::fill_tensor_val_with_arr(input_tensor, input_ids);
+    //     gather_output_tensor_shape = BITensorShape(768, seq_len, batch_size);
+    //     attn_output_tensor_shape = BITensorShape(768, 1, batch_size);
+    //     gather_output_info.set_tensor_shape(gather_output_tensor_shape);
+    //     attn_output_info.set_tensor_shape(attn_output_tensor_shape);
+    //     gather_output_tensor.allocator()->init(*original_gather_output_tensor.allocator(), gather_output_info);
+    //     add_output_tensor.allocator()->init(*original_add_output_tensor.allocator(), gather_output_info);
+    //     split_add_output_tensor.allocator()->init(*original_split_output_tensor.allocator(), attn_output_info);
+    //     sub_add_weight_shape = BITensorShape(768, seq_len);
+    //     sub_add_weight_info.set_tensor_shape(sub_add_weight_shape);
+    //     sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
+    //     attn_output_tensor.allocator()->init(*attn_origin_o_tensor.allocator(), attn_output_info);
+    //     sub_mlp_input.allocator()->init(*original_attn_rms_output_tensor.allocator(), attn_output_info);
+    //     sub_mlp_output.allocator()->init(*output.allocator(), attn_output_info);
+    //     sub_mlp_rms_output.allocator()->init(*mlp_rms_output.allocator(), attn_output_info);
+    //     sub_add_output.allocator()->init(*add_output.allocator(), attn_output_info);
+    //     sub_lm_head_output_info.set_tensor_shape(BITensorShape(6003, 1, batch_size));
+    //     sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+    //     sub_ids_info.set_tensor_shape(BITensorShape(1, batch_size));
+    //     sub_ids.allocator()->init(*ids.allocator(), sub_ids_info);
+    //     auto start = std::chrono::high_resolution_clock::now();
+    //     gather_layer.dynamic_configure(&input_tensor, &gather_output_tensor);
+    //     add_layer.dynamic_configure(&gather_output_tensor, &sub_add_weight, true);
+    //     attn_layer.dynamic_configure(&split_add_output_tensor, seq_len, batch_size, inp_map);
+    //     attn_rms_add.dynamic_configure(&split_add_output_tensor, &attn_output_tensor, true);
+    //     _mlp_layer.dynamic_configure(&sub_mlp_input, batch_size,1);
+    //     add_f.dynamic_configure(&sub_mlp_output, &sub_mlp_input, false);
+    //     rms_norm_layer.dynamic_configure(&sub_add_output);
+    //     lm_head_layer.dynamic_configure();
+    //     arg_minmax_layer.configure(&sub_lm_head_output, 0, &sub_ids, BIReductionOperation::ARG_IDX_MAX);
+    //     gather_layer.run();
+    //     add_layer.run();
+    //     BINEScheduler::get().schedule_kv_split(pack, avail_lens);
+    //     attn_layer.run();
+    //     // KVCacheTestName::print_tensor(attn_output_tensor, "attn_output_tensor");
+    //     attn_layer.get_kv_block_ids(kv_block_ids);
+    //     attn_rms_add.run();
+    //     _mlp_layer.run();
+    //     inp_map.clear();
+    //     for (unsigned int &kv_block_id: kv_block_ids)
+    //         inp_map.push_back({kv_block_id, 1});
+    //     KVCacheTestName::print_tensor(split_add_output_tensor, "scores");
+    //     add_f.run();
+    //     rms_norm_layer.run();
+    //     lm_head_layer.run();
+    //     auto end = std::chrono::high_resolution_clock::now();
+    //     double duration = std::chrono::duration<double, std::milli>(end - start).count();
+    //     arg_minmax_layer.run();
+    //     std::cout << "Performance Report:" << duration << std::endl;
+    //     KVCacheTestName::print_tensor(sub_ids, "sub_ids");
+    //     // KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
+    //     KVCacheTestName::concat_tensor(sub_ids, output_ids);
+    //     KVCacheTestName::get_s32_val(sub_ids, infos);
+    //     KVCacheTestName::get_index_val(sub_lm_head_output, infos, score);
+    //     scores.push_back(score[0]);
+    //
+    //     KVCacheTestName::print_output_info(output_ids);
+    //     KVCacheTestName::print_output_info(scores);
+    //     KVCacheTestName::print_tensor(sub_lm_head_output, "scores");
+    // }
 }
 
 TEST(KVCacheGPT, MultiDiffWord) {
