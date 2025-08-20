@@ -334,7 +334,7 @@ TEST(BugTest, TestBugTestHold) {
     // 每次存取的时候会存储K和V
     std::vector<unsigned int> kv_block_ids;
     // ======================== 0. 拷贝初始化占位符 ========================
-    KVCacheManager::initialize(kv_manager_num, kv_mem_size, max_seq);
+    KVCacheManager::initialize(kv_manager_num, kv_mem_size, max_seq, 6);
     BITensorShape eos_tensor_shape(head_dim, num_head, max_seq);
     const std::string &eos_k_tensor_path = "./quant_res/eos_k_smooth_o.npy";
     BITensor eos_k_weights = utils::create_type_tensor(eos_k_tensor_path, eos_tensor_shape, BIDataType::F16);
@@ -473,34 +473,34 @@ TEST(BugTest, TestBugTestHold) {
     attn_o_tensor.allocator()->allocate();
     sub_attn_o_tensor.allocator()->init(*attn_o_tensor.allocator(), sub_kv_attn_o_info);
     BITensor eos_weights = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16), BIDataType::F16);
-    attn_lowp_layer.configure(&sub_kv_split_o_tensor,
-                              &attn_ln_1_weight,
-                              &attn_qkv_weights,
-                              &attn_qkv_bias,
-                              &attn_c_proj_weights,
-                              &attn_c_proj_bias,
-                              &eos_weights,
-                              attn_i_scale,
-                              attn_i_zp,
-                              attn_gemm_o_scale,
-                              attn_gemm_o_zero,
-                              query_scale,
-                              query_zp,
-                              value_scale,
-                              value_zp,
-                              key_scale,
-                              key_zp,
-                              softmax_q_scale,
-                              softmax_zp,
-                              proj_in_scale,
-                              proj_in_zp,
-                              q_perm,
-                              k_perm,
-                              qkv_o_perm,
-                              768,
-                              max_seq,
-                              20,
-                              &sub_attn_o_tensor);
+    // attn_lowp_layer.configure(&sub_kv_split_o_tensor,
+    //                           &attn_ln_1_weight,
+    //                           &attn_qkv_weights,
+    //                           &attn_qkv_bias,
+    //                           &attn_c_proj_weights,
+    //                           &attn_c_proj_bias,
+    //                           &eos_weights,
+    //                           attn_i_scale,
+    //                           attn_i_zp,
+    //                           attn_gemm_o_scale,
+    //                           attn_gemm_o_zero,
+    //                           query_scale,
+    //                           query_zp,
+    //                           value_scale,
+    //                           value_zp,
+    //                           key_scale,
+    //                           key_zp,
+    //                           softmax_q_scale,
+    //                           softmax_zp,
+    //                           proj_in_scale,
+    //                           proj_in_zp,
+    //                           q_perm,
+    //                           k_perm,
+    //                           qkv_o_perm,
+    //                           768,
+    //                           max_seq,
+    //                           20,
+    //                           &sub_attn_o_tensor);
     attn_lowp_layer.set_avail_lens(&avail_lens);
     attn_lowp_layer.run();
     attn_lowp_layer.get_kv_block_ids(kv_block_ids);

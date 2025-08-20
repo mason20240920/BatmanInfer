@@ -8,6 +8,7 @@
 namespace BatmanInfer {
     size_t KVCacheManager::NUM_BLOCKS;
     size_t KVCacheManager::BLOCK_SIZE;
+    size_t KVCacheManager::PER_LAYER_BS;
 
     KVCacheManager &KVCacheManager::getInstance() {
         // 静态局部变量, 线程安全
@@ -15,10 +16,11 @@ namespace BatmanInfer {
         return instance;
     }
 
-    void KVCacheManager::initialize(const size_t num_blocks, const size_t block_size, size_t max_seq_len) {
+    void KVCacheManager::initialize(const size_t num_blocks, const size_t block_size, size_t max_seq_len, const size_t layer_num) {
         NUM_BLOCKS = num_blocks + max_seq_len; // 默认KV Cache的blocks和最大长度的EOS
         BLOCK_SIZE = block_size;
         MemoryTree::initialize(max_seq_len, block_size);
+        PER_LAYER_BS = block_size / layer_num;
     }
 
 
@@ -92,29 +94,33 @@ namespace BatmanInfer {
         */
     void KVCacheManager::memcpy_decode_buffer(void *source_buffer,
                                               int block_id,
+                                              int layer_idx,
                                               int batch_idx,
+                                              int batch_size,
                                               bool is_k_cond,
                                               bool is_smooth_quant) const {
         auto [id, buffer] = manager_->blocks[block_id];
         unsigned long k_block_size, v_block_size;
         char *k_src_buffer, *v_src_buffer;
         if (is_smooth_quant) {
-            k_block_size = BLOCK_SIZE / 3 * 2;
-            v_block_size = BLOCK_SIZE / 3;
+            k_block_size = PER_LAYER_BS / 3 * 2;
+            v_block_size = PER_LAYER_BS / 3;
             k_src_buffer = batch_idx * k_block_size + static_cast<char *>(source_buffer);
             v_src_buffer = batch_idx * v_block_size + static_cast<char *>(source_buffer);
         } else {
-            k_block_size = v_block_size = BLOCK_SIZE / 2;
+            k_block_size = v_block_size = PER_LAYER_BS / 2;
             k_src_buffer = batch_idx * k_block_size + static_cast<char *>(source_buffer);
             v_src_buffer = batch_idx * k_block_size + static_cast<char *>(source_buffer);
         }
 
-        // char *src_buffer = batch_idx * BLOCK_SIZE / 2 + static_cast<char *>(source_buffer);
+        /// 原始张量ptr + 每层Block大小 * batch的索引 + 每层的大小(每层Block大小 * batch值大小 * 层Id索引)
+        char *layer_source_buffer = static_cast<char *>(buffer) + PER_LAYER_BS * batch_idx + layer_idx * batch_size *
+                                    PER_LAYER_BS;
         if (is_k_cond) {
-            memcpy(buffer, k_src_buffer, k_block_size);
+            memcpy(layer_source_buffer, k_src_buffer, k_block_size);
             return;
         }
-        memcpy(static_cast<char *>(buffer) + k_block_size, v_src_buffer, v_block_size);
+        memcpy(layer_source_buffer + k_block_size, v_src_buffer, v_block_size);
     }
 
     void KVCacheManager::memcpy_init_eos_buffer(void *source_buffer,

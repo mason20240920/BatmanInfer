@@ -7,16 +7,23 @@
 #include <runtime/neon/functions/bi_ne_reshape_layer.hpp>
 #include <runtime/neon/functions/bi_ne_gemm.hpp>
 #include <runtime/bi_memory_manager_on_demand.hpp>
-#include <runtime/neon/bi_ne_functions.h>
+// #include <runtime/neon/bi_ne_functions.h>
 #include <runtime/neon/functions/bi_ne_mat_mul.hpp>
 
 #include <data/core/bi_types.hpp>
 #include <runtime/bi_memory_group.hpp>
 #include <runtime/bi_tensor.hpp>
+
+
+#include "BINERMSNormLayer.hpp"
+#include "bi_NESoftmaxLayer.h"
 #include "bi_ne_copy.hpp"
+#include "bi_ne_permute.h"
+#include "bi_ne_split.hpp"
 #include "kv_cache_manager/bi_kv_cache_manager.hpp"
 
 namespace BatmanInfer {
+    struct PhysicalBlock;
     // 前向声明
     class BIITensor;
 
@@ -39,8 +46,7 @@ namespace BatmanInfer {
 
         void dynamic_configure(const BIITensor *input,
                                const size_t &seq_len,
-                               const size_t &batch_size,
-                               std::vector<std::vector<unsigned int> > &kv_caches_vec);
+                               const size_t &batch_size);
 
         void set_avail_lens(std::vector<size_t> *lens);
 
@@ -75,6 +81,7 @@ namespace BatmanInfer {
                        const size_t &hidden_size,
                        const size_t &max_seq_len,
                        const size_t &batch_size,
+                       int layer_idx,
                        BIITensor *output);
 
         /**
@@ -90,13 +97,9 @@ namespace BatmanInfer {
                                  const BIITensorInfo *bias,
                                  const BIITensorInfo *output);
 
-        void get_kv_block_ids(std::vector<unsigned int> &kv_block_ids);
+        void set_history_ids(std::vector<std::vector<unsigned int> > *history_ids);
 
-        /***
-         * 设置输入的sequence长度
-         * @param seq_len
-         */
-        void set_sequence_length(int seq_len);
+        void set_physical_blocks(std::vector<PhysicalBlock *> *physical_blocks);
 
         BIErrCode run();
 
@@ -189,18 +192,18 @@ namespace BatmanInfer {
         size_t _max_batch_size{}; // 一块的大小
         size_t _batch_size = 1;
         size_t _seq_len = 1;
+        int _layer_idx = 0;
         bool _is_prepared; // 是否已经完全初始化(预先把内存加载完)
         std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;
-        bool _is_first_kv_cache = true; // 是否第一次KV Cache
-        std::vector<std::vector<unsigned int> > _kv_decode_ids; // 进行kv cache的传递
-        std::vector<unsigned int> _block_ids{};
+        std::vector<std::vector<unsigned int> > *_kv_history_ids; // 进行kv cache的传递
         std::vector<size_t> *_avail_len;
+        std::vector<PhysicalBlock *> *_physical_blocks;
 
     private:
         /**
          * @brief 存储每次计算的KV Caches
          */
-        BIErrCode store_kv_cache();
+        BIErrCode store_kv_cache() const;
 
         /**
          * @brief 合并KV Cache缓存

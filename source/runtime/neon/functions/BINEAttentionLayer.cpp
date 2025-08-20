@@ -39,13 +39,22 @@ namespace BatmanInfer {
         _avail_len = lens;
     }
 
+
+    void BINEAttentionLayer::set_history_ids(std::vector<std::vector<unsigned int> > *history_ids) {
+        _kv_history_ids = history_ids;
+    }
+
+    void BINEAttentionLayer::set_physical_blocks(std::vector<PhysicalBlock *> *physical_blocks) {
+        _physical_blocks = physical_blocks;
+    }
+
+
     void BINEAttentionLayer::dynamic_configure(const BIITensor *input,
                                                const size_t &seq_len,
-                                               const size_t &batch_size,
-                                               std::vector<std::vector<unsigned int> > &kv_caches_vec) {
+                                               const size_t &batch_size) {
         _batch_size = batch_size;
         _seq_len = seq_len;
-        _kv_decode_ids = std::move(kv_caches_vec);
+        // _kv_decode_ids = std::move(kv_caches_vec);
 
         _sub_norm_info.set_tensor_shape(BITensorShape(_hidden_size, 1, batch_size));
         _sub_norm_output.allocator()->init(*_norm_output.allocator(), _sub_norm_info);
@@ -142,7 +151,9 @@ namespace BatmanInfer {
                                        const size_t &hidden_size,
                                        const size_t &max_seq_len,
                                        const size_t &batch_size,
+                                       const int layer_idx,
                                        BIITensor *output) {
+        _layer_idx = layer_idx;
         // 结果判断
         BI_COMPUTE_ERROR_ON_NULLPTR(input, gamma_weights, c_attn_bias, c_attn_weights, output); // 输入的参数是否为空
         // BI_COMPUTE_ERROR_THROW_ON(BINEAttentionLayer::validate(input->info(), weights->info(),
@@ -367,7 +378,6 @@ namespace BatmanInfer {
         }
         concat_kv_cache();
         restruct_q_tensor();
-        // _sub_reshape_q_states.print(std::cout, format);
 
         _transpose_q_layer.run();
         _transpose_k_layer.run();
@@ -379,7 +389,6 @@ namespace BatmanInfer {
         _pv_reshape_layer.run();
         _attn_o_gemm_layer.run();
         _c_copy_layer.run();
-        // _sub_pv_reshape_output.print(std::cout, format);
         return BIErrCode::BISuccess;
     }
 
@@ -412,41 +421,30 @@ namespace BatmanInfer {
         }
     }
 
-    void BINEAttentionLayer::set_sequence_length(int seq_len) {
-    }
 
-    void BINEAttentionLayer::get_kv_block_ids(std::vector<unsigned int> &kv_block_ids) {
-        kv_block_ids = std::move(_block_ids);
-    }
-
-
-    BIErrCode BINEAttentionLayer::store_kv_cache() {
-        _block_ids.clear();
-        // 如果首次的话只会存入<s>的首字符
-        if (_is_first_kv_cache) {
-            const auto root_id = KVCacheManager::getInstance().root_id();
-            KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_k_states.buffer(), root_id, 0, true);
-            KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_v_states.buffer(), root_id, 0);
-
-            _is_first_kv_cache = false;
-            _block_ids.emplace_back(root_id);
-            return BIErrCode::BISuccess;
-        }
+    BIErrCode BINEAttentionLayer::store_kv_cache() const {
         // 判断当前的batch_size, 先根据batch size分配一组block_id
         auto _batch_index = 0;
-        for (const auto &decode_list: _kv_decode_ids) {
-            std::vector<unsigned int>  block_ids;
-            auto ret = KVCacheManager::getInstance().alloc_decode_next(
+        for (const auto &decode_list: *_kv_history_ids) {
+            std::vector<unsigned int> block_ids;
+            auto sub_ret = KVCacheManager::getInstance().alloc_decode_next(
                 decode_list[0], decode_list.size() - 1, decode_list, block_ids);
-            if (ret != BIErrCode::BISuccess) {
-                return ret;
+            if (sub_ret != BIErrCode::BISuccess) {
+                return sub_ret;
             }
-
             // 进行内存值拷贝
             for (const auto &block_id: block_ids) {
-                KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_k_states.buffer(), block_id, _batch_index, true);
-                KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_v_states.buffer(), block_id, _batch_index);
-                _block_ids.emplace_back(block_id);
+                KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_k_states.buffer(),
+                                                                    block_id,
+                                                                    _layer_idx,
+                                                                    _batch_index,
+                                                                    _batch_size,
+                                                                    true);
+                KVCacheManager::getInstance().memcpy_decode_buffer(_sub_reshape_v_states.buffer(),
+                                                                    block_id,
+                                                                    _layer_idx,
+                                                                    _batch_index,
+                                                                    _batch_size);
             }
             _batch_index++;
         }
@@ -454,26 +452,14 @@ namespace BatmanInfer {
     }
 
     void BINEAttentionLayer::concat_kv_cache() {
-        // if (_seq_len <= 1) {
-        //     return;
-        // }
-        // 1. 根据前面的叶子节点,先进行合并
-        // TODO: 后续根据Sequence进行动态reserve
-        std::vector<PhysicalBlock *> blocks{};
         std::vector<PhysicalBlock *> eos_blocks{};
-        for (const auto &decode_list: _kv_decode_ids) {
-            const auto block_id = decode_list[0];
-            std::vector<unsigned int> decode_ids{};
-            KVCacheManager::getInstance().decode_sequence_lst(block_id, decode_ids); // 获取合并的Decodes
-            KVCacheManager::getInstance().decode_sequence_blocks(decode_ids, blocks, _seq_len);
-        }
         KVCacheManager::getInstance().decode_eos_lst(eos_blocks, _seq_len);
         BIITensorPack pack;
         pack.add_tensor(ACL_SRC_0, &_sub_reshape_k_states);
         pack.add_tensor(ACL_SRC_1, &_sub_reshape_v_states);
         pack.add_tensor(ACL_DST_0, &_sub_concat_reshape_k_states);
         pack.add_tensor(ACL_DST_1, &_sub_concat_reshape_v_states);
-        BINEScheduler::get().schedule_kv_concat(pack, blocks, *_avail_len);
+        BINEScheduler::get().schedule_kv_concat(pack, *_physical_blocks, *_avail_len, _layer_idx);
         BINEScheduler::get().schedule_kv_full_fill(pack, eos_blocks, *_avail_len);
     }
 
