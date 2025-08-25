@@ -97,19 +97,19 @@ BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec) {
 
     try {
         _gather_layer.run();
-        print_tensor(_sub_gather_output_tensor, "_sub_gather_output_tensor");
+        // print_tensor(_sub_gather_output_tensor, "_sub_gather_output_tensor");
 
         _add_layer.run();
-        print_tensor(_sub_add_output_tensor, "_sub_add_output_tensor");
+        // print_tensor(_sub_add_output_tensor, "_sub_add_output_tensor");
 
         _gpt_multi_block_layer.run();
-        print_tensor(_sub_multi_gpt_o_tensor, "_sub_multi_gpt_o_tensor");
+        // print_tensor(_sub_multi_gpt_o_tensor, "_sub_multi_gpt_o_tensor");
 
         _final_layernorm_layer.run();
-        print_tensor(_sub_final_ln_o_tensor, "_sub_final_ln_o_tensor");
+        // print_tensor(_sub_final_ln_o_tensor, "_sub_final_ln_o_tensor");
 
         _lm_head_layer.run();
-        print_tensor(_sub_lm_head_output_tensor, "_sub_lm_head_output_tensor");
+        // print_tensor(_sub_lm_head_output_tensor, "_sub_lm_head_output_tensor");
     } catch (std::runtime_error &e) {
         ret = BIErrCode::BIGeneralError;
         std::cout << std::string(__FUNCTION__) << " ERROR: " << e.what() << std::endl;
