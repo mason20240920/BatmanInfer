@@ -100,7 +100,7 @@ namespace BatmanInfer {
                                  const BIITensorInfo *bias,
                                  const BIITensorInfo *output);
 
-        void run() override;
+        void run();
 
         void prepare() override;
 

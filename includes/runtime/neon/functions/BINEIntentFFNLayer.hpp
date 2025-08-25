@@ -82,7 +82,7 @@ namespace BatmanInfer {
                                  const BIITensorInfo *output);
 
         // 继承函数
-        void run() override;
+        void run();
 
         void prepare() override;
 

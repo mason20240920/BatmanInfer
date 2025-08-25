@@ -72,7 +72,7 @@ namespace BatmanInfer {
                                const size_t &batch_size,
                                const std::vector<std::vector<unsigned int> > &kv_caches_vec);
 
-        void run() override;
+        void run();
 
         void prepare() override;
 

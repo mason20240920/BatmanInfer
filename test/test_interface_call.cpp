@@ -119,6 +119,64 @@ TEST(InterfaceCall, Gpt2Model)
 
 }
 
+TEST(InterfaceCall, Gpt2ModelSixLayer) {
+    bool ret = true;
+    std::string gpt2_res_path = "./six_layer/gpt2_final.bin";
+
+    std::ifstream fin(gpt2_res_path, std::ios::in | std::ios::binary);
+    if (!fin.is_open()) {
+        std::cout << "Failed to open file: " << gpt2_res_path << std::endl;
+        ret = false;
+    }
+    ASSERT_TRUE(ret);
+
+    fin.seekg(0, std::ios::end);
+    size_t data_size = static_cast<size_t>(fin.tellg());
+    fin.seekg(0, std::ios::beg);
+    auto data_in = new char[data_size + 10];
+    fin.read(data_in, data_size);
+    fin.close();
+
+    BIModelInterfaceBase *model_interface = CreateBIModelInterface(BIModelTypes::BIGpt2);
+
+    model_interface->set_threads_num(1);
+
+    model_interface->bi_init(data_in, data_size);
+    delete[] data_in;
+
+    std::vector< std::vector<unsigned int> > input_vec = { { 5, 7, 9, 30, 50 } };
+
+    model_interface->bi_set_input(input_vec);
+    std::vector< std::vector<float> > output_vec = {};
+    model_interface->bi_run(output_vec);
+
+    test_interface_call::find_and_print_top_n(output_vec, 5);
+    test_interface_call::find_and_print_top_n_softmax_log(output_vec, 5);
+
+
+
+    model_interface->bi_set_input(input_vec);
+    output_vec.clear();
+    model_interface->bi_run(output_vec);
+
+    test_interface_call::find_and_print_top_n(output_vec, 5);
+    test_interface_call::find_and_print_top_n_softmax_log(output_vec, 5);
+
+
+
+    input_vec.clear();
+    output_vec.clear();
+    std::vector<unsigned int> tmp_data = { 90, 50, 60, 80};
+    input_vec.emplace_back(std::move(tmp_data));
+    model_interface->bi_set_input(input_vec);
+    model_interface->bi_run(output_vec);
+
+    test_interface_call::find_and_print_top_n(output_vec, 5);
+    test_interface_call::find_and_print_top_n_softmax_log(output_vec, 5);
+
+
+}
+
 TEST(InterfaceCall, OMPTest) {
 #pragma omp parallel default(none) shared(std::cout)
     {

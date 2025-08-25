@@ -106,7 +106,7 @@ namespace BatmanInfer {
                                const size_t &seq_len,
                                const size_t &batch_size);
 
-        void run() override;
+        void run();
 
         void prepare() override;
 

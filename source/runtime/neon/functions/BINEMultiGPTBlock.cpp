@@ -227,7 +227,7 @@ namespace BatmanInfer {
     }
 
 
-    void BINEMultiGPTBlock::store_kv_cache() {
+    BIErrCode BINEMultiGPTBlock::store_kv_cache() {
         _block_ids.clear();
         _kv_history_ids.clear();
         if (_is_first_kv_cache) {
@@ -235,19 +235,25 @@ namespace BatmanInfer {
             _is_first_kv_cache = false;
             _block_ids.emplace_back(root_id);
             _kv_history_ids.emplace_back(std::vector<unsigned int>{root_id});
-            return;
+            return BIErrCode::BISuccess;
         }
         // 判断当前的batch_size, 先根据batch size分配一组block_id
         for (const auto &decode_list: _kv_decode_ids) {
-            auto block_ids = KVCacheManager::getInstance().alloc_decode_next(decode_list[0],
+            std::vector<unsigned int> block_ids;
+            auto sub_ret = KVCacheManager::getInstance().alloc_decode_next(decode_list[0],
                                                                              decode_list.size() - 1,
-                                                                             decode_list);
+                                                                             decode_list,
+                                                                             block_ids);
+            if (sub_ret != BIErrCode::BISuccess) {
+                return sub_ret;
+            }
             _kv_history_ids.emplace_back(block_ids);
             // 进行内存值拷贝
             for (const auto &block_id: block_ids) {
                 _block_ids.emplace_back(block_id);
             }
         }
+        return BIErrCode::BISuccess;
     }
 
     void BINEMultiGPTBlock::concat_kv_cache() {

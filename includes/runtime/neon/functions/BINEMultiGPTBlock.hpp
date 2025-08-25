@@ -113,7 +113,7 @@ namespace BatmanInfer {
 
         void set_avail_lens(std::vector<size_t> *avail_lens) const;
 
-        void run() override;
+        void run();
 
         void prepare() override;
 
@@ -144,7 +144,7 @@ namespace BatmanInfer {
 
 
     private:
-        void store_kv_cache();
+        BIErrCode store_kv_cache();
 
         void concat_kv_cache();
     };

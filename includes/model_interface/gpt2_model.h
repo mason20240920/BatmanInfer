@@ -4,8 +4,6 @@
 
 #pragma once
 
-// #define QYW_PRINT
-
 #include "sdk/bi_sdk_api.h"
 
 #include "runtime/neon/bi_ne_functions.h"
@@ -13,129 +11,111 @@
 #include "runtime/bi_memory_manager_on_demand.hpp"
 #include "runtime/bi_memory_group.hpp"
 #include "runtime/bi_scheduler.hpp"
+#include "runtime/neon/functions/BINEIntentMGPTBlock.hpp"
 #include "utils/utils.hpp"
 
 using namespace BatmanInfer;
 
-constexpr int max_seq_len    = 16;
-constexpr int max_batch_size = 50;
-#if defined(FLOAT_VER) || defined(FIX_VER)
-constexpr int dict_size      = 6003;
-#else
-constexpr int dict_size      = 6004;
-#endif
+constexpr int max_seq_len    = 64;
+constexpr int max_batch_size = 1;
+constexpr int dict_size      = 21128;
 constexpr int hidden_size    = 768;
 constexpr int tensor_max_dim = 6;
-
-#ifdef FIX_VER
-typedef struct HyperParameters_ {
-    float attn_input_scale;
-    float attn_output_scale;
-    float q_output_scale;
-    float k_output_scale;
-    float v_output_scale;
-    float out_input_scale;
-    float fc1_input_scale;
-    float fc1_output_scale;
-    float fc2_input_scale;
-    int   attn_input_zp;
-    int   attn_output_zp;
-    int   q_output_zp;
-    int   k_output_zp;
-    int   v_output_zp;
-    int   out_input_zp;
-    int   fc1_input_zp;
-    int   fc1_output_zp;
-    int   fc2_input_zp;
-}HyperParameters;
-
-typedef struct AttnHyperParams_ {
-    static constexpr float softmax_q_scale   = 0.00392156862745098f;
-    static constexpr int   softmax_zp        = -128;
-    float attn_gemm_i_scale;
-    int   attn_gemm_i_zero;
-    float attn_gemm_o_scale;
-    int   attn_gemm_o_zero;
-    float query_scale;
-    int   query_zp;
-    float value_scale;
-    int   value_zp;
-    float key_scale;
-    int   key_zp;
-    float proj_in_scale;
-    int   proj_in_zp;
-
-    AttnHyperParams_() :
-        attn_gemm_i_scale(0),
-        attn_gemm_i_zero(0),
-        attn_gemm_o_scale(0),
-        attn_gemm_o_zero(0),
-        query_scale(0),
-        query_zp(0),
-        value_scale(0),
-        value_zp(0),
-        key_scale(0),
-        key_zp(0),
-        proj_in_scale(0),
-        proj_in_zp(0)
-    {}
-
-}AttnHyperParams;
-#endif
+constexpr int layer_num      = 6;
+constexpr int class_num      = 5;
 
 const PermutationVector q_perm{0, 2, 1, 3};
 const PermutationVector k_perm{2, 0, 1, 3};
 const PermutationVector qkv_o_perm{0, 2, 1, 3};
 
-#ifdef FIX_VER
-typedef struct MLPHyperParams_ {
-    float fc1_input_scale;
-    int   fc1_input_zero_point;
-    float fc1_output_scale;
-    int   fc1_output_zero_point;
-    float gelu_output_scale;
-    int   gelu_output_zero_point;
-
-    MLPHyperParams_() :
-        fc1_input_scale(0),
-        fc1_input_zero_point(0),
-        fc1_output_scale(0),
-        fc1_output_zero_point(0),
-        gelu_output_scale(0),
-        gelu_output_zero_point(0)
-    {}
-
-}MLPHyperParams;
-#endif
-
-// 为资源的打包设定一个顺序
+// 为资源的打包设定一个顺序 6层 GPT
 enum class GPT2ResOrder {
-    gather_weight = 0,
-    add_weight,
-    attn_gamma_weight,
-    attn_qkv_weight,
-#if defined(FIX_VER) || defined(AWQ_VER)
-    attn_qkv_weight_scale,
-#endif
-    attn_qkv_bias,
-    attn_c_proj_weight,
-    attn_c_proj_bias,
-    mlp_gamma_weight,
-    c_fc_weight,
-#if defined(FIX_VER) || defined(AWQ_VER)
-    c_fc_weight_scale,
-#endif
-    c_fc_bias,
-    c_proj_weight,
-    c_proj_bias,
-    rms_gamma_weight,
-    // lm_head_weight,
-#ifdef FIX_VER
-    decode_layer_scales,
-#endif
-    eos_k_smooth_o,
-    eos_q_smooth_o,
-    eos_v_smooth_o,
+    transformer_wte_weight = 0,
+    add_wte_weight,
+
+    attn_layernorm_weight_0,
+    attn_layernorm_bias_0,
+    c_attn_weights_0,
+    c_attn_bias_0,
+    p_attn_weights_0,
+    p_attn_bias_0,
+    mlp_layernorm_weights_0,
+    mlp_layernorm_bias_0,
+    reordered_c_fc_weights_0,
+    c_fc_bias_0,
+    c_proj_weights_0,
+    c_proj_bias_0,
+
+    attn_layernorm_weight_1,
+    attn_layernorm_bias_1,
+    c_attn_weights_1,
+    c_attn_bias_1,
+    p_attn_weights_1,
+    p_attn_bias_1,
+    mlp_layernorm_weights_1,
+    mlp_layernorm_bias_1,
+    reordered_c_fc_weights_1,
+    c_fc_bias_1,
+    c_proj_weights_1,
+    c_proj_bias_1,
+
+    attn_layernorm_weight_2,
+    attn_layernorm_bias_2,
+    c_attn_weights_2,
+    c_attn_bias_2,
+    p_attn_weights_2,
+    p_attn_bias_2,
+    mlp_layernorm_weights_2,
+    mlp_layernorm_bias_2,
+    reordered_c_fc_weights_2,
+    c_fc_bias_2,
+    c_proj_weights_2,
+    c_proj_bias_2,
+
+    attn_layernorm_weight_3,
+    attn_layernorm_bias_3,
+    c_attn_weights_3,
+    c_attn_bias_3,
+    p_attn_weights_3,
+    p_attn_bias_3,
+    mlp_layernorm_weights_3,
+    mlp_layernorm_bias_3,
+    reordered_c_fc_weights_3,
+    c_fc_bias_3,
+    c_proj_weights_3,
+    c_proj_bias_3,
+
+    attn_layernorm_weight_4,
+    attn_layernorm_bias_4,
+    c_attn_weights_4,
+    c_attn_bias_4,
+    p_attn_weights_4,
+    p_attn_bias_4,
+    mlp_layernorm_weights_4,
+    mlp_layernorm_bias_4,
+    reordered_c_fc_weights_4,
+    c_fc_bias_4,
+    c_proj_weights_4,
+    c_proj_bias_4,
+
+    attn_layernorm_weight_5,
+    attn_layernorm_bias_5,
+    c_attn_weights_5,
+    c_attn_bias_5,
+    p_attn_weights_5,
+    p_attn_bias_5,
+    mlp_layernorm_weights_5,
+    mlp_layernorm_bias_5,
+    reordered_c_fc_weights_5,
+    c_fc_bias_5,
+    c_proj_weights_5,
+    c_proj_bias_5,
+
+    final_layernorm_weights,
+    final_layernorm_bias,
+
+    lm_score_weights,
+
     all_res_count,
 };
 
@@ -158,14 +138,9 @@ public:
     explicit BIGPT2Model(std::shared_ptr<BIIMemoryManager> memory_manager);
     BIGPT2Model();
 
-    BIErrCode bi_init(const char *data_in, size_t data_size, std::vector< std::vector<float> > &output_vec, unsigned int &kv_cache_id) override;
-    BIErrCode bi_set_input(std::vector< std::vector<unsigned int> > &input_vec, std::vector< std::vector<unsigned int> > &kv_cache_id_map) override;
-    BIErrCode bi_run(std::vector<size_t> &avail_lens, std::vector< std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids, bool is_init) override;
-    bool bi_valid_decode_ids(std::vector<unsigned int> &kv_block_ids) override;
-    BIErrCode bi_release_kvcache_block(std::vector<unsigned int> &kv_block_ids) override;
-    BIErrCode bi_release_kvcache_leaf_block(std::vector<unsigned int> &kv_block_ids) override;
-    void bi_get_avaliable_kvblock_count(unsigned int &avaliable_kvblock_count) override;
-    BIErrCode bi_reset(unsigned int &kv_cache_id) override;
+    BIErrCode bi_init(const char *data_in, size_t data_size) override;
+    BIErrCode bi_set_input(std::vector< std::vector<unsigned int> > &input_vec) override;
+    BIErrCode bi_run(std::vector< std::vector<float> > &output_vec) override;
     void set_threads_num(unsigned int num_threads) override;
 
 private:
@@ -202,11 +177,9 @@ private:
 
     BIErrCode parse_model_data(const char *data_in, size_t data_size, OrderPtrMap &order2ptr);
 
-    BIErrCode load_weight_tensor(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr, bool need_transpose);
+    BIErrCode load_weight_tensor(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr);
 
-    BIErrCode load_weight_tensor_and_dequantization(BITensor &tensor, BITensor &tensor_output, GPT2ResOrder res_order, OrderPtrMap &order2ptr, std::vector<float> &scales);
-
-    BIErrCode load_scale_vector(std::vector<float> &scales, GPT2ResOrder res_order, OrderPtrMap &order2ptr);
+    BIErrCode load_weight_tensors(std::array<BITensor, layer_num> &tensors, GPT2ResOrder res_order, OrderPtrMap &order2ptr, int step);
 
     BIErrCode load_hyper_params(OrderPtrMap &order2ptr);
 
@@ -221,17 +194,17 @@ private:
 
     /**
      * 初始时设置对所有 layer 执行 configure 操作
+     * @param tensor_shape 传入的输入的形状
      * @return 返回码
      */
-    BIErrCode init_configure_all_layers();
+    BIErrCode init_configure_all_layers(const std::vector<int> &tensor_shape);
 
     /**
      * 中间执行过程中，对所有 layer 执行动态 configure
      * @param tensor_shape 传入的输入的形状
-     * @param kv_cache_id_map 上一步推理生成的 kv_cache_id 数据
      * @return 返回码
      */
-    BIErrCode dynamic_configure_all_layers(const std::vector<int> &tensor_shape, std::vector< std::vector<unsigned int> > &kv_cache_id_map);
+    BIErrCode dynamic_configure_all_layers(const std::vector<int> &tensor_shape);
 
     void print_tensor(const BatmanInfer::BITensor &tensor, const std::string &name = "temp", const BatmanInfer::BIIOFormatInfo::PrintRegion region = BatmanInfer::BIIOFormatInfo::PrintRegion::Full);
 
@@ -243,79 +216,43 @@ private:
 private:
     BITensor _ori_input_tensor;
     BITensor _ori_gather_output_tensor;
-    BITensor _ori_attn_rms_output_tensor;
     BITensor _ori_add_output_tensor;
-    BITensor _ori_split_add_output_tensor;
-    BITensor _ori_attn_output_tensor;
-    BITensor _ori_mlp_output_tensor;
-    BITensor _ori_add_mlp_output_tensor;
-    BITensor _ori_mlp_rms_output_tensor;
+    BITensor _ori_multi_gpt_o_tensor;
+    BITensor _ori_final_ln_o_tensor;
     BITensor _ori_lm_head_output_tensor;
 
     BITensor _gather_weight_tensor;
     BITensor _add_weight_tensor;
-    BITensor _attn_gamma_weight_tensor;
-#ifdef AWQ_VER
-    // AWQ量化时，attn_qkv_weight是两个 int8数据拼接成一个 int8数据进行存储的，此处需要先将数据拆分为 int8进行存储，然后再反量化为 fp16数据
-    BITensor _attn_qkv_awq_weight_tensor;
-#endif
-    BITensor _attn_qkv_weight_tensor;
-    BITensor _attn_qkv_bias_tensor;
-    BITensor _attn_c_proj_weight_tensor;
-    BITensor _attn_c_proj_bias_tensor;
-    BITensor _mlp_gamma_weight_tensor;
-#ifdef AWQ_VER
-    BITensor _c_fc_awq_weight_tensor;
-#endif
-    BITensor _c_fc_weight_tensor;
-    BITensor _c_fc_bias_tensor;
-    BITensor _c_proj_weight_tensor;
-    BITensor _c_proj_bias_tensor;
-    BITensor _rms_gamma_weight_tensor;
-    BITensor _lm_head_weight_tensor;
-    BITensor _eos_k_smooth_o_tensor;
-    BITensor _eos_q_smooth_o_tensor;
-    BITensor _eos_v_smooth_o_tensor;
+    std::array<BITensor, layer_num> _attn_gamma_weight_tensors;
+    std::array<BITensor, layer_num> _attn_gamma_bias_tensors;
+    std::array<BITensor, layer_num> _c_attn_weight_tensors;
+    std::array<BITensor, layer_num> _c_attn_bias_tensors;
+    std::array<BITensor, layer_num> _p_attn_weight_tensors;
+    std::array<BITensor, layer_num> _p_attn_bias_tensors;
+    std::array<BITensor, layer_num> _mlp_weight_tensors;
+    std::array<BITensor, layer_num> _mlp_bias_tensors;
+    std::array<BITensor, layer_num> _c_fc_weight_tensors;
+    std::array<BITensor, layer_num> _c_fc_bias_tensors;
+    std::array<BITensor, layer_num> _c_proj_weight_tensors;
+    std::array<BITensor, layer_num> _c_proj_bias_tensors;
+    BITensor _final_layernorm_weight_tensor;
+    BITensor _final_layernorm_bias_tensor;
+    BITensor _lm_score_weight_tensor;
 
     BITensor _sub_input_tensor;
     BITensor _sub_gather_output_tensor;
     BITensor _sub_add_weight_tensor;
     BITensor _sub_add_output_tensor;
-    BITensor _sub_split_add_output_tensor;
-    BITensor _sub_attn_output_tensor;
-    BITensor _sub_mlp_input_tensor;
-    BITensor _sub_mlp_output_tensor;
-    BITensor _sub_add_mlp_output_tensor;
-    BITensor _sub_mlp_rms_output_tensor;
+    BITensor _sub_multi_gpt_o_tensor;
+    BITensor _sub_final_ln_o_tensor;
     BITensor _sub_lm_head_output_tensor;
 
     BINEGather             _gather_layer;
     BINEArithmeticAddition _add_layer;
-#ifdef FIX_VER
-    BINEAttentionLowpLayer _attn_lowp_layer;
-#elif defined(FLOAT_VER) || defined(AWQ_VER)
-    BINEAttentionLayer     _attn_layer;
-#endif
-    BINEArithmeticAddition _attn_rms_add_layer;
-#if defined(FIX_VER)
-    BINEMLPLayer           _mlp_layer;
-#elif defined(FLOAT_VER) || defined(AWQ_VER)
-    BINEFeedForwardLayer   _mlp_layer;
-#endif
-    BINEArithmeticAddition _add_mlp_layer;
-    BINERMSNormLayer       _rms_norm_layer;
-    BINEGEMM               _lm_head_layer;
+    BINEIntentMGPTBlock _gpt_multi_block_layer;
+    BINELayerNormLayer _final_layernorm_layer;
+    BINEGEMM _lm_head_layer;
 
-#ifdef FIX_VER
-    BIQuantizationInfo _c_fc_weight_q_info;
-#endif
-    // std::vector<int> _output_positions;
-
-    BIITensorPack _pack;
-#ifdef FIX_VER
-    AttnHyperParams _attn_hyper_params;
-    MLPHyperParams  _mlp_hyper_params;
-#endif
-
-    unsigned int kv_root_id;
+    BIIntentGPTGlobalConfig gpt_block_config;
+    std::vector<BIIntentGPTLayerConfig> gpt_layer_configs;
 };

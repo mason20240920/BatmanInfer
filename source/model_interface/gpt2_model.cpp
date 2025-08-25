@@ -29,18 +29,9 @@ BIGPT2Model::BIGPT2Model(std::shared_ptr<BIIMemoryManager> memory_manager) : _me
 }
 
 BIGPT2Model::BIGPT2Model() : BIGPT2Model(BIMemoryManagerOnDemand::make_default()) {
-    // 创建 kvcache
-    int num_head = 12;
-    int head_dim = 64;
-#if defined(FLOAT_VER) ||defined(AWQ_VER)
-    KVCacheManager::initialize(2048, num_head * head_dim * sizeof(float16_t) * 2, max_seq_len);
-#elifdef FIX_VER
-    KVCacheManager::initialize(2048, num_head * head_dim * sizeof(int8_t) + num_head * head_dim * sizeof(float16_t), max_seq_len);
-#endif
-    kv_root_id = KVCacheManager::getInstance().root_id();
 }
 
-BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size, std::vector< std::vector<float> > &output_vec, unsigned int &kv_cache_id) {
+BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size) {
     // check input parameters
     if (!data_in || !data_size) {
         return BIErrCode::BIInvalidArgument;
@@ -61,33 +52,27 @@ BIErrCode BIGPT2Model::bi_init(const char *data_in, size_t data_size, std::vecto
     CHECK_SUCCESS(ret);
 
     // configure all layers initially
-    ret = init_configure_all_layers();
+    ret = init_configure_all_layers(init_tensor_shape);
     CHECK_SUCCESS(ret);
 
     // 为了使内存正确分配，需要在开始的时候 run 一次，以执行每一个算子中的 prepare 函数
     std::vector<std::vector<unsigned int> > tmp_input_vec = {{0}};
     fill_tensor_data_2D(_sub_input_tensor, tmp_input_vec, 1);
-    // _output_positions = {1};
 
-    std::vector<size_t> avail_lens{1};
-    std::vector<unsigned int> kv_block_ids;
-    ret = bi_run(avail_lens, output_vec, kv_block_ids, true);
-    kv_cache_id = kv_block_ids[0];
+    std::vector< std::vector<float> > output_vec;
+    ret = bi_run(output_vec);
     CHECK_SUCCESS(ret);
 
     return ret;
 }
 
-BIErrCode BIGPT2Model::bi_set_input(std::vector<std::vector<unsigned int> > &input_vec, std::vector< std::vector<unsigned int> > &kv_cache_id_map) {
+BIErrCode BIGPT2Model::bi_set_input(std::vector<std::vector<unsigned int> > &input_vec) {
     auto ret = BIErrCode::BISuccess;
 
     int cur_batch_size = static_cast<int>(input_vec.size()), cur_seq_len = 0;
-    // _output_positions.clear();
-    // _output_positions.reserve(cur_batch_size);
     for (auto &item: input_vec) {
         int item_len = static_cast<int>(item.size());
         cur_seq_len = cur_seq_len > item_len ? cur_seq_len : item_len;
-        // _output_positions.emplace_back(item_len);
     }
 
     const std::vector<int> tensor_shape = {cur_seq_len, cur_batch_size};
@@ -101,63 +86,30 @@ BIErrCode BIGPT2Model::bi_set_input(std::vector<std::vector<unsigned int> > &inp
     CHECK_SUCCESS(ret);
 
     // configure some layers dynamically
-    ret = dynamic_configure_all_layers(tensor_shape, kv_cache_id_map);
+    ret = dynamic_configure_all_layers(tensor_shape);
     CHECK_SUCCESS(ret);
 
     return ret;
 }
 
-BIErrCode BIGPT2Model::bi_run(std::vector<size_t> &avail_lens, std::vector<std::vector<float> > &output_vec, std::vector<unsigned int> &kv_block_ids, bool is_init) {
+BIErrCode BIGPT2Model::bi_run(std::vector<std::vector<float> > &output_vec) {
     auto ret = BIErrCode::BISuccess;
 
     try {
-        // print_tensor(_sub_input_tensor, "_sub_input_tensor");
-
         _gather_layer.run();
-        // print_tensor(_sub_gather_output_tensor, "_sub_gather_output_tensor");
+        print_tensor(_sub_gather_output_tensor, "_sub_gather_output_tensor");
 
         _add_layer.run();
-        // print_tensor(_sub_add_output_tensor, "_sub_add_output_tensor");
+        print_tensor(_sub_add_output_tensor, "_sub_add_output_tensor");
 
-        if (is_init) {
-            _pack.add_tensor(ACL_SRC, &_sub_add_output_tensor);
-            _pack.add_tensor(ACL_DST, &_sub_split_add_output_tensor);
-        }
-        BINEScheduler::get().schedule_kv_split(_pack, avail_lens);
-        // print_tensor(_sub_split_add_output_tensor, "_sub_split_add_output_tensor");
+        _gpt_multi_block_layer.run();
+        print_tensor(_sub_multi_gpt_o_tensor, "_sub_multi_gpt_o_tensor");
 
-#ifdef FIX_VER
-        _attn_lowp_layer.set_avail_lens(&avail_lens);
-        ret = _attn_lowp_layer.run();
-        if (ret != BIErrCode::BISuccess) {
-            return ret;
-        }
-        _attn_lowp_layer.get_kv_block_ids(kv_block_ids);
-        // print_tensor(_sub_attn_output_tensor, "_sub_attn_output_tensor");
-#elif defined(FLOAT_VER) || defined(AWQ_VER)
-        _attn_layer.set_avail_lens(&avail_lens);
-        ret = _attn_layer.run();
-        if (ret != BIErrCode::BISuccess) {
-            return ret;
-        }
-        _attn_layer.get_kv_block_ids(kv_block_ids);
-        // print_tensor(_sub_attn_output_tensor, "_sub_attn_output_tensor");
-#endif
-
-        _attn_rms_add_layer.run();
-        // print_tensor(_sub_mlp_input_tensor, "_sub_mlp_input_tensor");
-
-        _mlp_layer.run();
-        // print_tensor(_sub_mlp_output_tensor, "_sub_mlp_output_tensor");
-
-        _add_mlp_layer.run();
-        // print_tensor(_sub_add_mlp_output_tensor, "_sub_add_mlp_output_tensor");
-
-        _rms_norm_layer.run();
-        // print_tensor(_sub_mlp_rms_output_tensor, "_sub_mlp_rms_output_tensor");
+        _final_layernorm_layer.run();
+        print_tensor(_sub_final_ln_o_tensor, "_sub_final_ln_o_tensor");
 
         _lm_head_layer.run();
-        // print_tensor(_sub_lm_head_output_tensor, "_sub_lm_head_output_tensor");
+        print_tensor(_sub_lm_head_output_tensor, "_sub_lm_head_output_tensor");
     } catch (std::runtime_error &e) {
         ret = BIErrCode::BIGeneralError;
         std::cout << std::string(__FUNCTION__) << " ERROR: " << e.what() << std::endl;
@@ -169,59 +121,18 @@ BIErrCode BIGPT2Model::bi_run(std::vector<size_t> &avail_lens, std::vector<std::
     const int cur_seq_len = static_cast<int>(_sub_lm_head_output_tensor.info()->tensor_shape()[BIWindow::DimY]);
     const size_t cur_batch_size = _sub_lm_head_output_tensor.info()->tensor_shape()[BIWindow::DimZ];
 
-    // if (_output_positions.size() != cur_batch_size) {
-    //     return BIErrCode::BISizeNotMatch;
-    // }
-
     output_vec.resize(cur_batch_size);
     const auto result_ptr = reinterpret_cast<half *>(_sub_lm_head_output_tensor.buffer());
-    // for (size_t item = 0; item < _output_positions.size(); ++item) {
-    //     if (_output_positions[item] > cur_seq_len) {
-    //         output_vec.clear();
-    //         return BIErrCode::BISizeNotMatch;
-    //     }
-    //     output_vec[item].reserve(dict_size);
-    //
-    //     const auto cur_result_ptr = result_ptr + (item * cur_seq_len + _output_positions[item] - 1) * dict_size;
-    //
-    //     for (size_t prob_idx = 0; prob_idx < dict_size; ++prob_idx) {
-    //         output_vec[item].push_back(static_cast<float>(cur_result_ptr[prob_idx]));
-    //     }
-    // }
+
     for (size_t item = 0; item < cur_batch_size; ++item) {
-        output_vec[item].reserve(dict_size);
+        output_vec[item].reserve(class_num);
 
-        const auto cur_result_ptr = result_ptr + item * dict_size;
+        const auto cur_result_ptr = result_ptr + ((item + 1) * cur_seq_len - 1) * class_num;
 
-        for (size_t prob_idx = 0; prob_idx < dict_size; ++prob_idx) {
+        for (size_t prob_idx = 0; prob_idx < class_num; ++prob_idx) {
             output_vec[item].push_back(static_cast<float>(cur_result_ptr[prob_idx]));
         }
     }
-
-    return ret;
-}
-
-bool BIGPT2Model::bi_valid_decode_ids(std::vector<unsigned int> &kv_block_ids) {
-    return KVCacheManager::getInstance().vaild_decode_ids(kv_block_ids);
-}
-
-BIErrCode BIGPT2Model::bi_release_kvcache_block(std::vector<unsigned int> &kv_block_ids) {
-    return KVCacheManager::getInstance().release_useless_decodes_id(kv_block_ids);
-}
-
-BIErrCode BIGPT2Model::bi_release_kvcache_leaf_block(std::vector<unsigned int> &kv_block_ids) {
-    return KVCacheManager::getInstance().release_end_symbol(kv_block_ids);
-}
-
-void BIGPT2Model::bi_get_avaliable_kvblock_count(unsigned int &avaliable_kvblock_count) {
-    avaliable_kvblock_count = KVCacheManager::getInstance().get_avaliable_block_count();
-}
-
-BIErrCode BIGPT2Model::bi_reset(unsigned int &kv_cache_id) {
-    auto ret = BIErrCode::BISuccess;
-
-    KVCacheManager::getInstance().reset_decode_lst();
-    kv_cache_id = KVCacheManager::getInstance().root_id();
 
     return ret;
 }
@@ -309,7 +220,7 @@ BIErrCode BIGPT2Model::parse_model_data(const char *data_in, size_t data_size, O
     return BIErrCode::BISuccess;
 }
 
-BIErrCode BIGPT2Model::load_weight_tensor(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr, bool need_transpose) {
+BIErrCode BIGPT2Model::load_weight_tensor(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr) {
     if (order2ptr.find(res_order) == order2ptr.end()) {
         return BIErrCode::BIResNotExists;
     }
@@ -318,90 +229,7 @@ BIErrCode BIGPT2Model::load_weight_tensor(BITensor &tensor, GPT2ResOrder res_ord
 
     auto header = reinterpret_cast<GPT2ResHeader *>(tmp_ptr);
 
-    // 如果当前张量需要进行转置，需要先将数据接收张量进行转置(当前只有二维张量进行转置，且需要转置的张量数据为 f16类型)，数据接收完毕后还需要将张量转置回去
     BITensor tensor_tmp;
-    if (need_transpose) {
-        auto tensor_num_dim = tensor.info()->num_dimensions();
-        if (tensor_num_dim != 2) {
-            return BIErrCode::BIResDamaged;
-        }
-
-        tensor_tmp.allocator()->init(BITensorInfo(BITensorShape(tensor.info()->tensor_shape()[1], tensor.info()->tensor_shape()[0]), 1, tensor.info()->data_type()));
-        tensor_tmp.allocator()->allocate();
-
-        // 检查 shape是否对得上
-        for (size_t i = 0; i < tensor_tmp.info()->num_dimensions(); ++i) {
-            if (tensor_tmp.info()->tensor_shape()[i] != header->shape[i]) {
-                return BIErrCode::BIResDamaged;
-            }
-        }
-        for (auto i = tensor_tmp.info()->num_dimensions(); i < tensor_max_dim; ++i) {
-            if (header->shape[i] != 1) {
-                return BIErrCode::BIResDamaged;
-            }
-        }
-
-        // shape 检查完，其实这一步可以不用再检查了，但是保险起见还是再检查一遍
-        if (tensor_tmp.info()->total_size() != header->data_length) {
-            return BIErrCode::BIResDamaged;
-        }
-
-        // 检查类型是否对得上
-        std::string tensor_type_str = BatmanInfer::utils::get_typestring(tensor_tmp.info()->data_type());
-        if (tensor_type_str != std::string(header->data_type)) {
-            return BIErrCode::BIResDamaged;
-        }
-
-        // 拷贝具体数据
-        tmp_ptr += sizeof(GPT2ResHeader);
-        memcpy(reinterpret_cast<char *>(tensor_tmp.buffer()), tmp_ptr, header->data_length);
-
-        // 数据拷贝完成，需要将数据进行转置
-        BINETranspose transpose;
-        transpose.configure(&tensor_tmp, &tensor);
-        transpose.run();
-    }
-    else {
-        // 检查 shape 是否对得上
-        for (size_t i = 0; i < tensor.info()->num_dimensions(); ++i) {
-            if (tensor.info()->tensor_shape()[i] != header->shape[i]) {
-                return BIErrCode::BIResDamaged;
-            }
-        }
-        for (auto i = tensor.info()->num_dimensions(); i < tensor_max_dim; ++i) {
-            if (header->shape[i] != 1) {
-                return BIErrCode::BIResDamaged;
-            }
-        }
-
-        // shape 检查完，其实这一步可以不用再检查了，但是保险起见还是再检查一遍
-        if (tensor.info()->total_size() != header->data_length) {
-            return BIErrCode::BIResDamaged;
-        }
-
-        // 检查类型是否对得上
-        std::string tensor_type_str = BatmanInfer::utils::get_typestring(tensor.info()->data_type());
-        if (tensor_type_str != std::string(header->data_type)) {
-            return BIErrCode::BIResDamaged;
-        }
-
-        // 拷贝具体数据
-        tmp_ptr += sizeof(GPT2ResHeader);
-        memcpy(reinterpret_cast<char *>(tensor.buffer()), tmp_ptr, header->data_length);
-    }
-
-    return BIErrCode::BISuccess;
-}
-
-// res_order 对应的存储权重，打包前为 int8数据，打包后为两个 int8数据转 int4并拼接为一个 int8数据；此处需要先将所有权重值读取出来并解析会原来的 int8数据，再使用反量化算子将权重反量化为 fp16类型
-BIErrCode BIGPT2Model::load_weight_tensor_and_dequantization(BITensor &tensor, BITensor &tensor_output, GPT2ResOrder res_order, OrderPtrMap &order2ptr, std::vector<float> &scales) {
-    if (order2ptr.find(res_order) == order2ptr.end()) {
-        return BIErrCode::BIResNotExists;
-    }
-
-    char *tmp_ptr = order2ptr[res_order];
-
-    auto header = reinterpret_cast<GPT2ResHeader *>(tmp_ptr);
 
     // 检查 shape 是否对得上
     for (size_t i = 0; i < tensor.info()->num_dimensions(); ++i) {
@@ -414,105 +242,64 @@ BIErrCode BIGPT2Model::load_weight_tensor_and_dequantization(BITensor &tensor, B
             return BIErrCode::BIResDamaged;
         }
     }
-    for (size_t i = 0; i < tensor_output.info()->num_dimensions(); ++i) {
-        if (tensor_output.info()->tensor_shape()[i] != header->shape[i]) {
-            return BIErrCode::BIResDamaged;
-        }
-    }
-    for (auto i = tensor_output.info()->num_dimensions(); i < tensor_max_dim; ++i) {
-        if (header->shape[i] != 1) {
-            return BIErrCode::BIResDamaged;
-        }
-    }
 
     // shape 检查完，其实这一步可以不用再检查了，但是保险起见还是再检查一遍
-    if (tensor.info()->total_size() != header->data_length*2 || tensor_output.info()->total_size() != header->data_length*4) {
+    if (tensor.info()->total_size() != header->data_length) {
         return BIErrCode::BIResDamaged;
     }
 
-    // 读取所有数据
+    // 检查类型是否对得上
+    std::string tensor_type_str = BatmanInfer::utils::get_typestring(tensor.info()->data_type());
+    if (tensor_type_str != std::string(header->data_type)) {
+        return BIErrCode::BIResDamaged;
+    }
+
+    // 拷贝具体数据
     tmp_ptr += sizeof(GPT2ResHeader);
-    int8_t tmp_weight = 0;
-    std::vector<int8_t> weights_vec;
-    weights_vec.reserve(header->data_length*2);
-    for (size_t i = 0; i < header->data_length; ++i) {
-        memcpy(&tmp_weight, tmp_ptr, sizeof(int8_t));
-        tmp_ptr += sizeof(int8_t);
-        std::pair<int8_t, int8_t> tmp_rlt = unpack_int8_to_int4(tmp_weight);
-        weights_vec.emplace_back(tmp_rlt.first);
-        weights_vec.emplace_back(tmp_rlt.second);
-    }
-    memcpy(tensor.buffer(), weights_vec.data(), weights_vec.size()*sizeof(int8_t));
-    tensor.info()->set_quantization_info(scales);
-
-    // 数据构建好后，需要进行反量化
-    BINEDequantizationLayer dequantization_layer;
-    dequantization_layer.configure(&tensor, &tensor_output);
-    dequantization_layer.run();
+    memcpy(reinterpret_cast<char *>(tensor.buffer()), tmp_ptr, header->data_length);
 
     return BIErrCode::BISuccess;
 }
 
-BIErrCode BIGPT2Model::load_scale_vector(std::vector<float> &scales, GPT2ResOrder res_order, OrderPtrMap &order2ptr) {
-    if (order2ptr.find(res_order) == order2ptr.end()) {
-        return BIErrCode::BIResNotExists;
+BIErrCode BIGPT2Model::load_weight_tensors(std::array<BITensor, layer_num> &tensors, GPT2ResOrder res_order, OrderPtrMap &order2ptr, int step) {
+    // 多层模型，中间重复类型权重需要循环进行加载
+    for (int i = 0; i < layer_num; ++i) {
+        if (order2ptr.find(static_cast<GPT2ResOrder>(static_cast<int>(res_order) + i*step)) == order2ptr.end()) {
+            return BIErrCode::BIResNotExists;
+        }
+
+        char *tmp_ptr = order2ptr[static_cast<GPT2ResOrder>(static_cast<int>(res_order) + i*step)];
+
+        auto header = reinterpret_cast<GPT2ResHeader *>(tmp_ptr);
+
+        BITensor tensor_tmp;
+        // 检查 shape 是否对得上
+        for (size_t j = 0; j < tensors[i].info()->num_dimensions(); ++j) {
+            if (tensors[i].info()->tensor_shape()[j] != header->shape[j]) {
+                return BIErrCode::BIResDamaged;
+            }
+        }
+        for (auto j = tensors[i].info()->num_dimensions(); j < tensor_max_dim; ++j) {
+            if (header->shape[j] != 1) {
+                return BIErrCode::BIResDamaged;
+            }
+        }
+
+        // shape 检查完，其实这一步可以不用再检查了，但是保险起见还是再检查一遍
+        if (tensors[i].info()->total_size() != header->data_length) {
+            return BIErrCode::BIResDamaged;
+        }
+
+        // 检查类型是否对得上
+        std::string tensor_type_str = BatmanInfer::utils::get_typestring(tensors[i].info()->data_type());
+        if (tensor_type_str != std::string(header->data_type)) {
+            return BIErrCode::BIResDamaged;
+        }
+
+        // 拷贝具体数据
+        tmp_ptr += sizeof(GPT2ResHeader);
+        memcpy(reinterpret_cast<char *>(tensors[i].buffer()), tmp_ptr, header->data_length);
     }
-
-    char *tmp_ptr = order2ptr[res_order];
-
-    auto header = reinterpret_cast<GPT2ResHeader *>(tmp_ptr);
-
-    auto float_ptr = reinterpret_cast<float *>(tmp_ptr + sizeof(GPT2ResHeader));
-
-    scales.reserve(header->shape[0]);
-    for (size_t i = 0; i < header->shape[0]; ++i) {
-        scales.push_back(float_ptr[i]);
-    }
-
-    return BIErrCode::BISuccess;
-}
-
-BIErrCode BIGPT2Model::load_hyper_params(OrderPtrMap &order2ptr) {
-#ifdef FIX_VER
-    if (order2ptr.find(GPT2ResOrder::decode_layer_scales) == order2ptr.end()) {
-        return BIErrCode::BIResNotExists;
-    }
-    char *tmp_ptr = order2ptr[GPT2ResOrder::decode_layer_scales];
-
-    const auto header = reinterpret_cast<GPT2ResHeader *>(tmp_ptr);
-    if (header->data_length != sizeof(HyperParameters)) {
-        return BIErrCode::BIResDamaged;
-    }
-
-    const auto all_param = reinterpret_cast<HyperParameters *>(tmp_ptr + sizeof(GPT2ResHeader));
-
-    _attn_hyper_params.attn_gemm_i_scale     = all_param->attn_input_scale;
-    _attn_hyper_params.attn_gemm_i_zero      = all_param->attn_input_zp;
-
-    _attn_hyper_params.attn_gemm_o_scale     = all_param->attn_output_scale;
-    _attn_hyper_params.attn_gemm_o_zero      = all_param->attn_output_zp;
-
-    _attn_hyper_params.query_scale           = all_param->q_output_scale;
-    _attn_hyper_params.query_zp              = all_param->q_output_zp;
-
-    _attn_hyper_params.key_scale             = all_param->k_output_scale;
-    _attn_hyper_params.key_zp                = all_param->k_output_zp;
-
-    _attn_hyper_params.value_scale           = all_param->v_output_scale;
-    _attn_hyper_params.value_zp              = all_param->v_output_zp;
-
-    _attn_hyper_params.proj_in_scale         = all_param->out_input_scale;
-    _attn_hyper_params.proj_in_zp            = all_param->out_input_zp;
-
-    _mlp_hyper_params.fc1_input_scale        = all_param->fc1_input_scale;
-    _mlp_hyper_params.fc1_input_zero_point  = all_param->fc1_input_zp;
-
-    _mlp_hyper_params.fc1_output_scale       = all_param->fc1_output_scale;
-    _mlp_hyper_params.fc1_output_zero_point  = all_param->fc1_output_zp;
-
-    _mlp_hyper_params.gelu_output_scale      = all_param->fc2_input_scale;
-    _mlp_hyper_params.gelu_output_zero_point = all_param->fc2_input_zp;
-#endif
 
     return BIErrCode::BISuccess;
 }
@@ -530,285 +317,259 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     const BITensorShape ori_gather_output_tensor_shape(hidden_size, max_seq_len, max_batch_size);
     _ori_gather_output_tensor.allocator()->init(BITensorInfo(ori_gather_output_tensor_shape, 1, BIDataType::F16));
 
-    const BITensorShape ori_attn_output_tensor_shape(hidden_size, 1, max_batch_size);
-    _ori_attn_rms_output_tensor.allocator()->init(BITensorInfo(ori_attn_output_tensor_shape, 1, BIDataType::F16));
-
     const BITensorShape add_weight_tensor_shape(hidden_size, max_seq_len);
     _add_weight_tensor.allocator()->init(BITensorInfo(add_weight_tensor_shape, 1, BIDataType::F16));
 
     _ori_add_output_tensor.allocator()->init(BITensorInfo(ori_gather_output_tensor_shape, 1, BIDataType::F16));
 
-    _ori_split_add_output_tensor.allocator()->init(BITensorInfo(ori_attn_output_tensor_shape, 1, BIDataType::F16));
-
     const BITensorShape attn_gamma_weight_tensor_shape(hidden_size);
-    _attn_gamma_weight_tensor.allocator()->init(BITensorInfo(attn_gamma_weight_tensor_shape, 1, BIDataType::F16));
+    for (int i = 0; i < layer_num; ++i) {
+        BITensor attn_gamma_weight_tensor_tmp;
+        _attn_gamma_weight_tensors[i].allocator()->init(BITensorInfo(attn_gamma_weight_tensor_shape, 1, BIDataType::F16));
+    }
+    for (int i = 0; i < layer_num; ++i) {
+        BITensor attn_gamma_bias_tensor_tmp;
+        _attn_gamma_bias_tensors[i].allocator()->init(BITensorInfo(attn_gamma_weight_tensor_shape, 1, BIDataType::F16));
+    }
 
-    _ori_attn_output_tensor.allocator()->init(BITensorInfo(ori_gather_output_tensor_shape, 1, BIDataType::F16));
+    const BITensorShape c_attn_weight_tensor_shape(hidden_size * 3, hidden_size);
+    for (int i = 0; i < layer_num; ++i) {
+        BITensor c_attn_weight_tensor_tmp;
+        _c_attn_weight_tensors[i].allocator()->init(BITensorInfo(c_attn_weight_tensor_shape, 1, BIDataType::F16));
+    }
 
-    const BITensorShape attn_qkv_weight_tensor_shape(hidden_size * 3, hidden_size);
-#ifdef AWQ_VER
-    _attn_qkv_awq_weight_tensor.allocator()->init(BITensorInfo(attn_qkv_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
-#endif
-#if defined(FLOAT_VER) || defined(AWQ_VER)
-    _attn_qkv_weight_tensor.allocator()->init(BITensorInfo(attn_qkv_weight_tensor_shape, 1, BIDataType::F16));
-#elifdef FIX_VER
-    _attn_qkv_weight_tensor.allocator()->init(BITensorInfo(attn_qkv_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
-#endif
+    const BITensorShape c_attn_bias_tensor_shape(hidden_size * 3);
+    for (int i = 0; i < layer_num; ++i) {
+        BITensor c_attn_bias_tensor_tmp;
+        _c_attn_bias_tensors[i].allocator()->init(BITensorInfo(c_attn_bias_tensor_shape, 1, BIDataType::F16));
+    }
 
-    const BITensorShape attn_qkv_bias_tensor_shape(hidden_size * 3);
-#if defined(FLOAT_VER) || defined(AWQ_VER)
-    _attn_qkv_bias_tensor.allocator()->init(BITensorInfo(attn_qkv_bias_tensor_shape, 1, BIDataType::F16));
-#elifdef FIX_VER
-    _attn_qkv_bias_tensor.allocator()->init(BITensorInfo(attn_qkv_bias_tensor_shape, 1, BIDataType::S32));
-#endif
+    const BITensorShape p_attn_weight_tensor_shape(hidden_size, hidden_size);
+    for (int i = 0; i < layer_num; ++i) {
+        BITensor p_attn_weight_tensor_tmp;
+        _p_attn_weight_tensors[i].allocator()->init(BITensorInfo(p_attn_weight_tensor_shape, 1, BIDataType::F16));
+    }
 
-    const BITensorShape attn_c_proj_weight_tensor_shape(hidden_size, hidden_size);
-    _attn_c_proj_weight_tensor.allocator()->init(BITensorInfo(attn_c_proj_weight_tensor_shape, 1, BIDataType::F16));
-
-    const BITensorShape attn_c_proj_bias_tensor_shape(hidden_size);
-    _attn_c_proj_bias_tensor.allocator()->init(BITensorInfo(attn_c_proj_bias_tensor_shape, 1, BIDataType::F16));
-
-    const BITensorShape mlp_gamma_tensor_shape(hidden_size);
-    _mlp_gamma_weight_tensor.allocator()->init(BITensorInfo(mlp_gamma_tensor_shape, 1, BIDataType::F16));
+    const BITensorShape p_attn_bias_tensor_shape(hidden_size);
+    for (int i = 0; i < layer_num; ++i) {
+        BITensor p_attn_bias_tensor_tmp;
+        _p_attn_bias_tensors[i].allocator()->init(BITensorInfo(p_attn_bias_tensor_shape, 1, BIDataType::F16));
+    }
+    for (int i = 0; i < layer_num; ++i) {
+        BITensor mlp_weight_tensor_tmp;
+        _mlp_weight_tensors[i].allocator()->init(BITensorInfo(p_attn_bias_tensor_shape, 1, BIDataType::F16));
+    }
+    for (int i = 0; i < layer_num; ++i) {
+        BITensor mlp_bias_tensor_tmp;
+        _mlp_bias_tensors[i].allocator()->init(BITensorInfo(p_attn_bias_tensor_shape, 1, BIDataType::F16));
+    }
 
     const BITensorShape c_fc_weight_tensor_shape(hidden_size * 4, hidden_size);
-#ifdef AWQ_VER
-    _c_fc_awq_weight_tensor.allocator()->init(BITensorInfo(c_fc_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
-#endif
-#if defined(FLOAT_VER) || defined(AWQ_VER)
-    _c_fc_weight_tensor.allocator()->init(BITensorInfo(c_fc_weight_tensor_shape, 1, BIDataType::F16));
-#elifdef FIX_VER
-    _c_fc_weight_tensor.allocator()->init(BITensorInfo(c_fc_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
-#endif
+    for (int i = 0; i < layer_num; ++i) {
+        BITensor c_fc_weight_tensor_tmp;
+        _c_fc_weight_tensors[i].allocator()->init(BITensorInfo(c_fc_weight_tensor_shape, 1, BIDataType::F16));
+    }
 
     const BITensorShape c_fc_bias_tensor_shape(hidden_size * 4);
-#if defined(FLOAT_VER) || defined(AWQ_VER)
-    _c_fc_bias_tensor.allocator()->init(BITensorInfo(c_fc_bias_tensor_shape, 1, BIDataType::F16));
-#elifdef FIX_VER
-    _c_fc_bias_tensor.allocator()->init(BITensorInfo(c_fc_bias_tensor_shape, 1, BIDataType::S32));
-#endif
-
-    const BITensorShape ori_mlp_outpu_tensor_shape(hidden_size, 1, max_batch_size);
-    _ori_mlp_output_tensor.allocator()->init(BITensorInfo(ori_mlp_outpu_tensor_shape, 1, BIDataType::F16));
+    for (int i = 0; i < layer_num; ++i) {
+        BITensor c_fc_bias_tensor_tmp;
+        _c_fc_bias_tensors[i].allocator()->init(BITensorInfo(c_fc_bias_tensor_shape, 1, BIDataType::F16));
+    }
 
     const BITensorShape c_proj_weight_tensor_shape(hidden_size, hidden_size * 4);
-    _c_proj_weight_tensor.allocator()->init(BITensorInfo(c_proj_weight_tensor_shape, 1, BIDataType::F16));
+    for (int i = 0; i < layer_num; ++i) {
+        BITensor c_proj_weight_tensor_tmp;
+        _c_proj_weight_tensors[i].allocator()->init(BITensorInfo(c_proj_weight_tensor_shape, 1, BIDataType::F16));
+    }
 
     const BITensorShape c_proj_bias_tensor_shape(hidden_size);
-    _c_proj_bias_tensor.allocator()->init(BITensorInfo(c_proj_bias_tensor_shape, 1, BIDataType::F16));
+    for (int i = 0; i < layer_num; ++i) {
+        BITensor c_proj_bias_tensor_tmp;
+        _c_proj_bias_tensors[i].allocator()->init(BITensorInfo(c_proj_bias_tensor_shape, 1, BIDataType::F16));
+    }
 
-    const BITensorShape ori_add_mlp_output_tensor_shape(hidden_size, 1, max_batch_size);
-    _ori_add_mlp_output_tensor.allocator()->init(BITensorInfo(ori_add_mlp_output_tensor_shape, 1, BIDataType::F16));
+    const BITensorShape gpt_o_tensor_shape(hidden_size, max_seq_len, max_batch_size);
+    _ori_multi_gpt_o_tensor.allocator()->init(BITensorInfo(gpt_o_tensor_shape, 1, BIDataType::F16));
 
-    const BITensorShape rms_gamma_weight_tensor_shape(hidden_size);
-    _rms_gamma_weight_tensor.allocator()->init(BITensorInfo(rms_gamma_weight_tensor_shape, 1, BIDataType::F16));
+    const BITensorShape final_layernorm_tensor_shape(hidden_size);
+    _final_layernorm_weight_tensor.allocator()->init(BITensorInfo(final_layernorm_tensor_shape, 1, BIDataType::F16));
+    _final_layernorm_bias_tensor.allocator()->init(BITensorInfo(final_layernorm_tensor_shape, 1, BIDataType::F16));
 
-    _ori_mlp_rms_output_tensor.allocator()->init(BITensorInfo(ori_add_mlp_output_tensor_shape, 1, BIDataType::F16));
+    _ori_final_ln_o_tensor.allocator()->init(BITensorInfo(gpt_o_tensor_shape, 1, BIDataType::F16));
 
-    const BITensorShape lm_head_weight_tensor_shape(dict_size, hidden_size);
-    _lm_head_weight_tensor.allocator()->init(BITensorInfo(lm_head_weight_tensor_shape, 1, BIDataType::F16));
+    const BITensorShape lm_score_weight_tensor_shape(class_num, hidden_size);
+    _lm_score_weight_tensor.allocator()->init(BITensorInfo(lm_score_weight_tensor_shape, 1, BIDataType::F16));
 
-    const BITensorShape ori_lm_head_output_tensor_shape(dict_size, 1, max_batch_size);
-    _ori_lm_head_output_tensor.allocator()->init(BITensorInfo(ori_lm_head_output_tensor_shape, 1, BIDataType::F16));
+    const BITensorShape lm_head_output_tensor_shape(class_num, max_seq_len, max_batch_size);
+    _ori_lm_head_output_tensor.allocator()->init(BITensorInfo(lm_head_output_tensor_shape, 1, BIDataType::F16));
 
-    const BITensorShape eos_qkv_smooth_o_tensor_shape(64, 12, 16);
-    _eos_k_smooth_o_tensor.allocator()->init(BITensorInfo(eos_qkv_smooth_o_tensor_shape, 1, BIDataType::F16));
-
-    _eos_q_smooth_o_tensor.allocator()->init(BITensorInfo(eos_qkv_smooth_o_tensor_shape, 1, BIDataType::F16));
-
-#ifdef FIX_VER
-    _eos_v_smooth_o_tensor.allocator()->init(BITensorInfo(eos_qkv_smooth_o_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
-#elif defined(FLOAT_VER) || defined(AWQ_VER)
-    _eos_v_smooth_o_tensor.allocator()->init(BITensorInfo(eos_qkv_smooth_o_tensor_shape, 1, BIDataType::F16));
-#endif
     // 内存统一管理
     _memory_group.manage(&_ori_input_tensor);
     _memory_group.manage(&_gather_weight_tensor);
     _memory_group.manage(&_ori_gather_output_tensor);
-    _memory_group.manage(&_ori_attn_rms_output_tensor);
     _memory_group.manage(&_add_weight_tensor);
     _memory_group.manage(&_ori_add_output_tensor);
-    _memory_group.manage(&_ori_split_add_output_tensor);
-    _memory_group.manage(&_attn_gamma_weight_tensor);
-    _memory_group.manage(&_ori_attn_output_tensor);
-#ifdef AWQ_VER
-    _memory_group.manage(&_attn_qkv_awq_weight_tensor);
-#endif
-    _memory_group.manage(&_attn_qkv_weight_tensor);
-    _memory_group.manage(&_attn_qkv_bias_tensor);
-    _memory_group.manage(&_attn_c_proj_weight_tensor);
-    _memory_group.manage(&_attn_c_proj_bias_tensor);
-    _memory_group.manage(&_mlp_gamma_weight_tensor);
-#ifdef AWQ_VER
-    _memory_group.manage(&_c_fc_awq_weight_tensor);
-#endif
-    _memory_group.manage(&_c_fc_weight_tensor);
-    _memory_group.manage(&_c_fc_bias_tensor);
-    _memory_group.manage(&_ori_mlp_output_tensor);
-    _memory_group.manage(&_c_proj_weight_tensor);
-    _memory_group.manage(&_c_proj_bias_tensor);
-    _memory_group.manage(&_ori_add_mlp_output_tensor);
-    _memory_group.manage(&_rms_gamma_weight_tensor);
-    _memory_group.manage(&_ori_mlp_rms_output_tensor);
-    _memory_group.manage(&_lm_head_weight_tensor);
+    for (int i = 0; i < _attn_gamma_weight_tensors.size(); ++i) {
+        _memory_group.manage(&(_attn_gamma_weight_tensors[i]));
+    }
+    for (int i = 0; i < _attn_gamma_bias_tensors.size(); ++i) {
+        _memory_group.manage(&(_attn_gamma_bias_tensors[i]));
+    }
+    for (int i = 0; i < _c_attn_weight_tensors.size(); ++i) {
+        _memory_group.manage(&(_c_attn_weight_tensors[i]));
+    }
+    for (int i = 0; i < _c_attn_bias_tensors.size(); ++i) {
+        _memory_group.manage(&(_c_attn_bias_tensors[i]));
+    }
+    for (int i = 0; i < _p_attn_weight_tensors.size(); ++i) {
+        _memory_group.manage(&(_p_attn_weight_tensors[i]));
+    }
+    for (int i = 0; i < _p_attn_bias_tensors.size(); ++i) {
+        _memory_group.manage(&(_p_attn_bias_tensors[i]));
+    }
+    for (int i = 0; i < _mlp_weight_tensors.size(); ++i) {
+        _memory_group.manage(&(_mlp_weight_tensors[i]));
+    }
+    for (int i = 0; i < _mlp_bias_tensors.size(); ++i) {
+        _memory_group.manage(&(_mlp_bias_tensors[i]));
+    }
+    for (int i = 0; i < _c_fc_weight_tensors.size(); ++i) {
+        _memory_group.manage(&(_c_fc_weight_tensors[i]));
+    }
+    for (int i = 0; i < _c_fc_bias_tensors.size(); ++i) {
+        _memory_group.manage(&(_c_fc_bias_tensors[i]));
+    }
+    for (int i = 0; i < _c_proj_weight_tensors.size(); ++i) {
+        _memory_group.manage(&(_c_proj_weight_tensors[i]));
+    }
+    for (int i = 0; i < _c_proj_bias_tensors.size(); ++i) {
+        _memory_group.manage(&(_c_proj_bias_tensors[i]));
+    }
+    _memory_group.manage(&_ori_multi_gpt_o_tensor);
+    _memory_group.manage(&_final_layernorm_weight_tensor);
+    _memory_group.manage(&_final_layernorm_bias_tensor);
+    _memory_group.manage(&_ori_final_ln_o_tensor);
+    _memory_group.manage(&_lm_score_weight_tensor);
     _memory_group.manage(&_ori_lm_head_output_tensor);
-    _memory_group.manage(&_eos_k_smooth_o_tensor);
-    _memory_group.manage(&_eos_q_smooth_o_tensor);
-    _memory_group.manage(&_eos_v_smooth_o_tensor);
+
 
     _ori_input_tensor.allocator()->allocate();
     _gather_weight_tensor.allocator()->allocate();
     _ori_gather_output_tensor.allocator()->allocate();
-    _ori_attn_rms_output_tensor.allocator()->allocate();
     _add_weight_tensor.allocator()->allocate();
     _ori_add_output_tensor.allocator()->allocate();
-    _ori_split_add_output_tensor.allocator()->allocate();
-    _attn_gamma_weight_tensor.allocator()->allocate();
-    _ori_attn_output_tensor.allocator()->allocate();
-#ifdef AWQ_VER
-    _attn_qkv_awq_weight_tensor.allocator()->allocate();
-#endif
-    _attn_qkv_weight_tensor.allocator()->allocate();
-    _attn_qkv_bias_tensor.allocator()->allocate();
-    _attn_c_proj_weight_tensor.allocator()->allocate();
-    _attn_c_proj_bias_tensor.allocator()->allocate();
-    _mlp_gamma_weight_tensor.allocator()->allocate();
-#ifdef AWQ_VER
-    _c_fc_awq_weight_tensor.allocator()->allocate();
-#endif
-    _c_fc_weight_tensor.allocator()->allocate();
-    _c_fc_bias_tensor.allocator()->allocate();
-    _ori_mlp_output_tensor.allocator()->allocate();
-    _c_proj_weight_tensor.allocator()->allocate();
-    _c_proj_bias_tensor.allocator()->allocate();
-    _ori_add_mlp_output_tensor.allocator()->allocate();
-    _rms_gamma_weight_tensor.allocator()->allocate();
-    _ori_mlp_rms_output_tensor.allocator()->allocate();
-    _lm_head_weight_tensor.allocator()->allocate();
+    for (int i = 0; i < _attn_gamma_weight_tensors.size(); ++i) {
+        _attn_gamma_weight_tensors[i].allocator()->allocate();
+    }
+    for (int i = 0; i < _attn_gamma_bias_tensors.size(); ++i) {
+        _attn_gamma_bias_tensors[i].allocator()->allocate();
+    }
+    for (int i = 0; i < _c_attn_weight_tensors.size(); ++i) {
+        _c_attn_weight_tensors[i].allocator()->allocate();
+    }
+    for (int i = 0; i < _c_attn_bias_tensors.size(); ++i) {
+        _c_attn_bias_tensors[i].allocator()->allocate();
+    }
+    for (int i = 0; i < _p_attn_weight_tensors.size(); ++i) {
+        _p_attn_weight_tensors[i].allocator()->allocate();
+    }
+    for (int i = 0; i < _p_attn_bias_tensors.size(); ++i) {
+        _p_attn_bias_tensors[i].allocator()->allocate();
+    }
+    for (int i = 0; i < _mlp_weight_tensors.size(); ++i) {
+        _mlp_weight_tensors[i].allocator()->allocate();
+    }
+    for (int i = 0; i < _mlp_bias_tensors.size(); ++i) {
+        _mlp_bias_tensors[i].allocator()->allocate();
+    }
+    for (int i = 0; i < _c_fc_weight_tensors.size(); ++i) {
+        _c_fc_weight_tensors[i].allocator()->allocate();
+    }
+    for (int i = 0; i < _c_fc_bias_tensors.size(); ++i) {
+        _c_fc_bias_tensors[i].allocator()->allocate();
+    }
+    for (int i = 0; i < _c_proj_weight_tensors.size(); ++i) {
+        _c_proj_weight_tensors[i].allocator()->allocate();
+    }
+    for (int i = 0; i < _c_proj_bias_tensors.size(); ++i) {
+        _c_proj_bias_tensors[i].allocator()->allocate();
+    }
+    _ori_multi_gpt_o_tensor.allocator()->allocate();
+    _final_layernorm_weight_tensor.allocator()->allocate();
+    _final_layernorm_bias_tensor.allocator()->allocate();
+    _ori_final_ln_o_tensor.allocator()->allocate();
+    _lm_score_weight_tensor.allocator()->allocate();
     _ori_lm_head_output_tensor.allocator()->allocate();
-    _eos_k_smooth_o_tensor.allocator()->allocate();
-    _eos_q_smooth_o_tensor.allocator()->allocate();
-    _eos_v_smooth_o_tensor.allocator()->allocate();
 
     _scope_manager = std::make_unique<BIMemoryGroupResourceScope>(_memory_group);
 
     // load gather weight
-    ret = load_weight_tensor(_gather_weight_tensor, GPT2ResOrder::gather_weight, order2ptr, false);
+    ret = load_weight_tensor(_gather_weight_tensor, GPT2ResOrder::transformer_wte_weight, order2ptr);
     CHECK_SUCCESS(ret);
 
     // load add weight
-    ret = load_weight_tensor(_add_weight_tensor, GPT2ResOrder::add_weight, order2ptr, false);
+    ret = load_weight_tensor(_add_weight_tensor, GPT2ResOrder::add_wte_weight, order2ptr);
     CHECK_SUCCESS(ret);
 
-    // load gamma weight
-    ret = load_weight_tensor(_attn_gamma_weight_tensor, GPT2ResOrder::attn_gamma_weight, order2ptr, false);
+    // load gamma weights
+    ret = load_weight_tensors(_attn_gamma_weight_tensors, GPT2ResOrder::attn_layernorm_weight_0, order2ptr, 12);
     CHECK_SUCCESS(ret);
 
-#if defined(FLOAT_VER) || defined(FIX_VER)
-    // load attn qkv weight
-    ret = load_weight_tensor(_attn_qkv_weight_tensor, GPT2ResOrder::attn_qkv_weight, order2ptr, false);
-    CHECK_SUCCESS(ret);
-#endif
-#ifdef FIX_VER
-    // load attn qkv scales
-    std::vector<float> attn_qkv_scales;
-    ret = load_scale_vector(attn_qkv_scales, GPT2ResOrder::attn_qkv_weight_scale, order2ptr);
-    CHECK_SUCCESS(ret);
-    _attn_qkv_weight_tensor.info()->set_quantization_info(attn_qkv_scales);
-#endif
-
-#ifdef AWQ_VER
-    // load attn qkv scales
-    std::vector<float> attn_qkv_scales;
-    ret = load_scale_vector(attn_qkv_scales, GPT2ResOrder::attn_qkv_weight_scale, order2ptr);
+    // load gamma bias
+    ret = load_weight_tensors(_attn_gamma_bias_tensors, GPT2ResOrder::attn_layernorm_bias_0, order2ptr, 12);
     CHECK_SUCCESS(ret);
 
-    // load attn qkv weight and dequantization
-    ret = load_weight_tensor_and_dequantization(_attn_qkv_awq_weight_tensor, _attn_qkv_weight_tensor, GPT2ResOrder::attn_qkv_weight, order2ptr, attn_qkv_scales);
-    CHECK_SUCCESS(ret);
-#endif
-
-    // load qkv bias
-    ret = load_weight_tensor(_attn_qkv_bias_tensor, GPT2ResOrder::attn_qkv_bias, order2ptr, false);
+    // load c attn weights
+    ret = load_weight_tensors(_c_attn_weight_tensors, GPT2ResOrder::c_attn_weights_0, order2ptr, 12);
     CHECK_SUCCESS(ret);
 
-    // load attn c proj weight
-    ret = load_weight_tensor(_attn_c_proj_weight_tensor, GPT2ResOrder::attn_c_proj_weight, order2ptr, false);
+    // load c attn bias
+    ret = load_weight_tensors(_c_attn_bias_tensors, GPT2ResOrder::c_attn_bias_0, order2ptr, 12);
     CHECK_SUCCESS(ret);
 
-    // load attn c proj bias
-    ret = load_weight_tensor(_attn_c_proj_bias_tensor, GPT2ResOrder::attn_c_proj_bias, order2ptr, false);
+    // load p attn weights
+    ret = load_weight_tensors(_p_attn_weight_tensors, GPT2ResOrder::p_attn_weights_0, order2ptr, 12);
     CHECK_SUCCESS(ret);
 
-    // load mlp gamma weight
-    ret = load_weight_tensor(_mlp_gamma_weight_tensor, GPT2ResOrder::mlp_gamma_weight, order2ptr, false);
+    // load p attn bias
+    ret = load_weight_tensors(_p_attn_bias_tensors, GPT2ResOrder::p_attn_bias_0, order2ptr, 12);
     CHECK_SUCCESS(ret);
 
-#if defined(FLOAT_VER) || defined(FIX_VER)
+    // load mlp weights
+    ret = load_weight_tensors(_mlp_weight_tensors, GPT2ResOrder::mlp_layernorm_bias_0, order2ptr, 12);
+    CHECK_SUCCESS(ret);
+
+    // load mlp bias
+    ret = load_weight_tensors(_mlp_bias_tensors, GPT2ResOrder::mlp_layernorm_bias_0, order2ptr, 12);
+    CHECK_SUCCESS(ret);
+
     // load c fc weight
-    ret = load_weight_tensor(_c_fc_weight_tensor, GPT2ResOrder::c_fc_weight, order2ptr, false);
+    ret = load_weight_tensors(_c_fc_weight_tensors, GPT2ResOrder::reordered_c_fc_weights_0, order2ptr, 12);
     CHECK_SUCCESS(ret);
-#endif
-#ifdef FIX_VER
-    std::vector<float> c_fc_weight_scales;
-    // load c fc weight scales
-    ret = load_scale_vector(c_fc_weight_scales, GPT2ResOrder::c_fc_weight_scale, order2ptr);
-    CHECK_SUCCESS(ret);
-
-    _c_fc_weight_q_info = BIQuantizationInfo(c_fc_weight_scales);
-    _c_fc_weight_tensor.info()->set_quantization_info(_c_fc_weight_q_info);
-#endif
-
-#ifdef AWQ_VER
-    // load c fc weight scales
-    std::vector<float> c_fc_weight_scales;
-    ret = load_scale_vector(c_fc_weight_scales, GPT2ResOrder::c_fc_weight_scale, order2ptr);
-    CHECK_SUCCESS(ret);
-
-    // load c fc weight and dequantization
-    ret = load_weight_tensor_and_dequantization(_c_fc_awq_weight_tensor, _c_fc_weight_tensor, GPT2ResOrder::c_fc_weight, order2ptr, c_fc_weight_scales);
-    CHECK_SUCCESS(ret);
-#endif
 
     // load c fc bias
-    ret = load_weight_tensor(_c_fc_bias_tensor, GPT2ResOrder::c_fc_bias, order2ptr, false);
+    ret = load_weight_tensors(_c_fc_bias_tensors, GPT2ResOrder::c_fc_bias_0, order2ptr, 12);
     CHECK_SUCCESS(ret);
 
     // load c proj weight
-    ret = load_weight_tensor(_c_proj_weight_tensor, GPT2ResOrder::c_proj_weight, order2ptr, false);
+    ret = load_weight_tensors(_c_proj_weight_tensors, GPT2ResOrder::c_proj_weights_0, order2ptr, 12);
     CHECK_SUCCESS(ret);
 
     // load c proj bias
-    ret = load_weight_tensor(_c_proj_bias_tensor, GPT2ResOrder::c_proj_bias, order2ptr, false);
+    ret = load_weight_tensors(_c_proj_bias_tensors, GPT2ResOrder::c_proj_bias_0, order2ptr, 12);
     CHECK_SUCCESS(ret);
 
-    // load rms gamma weight
-    ret = load_weight_tensor(_rms_gamma_weight_tensor, GPT2ResOrder::rms_gamma_weight, order2ptr, false);
+    // load final layernorm weight
+    ret = load_weight_tensor(_final_layernorm_weight_tensor, GPT2ResOrder::final_layernorm_weights, order2ptr);
     CHECK_SUCCESS(ret);
 
-    // load lm head weight (lm head weight 和 gather_weight 数据相同，但需要进行转置)
-    ret = load_weight_tensor(_lm_head_weight_tensor, GPT2ResOrder::gather_weight, order2ptr, true);
+    // load final layernorm bias
+    ret = load_weight_tensor(_final_layernorm_bias_tensor, GPT2ResOrder::final_layernorm_bias, order2ptr);
     CHECK_SUCCESS(ret);
 
-    // load eos_k_smooth_o weight
-    ret = load_weight_tensor(_eos_k_smooth_o_tensor, GPT2ResOrder::eos_k_smooth_o, order2ptr, false);
+    // load lm score weight
+    ret = load_weight_tensor(_lm_score_weight_tensor, GPT2ResOrder::lm_score_weights, order2ptr);
     CHECK_SUCCESS(ret);
-    KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_k_smooth_o_tensor.buffer(), max_seq_len - 1, max_seq_len, true, true);
-
-    // load eos_q_smooth_o weight
-    ret = load_weight_tensor(_eos_q_smooth_o_tensor, GPT2ResOrder::eos_q_smooth_o, order2ptr, false);
-    CHECK_SUCCESS(ret);
-
-    // load eos_v_smooth_o weight
-    ret = load_weight_tensor(_eos_v_smooth_o_tensor, GPT2ResOrder::eos_v_smooth_o, order2ptr, false);
-    CHECK_SUCCESS(ret);
-    KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_v_smooth_o_tensor.buffer(), max_seq_len - 1, max_seq_len, false, true);
-
-#ifdef FIX_VER
-    // load hyper parameters
-    ret = load_hyper_params(order2ptr);
-    CHECK_SUCCESS(ret);
-#endif
 
     return BIErrCode::BISuccess;
 }
@@ -846,126 +607,80 @@ BIErrCode BIGPT2Model::set_all_intermediate_tensors(const std::vector<int> &tens
 
     _sub_add_output_tensor.allocator()->init(*_ori_add_output_tensor.allocator(), sub_gather_output_tensor_info);
 
-    BITensorShape sub_attn_output_tensor_shape(hidden_size, 1, cur_batch_size);
-    BITensorInfo sub_attn_output_tensor_info(sub_attn_output_tensor_shape, 1, BIDataType::F16);
-    sub_attn_output_tensor_info.set_format(Format::F16);
-    _sub_split_add_output_tensor.allocator()->init(*_ori_split_add_output_tensor.allocator(), sub_attn_output_tensor_info);
+    _sub_multi_gpt_o_tensor.allocator()->init(*_ori_multi_gpt_o_tensor.allocator(), sub_gather_output_tensor_info);
 
-    _sub_attn_output_tensor.allocator()->init(*_ori_attn_output_tensor.allocator(), sub_attn_output_tensor_info);
+    _sub_final_ln_o_tensor.allocator()->init(*_ori_final_ln_o_tensor.allocator(), sub_gather_output_tensor_info);
 
-    _sub_mlp_input_tensor.allocator()->init(*_ori_attn_rms_output_tensor.allocator(), sub_attn_output_tensor_info);
-
-    _sub_mlp_output_tensor.allocator()->init(*_ori_mlp_output_tensor.allocator(), sub_attn_output_tensor_info);
-
-    _sub_add_mlp_output_tensor.allocator()->
-            init(*_ori_add_mlp_output_tensor.allocator(), sub_attn_output_tensor_info);
-
-    _sub_mlp_rms_output_tensor.allocator()->
-            init(*_ori_mlp_rms_output_tensor.allocator(), sub_attn_output_tensor_info);
-
-    BITensorShape sub_lm_head_output_tensor_shape(dict_size, 1, cur_batch_size);
+    BITensorShape sub_lm_head_output_tensor_shape(class_num, cur_seq_len, cur_batch_size);
     BITensorInfo sub_lm_head_output_tensor_info(sub_lm_head_output_tensor_shape, 1, BIDataType::F16);
     sub_lm_head_output_tensor_info.set_format(Format::F16);
-    _sub_lm_head_output_tensor.allocator()->init(*_ori_lm_head_output_tensor.allocator(),
-                                                 sub_lm_head_output_tensor_info);
+    _sub_lm_head_output_tensor.allocator()->init(*_ori_lm_head_output_tensor.allocator(), sub_lm_head_output_tensor_info);
 
     return ret;
 }
 
-BIErrCode BIGPT2Model::init_configure_all_layers() {
+BIErrCode BIGPT2Model::init_configure_all_layers(const std::vector<int> &tensor_shape) {
     auto ret = BIErrCode::BISuccess;
+
+    int cur_batch_size = 1, cur_seq_len = 1;
+    if (tensor_shape.size() >= 1) {
+        cur_seq_len = tensor_shape[0];
+    }
+    if (tensor_shape.size() >= 2) {
+        cur_batch_size = tensor_shape[1];
+    }
+
+    if ((cur_batch_size > max_batch_size) || (cur_seq_len > max_seq_len)) {
+        return BIErrCode::BISizeNotMatch;
+    }
+
     try {
         _gather_layer.configure(&_gather_weight_tensor, &_sub_input_tensor, &_sub_gather_output_tensor, 1);
 
-        _add_layer.configure(&_sub_gather_output_tensor, &_sub_add_weight_tensor,
-                             &_sub_add_output_tensor, BIConvertPolicy::SATURATE);
+        _add_layer.configure(&_sub_gather_output_tensor, &_sub_add_weight_tensor, &_sub_add_output_tensor, BIConvertPolicy::SATURATE);
 
-#ifdef FIX_VER
-        _attn_lowp_layer.configure(&_sub_split_add_output_tensor,
-                                   &_attn_gamma_weight_tensor,
-                                   &_attn_qkv_weight_tensor,
-                                   &_attn_qkv_bias_tensor,
-                                   &_attn_c_proj_weight_tensor,
-                                   &_attn_c_proj_bias_tensor,
-                                   &_eos_q_smooth_o_tensor,
-                                   _attn_hyper_params.attn_gemm_i_scale,
-                                   _attn_hyper_params.attn_gemm_i_zero,
-                                   _attn_hyper_params.attn_gemm_o_scale,
-                                   _attn_hyper_params.attn_gemm_o_zero,
-                                   _attn_hyper_params.query_scale,
-                                   _attn_hyper_params.query_zp,
-                                   _attn_hyper_params.value_scale,
-                                   _attn_hyper_params.value_zp,
-                                   _attn_hyper_params.key_scale,
-                                   _attn_hyper_params.key_zp,
-                                   AttnHyperParams::softmax_q_scale,
-                                   AttnHyperParams::softmax_zp,
-                                   _attn_hyper_params.proj_in_scale,
-                                   _attn_hyper_params.proj_in_zp,
-                                   q_perm,
-                                   k_perm,
-                                   qkv_o_perm,
-                                   hidden_size,
-                                   max_seq_len,
-                                   max_batch_size,
-                                   &_sub_attn_output_tensor);
-#elif defined(FLOAT_VER) || defined(AWQ_VER)
-        _attn_layer.configure(&_sub_split_add_output_tensor,
-                              &_attn_gamma_weight_tensor,
-                              &_attn_qkv_weight_tensor,
-                              &_attn_qkv_bias_tensor,
-                              &_attn_c_proj_weight_tensor,
-                              &_attn_c_proj_bias_tensor,
-                              &_eos_q_smooth_o_tensor,
-                              q_perm,
-                              k_perm,
-                              qkv_o_perm,
-                              hidden_size,
-                              max_seq_len,
-                              max_batch_size,
-                              &_sub_attn_output_tensor);
-#endif
-
-        _attn_rms_add_layer.configure(&_sub_split_add_output_tensor, &_sub_attn_output_tensor,
-                                      &_sub_mlp_input_tensor, BIConvertPolicy::SATURATE);
-
-#ifdef FIX_VER
-        _mlp_layer.configure(&_sub_mlp_input_tensor,
-                             _mlp_hyper_params.fc1_input_scale,
-                             _mlp_hyper_params.fc1_input_zero_point,
-                             &_c_fc_weight_tensor,
-                             &_c_fc_bias_tensor,
-                             &_c_fc_weight_q_info,
-                             _mlp_hyper_params.fc1_output_scale,
-                             _mlp_hyper_params.fc1_output_zero_point,
-                             _mlp_hyper_params.gelu_output_scale,
-                             _mlp_hyper_params.gelu_output_zero_point,
-                             &_c_proj_weight_tensor,
-                             &_c_proj_bias_tensor,
-                             &_mlp_gamma_weight_tensor,
-                             &_sub_mlp_output_tensor,
-                             max_batch_size,
-                             1);
-#elif defined(FLOAT_VER) || defined(AWQ_VER)
         const BIActivationLayerInfo act_info(BIActivationFunction::GELU);
-        _mlp_layer.configure(&_sub_mlp_input_tensor,
-                             &_c_fc_weight_tensor,
-                             &_c_fc_bias_tensor,
-                             &_c_proj_weight_tensor,
-                             &_c_proj_bias_tensor,
-                             &_mlp_gamma_weight_tensor,
-                             act_info,
-                             &_sub_mlp_output_tensor,
-                             max_batch_size,
-                             1);
-#endif
 
-        _add_mlp_layer.configure(&_sub_mlp_output_tensor, &_sub_mlp_input_tensor,
-                                 &_sub_add_mlp_output_tensor, BIConvertPolicy::SATURATE);
+        gpt_block_config.q_perm = q_perm;
+        gpt_block_config.k_perm = k_perm;
+        gpt_block_config.qkv_perm = qkv_o_perm;
+        gpt_block_config.hidden_size = hidden_size;
+        gpt_block_config.max_seq_len = max_seq_len;
+        gpt_block_config.max_batch_size = max_batch_size;
 
-        _rms_norm_layer.configure(&_sub_add_mlp_output_tensor, &_rms_gamma_weight_tensor, &_sub_mlp_rms_output_tensor);
+        gpt_layer_configs.reserve(layer_num);
+        for (int i = 0; i < layer_num; i++) {
+            BIIntentGPTLayerConfig layer_config;
+            layer_config.ln_1_weight = &_attn_gamma_weight_tensors.at(i);
+            layer_config.ln_1_bias = &_attn_gamma_bias_tensors.at(i);
+            layer_config.c_attn_weights = &_c_attn_weight_tensors.at(i);
+            layer_config.c_attn_bias = &_c_attn_bias_tensors.at(i);
+            layer_config.o_attn_weights = &_p_attn_weight_tensors.at(i);
+            layer_config.o_attn_bias = &_p_attn_bias_tensors.at(i);
+            layer_config.fc_weights = &_c_fc_weight_tensors.at(i);
+            layer_config.fc_bias = &_c_fc_bias_tensors.at(i);
+            layer_config.ln_2_weight = &_mlp_weight_tensors.at(i);
+            layer_config.ln_2_bias = &_mlp_bias_tensors.at(i);
+            layer_config.proj_weights = &_c_proj_weight_tensors.at(i);
+            layer_config.proj_bias = &_c_proj_bias_tensors.at(i);
+            layer_config.act_info = act_info;
+            layer_config.layer_idx = i;
+            gpt_layer_configs.emplace_back(std::move(layer_config));
+        }
 
-        const auto gemm_info = GEMMInfo(false,
+        _gpt_multi_block_layer.configure(&_sub_add_output_tensor,
+                                            gpt_layer_configs,
+                                            gpt_block_config,
+                                            cur_batch_size,
+                                            cur_seq_len,
+                                            &_sub_multi_gpt_o_tensor);
+
+        _final_layernorm_layer.configure(&_sub_multi_gpt_o_tensor,
+                                            &_final_layernorm_weight_tensor,
+                                            &_final_layernorm_bias_tensor,
+                                            &_sub_final_ln_o_tensor);
+
+        GEMMInfo gemm_info = GEMMInfo(false,
                                         false,
                                         true,
                                         false,
@@ -980,13 +695,13 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
                                         BIWeightFormat::UNSPECIFIED,
                                         false);
 
-        _lm_head_layer.configure(&_sub_mlp_rms_output_tensor,
-                                 &_lm_head_weight_tensor,
-                                 nullptr,
-                                 &_sub_lm_head_output_tensor,
-                                 1.0f,
-                                 1.0f,
-                                 gemm_info);
+        _lm_head_layer.configure(&_sub_final_ln_o_tensor,
+                                &_lm_score_weight_tensor,
+                                nullptr,
+                                &_sub_lm_head_output_tensor,
+                                1.0f,
+                                1.0f,
+                                gemm_info);
     } catch (std::runtime_error &e) {
         ret = BIErrCode::BIGeneralError;
         std::cout << std::string(__FUNCTION__) << " ERROR: " << e.what() << std::endl;
@@ -995,7 +710,7 @@ BIErrCode BIGPT2Model::init_configure_all_layers() {
     return ret;
 }
 
-BIErrCode BIGPT2Model::dynamic_configure_all_layers(const std::vector<int> &tensor_shape, std::vector< std::vector<unsigned int> > &kv_cache_id_map) {
+BIErrCode BIGPT2Model::dynamic_configure_all_layers(const std::vector<int> &tensor_shape) {
     auto ret = BIErrCode::BISuccess;
     try {
         int cur_batch_size = 1, cur_seq_len = 1;
@@ -1014,19 +729,9 @@ BIErrCode BIGPT2Model::dynamic_configure_all_layers(const std::vector<int> &tens
 
         _add_layer.dynamic_configure(&_sub_gather_output_tensor, &_sub_add_weight_tensor, true);
 
-#ifdef FIX_VER
-        _attn_lowp_layer.dynamic_configure(&_sub_split_add_output_tensor, cur_seq_len, cur_batch_size, kv_cache_id_map);
-#elif defined(FLOAT_VER) || defined(AWQ_VER)
-        _attn_layer.dynamic_configure(&_sub_split_add_output_tensor, cur_seq_len, cur_batch_size, kv_cache_id_map);
-#endif
+        _gpt_multi_block_layer.dynamic_configure(&_sub_add_output_tensor, cur_seq_len, cur_batch_size);
 
-        _attn_rms_add_layer.dynamic_configure(&_sub_split_add_output_tensor, &_sub_attn_output_tensor, true);
-
-        _mlp_layer.dynamic_configure(&_sub_mlp_input_tensor, cur_batch_size);
-
-        _add_mlp_layer.dynamic_configure(&_sub_mlp_output_tensor, &_sub_mlp_input_tensor, false);
-
-        _rms_norm_layer.dynamic_configure(&_sub_add_mlp_output_tensor);
+        _final_layernorm_layer.dynamic_configure(&_sub_multi_gpt_o_tensor);
 
         _lm_head_layer.dynamic_configure();
     } catch (std::runtime_error &e) {
@@ -1047,16 +752,4 @@ void BIGPT2Model::print_tensor(const BatmanInfer::BITensor &tensor, const std::s
     format.print_region = region;
 
     tensor.print(std::cout, format);
-}
-
-std::pair<int8_t, int8_t> BIGPT2Model::unpack_int8_to_int4(int8_t packed) {
-    // 1. 提取高4位和低4位
-    int8_t a = (packed >> 4) & 0x0F;  // 高4位
-    int8_t b = packed & 0x0F;         // 低4位
-
-    // 2. 符号扩展（如果第4位为1，则高4位补1）
-    if (a & 0x08) a |= 0xF0;  // 负数扩展
-    if (b & 0x08) b |= 0xF0;
-
-    return {a, b};
 }
