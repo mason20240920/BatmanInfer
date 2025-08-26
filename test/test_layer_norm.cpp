@@ -396,20 +396,20 @@ TEST(LayerNorm, NELayerNormOp) {
 TEST(LayerNorm, TestMultiGPTBlock) {
     using namespace BatmanInfer;
     int thread_num = std::thread::hardware_concurrency(), seq_len = 1;
-    std::cout << "Mobile Thread = " << thread_num << std::endl;
-    if (auto num_thread_op = OperatorTest::readIntegerFromFile("config.txt", 1)) {
-        thread_num = std::min(*num_thread_op, thread_num);
-        std::cout << "thread_num = " << thread_num << std::endl;
-    } else {
-        return;
-    }
-    std::cout << "Sequence length = " << seq_len << std::endl;
-    if (auto num_thread_op = OperatorTest::readIntegerFromFile("seq.txt", 1)) {
-        seq_len = *num_thread_op;
-        std::cout << "sequence = " << seq_len << std::endl;
-    } else {
-        return;
-    }
+    // std::cout << "Mobile Thread = " << thread_num << std::endl;
+    // if (auto num_thread_op = OperatorTest::readIntegerFromFile("config.txt", 1)) {
+    //     thread_num = std::min(*num_thread_op, thread_num);
+    //     std::cout << "thread_num = " << thread_num << std::endl;
+    // } else {
+    //     return;
+    // }
+    // std::cout << "Sequence length = " << seq_len << std::endl;
+    // if (auto num_thread_op = OperatorTest::readIntegerFromFile("seq.txt", 1)) {
+    //     seq_len = *num_thread_op;
+    //     std::cout << "sequence = " << seq_len << std::endl;
+    // } else {
+    //     return;
+    // }
     // 前置参数
     std::vector<int> output_ids{};
     std::vector<float> scores{};
@@ -426,7 +426,7 @@ TEST(LayerNorm, TestMultiGPTBlock) {
 
     // 开始的
     int batch_size = 1;
-    // int seq_len = 12;
+    // seq_len = 12;
     // 1. 初始化一个最大input算子
     BITensor input_tensor;
     const BITensorShape input_tensor_shape(max_seq, max_batch_size);
@@ -434,20 +434,26 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     input_tensor.allocator()->allocate();
 
     // 1.1 初始化sub input
+    std::vector<uint32_t> indices_data{ 0 };
     BITensor sub_input_tensor;
     BITensorShape sub_input_tensor_shape(seq_len, batch_size);
     BITensorInfo input_info(sub_input_tensor_shape, 1, BIDataType::U32);
     input_info.set_format(Format::U32);
     sub_input_tensor.allocator()->init(*input_tensor.allocator(), input_info);
-    std::vector<uint32_t> indices_data{101, 6821, 3221, 2523,  719,  722, 1184, 4638,  752, 2658,  749,  102};
     OperatorTest::fill_tensor_val_with_arr(sub_input_tensor, indices_data);
+
+    OperatorTest::print_tensor(sub_input_tensor, "sub_input_tensor");
+
+
 
     // 2. 转换token的Gather, Gather权重
     BITensorShape gather_weight_shape(hidden_size, 21128);
-    const std::string &weight_path = "./intent_res/transformer_wte_weight.npy";
+    const std::string &weight_path = "./six_layer/transformer_wte_weight.npy";
     BITensor weight = utils::create_type_tensor(weight_path,
                                                 gather_weight_shape,
                                                 BIDataType::F16);
+    // OperatorTest::print_tensor(weight, "transformer_wte_weight");
+
 
     // 2.1 Gather的输出
     BITensor gather_o_tensor, sub_gather_o_tensor;
@@ -467,12 +473,17 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     gather_layer.configure(&weight, &sub_input_tensor, &sub_gather_o_tensor, 1);
     gather_layer.run();
 
+    OperatorTest::print_tensor(sub_gather_o_tensor, "sub_gather_o_tensor");
+
+
     // 3. 位置信息编码信息
     BITensorShape add_wte_weight_shape(hidden_size, max_seq);
-    const std::string &add_wte_weight_path = "./intent_res/add_wte_weights.npy";
+    const std::string &add_wte_weight_path = "./six_layer/add_wte_weights.npy";
     BITensor add_wte_weight = utils::create_type_tensor(add_wte_weight_path,
                                                         add_wte_weight_shape,
                                                         BIDataType::F16);
+    // OperatorTest::print_tensor(add_wte_weight, "add_wte_weight");
+
     BITensor sub_add_weight;
     BITensorShape sub_add_weight_shape(768, seq_len);
     BITensorInfo sub_add_weight_info(sub_add_weight_shape, 1, BIDataType::F16);
@@ -489,7 +500,7 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     wte_layer.configure(&sub_gather_o_tensor, &sub_add_weight, &sub_wte_o_tensor, BIConvertPolicy::SATURATE);
     wte_layer.run();
 
-    // OperatorTest::print_tensor(sub_wte_o_tensor);
+    OperatorTest::print_tensor(sub_wte_o_tensor, "sub_wte_o_tensor");
 
 
     // 4 分割输出结果
@@ -500,55 +511,66 @@ TEST(LayerNorm, TestMultiGPTBlock) {
 
     // 5. GPT Block的结构输出
     BITensorShape gpt_ln_1_weight_shape(hidden_size);
-    const std::string &gamma_weights_path = "./intent_res/ln_1_weight_1.npy";
+    const std::string &gamma_weights_path = "./six_layer/attn_layernorm_weights_0.npy";
     BITensor gpt_ln_1_weights_1 = utils::create_type_tensor(gamma_weights_path,
                                                           gpt_ln_1_weight_shape,
                                                           BIDataType::F16);
-    const std::string &ln_1_bias_path = "./intent_res/ln_1_bias_1.npy";
+    // OperatorTest::print_tensor(gpt_ln_1_weights_1, "attn_layernorm_weights_0");
+    const std::string &ln_1_bias_path = "./six_layer/attn_layernorm_bias_0.npy";
     BITensor gpt_ln_1_bias_1 = utils::create_type_tensor(ln_1_bias_path,
                                                        gpt_ln_1_weight_shape,
                                                        BIDataType::F16);
     BITensorShape gpt_c_attn_weights_shape(hidden_size * 3, hidden_size);
-    const std::string &gpt_c_attn_weights_path = "./intent_res/c_attn_weights_1.npy";
+    const std::string &gpt_c_attn_weights_path = "./six_layer/c_attn_weights_0.npy";
     BITensor gpt_c_attn_weights_1 = utils::create_type_tensor(gpt_c_attn_weights_path,
                                                             gpt_c_attn_weights_shape,
                                                             BIDataType::F16);
+    // OperatorTest::print_tensor(gpt_c_attn_weights_1, "c_attn_weights_0");
     BITensorShape gpt_c_attn_bias_shape(hidden_size * 3);
-    const std::string &gpt_c_attn_bias_path = "./intent_res/c_attn_bias_1.npy";
+    const std::string &gpt_c_attn_bias_path = "./six_layer/c_attn_bias_0.npy";
     BITensor gpt_c_attn_bias_1 = utils::create_type_tensor(gpt_c_attn_bias_path,
                                                          gpt_c_attn_bias_shape,
                                                          BIDataType::F16);
+    // OperatorTest::print_tensor(gpt_c_attn_bias_1, "c_attn_bias_0");
     BITensorShape attn_c_proj_weights_shape(hidden_size, hidden_size);
-    const std::string &attn_c_proj_weights_path = "./intent_res/p_attn_weights_1.npy";
+    const std::string &attn_c_proj_weights_path = "./six_layer/p_attn_weights_0.npy";
     BITensor attn_c_proj_weights_1 = utils::create_type_tensor(attn_c_proj_weights_path, attn_c_proj_weights_shape,
                                                              BIDataType::F16);
+    // OperatorTest::print_tensor(attn_c_proj_weights_1, "p_attn_weights_0");
     BITensorShape attn_c_proj_bias_shape(768);
-    const std::string &attn_c_proj_bias_path = "./intent_res/p_attn_bias_1.npy";
+    const std::string &attn_c_proj_bias_path = "./six_layer/p_attn_bias_0.npy";
     BITensor attn_c_proj_bias_1 = utils::create_type_tensor(attn_c_proj_bias_path, attn_c_proj_bias_shape,
                                                           BIDataType::F16);
+    // OperatorTest::print_tensor(attn_c_proj_bias_1, "p_attn_bias_0");
 
     PermutationVector q_perm{0, 2, 1, 3};
     PermutationVector k_perm{2, 0, 1, 3};
     PermutationVector qkv_o_perm{0, 2, 1, 3};
 
     // MLP 层权重
-    const std::string &gpt_ln_2_path = "./intent_res/ln_2_weight_1.npy";
+    const std::string &gpt_ln_2_path = "./six_layer/mlp_layernorm_weights_0.npy";
     BITensor gpt_ln_2_weight_1 = OperatorTest::create_norm_input(std::vector<int>{768}, gpt_ln_2_path);
-    const std::string &ln_2_bias_path = "./intent_res/ln_2_bias_1.npy";
+    // OperatorTest::print_tensor(gpt_ln_2_weight_1, "mlp_layernorm_weights_0");
+    const std::string &ln_2_bias_path = "./six_layer/mlp_layernorm_bias_0.npy";
     BITensor gpt_ln_2_bias_1 = utils::create_type_tensor(ln_2_bias_path,
                                                        gpt_ln_1_weight_shape,
                                                        BIDataType::F16);
+    // OperatorTest::print_tensor(gpt_ln_2_bias_1, "mlp_layernorm_bias_0");
     // 初始化fc_weights的权重
-    const std::string &c_fc_weights_path = "./intent_res/c_fc_weights_1.npy";
+    const std::string &c_fc_weights_path = "./six_layer/reordered_c_fc_weights_0.npy";
     BITensor c_fc_weights_1 = utils::create_type_tensor(c_fc_weights_path, BITensorShape(3072, 768), BIDataType::F16);
+    // OperatorTest::print_tensor(c_fc_weights_1, "reordered_c_fc_weights_0");
     // 初始化fc_bias
-    const std::string &c_fc_bias_path = "./intent_res/c_fc_bias_1.npy";
+    const std::string &c_fc_bias_path = "./six_layer/c_fc_bias_0.npy";
     BITensor c_fc_bias_1 = utils::create_type_tensor(c_fc_bias_path, BITensorShape(3072), BIDataType::F16);
+    // OperatorTest::print_tensor(c_fc_bias_1, "c_fc_bias_0");
     // 6. proj的权重
-    const std::string &c_proj_path = "./intent_res/c_proj_weights_1.npy";
+    const std::string &c_proj_path = "./six_layer/c_proj_weights_0.npy";
     BITensor c_proj_weight_1 = OperatorTest::create_norm_input(std::vector<int>{3072, 768}, c_proj_path);
-    const std::string &c_proj_bias_path = "./intent_res/c_proj_bias_1.npy";
+    // OperatorTest::print_tensor(c_proj_weight_1, "c_proj_weights_0");
+    const std::string &c_proj_bias_path = "./six_layer/c_proj_bias_0.npy";
     BITensor c_proj_bias_1 = OperatorTest::create_norm_input(std::vector<int>{768}, c_proj_bias_path);
+    // OperatorTest::print_tensor(c_proj_bias_1, "c_proj_bias_0");
     const BIActivationLayerInfo act_info(BIActivationFunction::GELU);
 
     // 合并Config
@@ -579,52 +601,53 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     gpt_layer_config_1.layer_idx = 0;
     layer_config.push_back(gpt_layer_config_1);
 
-    const std::string &gpt_ln_1_weights_2_path = "./intent_res/ln_1_weight_2.npy";
+    const std::string &gpt_ln_1_weights_2_path = "./six_layer/attn_layernorm_weights_1.npy";
     BITensor gpt_ln_1_weights_2 = utils::create_type_tensor(gpt_ln_1_weights_2_path,
                                                             gpt_ln_1_weight_shape,
                                                             BIDataType::F16);
-    const std::string &ln_1_bias_2_path = "./intent_res/ln_1_bias_2.npy";
+
+    const std::string &ln_1_bias_2_path = "./six_layer/attn_layernorm_bias_1.npy";
     BITensor gpt_ln_1_bias_2 = utils::create_type_tensor(ln_1_bias_2_path,
                                                          gpt_ln_1_weight_shape,
                                                          BIDataType::F16);
 
-    const std::string & gpt_c_attn_weights_2_path = "./intent_res/c_attn_weights_2.npy";
+    const std::string & gpt_c_attn_weights_2_path = "./six_layer/c_attn_weights_1.npy";
     BITensor gpt_c_attn_weights_2 = utils::create_type_tensor(gpt_c_attn_weights_2_path,
                                                               gpt_c_attn_weights_shape,
                                                               BIDataType::F16);
 
-    const std::string &gpt_c_attn_bias_2_path = "./intent_res/c_attn_bias_2.npy";
+    const std::string &gpt_c_attn_bias_2_path = "./six_layer/c_attn_bias_1.npy";
     BITensor gpt_c_attn_bias_2 = utils::create_type_tensor(gpt_c_attn_bias_2_path,
                                                            gpt_c_attn_bias_shape,
                                                            BIDataType::F16);
 
-    const std::string &attn_c_proj_weights_2_path = "./intent_res/p_attn_weights_2.npy";
+    const std::string &attn_c_proj_weights_2_path = "./six_layer/p_attn_weights_1.npy";
     BITensor attn_c_proj_weights_2 = utils::create_type_tensor(attn_c_proj_weights_2_path,
         attn_c_proj_weights_shape,
                                                                BIDataType::F16);
 
-    const std::string &attn_c_proj_bias_2_path = "./intent_res/p_attn_bias_2.npy";
+    const std::string &attn_c_proj_bias_2_path = "./six_layer/p_attn_bias_1.npy";
     BITensor attn_c_proj_bias_2 = utils::create_type_tensor(attn_c_proj_bias_2_path,
                                                             attn_c_proj_bias_shape,
                                                             BIDataType::F16);
 
     // MLP 层权重
-    const std::string &gpt_ln_2_2_path = "./intent_res/ln_2_weight_2.npy";
+    const std::string &gpt_ln_2_2_path = "./six_layer/mlp_layernorm_weights_1.npy";
     BITensor gpt_ln_2_weight_2 = OperatorTest::create_norm_input(std::vector<int>{768}, gpt_ln_2_2_path);
-    const std::string &ln_2_bias_2_path = "./intent_res/ln_2_bias_2.npy";
+    const std::string &ln_2_bias_2_path = "./six_layer/mlp_layernorm_bias_1.npy";
     BITensor gpt_ln_2_bias_2 = utils::create_type_tensor(ln_2_bias_2_path,
                                                          gpt_ln_1_weight_shape,
                                                          BIDataType::F16);
     // 初始化fc_weights的权重
-    const std::string &c_fc_weights_2_path = "./intent_res/c_fc_weights_2.npy";
+    const std::string &c_fc_weights_2_path = "./six_layer/reordered_c_fc_weights_1.npy";
     BITensor c_fc_weights_2 = utils::create_type_tensor(c_fc_weights_2_path, BITensorShape(3072, 768), BIDataType::F16);
     // 初始化fc_bias
-    const std::string &c_fc_bias_2_path = "./intent_res/c_fc_bias_2.npy";
+    const std::string &c_fc_bias_2_path = "./six_layer/c_fc_bias_1.npy";
     BITensor c_fc_bias_2 = utils::create_type_tensor(c_fc_bias_2_path, BITensorShape(3072), BIDataType::F16);
     // 6. proj的权重
-    const std::string &c_proj_2_path = "./intent_res/c_proj_weights_2.npy";
+    const std::string &c_proj_2_path = "./six_layer/c_proj_weights_1.npy";
     BITensor c_proj_weight_2 = OperatorTest::create_norm_input(std::vector<int>{3072, 768}, c_proj_2_path);
-    const std::string &c_proj_bias_2_path = "./intent_res/c_proj_bias_2.npy";
+    const std::string &c_proj_bias_2_path = "./six_layer/c_proj_bias_1.npy";
     BITensor c_proj_bias_2 = OperatorTest::create_norm_input(std::vector<int>{768}, c_proj_bias_2_path);
 
     gpt_layer_config_2.ln_1_weight = &gpt_ln_1_weights_2;
@@ -643,52 +666,52 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     gpt_layer_config_2.layer_idx = 1;
     layer_config.push_back(gpt_layer_config_2);
 
-    const std::string &gpt_ln_1_weights_3_path = "./intent_res/ln_1_weight_3.npy";
+    const std::string &gpt_ln_1_weights_3_path = "./six_layer/attn_layernorm_weights_2.npy";
     BITensor gpt_ln_1_weights_3 = utils::create_type_tensor(gpt_ln_1_weights_3_path,
                                                             gpt_ln_1_weight_shape,
                                                             BIDataType::F16);
-    const std::string &ln_1_bias_3_path = "./intent_res/ln_1_bias_3.npy";
+    const std::string &ln_1_bias_3_path = "./six_layer/attn_layernorm_bias_2.npy";
     BITensor gpt_ln_1_bias_3 = utils::create_type_tensor(ln_1_bias_3_path,
                                                          gpt_ln_1_weight_shape,
                                                          BIDataType::F16);
 
-    const std::string &gpt_c_attn_weights_3_path = "./intent_res/c_attn_weights_3.npy";
+    const std::string &gpt_c_attn_weights_3_path = "./six_layer/c_attn_weights_2.npy";
     BITensor gpt_c_attn_weights_3 = utils::create_type_tensor(gpt_c_attn_weights_3_path,
                                                               gpt_c_attn_weights_shape,
                                                               BIDataType::F16);
 
-    const std::string &gpt_c_attn_bias_3_path = "./intent_res/c_attn_bias_3.npy";
+    const std::string &gpt_c_attn_bias_3_path = "./six_layer/c_attn_bias_2.npy";
     BITensor gpt_c_attn_bias_3 = utils::create_type_tensor(gpt_c_attn_bias_3_path,
                                                            gpt_c_attn_bias_shape,
                                                            BIDataType::F16);
 
-    const std::string &attn_c_proj_weights_3_path = "./intent_res/p_attn_weights_3.npy";
+    const std::string &attn_c_proj_weights_3_path = "./six_layer/p_attn_weights_2.npy";
     BITensor attn_c_proj_weights_3 = utils::create_type_tensor(attn_c_proj_weights_3_path,
                                                                attn_c_proj_weights_shape,
                                                                BIDataType::F16);
 
-    const std::string &attn_c_proj_bias_3_path = "./intent_res/p_attn_bias_3.npy";
+    const std::string &attn_c_proj_bias_3_path = "./six_layer/p_attn_bias_2.npy";
     BITensor attn_c_proj_bias_3 = utils::create_type_tensor(attn_c_proj_bias_3_path,
                                                             attn_c_proj_bias_shape,
                                                             BIDataType::F16);
 
     // MLP 层权重
-    const std::string &gpt_ln_2_3_path = "./intent_res/ln_2_weight_3.npy";
+    const std::string &gpt_ln_2_3_path = "./six_layer/mlp_layernorm_weights_2.npy";
     BITensor gpt_ln_2_weight_3 = OperatorTest::create_norm_input(std::vector<int>{768}, gpt_ln_2_3_path);
-    const std::string &ln_2_bias_3_path = "./intent_res/ln_2_bias_3.npy";
+    const std::string &ln_2_bias_3_path = "./six_layer/mlp_layernorm_bias_2.npy";
     BITensor gpt_ln_2_bias_3 = utils::create_type_tensor(ln_2_bias_3_path,
                                                          gpt_ln_1_weight_shape,
                                                          BIDataType::F16);
     // 初始化fc_weights的权重
-    const std::string &c_fc_weights_3_path = "./intent_res/c_fc_weights_3.npy";
+    const std::string &c_fc_weights_3_path = "./six_layer/reordered_c_fc_weights_2.npy";
     BITensor c_fc_weights_3 = utils::create_type_tensor(c_fc_weights_3_path, BITensorShape(3072, 768), BIDataType::F16);
     // 初始化fc_bias
-    const std::string &c_fc_bias_3_path = "./intent_res/c_fc_bias_3.npy";
+    const std::string &c_fc_bias_3_path = "./six_layer/c_fc_bias_2.npy";
     BITensor c_fc_bias_3 = utils::create_type_tensor(c_fc_bias_3_path, BITensorShape(3072), BIDataType::F16);
     // 6. proj的权重
-    const std::string &c_proj_3_path = "./intent_res/c_proj_weights_3.npy";
+    const std::string &c_proj_3_path = "./six_layer/c_proj_weights_2.npy";
     BITensor c_proj_weight_3 = OperatorTest::create_norm_input(std::vector<int>{3072, 768}, c_proj_3_path);
-    const std::string &c_proj_bias_3_path = "./intent_res/c_proj_bias_3.npy";
+    const std::string &c_proj_bias_3_path = "./six_layer/c_proj_bias_2.npy";
     BITensor c_proj_bias_3 = OperatorTest::create_norm_input(std::vector<int>{768}, c_proj_bias_3_path);
 
     gpt_layer_config_3.ln_1_weight = &gpt_ln_1_weights_3;
@@ -707,52 +730,52 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     gpt_layer_config_3.layer_idx = 2;
     layer_config.push_back(gpt_layer_config_3);
 
-    const std::string &gpt_ln_1_weights_4_path = "./intent_res/ln_1_weight_4.npy";
+    const std::string &gpt_ln_1_weights_4_path = "./six_layer/attn_layernorm_weights_3.npy";
     BITensor gpt_ln_1_weights_4 = utils::create_type_tensor(gpt_ln_1_weights_4_path,
                                                             gpt_ln_1_weight_shape,
                                                             BIDataType::F16);
-    const std::string &ln_1_bias_4_path = "./intent_res/ln_1_bias_4.npy";
+    const std::string &ln_1_bias_4_path = "./six_layer/attn_layernorm_bias_3.npy";
     BITensor gpt_ln_1_bias_4 = utils::create_type_tensor(ln_1_bias_4_path,
                                                          gpt_ln_1_weight_shape,
                                                          BIDataType::F16);
 
-    const std::string &gpt_c_attn_weights_4_path = "./intent_res/c_attn_weights_4.npy";
+    const std::string &gpt_c_attn_weights_4_path = "./six_layer/c_attn_weights_3.npy";
     BITensor gpt_c_attn_weights_4 = utils::create_type_tensor(gpt_c_attn_weights_4_path,
                                                               gpt_c_attn_weights_shape,
                                                               BIDataType::F16);
 
-    const std::string &gpt_c_attn_bias_4_path = "./intent_res/c_attn_bias_4.npy";
+    const std::string &gpt_c_attn_bias_4_path = "./six_layer/c_attn_bias_3.npy";
     BITensor gpt_c_attn_bias_4 = utils::create_type_tensor(gpt_c_attn_bias_4_path,
                                                            gpt_c_attn_bias_shape,
                                                            BIDataType::F16);
 
-    const std::string &attn_c_proj_weights_4_path = "./intent_res/p_attn_weights_4.npy";
+    const std::string &attn_c_proj_weights_4_path = "./six_layer/p_attn_weights_3.npy";
     BITensor attn_c_proj_weights_4 = utils::create_type_tensor(attn_c_proj_weights_4_path,
                                                                attn_c_proj_weights_shape,
                                                                BIDataType::F16);
 
-    const std::string &attn_c_proj_bias_4_path = "./intent_res/p_attn_bias_4.npy";
+    const std::string &attn_c_proj_bias_4_path = "./six_layer/p_attn_bias_3.npy";
     BITensor attn_c_proj_bias_4 = utils::create_type_tensor(attn_c_proj_bias_4_path,
                                                             attn_c_proj_bias_shape,
                                                             BIDataType::F16);
 
     // MLP 层权重
-    const std::string &gpt_ln_2_4_path = "./intent_res/ln_2_weight_4.npy";
+    const std::string &gpt_ln_2_4_path = "./six_layer/mlp_layernorm_weights_3.npy";
     BITensor gpt_ln_2_weight_4 = OperatorTest::create_norm_input(std::vector<int>{768}, gpt_ln_2_4_path);
-    const std::string &ln_2_bias_4_path = "./intent_res/ln_2_bias_4.npy";
+    const std::string &ln_2_bias_4_path = "./six_layer/mlp_layernorm_bias_3.npy";
     BITensor gpt_ln_2_bias_4 = utils::create_type_tensor(ln_2_bias_4_path,
                                                          gpt_ln_1_weight_shape,
                                                          BIDataType::F16);
     // 初始化fc_weights的权重
-    const std::string &c_fc_weights_4_path = "./intent_res/c_fc_weights_4.npy";
+    const std::string &c_fc_weights_4_path = "./six_layer/reordered_c_fc_weights_3.npy";
     BITensor c_fc_weights_4 = utils::create_type_tensor(c_fc_weights_4_path, BITensorShape(3072, 768), BIDataType::F16);
     // 初始化fc_bias
-    const std::string &c_fc_bias_4_path = "./intent_res/c_fc_bias_4.npy";
+    const std::string &c_fc_bias_4_path = "./six_layer/c_fc_bias_3.npy";
     BITensor c_fc_bias_4 = utils::create_type_tensor(c_fc_bias_4_path, BITensorShape(3072), BIDataType::F16);
     // 6. proj的权重
-    const std::string &c_proj_4_path = "./intent_res/c_proj_weights_4.npy";
+    const std::string &c_proj_4_path = "./six_layer/c_proj_weights_3.npy";
     BITensor c_proj_weight_4 = OperatorTest::create_norm_input(std::vector<int>{3072, 768}, c_proj_4_path);
-    const std::string &c_proj_bias_4_path = "./intent_res/c_proj_bias_4.npy";
+    const std::string &c_proj_bias_4_path = "./six_layer/c_proj_bias_3.npy";
     BITensor c_proj_bias_4 = OperatorTest::create_norm_input(std::vector<int>{768}, c_proj_bias_4_path);
 
     gpt_layer_config_4.ln_1_weight = &gpt_ln_1_weights_4;
@@ -771,52 +794,52 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     gpt_layer_config_4.layer_idx = 3;
     layer_config.push_back(gpt_layer_config_4);
 
-    const std::string &gpt_ln_1_weights_5_path = "./intent_res/ln_1_weight_5.npy";
+    const std::string &gpt_ln_1_weights_5_path = "./six_layer/attn_layernorm_weights_4.npy";
     BITensor gpt_ln_1_weights_5 = utils::create_type_tensor(gpt_ln_1_weights_5_path,
                                                             gpt_ln_1_weight_shape,
                                                             BIDataType::F16);
-    const std::string &ln_1_bias_5_path = "./intent_res/ln_1_bias_5.npy";
+    const std::string &ln_1_bias_5_path = "./six_layer/attn_layernorm_bias_4.npy";
     BITensor gpt_ln_1_bias_5 = utils::create_type_tensor(ln_1_bias_5_path,
                                                          gpt_ln_1_weight_shape,
                                                          BIDataType::F16);
 
-    const std::string &gpt_c_attn_weights_5_path = "./intent_res/c_attn_weights_5.npy";
+    const std::string &gpt_c_attn_weights_5_path = "./six_layer/c_attn_weights_4.npy";
     BITensor gpt_c_attn_weights_5 = utils::create_type_tensor(gpt_c_attn_weights_5_path,
                                                               gpt_c_attn_weights_shape,
                                                               BIDataType::F16);
 
-    const std::string &gpt_c_attn_bias_5_path = "./intent_res/c_attn_bias_5.npy";
+    const std::string &gpt_c_attn_bias_5_path = "./six_layer/c_attn_bias_4.npy";
     BITensor gpt_c_attn_bias_5 = utils::create_type_tensor(gpt_c_attn_bias_5_path,
                                                            gpt_c_attn_bias_shape,
                                                            BIDataType::F16);
 
-    const std::string &attn_c_proj_weights_5_path = "./intent_res/p_attn_weights_5.npy";
+    const std::string &attn_c_proj_weights_5_path = "./six_layer/p_attn_weights_4.npy";
     BITensor attn_c_proj_weights_5 = utils::create_type_tensor(attn_c_proj_weights_5_path,
                                                                attn_c_proj_weights_shape,
                                                                BIDataType::F16);
 
-    const std::string &attn_c_proj_bias_5_path = "./intent_res/p_attn_bias_5.npy";
+    const std::string &attn_c_proj_bias_5_path = "./six_layer/p_attn_bias_4.npy";
     BITensor attn_c_proj_bias_5 = utils::create_type_tensor(attn_c_proj_bias_5_path,
                                                             attn_c_proj_bias_shape,
                                                             BIDataType::F16);
 
     // MLP 层权重
-    const std::string &gpt_ln_2_5_path = "./intent_res/ln_2_weight_5.npy";
+    const std::string &gpt_ln_2_5_path = "./six_layer/mlp_layernorm_weights_4.npy";
     BITensor gpt_ln_2_weight_5 = OperatorTest::create_norm_input(std::vector<int>{768}, gpt_ln_2_5_path);
-    const std::string &ln_2_bias_5_path = "./intent_res/ln_2_bias_5.npy";
+    const std::string &ln_2_bias_5_path = "./six_layer/mlp_layernorm_bias_4.npy";
     BITensor gpt_ln_2_bias_5 = utils::create_type_tensor(ln_2_bias_5_path,
                                                          gpt_ln_1_weight_shape,
                                                          BIDataType::F16);
     // 初始化fc_weights的权重
-    const std::string &c_fc_weights_5_path = "./intent_res/c_fc_weights_5.npy";
+    const std::string &c_fc_weights_5_path = "./six_layer/reordered_c_fc_weights_4.npy";
     BITensor c_fc_weights_5 = utils::create_type_tensor(c_fc_weights_5_path, BITensorShape(3072, 768), BIDataType::F16);
     // 初始化fc_bias
-    const std::string &c_fc_bias_5_path = "./intent_res/c_fc_bias_5.npy";
+    const std::string &c_fc_bias_5_path = "./six_layer/c_fc_bias_4.npy";
     BITensor c_fc_bias_5 = utils::create_type_tensor(c_fc_bias_5_path, BITensorShape(3072), BIDataType::F16);
     // 6. proj的权重
-    const std::string &c_proj_5_path = "./intent_res/c_proj_weights_5.npy";
+    const std::string &c_proj_5_path = "./six_layer/c_proj_weights_4.npy";
     BITensor c_proj_weight_5 = OperatorTest::create_norm_input(std::vector<int>{3072, 768}, c_proj_5_path);
-    const std::string &c_proj_bias_5_path = "./intent_res/c_proj_bias_5.npy";
+    const std::string &c_proj_bias_5_path = "./six_layer/c_proj_bias_4.npy";
     BITensor c_proj_bias_5 = OperatorTest::create_norm_input(std::vector<int>{768}, c_proj_bias_5_path);
 
     gpt_layer_config_5.ln_1_weight = &gpt_ln_1_weights_5;
@@ -835,52 +858,52 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     gpt_layer_config_5.layer_idx = 4;
     layer_config.push_back(gpt_layer_config_5);
 
-    const std::string &gpt_ln_1_weights_6_path = "./intent_res/ln_1_weight_6.npy";
+    const std::string &gpt_ln_1_weights_6_path = "./six_layer/attn_layernorm_weights_5.npy";
     BITensor gpt_ln_1_weights_6 = utils::create_type_tensor(gpt_ln_1_weights_6_path,
                                                             gpt_ln_1_weight_shape,
                                                             BIDataType::F16);
-    const std::string &ln_1_bias_6_path = "./intent_res/ln_1_bias_6.npy";
+    const std::string &ln_1_bias_6_path = "./six_layer/attn_layernorm_bias_5.npy";
     BITensor gpt_ln_1_bias_6 = utils::create_type_tensor(ln_1_bias_6_path,
                                                          gpt_ln_1_weight_shape,
                                                          BIDataType::F16);
 
-    const std::string &gpt_c_attn_weights_6_path = "./intent_res/c_attn_weights_6.npy";
+    const std::string &gpt_c_attn_weights_6_path = "./six_layer/c_attn_weights_5.npy";
     BITensor gpt_c_attn_weights_6 = utils::create_type_tensor(gpt_c_attn_weights_6_path,
                                                               gpt_c_attn_weights_shape,
                                                               BIDataType::F16);
 
-    const std::string &gpt_c_attn_bias_6_path = "./intent_res/c_attn_bias_6.npy";
+    const std::string &gpt_c_attn_bias_6_path = "./six_layer/c_attn_bias_5.npy";
     BITensor gpt_c_attn_bias_6 = utils::create_type_tensor(gpt_c_attn_bias_6_path,
                                                            gpt_c_attn_bias_shape,
                                                            BIDataType::F16);
 
-    const std::string &attn_c_proj_weights_6_path = "./intent_res/p_attn_weights_6.npy";
+    const std::string &attn_c_proj_weights_6_path = "./six_layer/p_attn_weights_5.npy";
     BITensor attn_c_proj_weights_6 = utils::create_type_tensor(attn_c_proj_weights_6_path,
                                                                attn_c_proj_weights_shape,
                                                                BIDataType::F16);
 
-    const std::string &attn_c_proj_bias_6_path = "./intent_res/p_attn_bias_6.npy";
+    const std::string &attn_c_proj_bias_6_path = "./six_layer/p_attn_bias_5.npy";
     BITensor attn_c_proj_bias_6 = utils::create_type_tensor(attn_c_proj_bias_6_path,
                                                             attn_c_proj_bias_shape,
                                                             BIDataType::F16);
 
     // MLP 层权重
-    const std::string &gpt_ln_2_6_path = "./intent_res/ln_2_weight_6.npy";
+    const std::string &gpt_ln_2_6_path = "./six_layer/mlp_layernorm_weights_5.npy";
     BITensor gpt_ln_2_weight_6 = OperatorTest::create_norm_input(std::vector<int>{768}, gpt_ln_2_6_path);
-    const std::string &ln_2_bias_6_path = "./intent_res/ln_2_bias_6.npy";
+    const std::string &ln_2_bias_6_path = "./six_layer/mlp_layernorm_bias_5.npy";
     BITensor gpt_ln_2_bias_6 = utils::create_type_tensor(ln_2_bias_6_path,
                                                          gpt_ln_1_weight_shape,
                                                          BIDataType::F16);
     // 初始化fc_weights的权重
-    const std::string &c_fc_weights_6_path = "./intent_res/c_fc_weights_6.npy";
+    const std::string &c_fc_weights_6_path = "./six_layer/reordered_c_fc_weights_5.npy";
     BITensor c_fc_weights_6 = utils::create_type_tensor(c_fc_weights_6_path, BITensorShape(3072, 768), BIDataType::F16);
     // 初始化fc_bias
-    const std::string &c_fc_bias_6_path = "./intent_res/c_fc_bias_6.npy";
+    const std::string &c_fc_bias_6_path = "./six_layer/c_fc_bias_5.npy";
     BITensor c_fc_bias_6 = utils::create_type_tensor(c_fc_bias_6_path, BITensorShape(3072), BIDataType::F16);
     // 6. proj的权重
-    const std::string &c_proj_6_path = "./intent_res/c_proj_weights_6.npy";
+    const std::string &c_proj_6_path = "./six_layer/c_proj_weights_5.npy";
     BITensor c_proj_weight_6 = OperatorTest::create_norm_input(std::vector<int>{3072, 768}, c_proj_6_path);
-    const std::string &c_proj_bias_6_path = "./intent_res/c_proj_bias_6.npy";
+    const std::string &c_proj_bias_6_path = "./six_layer/c_proj_bias_5.npy";
     BITensor c_proj_bias_6 = OperatorTest::create_norm_input(std::vector<int>{768}, c_proj_bias_6_path);
 
     gpt_layer_config_6.ln_1_weight = &gpt_ln_1_weights_6;
@@ -915,14 +938,17 @@ TEST(LayerNorm, TestMultiGPTBlock) {
                                     &sub_multi_gpt_o_t);
     gpt_multi_block_layer.run();
 
-    // OperatorTest::print_tensor(sub_multi_gpt_o_t, "output");
+    OperatorTest::print_tensor(sub_multi_gpt_o_t, "sub_multi_gpt_o_t");
+
+
+
 
     // 6. 进行后续的GPT结果解码(先进行RMSNorm操作)
     BITensor ln_f_o_tensor, sub_ln_f_o_tensor;
     BITensor ln_f_weights = OperatorTest::create_norm_input(std::vector{768},
-                                                               "./intent_res/ln_f_weights.npy");
+                                                               "./six_layer/final_layernorm_weights.npy");
     BITensor ln_f_bias = OperatorTest::create_norm_input(std::vector{768},
-                                                                   "./intent_res/ln_f_bias.npy");
+                                                                   "./six_layer/final_layernorm_bias.npy");
     ln_f_o_tensor.allocator()->init(BITensorInfo(gpt_o_tensor_shape, 1, BIDataType::F16));
     ln_f_o_tensor.allocator()->allocate();
     sub_ln_f_o_tensor.allocator()->init(*ln_f_o_tensor.allocator(), sub_gpt_o_t_info);
@@ -930,16 +956,18 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     ln_f_layer.configure(&sub_multi_gpt_o_t, &ln_f_weights, &ln_f_bias, &sub_ln_f_o_tensor);
     ln_f_layer.run();
 
-    // OperatorTest::print_tensor(sub_ln_f_o_tensor);
+    OperatorTest::print_tensor(sub_ln_f_o_tensor, "sub_ln_f_o_tensor");
+
+
 
     // 7. 进行LMHead操作
-    BITensor lm_head_weights = OperatorTest::create_norm_input(std::vector{768, 21128},
-                                                               "./intent_res/lm_head_weights.npy");
+    BITensor lm_head_weights = OperatorTest::create_norm_input(std::vector{768, 5},
+                                                               "./six_layer/lm_score_weights.npy");
     BITensor lm_head_output;
-    lm_head_output.allocator()->init(BITensorInfo(BITensorShape(21128, max_seq, max_batch_size), 1, BIDataType::F16));
+    lm_head_output.allocator()->init(BITensorInfo(BITensorShape(5, max_seq, max_batch_size), 1, BIDataType::F16));
     lm_head_output.allocator()->allocate();
     BITensor sub_lm_head_output;
-    BITensorInfo sub_lm_head_output_info = BITensorInfo(BITensorShape(21128, seq_len, batch_size), 1, BIDataType::F16);
+    BITensorInfo sub_lm_head_output_info = BITensorInfo(BITensorShape(5, seq_len, batch_size), 1, BIDataType::F16);
     sub_lm_head_output_info.set_format(Format::F16);
     sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
     GEMMInfo gemm_info = GEMMInfo(false,
@@ -955,48 +983,68 @@ TEST(LayerNorm, TestMultiGPTBlock) {
     lm_head_layer.configure(&sub_ln_f_o_tensor, &lm_head_weights, nullptr, &sub_lm_head_output, 1.0f, 1.0f, gemm_info);
     lm_head_layer.run();
 
-    // 8. 设置分类器
-    BITensor score_o, sub_score_o, score_weight;
-    score_o.allocator()->init(BITensorInfo(BITensorShape(5, max_seq, max_batch_size), 1, BIDataType::F16));
-    score_o.allocator()->allocate();
-    score_weight.allocator()->init(BITensorInfo(BITensorShape(5, 21128), 1, BIDataType::F16));
-    score_weight.allocator()->allocate();
+    OperatorTest::print_tensor(sub_lm_head_output, "sub_lm_head_output");
+
+
+    // // 8. 设置分类器
+    // BITensor score_o, sub_score_o, score_weight;
+    // score_o.allocator()->init(BITensorInfo(BITensorShape(5, max_seq, max_batch_size), 1, BIDataType::F16));
+    // score_o.allocator()->allocate();
+    // score_weight.allocator()->init(BITensorInfo(BITensorShape(5, 21128), 1, BIDataType::F16));
+    // score_weight.allocator()->allocate();
     BITensorInfo sub_score_info = BITensorInfo(BITensorShape(5, seq_len, batch_size), 1, BIDataType::F16);
     sub_score_info.set_format(Format::F16);
-    sub_score_o.allocator()->init(*score_o.allocator(), sub_score_info);
-    BINEGEMM score_layer;
-    score_layer.configure(&sub_lm_head_output, &score_weight, nullptr, &sub_score_o, 1.0f, 1.0f, gemm_info);
-    score_layer.run();
-
-    OperatorTest::print_tensor(sub_lm_head_output);
-    //
-    // // seq_len = 64;
-    // batch_size = 1;
-    // input_info.set_tensor_shape(BITensorShape(seq_len, batch_size));
-    // sub_input_tensor.allocator()->init(*input_tensor.allocator(), input_info);
-    // sub_gather_info.set_tensor_shape(BITensorShape(hidden_size, seq_len, batch_size));
-    // sub_gather_o_tensor.allocator()->init(*gather_o_tensor.allocator(), sub_gather_info);
-    // sub_wte_o_tensor.allocator()->init(*wte_o_tensor.allocator(), sub_gather_info);
-    // sub_add_weight_info.set_tensor_shape(BITensorShape(hidden_size, seq_len));
-    // sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
-    // sub_gpt_o_t_info.set_tensor_shape(BITensorShape(hidden_size, seq_len, batch_size));
-    // sub_score_info.set_tensor_shape(BITensorShape(5, seq_len, batch_size));
-    // sub_multi_gpt_o_t.allocator()->init(*multi_gpt_o_t.allocator(), sub_gpt_o_t_info);
-    // sub_ln_f_o_tensor.allocator()->init(*ln_f_o_tensor.allocator(), sub_gpt_o_t_info);
-    // sub_lm_head_output_info.set_tensor_shape(BITensorShape(6003, seq_len, batch_size));
-    // sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
     // sub_score_o.allocator()->init(*score_o.allocator(), sub_score_info);
-    // gather_layer.dynamic_configure(&sub_input_tensor, &sub_gather_o_tensor);
-    // wte_layer.dynamic_configure(&sub_gather_o_tensor, &sub_add_weight, true);
-    // gpt_multi_block_layer.dynamic_configure(&sub_wte_o_tensor, seq_len, batch_size);
-    // ln_f_layer.dynamic_configure(&sub_multi_gpt_o_t);
-    // lm_head_layer.dynamic_configure();
+    // BINEGEMM score_layer;
+    // score_layer.configure(&sub_lm_head_output, &score_weight, nullptr, &sub_score_o, 1.0f, 1.0f, gemm_info);
+    // score_layer.run();
+    //
+    // OperatorTest::print_tensor(sub_lm_head_output);
+    //
+    seq_len = 8;
+    batch_size = 1;
+    // std::vector<unsigned int> input_vec = { 101, 6821, 3221, 2523,  719,  722, 1184, 4638,  752, 2658,  749,  102};
+    std::vector<unsigned int> input_vec = {101, 6486, 5576, 1650,  1451,  7770, 1408, 102};
+
+    input_info.set_tensor_shape(BITensorShape(seq_len, batch_size));
+    sub_input_tensor.allocator()->init(*input_tensor.allocator(), input_info);
+    OperatorTest::fill_tensor_val_with_arr(sub_input_tensor, input_vec);
+    OperatorTest::print_tensor(sub_input_tensor, "sub_input_tensor");
+
+
+    sub_gather_info.set_tensor_shape(BITensorShape(hidden_size, seq_len, batch_size));
+    sub_gather_o_tensor.allocator()->init(*gather_o_tensor.allocator(), sub_gather_info);
+    sub_wte_o_tensor.allocator()->init(*wte_o_tensor.allocator(), sub_gather_info);
+    sub_add_weight_info.set_tensor_shape(BITensorShape(hidden_size, seq_len));
+    sub_add_weight.allocator()->init(*add_wte_weight.allocator(), sub_add_weight_info);
+    sub_gpt_o_t_info.set_tensor_shape(BITensorShape(hidden_size, seq_len, batch_size));
+    // sub_score_info.set_tensor_shape(BITensorShape(5, seq_len, batch_size));
+    sub_multi_gpt_o_t.allocator()->init(*multi_gpt_o_t.allocator(), sub_gpt_o_t_info);
+    sub_ln_f_o_tensor.allocator()->init(*ln_f_o_tensor.allocator(), sub_gpt_o_t_info);
+    sub_lm_head_output_info.set_tensor_shape(BITensorShape(5, seq_len, batch_size));
+    sub_lm_head_output.allocator()->init(*lm_head_output.allocator(), sub_lm_head_output_info);
+    // sub_score_o.allocator()->init(*score_o.allocator(), sub_score_info);
+    gather_layer.dynamic_configure(&sub_input_tensor, &sub_gather_o_tensor);
+    wte_layer.dynamic_configure(&sub_gather_o_tensor, &sub_add_weight, true);
+    gpt_multi_block_layer.dynamic_configure(&sub_wte_o_tensor, seq_len, batch_size);
+    ln_f_layer.dynamic_configure(&sub_multi_gpt_o_t);
+    lm_head_layer.dynamic_configure();
     // score_layer.dynamic_configure();
-    // gather_layer.run();
-    // wte_layer.run();
-    // gpt_multi_block_layer.run();
-    // ln_f_layer.run();
-    // lm_head_layer.run();
+    gather_layer.run();
+    OperatorTest::print_tensor(sub_gather_o_tensor, "sub_gather_o_tensor");
+
+    wte_layer.run();
+    OperatorTest::print_tensor(sub_wte_o_tensor, "sub_wte_o_tensor");
+
+    gpt_multi_block_layer.run();
+    OperatorTest::print_tensor(sub_multi_gpt_o_t, "sub_multi_gpt_o_t");
+
+    ln_f_layer.run();
+    OperatorTest::print_tensor(sub_ln_f_o_tensor, "sub_ln_f_o_tensor");
+
+    lm_head_layer.run();
+    OperatorTest::print_tensor(sub_lm_head_output, "sub_lm_head_output");
+
     // score_layer.run();
     // double total_duration = 0.0, max_duration = 0.0;
     // for (int seq_run = 0; seq_run < 100; seq_run++) {

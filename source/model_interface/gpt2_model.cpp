@@ -536,7 +536,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     CHECK_SUCCESS(ret);
 
     // load mlp weights
-    ret = load_weight_tensors(_mlp_weight_tensors, GPT2ResOrder::mlp_layernorm_bias_0, order2ptr, 12);
+    ret = load_weight_tensors(_mlp_weight_tensors, GPT2ResOrder::mlp_layernorm_weights_0, order2ptr, 12);
     CHECK_SUCCESS(ret);
 
     // load mlp bias
