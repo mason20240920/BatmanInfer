@@ -204,7 +204,7 @@ namespace BatmanInfer {
          * @param mem_lst
          * @param ava_len
          */
-        virtual void schedule_kv_full_fill(BIITensorPack &tensors, const std::vector<PhysicalBlock *>&mem_lst, const std::vector<size_t> &ava_len) = 0;
+        virtual void schedule_kv_full_fill(BIITensorPack &tensors, const std::vector<PhysicalBlock *>&mem_lst, const std::vector<size_t> &ava_len, int layer_idx) = 0;
 
         /**
          * @brief 调度修改Q矩阵

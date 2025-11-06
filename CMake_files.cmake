@@ -27,15 +27,12 @@ add_executable(BatmanInfer main.cpp
         test/test_neon_operator.cpp
         test/test_dynamic_gemmlowp.cpp
         test/test_quantize.cpp
-        test/test_mem_alloc.cpp
         source/utils/utils.cpp
         test/test_matmul_assem.cpp
         test/test_perf_model.cpp
         test/test_pack_res.cpp
-        test/test_interface_call.cpp
         test/test_interface_kvcaches_call.cpp
         ${BENCHMARK_SOURCES}
-        test/test_kvcaches.cpp
         test/gemm_lowp_outputstage_test.cpp
         test/test_layer_norm.cpp
         test/test_bugs.cpp

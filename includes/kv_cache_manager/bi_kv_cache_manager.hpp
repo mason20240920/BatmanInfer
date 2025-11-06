@@ -63,7 +63,6 @@ namespace BatmanInfer {
                                   int block_id,
                                   int layer_idx,
                                   int batch_idx,
-                                  int batch_size,
                                   bool is_k = false,
                                   bool is_smooth_quant = false) const;
 
@@ -77,6 +76,7 @@ namespace BatmanInfer {
          */
         void memcpy_init_eos_buffer(void *source_buffer,
                                     int block_id,
+                                    int layer_idx,
                                     int seq_len,
                                     bool is_k = false,
                                     bool is_smooth_quant = false) const;

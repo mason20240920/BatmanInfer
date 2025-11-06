@@ -87,7 +87,7 @@ namespace BatmanInfer {
         void configure(BIITensor *input,
                        const std::vector<BIGPTLayerConfig> &layer_configs,
                        const BIGPTGlobalConfig &global_config,
-                       BIITensor *eos_weights,
+                       std::array<BITensor, 3> &eos_weights,
                        BIITensor *output);
 
         /**
@@ -97,7 +97,7 @@ namespace BatmanInfer {
         void configure_fixed(BIITensor *input,
                              const std::array<BIGPTLayerConfig, NumLayers> &layer_configs,
                              const BIGPTGlobalConfig &global_config,
-                             BIITensor *eos_weights,
+                             std::array<BITensor, NumLayers> &eos_weights,
                              BIITensor *output);
 
         void dynamic_configure(const BIITensor *input,
@@ -136,17 +136,6 @@ namespace BatmanInfer {
         size_t _layer_num = 1; // GPT Block的层数
         bool _is_prepared; // 是否已经完全初始化(预先把内存加载完)
         std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;
-        bool _is_first_kv_cache = true; // 是否第一次KV Cache
-        std::vector<std::vector<unsigned int> > _kv_decode_ids; // 进行kv cache的传递
-        std::vector<std::vector<unsigned int> > _kv_history_ids; // 历史ids
-        std::vector<unsigned int> _block_ids{};
-        std::vector<PhysicalBlock *> _physic_blocks;
-
-
-    private:
-        BIErrCode store_kv_cache();
-
-        void concat_kv_cache();
     };
 }
 

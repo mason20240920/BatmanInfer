@@ -46,7 +46,8 @@ namespace BatmanInfer {
 
         void dynamic_configure(const BIITensor *input,
                                const size_t &seq_len,
-                               const size_t &batch_size);
+                               const size_t &batch_size,
+                               const std::vector<std::vector<unsigned int> > &kv_caches_vec);
 
         void set_avail_lens(std::vector<size_t> *lens);
 
@@ -97,11 +98,9 @@ namespace BatmanInfer {
                                  const BIITensorInfo *bias,
                                  const BIITensorInfo *output);
 
-        void set_history_ids(std::vector<std::vector<unsigned int> > *history_ids);
+        void get_kv_block_ids(std::vector<unsigned int> &kv_block_ids);
 
-        void set_physical_blocks(std::vector<PhysicalBlock *> *physical_blocks);
-
-        BIErrCode run();
+        BIErrCode run(const int layer_idx, std::vector<unsigned int> &kv_block_ids);
 
         void prepare() override;
 
@@ -195,20 +194,21 @@ namespace BatmanInfer {
         int _layer_idx = 0;
         bool _is_prepared; // 是否已经完全初始化(预先把内存加载完)
         std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;
-        std::vector<std::vector<unsigned int> > *_kv_history_ids; // 进行kv cache的传递
+        bool _is_first_kv_cache = true; // 是否第一次KV Cache
+        std::vector<std::vector<unsigned int> > _kv_decode_ids; // 进行kv cache的传递
+        std::vector<unsigned int> _block_ids;
         std::vector<size_t> *_avail_len;
-        std::vector<PhysicalBlock *> *_physical_blocks;
 
     private:
         /**
          * @brief 存储每次计算的KV Caches
          */
-        BIErrCode store_kv_cache() const;
+        BIErrCode store_kv_cache(const int layer_idx, std::vector<unsigned int> &kv_block_ids);
 
         /**
          * @brief 合并KV Cache缓存
          */
-        void concat_kv_cache();
+        void concat_kv_cache(const int layer_idx);
 
         /**
          * @brief 重构Q矩阵

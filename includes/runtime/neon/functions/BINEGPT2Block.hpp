@@ -72,15 +72,16 @@ namespace BatmanInfer {
                                const size_t &batch_size,
                                const std::vector<std::vector<unsigned int> > &kv_caches_vec);
 
-        void run();
+        void run(const int layer_idx, std::vector<unsigned int> &kv_block_ids);
 
         void prepare() override;
 
-        void set_history_ids(std::vector<std::vector<unsigned int> > *history_ids);
-
-        void set_physical_blocks(std::vector<PhysicalBlock *> *physical_blocks);
+        void get_kv_block_ids(std::vector<unsigned int> &kv_block_ids);
 
         void set_avail_lens(std::vector<size_t> *avail_lens);
+
+
+        void print_tensor(const BatmanInfer::BITensor &tensor, const std::string &name = "temp", const BatmanInfer::BIIOFormatInfo::PrintRegion region = BatmanInfer::BIIOFormatInfo::PrintRegion::Full);
 
     private:
         BIMemoryGroup _memory_group; // 内存组管理
@@ -96,19 +97,16 @@ namespace BatmanInfer {
         BITensor _attn_output;
         BITensor _attn_add_output;
         BITensor _mlp_output;
-        BITensor _block_output;
 
         // 临时张量处理
         BITensor _sub_attn_output;
         BITensor _sub_add_output;
         BITensor _sub_mlp_output;
-        BITensor _sub_block_output;
 
         // 临时张量信息
         BITensorInfo _sub_attn_output_info;
         BITensorInfo _sub_add_output_info;
         BITensorInfo _sub_mlp_output_info;
-        BITensorInfo _sub_block_output_info;
 
     private:
         size_t _hidden_size{}; // 隐藏层大小
@@ -119,7 +117,5 @@ namespace BatmanInfer {
         bool _is_prepared; // 是否已经完全初始化(预先把内存加载完)
         std::unique_ptr<BIMemoryGroupResourceScope> _scope_mg;
         int _layer_idx;
-        bool _is_first_kv_cache = true; // 第一次使用KV Cache
-        bool _is_first_gpt_block = false;
     };
 }

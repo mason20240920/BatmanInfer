@@ -96,7 +96,6 @@ namespace BatmanInfer {
                                               int block_id,
                                               int layer_idx,
                                               int batch_idx,
-                                              int batch_size,
                                               bool is_k_cond,
                                               bool is_smooth_quant) const {
         auto [id, buffer] = manager_->blocks[block_id];
@@ -113,9 +112,8 @@ namespace BatmanInfer {
             v_src_buffer = batch_idx * k_block_size + static_cast<char *>(source_buffer);
         }
 
-        /// 原始张量ptr + 每层Block大小 * batch的索引 + 每层的大小(每层Block大小 * batch值大小 * 层Id索引)
-        char *layer_source_buffer = static_cast<char *>(buffer) + PER_LAYER_BS * batch_idx + layer_idx * batch_size *
-                                    PER_LAYER_BS;
+        /// 原始张量ptr + 每层Block大小 * 当前为第layer_idx层
+        char *layer_source_buffer = static_cast<char *>(buffer) + PER_LAYER_BS * layer_idx;
         if (is_k_cond) {
             memcpy(layer_source_buffer, k_src_buffer, k_block_size);
             return;
@@ -125,12 +123,13 @@ namespace BatmanInfer {
 
     void KVCacheManager::memcpy_init_eos_buffer(void *source_buffer,
                                                 int block_id,
+                                                int layer_idx,
                                                 int seq_len,
                                                 bool is_k,
                                                 bool is_smooth_quant) const {
         BI_COMPUTE_ERROR_ON_MSG(block_id + 1 - seq_len != 0, "KV Cache Store EOS Buffer Len is not right");
         for (int i = 0; i < seq_len; i++) {
-            memcpy_decode_buffer(source_buffer, i, i, is_k, is_smooth_quant);
+            memcpy_decode_buffer(source_buffer, i, layer_idx, i, is_k, is_smooth_quant);
         }
     }
 

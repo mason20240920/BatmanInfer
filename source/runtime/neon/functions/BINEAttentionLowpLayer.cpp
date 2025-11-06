@@ -708,7 +708,7 @@ namespace BatmanInfer {
         pack.add_tensor(ACL_DST_0, &_sub_concat_reshape_k_states);
         pack.add_tensor(ACL_DST_1, &_sub_concat_reshape_v_states);
         BINEScheduler::get().schedule_kv_concat(pack, blocks, *_avail_len, _layer_idx);
-        BINEScheduler::get().schedule_kv_full_fill(pack, eos_blocks, *_avail_len);
+        BINEScheduler::get().schedule_kv_full_fill(pack, eos_blocks, *_avail_len, _layer_idx);
     }
 
     void BINEAttentionLowpLayer::restruct_q_tensor() {

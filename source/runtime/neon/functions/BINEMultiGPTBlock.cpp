@@ -16,7 +16,7 @@ namespace BatmanInfer {
     void BINEMultiGPTBlock::configure(BIITensor *input,
                                       const std::vector<BIGPTLayerConfig> &layer_configs,
                                       const BIGPTGlobalConfig &global_config,
-                                      BIITensor *eos_weights,
+                                      std::array<BITensor, 3> &eos_weights,
                                       BIITensor *output) {
         // 1. 处理层数(查看多少层)
         _layer_num = layer_configs.size();
@@ -50,7 +50,7 @@ namespace BatmanInfer {
                                  layer_configs[0].proj_weights,
                                  layer_configs[0].proj_bias,
                                  layer_configs[0].ln_2_weight,
-                                 eos_weights,
+                                 &eos_weights.at(0),
                                  layer_configs[0].act_info,
                                  global_config.q_perm,
                                  global_config.k_perm,
@@ -94,7 +94,7 @@ namespace BatmanInfer {
                                          layer_configs[i].proj_weights,
                                          layer_configs[i].proj_bias,
                                          layer_configs[i].ln_2_weight,
-                                         eos_weights,
+                                         &eos_weights.at(i),
                                          layer_configs[i].act_info,
                                          global_config.q_perm,
                                          global_config.k_perm,
@@ -117,7 +117,7 @@ namespace BatmanInfer {
                                          layer_configs[i].proj_weights,
                                          layer_configs[i].proj_bias,
                                          layer_configs[i].ln_2_weight,
-                                         eos_weights,
+                                         &eos_weights.at(i),
                                          layer_configs[i].act_info,
                                          global_config.q_perm,
                                          global_config.k_perm,
@@ -139,7 +139,7 @@ namespace BatmanInfer {
                                          layer_configs[i].proj_weights,
                                          layer_configs[i].proj_bias,
                                          layer_configs[i].ln_2_weight,
-                                         eos_weights,
+                                         &eos_weights.at(i),
                                          layer_configs[i].act_info,
                                          global_config.q_perm,
                                          global_config.k_perm,
@@ -159,7 +159,7 @@ namespace BatmanInfer {
     void BINEMultiGPTBlock::configure_fixed(BIITensor *input,
                                             const std::array<BIGPTLayerConfig, NumLayers> &layer_configs,
                                             const BIGPTGlobalConfig &global_config,
-                                            BIITensor *eos_weights,
+                                            std::array<BITensor, NumLayers> &eos_weights,
                                             BIITensor *output) {
         std::vector<BIGPTLayerConfig> configs(layer_configs.begin(), layer_configs.end());
         configure(input, configs, global_config, eos_weights, output);
@@ -170,7 +170,6 @@ namespace BatmanInfer {
                                               const size_t &batch_size,
                                               const std::vector<std::vector<unsigned int> > &kv_caches_vec) {
         _batch_size = batch_size;
-        _kv_decode_ids = std::move(kv_caches_vec);
         _sub_intermediate_tensor_info.set_tensor_shape(BITensorShape(_hidden_size,
                                                                      1,
                                                                      _batch_size));
@@ -194,17 +193,16 @@ namespace BatmanInfer {
 
     void BINEMultiGPTBlock::run() {
         prepare();
-        store_kv_cache();
-        concat_kv_cache();
-        for (const auto &layer: _layer_blocks) {
-            layer->set_history_ids(&_kv_history_ids);
-            layer->set_physical_blocks(&_physic_blocks);
-            layer->run();
+        // 有 N块 GPTBlock，对于第一块 GPTBlock，需要进行 KVCache 的选择，并将当前 Block 的 KV值写入到内存指定位置；
+        // 对于后续 N-1块 GPTBlock，需要将已经选择好的 KVCache block_ids 进行传递，并将当前 Block 的 KV值写入到内存指定位置；
+        std::vector<unsigned int> kv_block_ids;
+        for (int i = 0; i < _layer_blocks.size(); ++i) {
+            _layer_blocks.at(i)->run(i, kv_block_ids);
         }
     }
 
     void BINEMultiGPTBlock::get_kv_block_ids(std::vector<unsigned int> &kv_block_ids) {
-        kv_block_ids = std::move(_block_ids);
+        _layer_blocks.at(0)->get_kv_block_ids(kv_block_ids);
     }
 
     void BINEMultiGPTBlock::prepare() {
@@ -226,43 +224,4 @@ namespace BatmanInfer {
         }
     }
 
-
-    BIErrCode BINEMultiGPTBlock::store_kv_cache() {
-        _block_ids.clear();
-        _kv_history_ids.clear();
-        if (_is_first_kv_cache) {
-            const auto root_id = KVCacheManager::getInstance().root_id();
-            _is_first_kv_cache = false;
-            _block_ids.emplace_back(root_id);
-            _kv_history_ids.emplace_back(std::vector<unsigned int>{root_id});
-            return BIErrCode::BISuccess;
-        }
-        // 判断当前的batch_size, 先根据batch size分配一组block_id
-        for (const auto &decode_list: _kv_decode_ids) {
-            std::vector<unsigned int> block_ids;
-            auto sub_ret = KVCacheManager::getInstance().alloc_decode_next(decode_list[0],
-                                                                             decode_list.size() - 1,
-                                                                             decode_list,
-                                                                             block_ids);
-            if (sub_ret != BIErrCode::BISuccess) {
-                return sub_ret;
-            }
-            _kv_history_ids.emplace_back(block_ids);
-            // 进行内存值拷贝
-            for (const auto &block_id: block_ids) {
-                _block_ids.emplace_back(block_id);
-            }
-        }
-        return BIErrCode::BISuccess;
-    }
-
-    void BINEMultiGPTBlock::concat_kv_cache() {
-        _physic_blocks.clear();
-        for (const auto &decode_list: _kv_decode_ids) {
-            const auto block_id = decode_list[0];
-            std::vector<unsigned int> decode_ids{};
-            KVCacheManager::getInstance().decode_sequence_lst(block_id, decode_ids); // 获取合并的Decodes
-            KVCacheManager::getInstance().decode_sequence_blocks(decode_ids, _physic_blocks, _seq_len);
-        }
-    }
 }

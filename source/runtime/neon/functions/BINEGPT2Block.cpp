@@ -44,7 +44,6 @@ namespace BatmanInfer {
                                   const int layer_idx,
                                   BIITensor *output) {
         _layer_idx = layer_idx;
-        _is_first_gpt_block = layer_idx == 0;
         BI_COMPUTE_ERROR_ON_NULLPTR(input, ln_1_weight, c_attn_bias, c_attn_weights, output);
         BI_COMPUTE_LOG_PARAMS(input, ln_1_weight, c_attn_weights, output);
 
@@ -56,18 +55,15 @@ namespace BatmanInfer {
         _attn_output.allocator()->init(BITensorInfo(common_shape, 1, BIDataType::F16));
         _attn_add_output.allocator()->init(BITensorInfo(common_shape, 1, BIDataType::F16));
         _mlp_output.allocator()->init(BITensorInfo(common_shape, 1, BIDataType::F16));
-        _block_output.allocator()->init(BITensorInfo(common_shape, 1, BIDataType::F16));
 
         // 内存管理
         _memory_group.manage(&_attn_output);
         _memory_group.manage(&_attn_add_output);
         _memory_group.manage(&_mlp_output);
-        _memory_group.manage(&_block_output);
 
         _attn_output.allocator()->allocate();
         _attn_add_output.allocator()->allocate();
         _mlp_output.allocator()->allocate();
-        _block_output.allocator()->allocate();
 
         // 子张量管理
         const auto sub_common_shape = BITensorShape(_hidden_size, 1, _batch_size);
@@ -82,10 +78,6 @@ namespace BatmanInfer {
         _sub_mlp_output_info = BITensorInfo(sub_common_shape, 1, BIDataType::F16);
         _sub_mlp_output_info.set_format(Format::F16);
         _sub_mlp_output.allocator()->init(_sub_mlp_output_info);
-
-        _sub_block_output_info = BITensorInfo(sub_common_shape, 1, BIDataType::F16);
-        _sub_block_output_info.set_format(Format::F16);
-        _sub_block_output.allocator()->init(_sub_block_output_info);
 
         _attn_layer.configure(input,
                               ln_1_weight,
@@ -120,23 +112,27 @@ namespace BatmanInfer {
         _add_2_layer.configure(&_sub_add_output, &_sub_mlp_output, output, BIConvertPolicy::SATURATE);
     }
 
-    void BINEGPT2Block::run() {
+    void BINEGPT2Block::run(const int layer_idx, std::vector<unsigned int> &kv_block_ids) {
         prepare();
 
-        _attn_layer.run();
-        // 获取KV Cache Blocks
-        // _attn_layer.get_kv_block_ids(kv_block_ids);
+        _attn_layer.run(layer_idx, kv_block_ids);
+        // print_tensor(_sub_attn_output, "_sub_attn_output");
+
+        if (0 == layer_idx) {
+            // 获取KV Cache Blocks
+            _attn_layer.get_kv_block_ids(kv_block_ids);
+        }
         _add_layer.run();
+        // print_tensor(_sub_add_output, "_sub_add_output");
+
         _mlp_layer.run();
+        // print_tensor(_sub_mlp_output, "_sub_mlp_output");
+
         _add_2_layer.run();
     }
 
-    void BINEGPT2Block::set_history_ids(std::vector<std::vector<unsigned int> > *history_ids) {
-        _attn_layer.set_history_ids(history_ids);
-    }
-
-    void BINEGPT2Block::set_physical_blocks(std::vector<PhysicalBlock *> *physical_blocks) {
-        _attn_layer.set_physical_blocks(physical_blocks);
+    void BINEGPT2Block::get_kv_block_ids(std::vector<unsigned int> &kv_block_ids) {
+        _attn_layer.get_kv_block_ids(kv_block_ids);
     }
 
     void BINEGPT2Block::set_avail_lens(std::vector<size_t> *avail_lens) {
@@ -163,10 +159,7 @@ namespace BatmanInfer {
         _sub_mlp_output_info.set_tensor_shape(sub_common_shape);
         _sub_mlp_output.allocator()->init(*_mlp_output.allocator(), _sub_mlp_output_info);
 
-        _sub_block_output_info.set_tensor_shape(sub_common_shape);
-        _sub_block_output.allocator()->init(*_block_output.allocator(), _sub_block_output_info);
-
-        _attn_layer.dynamic_configure(input, seq_len, batch_size);
+        _attn_layer.dynamic_configure(input, seq_len, batch_size, kv_caches_vec);
         _add_layer.dynamic_configure(input, &_sub_attn_output, false);
         _mlp_layer.dynamic_configure(&_sub_add_output, batch_size, seq_len);
         _add_2_layer.dynamic_configure(&_sub_mlp_output, &_sub_add_output, false);
@@ -180,8 +173,18 @@ namespace BatmanInfer {
             _sub_attn_output.allocator()->init(*_attn_output.allocator(), _sub_attn_output_info);
             _sub_add_output.allocator()->init(*_attn_add_output.allocator(), _sub_add_output_info);
             _sub_mlp_output.allocator()->init(*_mlp_output.allocator(), _sub_mlp_output_info);
-            _sub_block_output.allocator()->init(*_block_output.allocator(), _sub_block_output_info);
             _is_prepared = true;
         }
+    }
+
+    void BINEGPT2Block::print_tensor(const BatmanInfer::BITensor &tensor, const std::string &name , const BatmanInfer::BIIOFormatInfo::PrintRegion region) {
+        std::cout << name << std::endl;
+        BatmanInfer::BIIOFormatInfo format;
+        format.element_delim = ", "; // 元素之间用逗号分隔
+        format.row_delim = "\n"; // 每行换行
+        format.align_columns = true; // 对齐列
+        format.print_region = region;
+
+        tensor.print(std::cout, format);
     }
 }
