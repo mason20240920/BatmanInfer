@@ -19,7 +19,7 @@ namespace BatmanInfer {
     void KVCacheManager::initialize(const size_t num_blocks, const size_t block_size, size_t max_seq_len, const size_t layer_num) {
         NUM_BLOCKS = num_blocks + max_seq_len; // 默认KV Cache的blocks和最大长度的EOS
         BLOCK_SIZE = block_size;
-        MemoryTree::initialize(max_seq_len, block_size);
+        MemoryTree::initialize(max_seq_len, num_blocks);
         PER_LAYER_BS = block_size / layer_num;
     }
 
