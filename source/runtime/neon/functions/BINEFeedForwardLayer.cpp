@@ -28,15 +28,14 @@ namespace BatmanInfer {
     }
 
     void BINEFeedForwardLayer::dynamic_configure(const BIITensor *input,
-                                                 const size_t &batch_size,
-                                                 const size_t &seq_len) {
+                                                 const size_t &batch_size) {
         _batch_size = batch_size;
-        _seq_len = seq_len;
-        _sub_norm_output_info.set_tensor_shape(BITensorShape(512, _seq_len, batch_size));
+        // _seq_len = seq_len;
+        _sub_norm_output_info.set_tensor_shape(BITensorShape(512, _max_seq, batch_size));
         _sub_norm_output.allocator()->init(*_norm_output.allocator(), _sub_norm_output_info);
-        _sub_fuse_output_info.set_tensor_shape(BITensorShape(2048, _seq_len, batch_size));
+        _sub_fuse_output_info.set_tensor_shape(BITensorShape(2048, _max_seq, batch_size));
         _sub_fuse_output.allocator()->init(*_fuse_output.allocator(), _sub_fuse_output_info);
-        _sub_proj_output_info.set_tensor_shape(BITensorShape(512, _seq_len, batch_size));
+        _sub_proj_output_info.set_tensor_shape(BITensorShape(512, _max_seq, batch_size));
         _sub_proj_output.allocator()->init(*_proj_output.allocator(), _sub_proj_output_info);
 
         _rms_layer.dynamic_configure(input);
@@ -136,8 +135,14 @@ namespace BatmanInfer {
     void BINEFeedForwardLayer::run() {
         prepare();
         _rms_layer.run();
+        // print_tensor(_sub_norm_output, "_sub_norm_output");
+
         _c_fc_fuse_act.run();
+        // print_tensor(_sub_fuse_output, "_sub_fuse_output");
+
         _c_proj.run();
+        // print_tensor(_sub_proj_output, "_sub_proj_output");
+
         _copy_f.run();
     }
 
@@ -149,5 +154,16 @@ namespace BatmanInfer {
             _sub_proj_output.allocator()->init(*_proj_output.allocator(), _sub_proj_output_info);
             _is_prepared = true;
         }
+    }
+
+    void BINEFeedForwardLayer::print_tensor(const BatmanInfer::BITensor &tensor, const std::string &name , const BatmanInfer::BIIOFormatInfo::PrintRegion region) {
+        std::cout << name << std::endl;
+        BatmanInfer::BIIOFormatInfo format;
+        format.element_delim = ", "; // 元素之间用逗号分隔
+        format.row_delim = "\n"; // 每行换行
+        format.align_columns = true; // 对齐列
+        format.print_region = region;
+
+        tensor.print(std::cout, format);
     }
 }

@@ -161,7 +161,7 @@ namespace BatmanInfer {
 
         _attn_layer.dynamic_configure(input, seq_len, batch_size, kv_caches_vec);
         _add_layer.dynamic_configure(input, &_sub_attn_output, false);
-        _mlp_layer.dynamic_configure(&_sub_add_output, batch_size, seq_len);
+        _mlp_layer.dynamic_configure(&_sub_add_output, batch_size);
         _add_2_layer.dynamic_configure(&_sub_mlp_output, &_sub_add_output, false);
     }
 

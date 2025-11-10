@@ -44,8 +44,7 @@ namespace BatmanInfer {
         ~BINEFeedForwardLayer() override;
 
         void dynamic_configure(const BIITensor *input,
-                               const size_t &batch_size,
-                               const size_t &seq_len);
+                               const size_t &batch_size);
 
         /**
          *
@@ -83,6 +82,8 @@ namespace BatmanInfer {
 
         void prepare() override;
 
+        void print_tensor(const BatmanInfer::BITensor &tensor, const std::string &name = "temp", const BatmanInfer::BIIOFormatInfo::PrintRegion region = BatmanInfer::BIIOFormatInfo::PrintRegion::Full);
+
     private:
         // 内存管理
         BIMemoryGroup _memory_group;
@@ -111,7 +112,7 @@ namespace BatmanInfer {
         size_t _max_seq;
 
         size_t _batch_size = 1;
-        size_t _seq_len = 1;
+        // size_t _seq_len = 1;
 
         // 其他参数 (是否准备就绪)
         bool _is_prepared;
