@@ -31,11 +31,11 @@ namespace BatmanInfer {
                                                  const size_t &batch_size) {
         _batch_size = batch_size;
         // _seq_len = seq_len;
-        _sub_norm_output_info.set_tensor_shape(BITensorShape(512, _max_seq, batch_size));
+        _sub_norm_output_info.set_tensor_shape(BITensorShape(_hidden_size, _max_seq, batch_size));
         _sub_norm_output.allocator()->init(*_norm_output.allocator(), _sub_norm_output_info);
-        _sub_fuse_output_info.set_tensor_shape(BITensorShape(2048, _max_seq, batch_size));
+        _sub_fuse_output_info.set_tensor_shape(BITensorShape(_hidden_size*4, _max_seq, batch_size));
         _sub_fuse_output.allocator()->init(*_fuse_output.allocator(), _sub_fuse_output_info);
-        _sub_proj_output_info.set_tensor_shape(BITensorShape(512, _max_seq, batch_size));
+        _sub_proj_output_info.set_tensor_shape(BITensorShape(_hidden_size, _max_seq, batch_size));
         _sub_proj_output.allocator()->init(*_proj_output.allocator(), _sub_proj_output_info);
 
         _rms_layer.dynamic_configure(input);
@@ -68,6 +68,7 @@ namespace BatmanInfer {
                                          const BatmanInfer::BIITensor *gamma,
                                          const BatmanInfer::BIActivationLayerInfo &act_info,
                                          BatmanInfer::BIITensor *output,
+                                         const size_t &hidden_size,
                                          const size_t &batch_size,
                                          const size_t &seq_len) {
         BI_COMPUTE_ERROR_ON_NULLPTR(input, fc_weights, fc_bias, proj_weights, proj_bias, output); // 输入的参数是否为空
@@ -83,13 +84,14 @@ namespace BatmanInfer {
 
         BI_COMPUTE_LOG_PARAMS(input, fc_weights, fc_bias, proj_weights, proj_bias, gamma, act_info, output); // 获取log的参数
 
+        _hidden_size = hidden_size;
         _max_batch = batch_size;
         _max_seq = seq_len;
 
         // 中间变量输出的形状
-        BITensorShape norm_output_shape = BITensorShape(512, seq_len, batch_size); // 归一化输出
-        BITensorShape fc_fuse_output_shape = BITensorShape(2048, seq_len, batch_size); // Gemm + GeLU 融合操作
-        BITensorShape proj_output_shape = BITensorShape(512, seq_len, batch_size); // 最后降解的操作
+        BITensorShape norm_output_shape = BITensorShape(_hidden_size, seq_len, batch_size); // 归一化输出
+        BITensorShape fc_fuse_output_shape = BITensorShape(_hidden_size*4, seq_len, batch_size); // Gemm + GeLU 融合操作
+        BITensorShape proj_output_shape = BITensorShape(_hidden_size, seq_len, batch_size); // 最后降解的操作
 
         // 初始化中间变量
         _norm_output.allocator()->init(BITensorInfo(norm_output_shape, 1, BIDataType::F16));
@@ -105,12 +107,12 @@ namespace BatmanInfer {
         _fuse_output.allocator()->allocate();
         _proj_output.allocator()->allocate();
 
-        const auto sub_norm_output_shape = BITensorShape(512, _max_seq, _batch_size);
+        const auto sub_norm_output_shape = BITensorShape(_hidden_size, _max_seq, _batch_size);
         _sub_norm_output_info = BITensorInfo(sub_norm_output_shape, 1, BIDataType::F16);
         _sub_norm_output_info.set_format(Format::F16);
         _sub_norm_output.allocator()->init(_sub_norm_output_info);
 
-        const auto sub_fc_fuse_output_shape = BITensorShape(2048, _max_seq, _batch_size);
+        const auto sub_fc_fuse_output_shape = BITensorShape(_hidden_size*4, _max_seq, _batch_size);
         _sub_fuse_output_info = BITensorInfo(sub_fc_fuse_output_shape, 1, BIDataType::F16);
         _sub_fuse_output_info.set_format(Format::F16);
         _sub_fuse_output.allocator()->init(_sub_fuse_output_info);

@@ -17,11 +17,21 @@
 #   endif // BIAPI
 #endif
 
+extern int max_seq_len;
+extern int max_batch_size;
+extern int dict_size;
+extern int hidden_size;
+extern int tensor_max_dim;
+extern int layer_num;
+extern int head_bs;
+
 /**
  * Types of supported models.
  */
 enum class BIModelTypes {
     BIGpt2 = 0,
+    BIGpt2_layer3 = 1,
+    BIGpt2_layer6 = 2,
 };
 
 /**

@@ -16,18 +16,21 @@
 
 using namespace BatmanInfer;
 
-constexpr int max_seq_len    = 16;
-constexpr int max_batch_size = 50;
-constexpr int dict_size      = 6004;
-constexpr int hidden_size    = 512;
-constexpr int tensor_max_dim = 6;
-constexpr int layer_num      = 3;
+extern int max_seq_len;
+extern int max_batch_size;
+extern int dict_size;
+extern int hidden_size;
+extern int tensor_max_dim;
+extern int layer_num;
+extern int fc_out_size;
+extern int head_bs;
+
 
 const PermutationVector q_perm{0, 2, 1, 3};
 const PermutationVector k_perm{2, 0, 1, 3};
 const PermutationVector qkv_o_perm{0, 2, 1, 3};
 
-// 为资源的打包设定一个顺序 3层 GPT
+// 为资源的打包设定一个顺序 6层 GPT[单层和 3层需要复用该逻辑]
 enum class GPT2ResOrder {
     transformer_wte_weight = 0,
     add_wte_weight,
@@ -80,6 +83,54 @@ enum class GPT2ResOrder {
     eos_q_o_2,
     eos_v_o_2,
 
+    attn_gamma_weights_3,
+    c_attn_weights_3,
+    c_attn_scales_3,
+    c_attn_bias_3,
+    p_attn_weights_3,
+    p_attn_bias_3,
+    mlp_rms_gamma_3,
+    reordered_c_fc_weights_3,
+    c_fc_scales_3,
+    c_fc_bias_3,
+    c_proj_weights_3,
+    c_proj_bias_3,
+    eos_k_o_3,
+    eos_q_o_3,
+    eos_v_o_3,
+
+    attn_gamma_weights_4,
+    c_attn_weights_4,
+    c_attn_scales_4,
+    c_attn_bias_4,
+    p_attn_weights_4,
+    p_attn_bias_4,
+    mlp_rms_gamma_4,
+    reordered_c_fc_weights_4,
+    c_fc_scales_4,
+    c_fc_bias_4,
+    c_proj_weights_4,
+    c_proj_bias_4,
+    eos_k_o_4,
+    eos_q_o_4,
+    eos_v_o_4,
+
+    attn_gamma_weights_5,
+    c_attn_weights_5,
+    c_attn_scales_5,
+    c_attn_bias_5,
+    p_attn_weights_5,
+    p_attn_bias_5,
+    mlp_rms_gamma_5,
+    reordered_c_fc_weights_5,
+    c_fc_scales_5,
+    c_fc_bias_5,
+    c_proj_weights_5,
+    c_proj_bias_5,
+    eos_k_o_5,
+    eos_q_o_5,
+    eos_v_o_5,
+
     mlp_after_rms_gamma,
 
     all_res_count,
@@ -102,7 +153,7 @@ using OrderPtrMap = std::map<GPT2ResOrder, char *>;
 class BIGPT2Model final : public BIModelInterfaceBase {
 public:
     explicit BIGPT2Model(std::shared_ptr<BIIMemoryManager> memory_manager);
-    BIGPT2Model();
+    BIGPT2Model(int max_seq_len, int max_batch_size, int dict_size, int hidden_size, int tensor_max_dim, int layer_num, int head_bs);
 
     BIErrCode bi_init(const char *data_in, size_t data_size, std::vector< std::vector<float> > &output_vec, unsigned int &kv_cache_id) override;
     BIErrCode bi_set_input(std::vector< std::vector<unsigned int> > &input_vec, std::vector< std::vector<unsigned int> > &kv_cache_id_map) override;
@@ -150,7 +201,7 @@ private:
 
     BIErrCode load_weight_tensor(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr, bool need_transpose);
 
-    BIErrCode load_weight_tensors(std::array<BITensor, layer_num> &tensors, GPT2ResOrder res_order, OrderPtrMap &order2ptr, int step);
+    BIErrCode load_weight_tensors(std::array<BITensor, 6> &tensors, GPT2ResOrder res_order, OrderPtrMap &order2ptr, int step);
 
     BIErrCode load_weight_tensor_and_dequantization(BITensor &tensor, BITensor &tensor_output, GPT2ResOrder res_order, OrderPtrMap &order2ptr, std::vector<float> &scales);
 
@@ -197,21 +248,21 @@ private:
 
     BITensor _gather_weight_tensor;
     BITensor _add_weight_tensor;
-    std::array<BITensor, layer_num> _attn_gamma_weight_tensors;
-    std::array<BITensor, layer_num> _c_attn_weight_tensors;     //awq反量化结果
-    std::array<BITensor, layer_num> _c_attn_awq_weight_tensors; //awq量化结果
-    std::array<BITensor, layer_num> _c_attn_bias_tensors;
-    std::array<BITensor, layer_num> _p_attn_weight_tensors;
-    std::array<BITensor, layer_num> _p_attn_bias_tensors;
-    std::array<BITensor, layer_num> _mlp_weight_tensors;
-    std::array<BITensor, layer_num> _c_fc_weight_tensors;      //awq反量化结果
-    std::array<BITensor, layer_num> _c_fc_awq_weight_tensors;  //awq量化结果
-    std::array<BITensor, layer_num> _c_fc_bias_tensors;
-    std::array<BITensor, layer_num> _c_proj_weight_tensors;
-    std::array<BITensor, layer_num> _c_proj_bias_tensors;
-    std::array<BITensor, layer_num> _eos_k_smooth_o_tensor;
-    std::array<BITensor, layer_num> _eos_q_smooth_o_tensor;
-    std::array<BITensor, layer_num> _eos_v_smooth_o_tensor;
+    std::array<BITensor, 6> _attn_gamma_weight_tensors;
+    std::array<BITensor, 6> _c_attn_weight_tensors;     //awq反量化结果
+    std::array<BITensor, 6> _c_attn_awq_weight_tensors; //awq量化结果
+    std::array<BITensor, 6> _c_attn_bias_tensors;
+    std::array<BITensor, 6> _p_attn_weight_tensors;
+    std::array<BITensor, 6> _p_attn_bias_tensors;
+    std::array<BITensor, 6> _mlp_weight_tensors;
+    std::array<BITensor, 6> _c_fc_weight_tensors;      //awq反量化结果
+    std::array<BITensor, 6> _c_fc_awq_weight_tensors;  //awq量化结果
+    std::array<BITensor, 6> _c_fc_bias_tensors;
+    std::array<BITensor, 6> _c_proj_weight_tensors;
+    std::array<BITensor, 6> _c_proj_bias_tensors;
+    std::array<BITensor, 6> _eos_k_smooth_o_tensor;
+    std::array<BITensor, 6> _eos_q_smooth_o_tensor;
+    std::array<BITensor, 6> _eos_v_smooth_o_tensor;
     BITensor _rms_gamma_weight_tensor;
     BITensor _lm_head_weight_tensor;
 

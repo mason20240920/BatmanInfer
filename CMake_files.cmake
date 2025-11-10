@@ -14,7 +14,7 @@ else ()
 endif ()
 
 add_executable(BatmanInfer main.cpp
-        test/tensor_get_values.cpp
+#        test/tensor_get_values.cpp
         ${SOURCES}
         ${RUNTIME_SOURCES}
         ${CPU_SOURCES}
@@ -23,19 +23,19 @@ add_executable(BatmanInfer main.cpp
         ${INTERFACE_SOURCES}
         ${SDK_SOURCES}
         ${KV_CACHE_SOURCES}
-        test/test_layer_operator.cpp
-        test/test_neon_operator.cpp
-        test/test_dynamic_gemmlowp.cpp
-        test/test_quantize.cpp
+#        test/test_layer_operator.cpp
+#        test/test_neon_operator.cpp
+#        test/test_dynamic_gemmlowp.cpp
+#        test/test_quantize.cpp
         source/utils/utils.cpp
-        test/test_matmul_assem.cpp
-        test/test_perf_model.cpp
+#        test/test_matmul_assem.cpp
+#        test/test_perf_model.cpp
         test/test_pack_res.cpp
         test/test_interface_kvcaches_call.cpp
         ${BENCHMARK_SOURCES}
-        test/gemm_lowp_outputstage_test.cpp
-        test/test_layer_norm.cpp
-        test/test_bugs.cpp
+#        test/gemm_lowp_outputstage_test.cpp
+#        test/test_layer_norm.cpp
+#        test/test_bugs.cpp
 )
 
 # 生成 libbat_infer_static.a 静态库

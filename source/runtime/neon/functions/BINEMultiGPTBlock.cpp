@@ -16,7 +16,7 @@ namespace BatmanInfer {
     void BINEMultiGPTBlock::configure(BIITensor *input,
                                       const std::vector<BIGPTLayerConfig> &layer_configs,
                                       const BIGPTGlobalConfig &global_config,
-                                      std::array<BITensor, 3> &eos_weights,
+                                      std::array<BITensor, 6> &eos_weights,
                                       BIITensor *output) {
         // 1. 处理层数(查看多少层)
         _layer_num = layer_configs.size();

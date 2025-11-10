@@ -66,6 +66,7 @@ namespace BatmanInfer {
                        const BIITensor *gamma,
                        const BIActivationLayerInfo &act_info,
                        BIITensor *output,
+                       const size_t &hidden_size,
                        const size_t &max_batch_size,
                        const size_t &max_seq_len);
 
@@ -112,6 +113,7 @@ namespace BatmanInfer {
         size_t _max_seq;
 
         size_t _batch_size = 1;
+        size_t _hidden_size;
         // size_t _seq_len = 1;
 
         // 其他参数 (是否准备就绪)

@@ -106,6 +106,7 @@ namespace BatmanInfer {
                              ln_2_weight,
                              act_info,
                              &_sub_mlp_output,
+                             hidden_size,
                              max_batch_size,
                              1);
 

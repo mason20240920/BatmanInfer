@@ -279,6 +279,11 @@ TEST(ResPack, PackGPT) {
 
 
     for (int i = 0; i < static_cast<int>(GPT2ResOrder::all_res_count); ++i) {
+        // 按顺序进行打包，如果遇到没有的数据直接跳过
+        if (res_paths.find(static_cast<GPT2ResOrder>(i)) == res_paths.end()) {
+            continue;
+        }
+
         std::cout << "Packing resource " << i << std::endl;
 
         switch (auto cur_order = static_cast<GPT2ResOrder>(i)) {
@@ -317,6 +322,39 @@ TEST(ResPack, PackGPT) {
             case GPT2ResOrder::eos_k_o_2:
             case GPT2ResOrder::eos_q_o_2:
             case GPT2ResOrder::eos_v_o_2:
+            case GPT2ResOrder::attn_gamma_weights_3:
+            case GPT2ResOrder::c_attn_bias_3:
+            case GPT2ResOrder::p_attn_weights_3:
+            case GPT2ResOrder::p_attn_bias_3:
+            case GPT2ResOrder::mlp_rms_gamma_3:
+            case GPT2ResOrder::c_fc_bias_3:
+            case GPT2ResOrder::c_proj_weights_3:
+            case GPT2ResOrder::c_proj_bias_3:
+            case GPT2ResOrder::eos_k_o_3:
+            case GPT2ResOrder::eos_q_o_3:
+            case GPT2ResOrder::eos_v_o_3:
+            case GPT2ResOrder::attn_gamma_weights_4:
+            case GPT2ResOrder::c_attn_bias_4:
+            case GPT2ResOrder::p_attn_weights_4:
+            case GPT2ResOrder::p_attn_bias_4:
+            case GPT2ResOrder::mlp_rms_gamma_4:
+            case GPT2ResOrder::c_fc_bias_4:
+            case GPT2ResOrder::c_proj_weights_4:
+            case GPT2ResOrder::c_proj_bias_4:
+            case GPT2ResOrder::eos_k_o_4:
+            case GPT2ResOrder::eos_q_o_4:
+            case GPT2ResOrder::eos_v_o_4:
+            case GPT2ResOrder::attn_gamma_weights_5:
+            case GPT2ResOrder::c_attn_bias_5:
+            case GPT2ResOrder::p_attn_weights_5:
+            case GPT2ResOrder::p_attn_bias_5:
+            case GPT2ResOrder::mlp_rms_gamma_5:
+            case GPT2ResOrder::c_fc_bias_5:
+            case GPT2ResOrder::c_proj_weights_5:
+            case GPT2ResOrder::c_proj_bias_5:
+            case GPT2ResOrder::eos_k_o_5:
+            case GPT2ResOrder::eos_q_o_5:
+            case GPT2ResOrder::eos_v_o_5:
             case GPT2ResOrder::mlp_after_rms_gamma: {
                 ret = res_pack::read_and_write_npy(static_cast<int>(static_cast<GPT2ResOrder>(i)), res_path_prefix,
                     res_paths[static_cast<GPT2ResOrder>(i)], dst_file);
@@ -327,7 +365,13 @@ TEST(ResPack, PackGPT) {
             case GPT2ResOrder::c_attn_weights_1:
             case GPT2ResOrder::reordered_c_fc_weights_1:
             case GPT2ResOrder::c_attn_weights_2:
-            case GPT2ResOrder::reordered_c_fc_weights_2: {
+            case GPT2ResOrder::reordered_c_fc_weights_2:
+            case GPT2ResOrder::c_attn_weights_3:
+            case GPT2ResOrder::reordered_c_fc_weights_3:
+            case GPT2ResOrder::c_attn_weights_4:
+            case GPT2ResOrder::reordered_c_fc_weights_4:
+            case GPT2ResOrder::c_attn_weights_5:
+            case GPT2ResOrder::reordered_c_fc_weights_5: {
                 ret = res_pack::read_and_write_npy_int8toint4(static_cast<int>(static_cast<GPT2ResOrder>(i)), res_path_prefix,
                     res_paths[static_cast<GPT2ResOrder>(i)], dst_file);
                 break;
@@ -337,7 +381,13 @@ TEST(ResPack, PackGPT) {
             case GPT2ResOrder::c_attn_scales_1:
             case GPT2ResOrder::c_fc_scales_1:
             case GPT2ResOrder::c_attn_scales_2:
-            case GPT2ResOrder::c_fc_scales_2: {
+            case GPT2ResOrder::c_fc_scales_2:
+            case GPT2ResOrder::c_attn_scales_3:
+            case GPT2ResOrder::c_fc_scales_3:
+            case GPT2ResOrder::c_attn_scales_4:
+            case GPT2ResOrder::c_fc_scales_4:
+            case GPT2ResOrder::c_attn_scales_5:
+            case GPT2ResOrder::c_fc_scales_5: {
                 ret = res_pack::read_and_write_scales(static_cast<int>(static_cast<GPT2ResOrder>(i)), res_path_prefix,
                     res_paths[static_cast<GPT2ResOrder>(i)],dst_file);
                 break;

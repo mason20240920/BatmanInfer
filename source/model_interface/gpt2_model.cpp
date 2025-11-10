@@ -28,11 +28,18 @@ BIGPT2Model::BIGPT2Model(std::shared_ptr<BIIMemoryManager> memory_manager) : _me
     // _output_positions.clear();
 }
 
-BIGPT2Model::BIGPT2Model() : BIGPT2Model(BIMemoryManagerOnDemand::make_default()) {
+BIGPT2Model::BIGPT2Model(int max_seq_len, int max_batch_size, int dict_size, int hidden_size, int tensor_max_dim, int layer_num, int head_bs) : BIGPT2Model(BIMemoryManagerOnDemand::make_default()) {
+    // 初始化模型运行过程中需要的数据大小
+    ::max_seq_len = max_seq_len;
+    ::max_batch_size = max_batch_size;
+    ::dict_size = dict_size;
+    ::hidden_size = hidden_size;
+    ::tensor_max_dim = tensor_max_dim;
+    ::layer_num = layer_num;
+    ::head_bs = head_bs;
+
     // 创建 kvcache
-    int num_head = 8;
-    int head_dim = 64;
-    KVCacheManager::initialize(2048, num_head * head_dim * sizeof(float16_t) * 2 * layer_num, max_seq_len, layer_num);
+    KVCacheManager::initialize(2048, hidden_size * sizeof(float16_t) * 2 * layer_num, max_seq_len, layer_num);
 
     kv_root_id = KVCacheManager::getInstance().root_id();
 }
@@ -346,7 +353,7 @@ BIErrCode BIGPT2Model::load_weight_tensor(BITensor &tensor, GPT2ResOrder res_ord
     return BIErrCode::BISuccess;
 }
 
-BIErrCode BIGPT2Model::load_weight_tensors(std::array<BITensor, layer_num> &tensors, GPT2ResOrder res_order, OrderPtrMap &order2ptr, int step) {
+BIErrCode BIGPT2Model::load_weight_tensors(std::array<BITensor, 6> &tensors, GPT2ResOrder res_order, OrderPtrMap &order2ptr, int step) {
     // 多层模型，中间重复类型权重需要循环进行加载
     for (int i = 0; i < layer_num; ++i) {
         if (order2ptr.find(static_cast<GPT2ResOrder>(static_cast<int>(res_order) + i*step)) == order2ptr.end()) {
@@ -536,7 +543,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
         _c_proj_bias_tensors[i].allocator()->init(BITensorInfo(c_proj_bias_tensor_shape, 1, BIDataType::F16));
     }
 
-    const BITensorShape kqv_smooth_tensor_shape(64, 8, 16);
+    const BITensorShape kqv_smooth_tensor_shape(64, hidden_size/head_bs, 16);
     for (int i = 0; i < layer_num; ++i) {
         _eos_k_smooth_o_tensor[i].allocator()->init(BITensorInfo(kqv_smooth_tensor_shape, 1, BIDataType::F16));
         _eos_q_smooth_o_tensor[i].allocator()->init(BITensorInfo(kqv_smooth_tensor_shape, 1, BIDataType::F16));
@@ -719,9 +726,9 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     // load _eos_k_smooth_output
     ret = load_weight_tensors(_eos_k_smooth_o_tensor, GPT2ResOrder::eos_k_o_0, order2ptr, 15);
     CHECK_SUCCESS(ret);
-    KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_k_smooth_o_tensor.at(0).buffer(), max_seq_len - 1, 0, max_seq_len, true, false);
-    KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_k_smooth_o_tensor.at(1).buffer(), max_seq_len - 1, 1, max_seq_len, true, false);
-    KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_k_smooth_o_tensor.at(2).buffer(), max_seq_len - 1, 2, max_seq_len, true, false);
+    for (int i = 0; i < layer_num; ++i) {
+        KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_k_smooth_o_tensor.at(i).buffer(), max_seq_len - 1, i, max_seq_len, true, false);
+    }
 
     // load _eos_q_smooth_output
     ret = load_weight_tensors(_eos_q_smooth_o_tensor, GPT2ResOrder::eos_q_o_0, order2ptr, 15);
@@ -730,9 +737,9 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     // load _eos_v_smooth_output
     ret = load_weight_tensors(_eos_v_smooth_o_tensor, GPT2ResOrder::eos_v_o_0, order2ptr, 15);
     CHECK_SUCCESS(ret);
-    KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_v_smooth_o_tensor.at(0).buffer(), max_seq_len - 1, 0, max_seq_len, false, false);
-    KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_v_smooth_o_tensor.at(1).buffer(), max_seq_len - 1, 1, max_seq_len, false, false);
-    KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_v_smooth_o_tensor.at(2).buffer(), max_seq_len - 1, 2, max_seq_len, false, false);
+    for (int i = 0; i < layer_num; ++i) {
+        KVCacheManager::getInstance().memcpy_init_eos_buffer(_eos_v_smooth_o_tensor.at(i).buffer(), max_seq_len - 1, i, max_seq_len, false, false);
+    }
 
     // load rms gamma weights
     ret = load_weight_tensor(_rms_gamma_weight_tensor, GPT2ResOrder::mlp_after_rms_gamma, order2ptr, false);

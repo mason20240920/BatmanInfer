@@ -64,42 +64,42 @@ namespace BatmanInfer {
         _sub_key_states.allocator()->init(*_key_states.allocator(), _sub_qkv_states_info);
         _sub_value_states.allocator()->init(*_value_states.allocator(), _sub_qkv_states_info);
 
-        _sub_reshape_qkv_info.set_tensor_shape(BITensorShape(64, 8, 1, batch_size));
+        _sub_reshape_qkv_info.set_tensor_shape(BITensorShape(64, _hidden_size/64, 1, batch_size));
         _sub_reshape_q_states.allocator()->init(*_reshape_q_states.allocator(), _sub_reshape_qkv_info);
         _sub_reshape_k_states.allocator()->init(*_reshape_k_states.allocator(), _sub_reshape_qkv_info);
         _sub_reshape_v_states.allocator()->init(*_reshape_v_states.allocator(), _sub_reshape_qkv_info);
 
-        _sub_concat_reshape_kv_info.set_tensor_shape(BITensorShape(64, 8, _seq_len, batch_size));
+        _sub_concat_reshape_kv_info.set_tensor_shape(BITensorShape(64, _hidden_size/64, _seq_len, batch_size));
         _sub_concat_reshape_k_states.allocator()->init(*_concat_reshape_k_states.allocator(),
                                                        _sub_concat_reshape_kv_info);
         _sub_concat_reshape_v_states.allocator()->init(*_concat_reshape_v_states.allocator(),
                                                        _sub_concat_reshape_kv_info);
 
-        _sub_transpose_q_info.set_tensor_shape(BITensorShape(64, 1, 8, _batch_size));
+        _sub_transpose_q_info.set_tensor_shape(BITensorShape(64, 1, _hidden_size/64, _batch_size));
         _sub_transpose_q_states.allocator()->init(*_transpose_q_states.allocator(), _sub_transpose_q_info);
 
-        _sub_transpose_k_info.set_tensor_shape(BITensorShape(_seq_len, 64, 8, _batch_size));
+        _sub_transpose_k_info.set_tensor_shape(BITensorShape(_seq_len, 64, _hidden_size/64, _batch_size));
         _sub_transpose_k_states.allocator()->init(*_transpose_k_states.allocator(), _sub_transpose_k_info);
 
-        _sub_transpose_v_info.set_tensor_shape(BITensorShape(64, _seq_len, 8, _batch_size));
+        _sub_transpose_v_info.set_tensor_shape(BITensorShape(64, _seq_len, _hidden_size/64, _batch_size));
         _sub_transpose_v_states.allocator()->init(*_transpose_v_states.allocator(), _sub_transpose_v_info);
 
-        _sub_qk_bmm_output_info.set_tensor_shape(BITensorShape(_seq_len, 1, 8, _batch_size));
+        _sub_qk_bmm_output_info.set_tensor_shape(BITensorShape(_seq_len, 1, _hidden_size/64, _batch_size));
         _sub_qk_bmm_output.allocator()->init(*_qk_bmm_output.allocator(), _sub_qk_bmm_output_info);
 
-        _sub_softmax_output_info.set_tensor_shape(BITensorShape(_seq_len, 1, 8, _batch_size));
+        _sub_softmax_output_info.set_tensor_shape(BITensorShape(_seq_len, 1, _hidden_size/64, _batch_size));
         _sub_softmax_output.allocator()->init(*_softmax_output.allocator(), _sub_softmax_output_info);
 
-        _sub_pv_bmm_output_info.set_tensor_shape(BITensorShape(64, 1, 8, _batch_size));
+        _sub_pv_bmm_output_info.set_tensor_shape(BITensorShape(64, 1, _hidden_size/64, _batch_size));
         _sub_pv_bmm_output.allocator()->init(*_pv_bmm_output.allocator(), _sub_pv_bmm_output_info);
 
-        _sub_pv_transpose_output_info.set_tensor_shape(BITensorShape(64, 8, 1, _batch_size));
+        _sub_pv_transpose_output_info.set_tensor_shape(BITensorShape(64, _hidden_size/64, 1, _batch_size));
         _sub_pv_perm_output.allocator()->init(*_pv_perm_output.allocator(), _sub_pv_transpose_output_info);
 
-        _sub_pv_reshape_output_info.set_tensor_shape(BITensorShape(512, 1, _batch_size));
+        _sub_pv_reshape_output_info.set_tensor_shape(BITensorShape(_hidden_size, 1, _batch_size));
         _sub_pv_reshape_output.allocator()->init(*_pv_reshape_output.allocator(), _sub_pv_reshape_output_info);
 
-        _sub_attn_o_output_info.set_tensor_shape(BITensorShape(512, 1, _batch_size));
+        _sub_attn_o_output_info.set_tensor_shape(BITensorShape(_hidden_size, 1, _batch_size));
         _sub_attn_o_output.allocator()->init(*_attn_o_output.allocator(), _sub_attn_o_output_info);
 
         std::vector<BIITensor *> outputs = {
@@ -166,12 +166,12 @@ namespace BatmanInfer {
         // 配置最大的张量信息
         const auto rms_norm_shape = BITensorShape(_hidden_size, 1, _max_batch_size); // rms norm层
         const auto c_attn_shape = BITensorShape(_hidden_size * 3, 1, _max_batch_size); // c_attn gemm的输出
-        const auto reshape_qkv_shape = BITensorShape(64, 8, 1, _max_batch_size);
-        const auto concat_reshape_kv_shape = BITensorShape(64, 8, _max_seq_len, _max_batch_size);
-        const auto transpose_q_shape = BITensorShape(64, 1, 8, _max_batch_size);
-        const auto transpose_v_shape = BITensorShape(64, _max_seq_len, 8, _max_batch_size);
-        const auto transpose_k_shape = BITensorShape(_max_seq_len, 64, 8, _max_batch_size);
-        auto qk_bmm_output_shape = BITensorShape(_max_seq_len, 1, 8, _max_batch_size);
+        const auto reshape_qkv_shape = BITensorShape(64, _hidden_size/64, 1, _max_batch_size);
+        const auto concat_reshape_kv_shape = BITensorShape(64, _hidden_size/64, _max_seq_len, _max_batch_size);
+        const auto transpose_q_shape = BITensorShape(64, 1, _hidden_size/64, _max_batch_size);
+        const auto transpose_v_shape = BITensorShape(64, _max_seq_len, _hidden_size/64, _max_batch_size);
+        const auto transpose_k_shape = BITensorShape(_max_seq_len, 64, _hidden_size/64, _max_batch_size);
+        auto qk_bmm_output_shape = BITensorShape(_max_seq_len, 1, _hidden_size/64, _max_batch_size);
 
         _q_pack.add_tensor(ACL_SRC_1, eos_weights);
         // _eos_q_tensor = utils::create_type_tensor(eos_weights_path, BITensorShape(64, 12, 16),  BIDataType::F16);
@@ -260,38 +260,38 @@ namespace BatmanInfer {
         _sub_value_states.allocator()->init(_sub_qkv_states_info);
         _sub_key_states.allocator()->init(_sub_qkv_states_info);
 
-        const auto sub_qkv_reshape = BITensorShape(64, 8, 1, _batch_size);
+        const auto sub_qkv_reshape = BITensorShape(64, _hidden_size/64, 1, _batch_size);
         _sub_reshape_qkv_info = BITensorInfo(sub_qkv_reshape, 1, BIDataType::F16);
         _sub_reshape_qkv_info.set_format(Format::F16);
         _sub_reshape_q_states.allocator()->init(_sub_reshape_qkv_info);
         _sub_reshape_v_states.allocator()->init(_sub_reshape_qkv_info);
         _sub_reshape_k_states.allocator()->init(_sub_reshape_qkv_info);
 
-        const auto sub_concat_qkv_reshape = BITensorShape(64, 8, _seq_len, _batch_size);
+        const auto sub_concat_qkv_reshape = BITensorShape(64, _hidden_size/64, _seq_len, _batch_size);
         _sub_concat_reshape_kv_info = BITensorInfo(sub_concat_qkv_reshape, 1, BIDataType::F16);
         _sub_concat_reshape_kv_info.set_format(Format::F16);;
         _sub_concat_reshape_k_states.allocator()->init(_sub_concat_reshape_kv_info);
         _sub_concat_reshape_v_states.allocator()->init(_sub_concat_reshape_kv_info);
 
         const auto sub_transpose_q_shape = BITensorShape(
-            64, 1, 8, _batch_size);
+            64, 1, _hidden_size/64, _batch_size);
         _sub_transpose_q_info = BITensorInfo(sub_transpose_q_shape, 1, BIDataType::F16);
         _sub_transpose_q_info.set_format(Format::F16);
         _sub_transpose_q_states.allocator()->init(_sub_transpose_q_info);
 
-        const auto sub_transpose_k_shape = BITensorShape(_seq_len, 64, 8, _batch_size);
+        const auto sub_transpose_k_shape = BITensorShape(_seq_len, 64, _hidden_size/64, _batch_size);
         _sub_transpose_k_info = BITensorInfo(sub_transpose_k_shape, 1, BIDataType::F16);
         _sub_transpose_k_info.set_format(Format::F16);
         _sub_transpose_k_states.allocator()->init(_sub_transpose_k_info);
 
         const auto sub_transpose_v_shape = BITensorShape(
-            64, _seq_len, 8, _batch_size);
+            64, _seq_len, _hidden_size/64, _batch_size);
 
         _sub_transpose_v_info = BITensorInfo(sub_transpose_v_shape, 1, BIDataType::F16);
         _sub_transpose_v_info.set_format(Format::F16);
         _sub_transpose_v_states.allocator()->init(_sub_transpose_v_info);
 
-        const auto sub_qk_bmm_output_shape = BITensorShape(_seq_len, 1, 8, _batch_size);
+        const auto sub_qk_bmm_output_shape = BITensorShape(_seq_len, 1, _hidden_size/64, _batch_size);
         _sub_qk_bmm_output_info = BITensorInfo(sub_qk_bmm_output_shape, 1, BIDataType::F16);
         _sub_qk_bmm_output_info.set_format(Format::F16);
         _sub_qk_bmm_output.allocator()->init(_sub_qk_bmm_output_info);
