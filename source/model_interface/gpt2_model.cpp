@@ -304,6 +304,84 @@ BIErrCode BIGPT2Model::load_weight_tensors(std::array<BITensor, layer_num> &tens
     return BIErrCode::BISuccess;
 }
 
+// res_order 对应的存储权重，打包前为 int8数据，打包后为两个 int8数据转 int4并拼接为一个 int8数据；此处需要先将所有权重值读取出来并解析会原来的 int8数据，再使用反量化算子将权重反量化为 fp16类型
+BIErrCode BIGPT2Model::load_weight_tensor_and_dequantization(BITensor &tensor, BITensor &tensor_output, GPT2ResOrder res_order, OrderPtrMap &order2ptr, std::vector<float> &scales) {
+    if (order2ptr.find(res_order) == order2ptr.end()) {
+        return BIErrCode::BIResNotExists;
+    }
+
+    char *tmp_ptr = order2ptr[res_order];
+
+    auto header = reinterpret_cast<GPT2ResHeader *>(tmp_ptr);
+
+    // 检查 shape 是否对得上
+    for (size_t i = 0; i < tensor.info()->num_dimensions(); ++i) {
+        if (tensor.info()->tensor_shape()[i] != header->shape[i]) {
+            return BIErrCode::BIResDamaged;
+        }
+    }
+    for (auto i = tensor.info()->num_dimensions(); i < tensor_max_dim; ++i) {
+        if (header->shape[i] != 1) {
+            return BIErrCode::BIResDamaged;
+        }
+    }
+    for (size_t i = 0; i < tensor_output.info()->num_dimensions(); ++i) {
+        if (tensor_output.info()->tensor_shape()[i] != header->shape[i]) {
+            return BIErrCode::BIResDamaged;
+        }
+    }
+    for (auto i = tensor_output.info()->num_dimensions(); i < tensor_max_dim; ++i) {
+        if (header->shape[i] != 1) {
+            return BIErrCode::BIResDamaged;
+        }
+    }
+
+    // shape 检查完，其实这一步可以不用再检查了，但是保险起见还是再检查一遍
+    if (tensor.info()->total_size() != header->data_length*2 || tensor_output.info()->total_size() != header->data_length*4) {
+        return BIErrCode::BIResDamaged;
+    }
+
+    // 读取所有数据
+    tmp_ptr += sizeof(GPT2ResHeader);
+    int8_t tmp_weight = 0;
+    std::vector<int8_t> weights_vec;
+    weights_vec.reserve(header->data_length*2);
+    for (size_t i = 0; i < header->data_length; ++i) {
+        memcpy(&tmp_weight, tmp_ptr, sizeof(int8_t));
+        tmp_ptr += sizeof(int8_t);
+        std::pair<int8_t, int8_t> tmp_rlt = unpack_int8_to_int4(tmp_weight);
+        weights_vec.emplace_back(tmp_rlt.first);
+        weights_vec.emplace_back(tmp_rlt.second);
+    }
+    memcpy(tensor.buffer(), weights_vec.data(), weights_vec.size()*sizeof(int8_t));
+    tensor.info()->set_quantization_info(scales);
+
+    // 数据构建好后，需要进行反量化
+    BINEDequantizationLayer dequantization_layer;
+    dequantization_layer.configure(&tensor, &tensor_output);
+    dequantization_layer.run();
+
+    return BIErrCode::BISuccess;
+}
+
+BIErrCode BIGPT2Model::load_scale_vector(std::vector<float> &scales, GPT2ResOrder res_order, OrderPtrMap &order2ptr) {
+    if (order2ptr.find(res_order) == order2ptr.end()) {
+        return BIErrCode::BIResNotExists;
+    }
+
+    char *tmp_ptr = order2ptr[res_order];
+
+    auto header = reinterpret_cast<GPT2ResHeader *>(tmp_ptr);
+
+    auto float_ptr = reinterpret_cast<float *>(tmp_ptr + sizeof(GPT2ResHeader));
+
+    scales.reserve(header->shape[0]);
+    for (size_t i = 0; i < header->shape[0]; ++i) {
+        scales.push_back(float_ptr[i]);
+    }
+
+    return BIErrCode::BISuccess;
+}
 
 BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     auto ret = BIErrCode::BISuccess;
@@ -324,67 +402,57 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
 
     const BITensorShape attn_gamma_weight_tensor_shape(hidden_size);
     for (int i = 0; i < layer_num; ++i) {
-        BITensor attn_gamma_weight_tensor_tmp;
         _attn_gamma_weight_tensors[i].allocator()->init(BITensorInfo(attn_gamma_weight_tensor_shape, 1, BIDataType::F16));
     }
     for (int i = 0; i < layer_num; ++i) {
-        BITensor attn_gamma_bias_tensor_tmp;
         _attn_gamma_bias_tensors[i].allocator()->init(BITensorInfo(attn_gamma_weight_tensor_shape, 1, BIDataType::F16));
     }
 
     const BITensorShape c_attn_weight_tensor_shape(hidden_size * 3, hidden_size);
     for (int i = 0; i < layer_num; ++i) {
-        BITensor c_attn_weight_tensor_tmp;
         _c_attn_weight_tensors[i].allocator()->init(BITensorInfo(c_attn_weight_tensor_shape, 1, BIDataType::F16));
+        _c_attn_awq_weight_tensors[i].allocator()->init(BITensorInfo(c_attn_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
     }
 
     const BITensorShape c_attn_bias_tensor_shape(hidden_size * 3);
     for (int i = 0; i < layer_num; ++i) {
-        BITensor c_attn_bias_tensor_tmp;
         _c_attn_bias_tensors[i].allocator()->init(BITensorInfo(c_attn_bias_tensor_shape, 1, BIDataType::F16));
     }
 
     const BITensorShape p_attn_weight_tensor_shape(hidden_size, hidden_size);
     for (int i = 0; i < layer_num; ++i) {
-        BITensor p_attn_weight_tensor_tmp;
         _p_attn_weight_tensors[i].allocator()->init(BITensorInfo(p_attn_weight_tensor_shape, 1, BIDataType::F16));
     }
 
     const BITensorShape p_attn_bias_tensor_shape(hidden_size);
     for (int i = 0; i < layer_num; ++i) {
-        BITensor p_attn_bias_tensor_tmp;
         _p_attn_bias_tensors[i].allocator()->init(BITensorInfo(p_attn_bias_tensor_shape, 1, BIDataType::F16));
     }
     for (int i = 0; i < layer_num; ++i) {
-        BITensor mlp_weight_tensor_tmp;
         _mlp_weight_tensors[i].allocator()->init(BITensorInfo(p_attn_bias_tensor_shape, 1, BIDataType::F16));
     }
     for (int i = 0; i < layer_num; ++i) {
-        BITensor mlp_bias_tensor_tmp;
         _mlp_bias_tensors[i].allocator()->init(BITensorInfo(p_attn_bias_tensor_shape, 1, BIDataType::F16));
     }
 
     const BITensorShape c_fc_weight_tensor_shape(hidden_size * 4, hidden_size);
     for (int i = 0; i < layer_num; ++i) {
-        BITensor c_fc_weight_tensor_tmp;
         _c_fc_weight_tensors[i].allocator()->init(BITensorInfo(c_fc_weight_tensor_shape, 1, BIDataType::F16));
+        _c_fc_awq_weight_tensors[i].allocator()->init(BITensorInfo(c_fc_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
     }
 
     const BITensorShape c_fc_bias_tensor_shape(hidden_size * 4);
     for (int i = 0; i < layer_num; ++i) {
-        BITensor c_fc_bias_tensor_tmp;
         _c_fc_bias_tensors[i].allocator()->init(BITensorInfo(c_fc_bias_tensor_shape, 1, BIDataType::F16));
     }
 
     const BITensorShape c_proj_weight_tensor_shape(hidden_size, hidden_size * 4);
     for (int i = 0; i < layer_num; ++i) {
-        BITensor c_proj_weight_tensor_tmp;
         _c_proj_weight_tensors[i].allocator()->init(BITensorInfo(c_proj_weight_tensor_shape, 1, BIDataType::F16));
     }
 
     const BITensorShape c_proj_bias_tensor_shape(hidden_size);
     for (int i = 0; i < layer_num; ++i) {
-        BITensor c_proj_bias_tensor_tmp;
         _c_proj_bias_tensors[i].allocator()->init(BITensorInfo(c_proj_bias_tensor_shape, 1, BIDataType::F16));
     }
 
@@ -417,6 +485,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     }
     for (int i = 0; i < _c_attn_weight_tensors.size(); ++i) {
         _memory_group.manage(&(_c_attn_weight_tensors[i]));
+        _memory_group.manage(&(_c_attn_awq_weight_tensors[i]));
     }
     for (int i = 0; i < _c_attn_bias_tensors.size(); ++i) {
         _memory_group.manage(&(_c_attn_bias_tensors[i]));
@@ -435,6 +504,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     }
     for (int i = 0; i < _c_fc_weight_tensors.size(); ++i) {
         _memory_group.manage(&(_c_fc_weight_tensors[i]));
+        _memory_group.manage(&(_c_fc_awq_weight_tensors[i]));
     }
     for (int i = 0; i < _c_fc_bias_tensors.size(); ++i) {
         _memory_group.manage(&(_c_fc_bias_tensors[i]));
@@ -466,6 +536,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     }
     for (int i = 0; i < _c_attn_weight_tensors.size(); ++i) {
         _c_attn_weight_tensors[i].allocator()->allocate();
+        _c_attn_awq_weight_tensors[i].allocator()->allocate();
     }
     for (int i = 0; i < _c_attn_bias_tensors.size(); ++i) {
         _c_attn_bias_tensors[i].allocator()->allocate();
@@ -484,6 +555,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     }
     for (int i = 0; i < _c_fc_weight_tensors.size(); ++i) {
         _c_fc_weight_tensors[i].allocator()->allocate();
+        _c_fc_awq_weight_tensors[i].allocator()->allocate();
     }
     for (int i = 0; i < _c_fc_bias_tensors.size(); ++i) {
         _c_fc_bias_tensors[i].allocator()->allocate();
@@ -512,51 +584,65 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     CHECK_SUCCESS(ret);
 
     // load gamma weights
-    ret = load_weight_tensors(_attn_gamma_weight_tensors, GPT2ResOrder::attn_layernorm_weight_0, order2ptr, 12);
+    ret = load_weight_tensors(_attn_gamma_weight_tensors, GPT2ResOrder::attn_layernorm_weight_0, order2ptr, 14);
     CHECK_SUCCESS(ret);
 
     // load gamma bias
-    ret = load_weight_tensors(_attn_gamma_bias_tensors, GPT2ResOrder::attn_layernorm_bias_0, order2ptr, 12);
+    ret = load_weight_tensors(_attn_gamma_bias_tensors, GPT2ResOrder::attn_layernorm_bias_0, order2ptr, 14);
     CHECK_SUCCESS(ret);
 
-    // load c attn weights
-    ret = load_weight_tensors(_c_attn_weight_tensors, GPT2ResOrder::c_attn_weights_0, order2ptr, 12);
-    CHECK_SUCCESS(ret);
+    // load c_attn_scales、load c_attn_weights and dequantization
+    for (int i = 0; i < layer_num; ++i) {
+        std::vector<float> c_attn_scales;
+        ret = load_scale_vector(c_attn_scales, static_cast<GPT2ResOrder>(static_cast<int>(GPT2ResOrder::c_attn_scales_0) + i*14), order2ptr);
+        CHECK_SUCCESS(ret);
+
+        ret = load_weight_tensor_and_dequantization(_c_attn_awq_weight_tensors[i], _c_attn_weight_tensors[i],
+            static_cast<GPT2ResOrder>(static_cast<int>(GPT2ResOrder::c_attn_weights_0) + i*14), order2ptr, c_attn_scales);
+        CHECK_SUCCESS(ret);
+    }
 
     // load c attn bias
-    ret = load_weight_tensors(_c_attn_bias_tensors, GPT2ResOrder::c_attn_bias_0, order2ptr, 12);
+    ret = load_weight_tensors(_c_attn_bias_tensors, GPT2ResOrder::c_attn_bias_0, order2ptr, 14);
     CHECK_SUCCESS(ret);
 
     // load p attn weights
-    ret = load_weight_tensors(_p_attn_weight_tensors, GPT2ResOrder::p_attn_weights_0, order2ptr, 12);
+    ret = load_weight_tensors(_p_attn_weight_tensors, GPT2ResOrder::p_attn_weights_0, order2ptr, 14);
     CHECK_SUCCESS(ret);
 
     // load p attn bias
-    ret = load_weight_tensors(_p_attn_bias_tensors, GPT2ResOrder::p_attn_bias_0, order2ptr, 12);
+    ret = load_weight_tensors(_p_attn_bias_tensors, GPT2ResOrder::p_attn_bias_0, order2ptr, 14);
     CHECK_SUCCESS(ret);
 
     // load mlp weights
-    ret = load_weight_tensors(_mlp_weight_tensors, GPT2ResOrder::mlp_layernorm_weights_0, order2ptr, 12);
+    ret = load_weight_tensors(_mlp_weight_tensors, GPT2ResOrder::mlp_layernorm_weights_0, order2ptr, 14);
     CHECK_SUCCESS(ret);
 
     // load mlp bias
-    ret = load_weight_tensors(_mlp_bias_tensors, GPT2ResOrder::mlp_layernorm_bias_0, order2ptr, 12);
+    ret = load_weight_tensors(_mlp_bias_tensors, GPT2ResOrder::mlp_layernorm_bias_0, order2ptr, 14);
     CHECK_SUCCESS(ret);
 
-    // load c fc weight
-    ret = load_weight_tensors(_c_fc_weight_tensors, GPT2ResOrder::reordered_c_fc_weights_0, order2ptr, 12);
-    CHECK_SUCCESS(ret);
+    // load c_fc_scales、load c_fc_weights and dequantization
+    for (int i = 0; i < layer_num; ++i) {
+        std::vector<float> c_fc_scales;
+        ret = load_scale_vector(c_fc_scales, static_cast<GPT2ResOrder>(static_cast<int>(GPT2ResOrder::c_fc_scales_0) + i*14), order2ptr);
+        CHECK_SUCCESS(ret);
+
+        ret = load_weight_tensor_and_dequantization(_c_fc_awq_weight_tensors[i],_c_fc_weight_tensors[i],
+            static_cast<GPT2ResOrder>(static_cast<int>(GPT2ResOrder::reordered_c_fc_weights_0) + i*14), order2ptr, c_fc_scales);
+        CHECK_SUCCESS(ret);
+    }
 
     // load c fc bias
-    ret = load_weight_tensors(_c_fc_bias_tensors, GPT2ResOrder::c_fc_bias_0, order2ptr, 12);
+    ret = load_weight_tensors(_c_fc_bias_tensors, GPT2ResOrder::c_fc_bias_0, order2ptr, 14);
     CHECK_SUCCESS(ret);
 
     // load c proj weight
-    ret = load_weight_tensors(_c_proj_weight_tensors, GPT2ResOrder::c_proj_weights_0, order2ptr, 12);
+    ret = load_weight_tensors(_c_proj_weight_tensors, GPT2ResOrder::c_proj_weights_0, order2ptr, 14);
     CHECK_SUCCESS(ret);
 
     // load c proj bias
-    ret = load_weight_tensors(_c_proj_bias_tensors, GPT2ResOrder::c_proj_bias_0, order2ptr, 12);
+    ret = load_weight_tensors(_c_proj_bias_tensors, GPT2ResOrder::c_proj_bias_0, order2ptr, 14);
     CHECK_SUCCESS(ret);
 
     // load final layernorm weight
@@ -752,4 +838,16 @@ void BIGPT2Model::print_tensor(const BatmanInfer::BITensor &tensor, const std::s
     format.print_region = region;
 
     tensor.print(std::cout, format);
+}
+
+std::pair<int8_t, int8_t> BIGPT2Model::unpack_int8_to_int4(int8_t packed) {
+    // 1. 提取高4位和低4位
+    int8_t a = (packed >> 4) & 0x0F;  // 高4位
+    int8_t b = packed & 0x0F;         // 低4位
+
+    // 2. 符号扩展（如果第4位为1，则高4位补1）
+    if (a & 0x08) a |= 0xF0;  // 负数扩展
+    if (b & 0x08) b |= 0xF0;
+
+    return {a, b};
 }

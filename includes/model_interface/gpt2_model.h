@@ -22,7 +22,7 @@ constexpr int dict_size      = 21128;
 constexpr int hidden_size    = 768;
 constexpr int tensor_max_dim = 6;
 constexpr int layer_num      = 6;
-constexpr int class_num      = 5;
+constexpr int class_num      = 17;
 
 const PermutationVector q_perm{0, 2, 1, 3};
 const PermutationVector k_perm{2, 0, 1, 3};
@@ -36,12 +36,14 @@ enum class GPT2ResOrder {
     attn_layernorm_weight_0,
     attn_layernorm_bias_0,
     c_attn_weights_0,
+    c_attn_scales_0,
     c_attn_bias_0,
     p_attn_weights_0,
     p_attn_bias_0,
     mlp_layernorm_weights_0,
     mlp_layernorm_bias_0,
     reordered_c_fc_weights_0,
+    c_fc_scales_0,
     c_fc_bias_0,
     c_proj_weights_0,
     c_proj_bias_0,
@@ -49,12 +51,14 @@ enum class GPT2ResOrder {
     attn_layernorm_weight_1,
     attn_layernorm_bias_1,
     c_attn_weights_1,
+    c_attn_scales_1,
     c_attn_bias_1,
     p_attn_weights_1,
     p_attn_bias_1,
     mlp_layernorm_weights_1,
     mlp_layernorm_bias_1,
     reordered_c_fc_weights_1,
+    c_fc_scales_1,
     c_fc_bias_1,
     c_proj_weights_1,
     c_proj_bias_1,
@@ -62,12 +66,14 @@ enum class GPT2ResOrder {
     attn_layernorm_weight_2,
     attn_layernorm_bias_2,
     c_attn_weights_2,
+    c_attn_scales_2,
     c_attn_bias_2,
     p_attn_weights_2,
     p_attn_bias_2,
     mlp_layernorm_weights_2,
     mlp_layernorm_bias_2,
     reordered_c_fc_weights_2,
+    c_fc_scales_2,
     c_fc_bias_2,
     c_proj_weights_2,
     c_proj_bias_2,
@@ -75,12 +81,14 @@ enum class GPT2ResOrder {
     attn_layernorm_weight_3,
     attn_layernorm_bias_3,
     c_attn_weights_3,
+    c_attn_scales_3,
     c_attn_bias_3,
     p_attn_weights_3,
     p_attn_bias_3,
     mlp_layernorm_weights_3,
     mlp_layernorm_bias_3,
     reordered_c_fc_weights_3,
+    c_fc_scales_3,
     c_fc_bias_3,
     c_proj_weights_3,
     c_proj_bias_3,
@@ -88,12 +96,14 @@ enum class GPT2ResOrder {
     attn_layernorm_weight_4,
     attn_layernorm_bias_4,
     c_attn_weights_4,
+    c_attn_scales_4,
     c_attn_bias_4,
     p_attn_weights_4,
     p_attn_bias_4,
     mlp_layernorm_weights_4,
     mlp_layernorm_bias_4,
     reordered_c_fc_weights_4,
+    c_fc_scales_4,
     c_fc_bias_4,
     c_proj_weights_4,
     c_proj_bias_4,
@@ -101,12 +111,14 @@ enum class GPT2ResOrder {
     attn_layernorm_weight_5,
     attn_layernorm_bias_5,
     c_attn_weights_5,
+    c_attn_scales_5,
     c_attn_bias_5,
     p_attn_weights_5,
     p_attn_bias_5,
     mlp_layernorm_weights_5,
     mlp_layernorm_bias_5,
     reordered_c_fc_weights_5,
+    c_fc_scales_5,
     c_fc_bias_5,
     c_proj_weights_5,
     c_proj_bias_5,
@@ -181,6 +193,10 @@ private:
 
     BIErrCode load_weight_tensors(std::array<BITensor, layer_num> &tensors, GPT2ResOrder res_order, OrderPtrMap &order2ptr, int step);
 
+    BIErrCode load_weight_tensor_and_dequantization(BITensor &tensor, BITensor &tensor_output, GPT2ResOrder res_order, OrderPtrMap &order2ptr, std::vector<float> &scales);
+
+    BIErrCode load_scale_vector(std::vector<float> &scales, GPT2ResOrder res_order, OrderPtrMap &order2ptr);
+
     BIErrCode load_hyper_params(OrderPtrMap &order2ptr);
 
     BIErrCode load_all_non_dynamic_tensors(OrderPtrMap &order2ptr);
@@ -225,13 +241,15 @@ private:
     BITensor _add_weight_tensor;
     std::array<BITensor, layer_num> _attn_gamma_weight_tensors;
     std::array<BITensor, layer_num> _attn_gamma_bias_tensors;
-    std::array<BITensor, layer_num> _c_attn_weight_tensors;
+    std::array<BITensor, layer_num> _c_attn_weight_tensors;     //awq反量化结果
+    std::array<BITensor, layer_num> _c_attn_awq_weight_tensors; //awq量化结果
     std::array<BITensor, layer_num> _c_attn_bias_tensors;
     std::array<BITensor, layer_num> _p_attn_weight_tensors;
     std::array<BITensor, layer_num> _p_attn_bias_tensors;
     std::array<BITensor, layer_num> _mlp_weight_tensors;
     std::array<BITensor, layer_num> _mlp_bias_tensors;
-    std::array<BITensor, layer_num> _c_fc_weight_tensors;
+    std::array<BITensor, layer_num> _c_fc_weight_tensors;       //awq反量化结果
+    std::array<BITensor, layer_num> _c_fc_awq_weight_tensors;   //awq量化结果
     std::array<BITensor, layer_num> _c_fc_bias_tensors;
     std::array<BITensor, layer_num> _c_proj_weight_tensors;
     std::array<BITensor, layer_num> _c_proj_bias_tensors;
