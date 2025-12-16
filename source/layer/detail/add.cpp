@@ -4,7 +4,6 @@
 
 #include <layer/detail/add.hpp>
 #include <layer/abstract/layer_factory.hpp>
-#include "omp.h"
 
 namespace BatmanInfer {
     InferStatus AddLayer::Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
@@ -39,7 +38,6 @@ namespace BatmanInfer {
         }
 
         // Parallelize the element-wise addition
-#pragma omp parallel for
         for (uint32_t j = 0; j < input1->size(); ++j)
             output->index(j) = input1->index(j) + input2->index(j);
 

@@ -4,7 +4,6 @@
 
 #include <layer/detail/global_average_pool.hpp>
 #include <layer/abstract/layer_factory.hpp>
-#include "omp.h"
 
 namespace BatmanInfer {
     // Confirm this one is just one batch size, not multi batches size
@@ -52,7 +51,6 @@ namespace BatmanInfer {
         }
 
         // Perform global average pooling
-#pragma omp parallel for collapse(2)
         for (uint32_t n = 0; n < batch_size; ++n) {
             for (uint32_t c = 0; c < channels; ++c) {
                 float sum = 0.0f;

@@ -8,7 +8,6 @@
 #include <utils/utils.hpp>
 #include <runtime/bi_scheduler.hpp>
 #include <thread>
-#include <omp.h>
 #include "function_info/bi_MatMulInfo.h"
 
 using namespace BatmanInfer;

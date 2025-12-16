@@ -5,7 +5,6 @@
 #include <layer/detail/div.hpp>
 #include <layer/abstract/layer_factory.hpp>
 #include <data/tensor_util.hpp>
-#include "omp.h"
 
 namespace BatmanInfer {
     InferStatus DivLayer::Forward(

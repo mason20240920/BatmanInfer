@@ -9,7 +9,6 @@
 #include <data/core/bi_helpers.hpp>
 #include <data/core/bi_utils.hpp>
 
-#include <omp.h>
 
 #include "kv_cache_manager/block/physical_block.hpp"
 #include "model_interface/gpt2_model.h"
@@ -30,8 +29,8 @@ namespace BatmanInfer {
                                         _nonlittle_num_cpus(cpu_info().get_cpu_num_excluding_little()) {}
 #else
 
-    BIOMPScheduler::BIOMPScheduler() : _num_threads(omp_get_max_threads()),
-                                       _nonlittle_num_cpus(cpu_info().get_cpu_num_excluding_little()) {
+    BIOMPScheduler::BIOMPScheduler() : _num_threads(1),
+                                      _nonlittle_num_cpus(cpu_info().get_cpu_num_excluding_little()) {
     }
 
 #endif
@@ -41,14 +40,12 @@ namespace BatmanInfer {
     }
 
     void BIOMPScheduler::set_num_threads(unsigned int num_threads) {
-        const unsigned int num_cores = omp_get_max_threads();
 #if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
     (defined(__arm__) || defined(__aarch64__)) && defined(__ANDROID__)
-        const unsigned int adjusted_num_threads = std::min(_nonlittle_num_cpus, num_threads);
-    _num_threads                            = (num_threads == 0) ? num_cores : adjusted_num_threads;
+         _num_threads = std::min(_nonlittle_num_cpus, num_threads);
 #else  /* !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
     (defined(__arm__) || defined(__aarch64__)) && defined(__ANDROID__)*/
-        _num_threads = (num_threads == 0) ? num_cores : num_threads;
+        _num_threads = num_threads;
 #endif /* !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
     (defined(__arm__) || defined(__aarch64__)) && defined(__ANDROID__)*/
     }
@@ -460,15 +457,10 @@ namespace BatmanInfer {
          * proc_bind(close)：绑定线程到接近的处理器核，以减少线程迁移的开销。
          * schedule(static, 1)：静态调度，每个线程分配固定数量的迭代（这里每次分配 1 个任务）
          */
-#pragma omp parallel for firstprivate(info) num_threads(omp_num_threads) default(shared) proc_bind(close) \
-    schedule(static, 1)
         // 遍历所有任务的索引 wid，范围是 [0, amount_of_work)
         for (unsigned int wid = 0; wid < amount_of_work; ++wid) {
-            // 获取当前线程的 ID（tid），这是 OpenMP 提供的函数
-            const int tid = omp_get_thread_num();
-
             // 当前线程的 ID 存储到 info.thread_id 中
-            info.thread_id = tid;
+            info.thread_id = wid;
             // 执行工作负载
             workloads[wid](info);
         }

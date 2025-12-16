@@ -57,7 +57,6 @@ namespace BatmanInfer {
         bool shape_mismatch = false;
 
         // 通过 shared(shape_mismatch) 共享变量，用于标记是否存在形状不匹配
-#pragma omp parallel for shared(shape_mismatch)
         for (uint32_t i = 1; i < num_inputs; ++i) {
             // 如果已经发现不匹配，跳过检查
             if (shape_mismatch) continue;
@@ -65,7 +64,6 @@ namespace BatmanInfer {
             const auto &input = inputs.at(i);
             // 验证input里面的Tensor是否都存在
             if (input == nullptr || input->empty()) {
-#pragma omp critical
                 LOG(ERROR) << "One of the input tensors in the Concat layer is empty";
                 shape_mismatch = true;
             }
@@ -75,14 +73,12 @@ namespace BatmanInfer {
             // 如果axis_是0，走batch size合并，否则走[C, W, H]合并
             if (axis_ == 0) {
                 if (shape != first_shape) {
-#pragma omp critical
                     LOG(ERROR) << "Input tensor batch size shapes do not match for Concat layer";
                     shape_mismatch = true;
                 }
             } else {
                 for (size_t dim = 0; dim < shape.size(); ++dim) {
                     if (dim != static_cast<size_t>(axis_ - 1) && shape[dim] != first_shape[dim]) {
-#pragma omp critical
                         LOG(ERROR) << "Input tensor shapes do not match for Concat layer";
                         shape_mismatch = true;
                     }

@@ -4,7 +4,6 @@
 
 #include <layer/detail/expand.hpp>
 #include "layer/abstract/layer_factory.hpp"
-#include "omp.h"
 
 namespace BatmanInfer {
     InferStatus ExpandLayer::Forward(const std::vector<std::shared_ptr<Tensor<float>>> &inputs,
@@ -24,20 +23,17 @@ namespace BatmanInfer {
         bool batch_mismatch = false;
 
         const uint32_t batch_size = inputs.size();
-#pragma omp parallel for shared(batch_mismatch)
         for (uint32_t i = 0; i < batch_size; ++i) {
             if (batch_mismatch) continue;
 
             const sftensor &input_data = inputs.at(i);
             const sftensor &output_data = outputs.at(i);
             if (input_data == nullptr || input_data->empty()) {
-#pragma omp critical
                 LOG(ERROR) << "The input tensor array in the expand layer has an empty tensor "
                            << i << " th";
                 batch_mismatch = true;
             }
             if (output_data == nullptr || output_data->empty()) {
-#pragma omp critical
                 LOG(ERROR) << "The output tensor array in the expand layer has an empty tensor "
                            << i << " th";
                 batch_mismatch = true;
@@ -48,7 +44,6 @@ namespace BatmanInfer {
             return InferStatus::bInferFailedInputEmpty;
 
         // 进行扩张
-#pragma omp parallel for
         for (uint32_t i = 0; i < batch_size; ++i) {
             const std::shared_ptr<Tensor<float>> &input = inputs.at(i);
             auto& output = outputs.at(i);

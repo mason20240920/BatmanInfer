@@ -705,7 +705,6 @@ namespace BatmanInfer {
                 // 标记错误
                 int error_flag = 0;
 
-#pragma omp parallel for
                 for (int op_i = 0; op_i < output_count; ++op_i) {
                     // 如果error报错，直接跳过后面
                     if (error_flag == 1) continue;
@@ -720,7 +719,6 @@ namespace BatmanInfer {
 
                     // 确保输入类型是 Tensor
                     if (!input_type.has_tensor_type()) {
-#pragma omp critical
                         error_flag = 1;
                     }
 

@@ -5,7 +5,6 @@
 #include <layer/detail/gemm.hpp>
 #include <layer/abstract/layer_factory.hpp>
 #include <data/tensor_util.hpp>
-#include <omp.h>
 #include "others/utils.hpp"
 
 namespace BatmanInfer {
@@ -67,7 +66,6 @@ namespace BatmanInfer {
             *output = *result;
 
             // 添加偏置和缩放
-#pragma omp parallel for
             for (int j = 0; j < gemm_height_; ++j) {
                 // 解引用 output 以访问其元素
                 float& output_value = output->at(0, 0, j);

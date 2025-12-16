@@ -5,7 +5,6 @@
 #include <glog/logging.h>
 #include <data/tensor.hpp>
 #include <data/tensor_util.hpp>
-#include <omp.h>
 #include <cblas.h>
 #include <Halide.h>
 
@@ -149,7 +148,7 @@ namespace BatmanInfer {
             }
 
             // 使用 OpenMP 并行化
-#pragma omp parallel for collapse(2)
+// #pragma omp parallel for collapse(2)
             for (uint32_t outer = 0; outer < outer_size; ++outer) {
                 for (uint32_t inner = 0; inner < inner_size; ++inner) {
                     // 计算源和目标的内存偏移量
