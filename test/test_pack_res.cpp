@@ -195,23 +195,45 @@ namespace res_pack {
         json_file >> json_data;
         json_file.close();
 
-        std::string json_str = json_data.dump();
-        size_t json_size = json_str.length();
+        AllLayerHyperParameters all_params;
+        memset(&all_params, 0, sizeof(AllLayerHyperParameters));
 
+        auto layers = json_data["layers"];
+        all_params.layer_count = static_cast<int>(layers.size());
+
+        for (int i = 0; i < all_params.layer_count && i < 6; ++i) {
+            auto &layer = layers[i];
+            all_params.layers[i].attn_input_scale = layer.value("attn_input_scale", 0.f);
+            all_params.layers[i].attn_input_zp = layer.value("attn_input_zp", 0);
+            all_params.layers[i].attn_output_scale = layer.value("attn_output_scale", 0.f);
+            all_params.layers[i].attn_output_zp = layer.value("attn_output_zp", 0);
+            all_params.layers[i].q_output_scale = layer.value("q_output_scale", 0.f);
+            all_params.layers[i].q_output_zp = layer.value("q_output_zp", 0);
+            all_params.layers[i].k_output_scale = layer.value("k_output_scale", 0.f);
+            all_params.layers[i].k_output_zp = layer.value("k_output_zp", 0);
+            all_params.layers[i].v_output_scale = layer.value("v_output_scale", 0.f);
+            all_params.layers[i].v_output_zp = layer.value("v_output_zp", 0);
+            all_params.layers[i].softmax_out_scale = layer.value("softmax_out_scale", 0.f);
+            all_params.layers[i].softmax_out_zp = layer.value("softmax_out_zp", 0);
+            all_params.layers[i].pv_bmm_out_scale = layer.value("pv_bmm_out_scale", 0.f);
+            all_params.layers[i].pv_bmm_out_zp = layer.value("pv_bmm_out_zp", 0);
+            all_params.layers[i].fc1_input_scale = layer.value("fc1_input_scale", 0.f);
+            all_params.layers[i].fc1_input_zp = layer.value("fc1_input_zp", 0);
+            all_params.layers[i].fc1_output_scale = layer.value("fc1_output_scale", 0.f);
+            all_params.layers[i].fc1_output_zp = layer.value("fc1_output_zp", 0);
+            all_params.layers[i].gelu_output_scale = layer.value("gelu_output_scale", 0.f);
+            all_params.layers[i].gelu_output_zp = layer.value("gelu_output_zp", 0);
+        }
+
+        // write header + binary struct
         GPT2ResHeader res_header;
         res_header.res_order = res_order;
-        res_header.data_length = static_cast<int>(json_size);
-        res_header.shape[0] = json_size;
-        for (auto j = 1; j < 6; j++) {
-            res_header.shape[j] = 1;
-        }
-        const std::string json_type_str = "json";
-        memcpy(res_header.data_type, json_type_str.c_str(), json_type_str.length());
+        res_header.data_length = sizeof(AllLayerHyperParameters);
+        memset(&res_header.data_type, 0, 8);
+        memset(&res_header.shape, 0, 6 * sizeof(int));
 
-        // 写入头信息
         dst_file.write(reinterpret_cast<char*>(&res_header), sizeof(res_header));
-        // 写入具体数据
-        dst_file.write(json_str.c_str(), json_size);
+        dst_file.write(reinterpret_cast<char*>(&all_params), sizeof(AllLayerHyperParameters));
 
         return true;
     }

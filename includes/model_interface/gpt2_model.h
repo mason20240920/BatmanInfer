@@ -154,6 +154,38 @@ typedef struct GPT2ResHeader_ {
 
 using OrderPtrMap = std::map<GPT2ResOrder, char *>;
 
+#ifdef FIX_VER
+// 单层量化参数（二进制格式，用于资源打包和加载）
+typedef struct LayerHyperParameters_ {
+    float attn_input_scale;
+    float attn_output_scale;
+    float q_output_scale;
+    float k_output_scale;
+    float v_output_scale;
+    float softmax_out_scale;
+    float pv_bmm_out_scale;
+    float fc1_input_scale;
+    float fc1_output_scale;
+    float gelu_output_scale;
+    int   attn_input_zp;
+    int   attn_output_zp;
+    int   q_output_zp;
+    int   k_output_zp;
+    int   v_output_zp;
+    int   softmax_out_zp;
+    int   pv_bmm_out_zp;
+    int   fc1_input_zp;
+    int   fc1_output_zp;
+    int   gelu_output_zp;
+} LayerHyperParameters;
+
+// 多层量化参数（最多6层）
+typedef struct AllLayerHyperParameters_ {
+    int layer_count;
+    LayerHyperParameters layers[6];
+} AllLayerHyperParameters;
+#endif
+
 class BIGPT2Model final : public BIModelInterfaceBase {
 public:
     explicit BIGPT2Model(std::shared_ptr<BIIMemoryManager> memory_manager);
@@ -240,6 +272,10 @@ private:
 
     std::pair<int8_t, int8_t> unpack_int8_to_int4(int8_t packed);
 private:
+#ifdef FIX_VER
+    AllLayerHyperParameters _all_layer_hyper_params;
+#endif
+
     BIMemoryGroup                               _memory_group;
     std::unique_ptr<BIMemoryGroupResourceScope> _scope_manager;
 

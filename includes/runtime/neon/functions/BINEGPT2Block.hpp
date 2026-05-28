@@ -62,7 +62,11 @@ namespace BatmanInfer {
                        const size_t &max_seq_len,
                        const size_t &max_batch_size,
                        const int layer_idx,
-                       BIITensor *output);
+                       BIITensor *output
+#ifdef FIX_VER
+                       , const struct BIGPTLayerConfig *layer_config = nullptr
+#endif
+                       );
 
         /**
          * @brief 动态GPTBlock的配置

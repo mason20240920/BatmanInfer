@@ -59,7 +59,11 @@ namespace BatmanInfer {
                                  global_config.max_seq_len,
                                  global_config.max_batch_size,
                                  0,
-                                 output);
+                                 output
+#ifdef FIX_VER
+                                 , &layer_configs[0]
+#endif
+                                 );
             _layer_blocks.emplace_back(std::move(gpt_block));
         } else if (_layer_num > 1) {
             // 1. 先进行内存管理
@@ -103,7 +107,11 @@ namespace BatmanInfer {
                                          global_config.max_seq_len,
                                          global_config.max_batch_size,
                                          i,
-                                         &_sub_intermediate_tensors.at(i));
+                                         &_sub_intermediate_tensors.at(i)
+#ifdef FIX_VER
+                                         , &layer_configs[i]
+#endif
+                                         );
                 } else if (i == _layer_num - 1) {
                     // 最后一层的configure
                     gpt_block->configure(&_sub_intermediate_tensors.at(i - 1),
@@ -126,7 +134,11 @@ namespace BatmanInfer {
                                          global_config.max_seq_len,
                                          global_config.max_batch_size,
                                          i,
-                                         output);
+                                         output
+#ifdef FIX_VER
+                                         , &layer_configs[i]
+#endif
+                                         );
                 } else {
                     gpt_block->configure(&_sub_intermediate_tensors.at(i - 1),
                                          layer_configs[i].ln_1_weight,
@@ -148,7 +160,11 @@ namespace BatmanInfer {
                                          global_config.max_seq_len,
                                          global_config.max_batch_size,
                                          i,
-                                         &_sub_intermediate_tensors.at(i));
+                                         &_sub_intermediate_tensors.at(i)
+#ifdef FIX_VER
+                                         , &layer_configs[i]
+#endif
+                                         );
                 }
                 _layer_blocks.emplace_back(std::move(gpt_block));
             }

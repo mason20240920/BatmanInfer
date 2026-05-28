@@ -816,6 +816,19 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     ret = load_weight_tensor(_lm_head_weight_tensor, GPT2ResOrder::transformer_wte_weight, order2ptr, true);
     CHECK_SUCCESS(ret);
 
+#ifdef FIX_VER
+    // 加载 decode_layer_scales（二进制结构体格式）
+    if (order2ptr.find(GPT2ResOrder::decode_layer_scales) != order2ptr.end()) {
+        char *tmp_ptr = order2ptr[GPT2ResOrder::decode_layer_scales];
+        auto header = reinterpret_cast<GPT2ResHeader *>(tmp_ptr);
+        if (header->data_length != sizeof(AllLayerHyperParameters)) {
+            return BIErrCode::BIResDamaged;
+        }
+        auto all_params = reinterpret_cast<AllLayerHyperParameters *>(tmp_ptr + sizeof(GPT2ResHeader));
+        memcpy(&_all_layer_hyper_params, all_params, sizeof(AllLayerHyperParameters));
+    }
+#endif
+
     return BIErrCode::BISuccess;
 }
 
@@ -899,6 +912,30 @@ BIErrCode BIGPT2Model::init_configure_all_layers(const std::vector<int> &tensor_
             layer_config.ln_2_weight = &_mlp_weight_tensors.at(i);
             layer_config.act_info = act_info;
             layer_config.layer_idx = i;
+
+#ifdef FIX_VER
+            layer_config.gemm_i_scale = _all_layer_hyper_params.layers[i].attn_input_scale;
+            layer_config.gemm_i_zp = _all_layer_hyper_params.layers[i].attn_input_zp;
+            layer_config.attn_gemm_o_scale = _all_layer_hyper_params.layers[i].attn_output_scale;
+            layer_config.attn_gemm_o_zp = _all_layer_hyper_params.layers[i].attn_output_zp;
+            layer_config.query_q_scale = _all_layer_hyper_params.layers[i].q_output_scale;
+            layer_config.query_q_zp = _all_layer_hyper_params.layers[i].q_output_zp;
+            layer_config.value_q_scale = _all_layer_hyper_params.layers[i].v_output_scale;
+            layer_config.value_q_zp = _all_layer_hyper_params.layers[i].v_output_zp;
+            layer_config.key_q_scale = _all_layer_hyper_params.layers[i].k_output_scale;
+            layer_config.key_q_zp = _all_layer_hyper_params.layers[i].k_output_zp;
+            layer_config.softmax_out_scale = _all_layer_hyper_params.layers[i].softmax_out_scale;
+            layer_config.softmax_out_zp = _all_layer_hyper_params.layers[i].softmax_out_zp;
+            layer_config.pv_bmm_out_scale = _all_layer_hyper_params.layers[i].pv_bmm_out_scale;
+            layer_config.pv_bmm_out_zp = _all_layer_hyper_params.layers[i].pv_bmm_out_zp;
+            layer_config.fc1_input_scale = _all_layer_hyper_params.layers[i].fc1_input_scale;
+            layer_config.fc1_input_zp = _all_layer_hyper_params.layers[i].fc1_input_zp;
+            layer_config.fc1_output_scale = _all_layer_hyper_params.layers[i].fc1_output_scale;
+            layer_config.fc1_output_zp = _all_layer_hyper_params.layers[i].fc1_output_zp;
+            layer_config.gelu_output_scale = _all_layer_hyper_params.layers[i].gelu_output_scale;
+            layer_config.gelu_output_zp = _all_layer_hyper_params.layers[i].gelu_output_zp;
+#endif
+
             gpt_layer_configs.emplace_back(std::move(layer_config));
         }
 

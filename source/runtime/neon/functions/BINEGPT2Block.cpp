@@ -42,7 +42,11 @@ namespace BatmanInfer {
                                   const size_t &max_seq_len,
                                   const size_t &max_batch_size,
                                   const int layer_idx,
-                                  BIITensor *output) {
+                                  BIITensor *output
+#ifdef FIX_VER
+                                  , const struct BIGPTLayerConfig *layer_config
+#endif
+                                  ) {
         _layer_idx = layer_idx;
         BI_COMPUTE_ERROR_ON_NULLPTR(input, ln_1_weight, c_attn_bias, c_attn_weights, output);
         BI_COMPUTE_LOG_PARAMS(input, ln_1_weight, c_attn_weights, output);
@@ -80,6 +84,39 @@ namespace BatmanInfer {
         _sub_mlp_output.allocator()->init(_sub_mlp_output_info);
 
 #ifdef FIX_VER
+        // 从 layer_config 获取量化参数，如果没有提供则使用默认值
+        float gemm_i_scale = 0.05f;
+        int gemm_i_zp = 0;
+        float attn_gemm_o_scale = 0.03f;
+        int attn_gemm_o_zp = 0;
+        float query_q_scale = 0.04f;
+        int query_q_zp = 0;
+        float value_q_scale = 0.04f;
+        int value_q_zp = 0;
+        float key_q_scale = 0.04f;
+        int key_q_zp = 0;
+        float softmax_out_scale = 0.007f;
+        int softmax_out_zp = 0;
+        float pv_bmm_out_scale = 0.02f;
+        int pv_bmm_out_zp = 0;
+
+        if (layer_config != nullptr) {
+            gemm_i_scale = layer_config->gemm_i_scale;
+            gemm_i_zp = layer_config->gemm_i_zp;
+            attn_gemm_o_scale = layer_config->attn_gemm_o_scale;
+            attn_gemm_o_zp = layer_config->attn_gemm_o_zp;
+            query_q_scale = layer_config->query_q_scale;
+            query_q_zp = layer_config->query_q_zp;
+            value_q_scale = layer_config->value_q_scale;
+            value_q_zp = layer_config->value_q_zp;
+            key_q_scale = layer_config->key_q_scale;
+            key_q_zp = layer_config->key_q_zp;
+            softmax_out_scale = layer_config->softmax_out_scale;
+            softmax_out_zp = layer_config->softmax_out_zp;
+            pv_bmm_out_scale = layer_config->pv_bmm_out_scale;
+            pv_bmm_out_zp = layer_config->pv_bmm_out_zp;
+        }
+
         _attn_lowp_layer.configure(input,
                                    ln_1_weight,
                                    c_attn_weights,
@@ -87,20 +124,20 @@ namespace BatmanInfer {
                                    o_attn_weights,
                                    o_attn_bias,
                                    eos_weights,
-                                   0.05f,      // gemm_i_scale
-                                   0,          // gemm_i_zp
-                                   0.03f,      // attn_gemm_o_scale
-                                   0,          // attn_gemm_o_zp
-                                   0.04f,      // query_q_scale
-                                   0,          // query_q_zp
-                                   0.04f,      // value_q_scale
-                                   0,          // value_q_zp
-                                   0.04f,      // key_q_scale
-                                   0,          // key_q_zp
-                                   0.007f,     // softmax_out_scale
-                                   0,          // softmax_out_zp
-                                   0.02f,      // pv_bmm_out_scale
-                                   0,          // pv_bmm_out_zp
+                                   gemm_i_scale,
+                                   gemm_i_zp,
+                                   attn_gemm_o_scale,
+                                   attn_gemm_o_zp,
+                                   query_q_scale,
+                                   query_q_zp,
+                                   value_q_scale,
+                                   value_q_zp,
+                                   key_q_scale,
+                                   key_q_zp,
+                                   softmax_out_scale,
+                                   softmax_out_zp,
+                                   pv_bmm_out_scale,
+                                   pv_bmm_out_zp,
                                    q_perm,
                                    k_perm,
                                    qkv_perm,
@@ -131,16 +168,33 @@ namespace BatmanInfer {
                              &_sub_add_output,
                              BIConvertPolicy::SATURATE);
 #ifdef FIX_VER
+        // 从 layer_config 获取 MLP 量化参数，如果没有提供则使用默认值
+        float fc1_input_scale = 0.05f;
+        int fc1_input_zp = 0;
+        float fc1_output_scale = 0.03f;
+        int fc1_output_zp = 0;
+        float gelu_output_scale = 0.04f;
+        int gelu_output_zp = 0;
+
+        if (layer_config != nullptr) {
+            fc1_input_scale = layer_config->fc1_input_scale;
+            fc1_input_zp = layer_config->fc1_input_zp;
+            fc1_output_scale = layer_config->fc1_output_scale;
+            fc1_output_zp = layer_config->fc1_output_zp;
+            gelu_output_scale = layer_config->gelu_output_scale;
+            gelu_output_zp = layer_config->gelu_output_zp;
+        }
+
         _mlp_layer.configure(&_sub_add_output,
-                             0.05f,      // fc1_input_scale
-                             0,          // fc1_input_zero_point
+                             fc1_input_scale,
+                             fc1_input_zp,
                              fc_weights,
                              fc_bias,
                              nullptr,    // c_fc_weight_qinfo
-                             0.03f,      // fc1_output_scale
-                             0,          // fc1_output_zero_point
-                             0.04f,      // gelu_output_scale
-                             0,          // gelu_output_zero_point
+                             fc1_output_scale,
+                             fc1_output_zp,
+                             gelu_output_scale,
+                             gelu_output_zp,
                              proj_weights,
                              proj_bias,
                              ln_2_weight,
