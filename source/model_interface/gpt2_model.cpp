@@ -503,7 +503,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     const BITensorShape c_attn_weight_tensor_shape(hidden_size * 3, hidden_size);
     for (int i = 0; i < layer_num; ++i) {
         _c_attn_weight_tensors[i].allocator()->init(BITensorInfo(c_attn_weight_tensor_shape, 1, BIDataType::F16));
-        _c_attn_awq_weight_tensors[i].allocator()->init(BITensorInfo(c_attn_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
+        _c_attn_unpacked_weight_tensors[i].allocator()->init(BITensorInfo(c_attn_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
     }
 
     const BITensorShape c_attn_bias_tensor_shape(hidden_size * 3);
@@ -525,7 +525,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     const BITensorShape c_fc_weight_tensor_shape(hidden_size * 4, hidden_size);
     for (int i = 0; i < layer_num; ++i) {
         _c_fc_weight_tensors[i].allocator()->init(BITensorInfo(c_fc_weight_tensor_shape, 1, BIDataType::F16));
-        _c_fc_awq_weight_tensors[i].allocator()->init(BITensorInfo(c_fc_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
+        _c_fc_unpacked_weight_tensors[i].allocator()->init(BITensorInfo(c_fc_weight_tensor_shape, 1, BIDataType::QSYMM8_PER_CHANNEL));
     }
 
     const BITensorShape c_fc_bias_tensor_shape(hidden_size * 4);
@@ -576,7 +576,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     }
     for (int i = 0; i < layer_num; ++i) {
         _memory_group.manage(&(_c_attn_weight_tensors[i]));
-        _memory_group.manage(&(_c_attn_awq_weight_tensors[i]));
+        _memory_group.manage(&(_c_attn_unpacked_weight_tensors[i]));
     }
     for (int i = 0; i < layer_num; ++i) {
         _memory_group.manage(&(_c_attn_bias_tensors[i]));
@@ -590,7 +590,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     }
     for (int i = 0; i < layer_num; ++i) {
         _memory_group.manage(&(_c_fc_weight_tensors[i]));
-        _memory_group.manage(&(_c_fc_awq_weight_tensors[i]));
+        _memory_group.manage(&(_c_fc_unpacked_weight_tensors[i]));
     }
     for (int i = 0; i < layer_num; ++i) {
         _memory_group.manage(&(_c_fc_bias_tensors[i]));
@@ -623,7 +623,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     }
     for (int i = 0; i < layer_num; ++i) {
         _c_attn_weight_tensors[i].allocator()->allocate();
-        _c_attn_awq_weight_tensors[i].allocator()->allocate();
+        _c_attn_unpacked_weight_tensors[i].allocator()->allocate();
     }
     for (int i = 0; i < layer_num; ++i) {
         _c_attn_bias_tensors[i].allocator()->allocate();
@@ -637,7 +637,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
     }
     for (int i = 0; i < layer_num; ++i) {
         _c_fc_weight_tensors[i].allocator()->allocate();
-        _c_fc_awq_weight_tensors[i].allocator()->allocate();
+        _c_fc_unpacked_weight_tensors[i].allocator()->allocate();
     }
     for (int i = 0; i < layer_num; ++i) {
         _c_fc_bias_tensors[i].allocator()->allocate();
@@ -679,7 +679,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
         ret = load_scale_vector(c_attn_scales, static_cast<GPT2ResOrder>(static_cast<int>(GPT2ResOrder::c_attn_scales_0) + i*15), order2ptr);
         CHECK_SUCCESS(ret);
 
-        ret = load_weight_tensor_and_dequantization(_c_attn_awq_weight_tensors[i], _c_attn_weight_tensors[i],
+        ret = load_weight_tensor_and_dequantization(_c_attn_unpacked_weight_tensors[i], _c_attn_weight_tensors[i],
             static_cast<GPT2ResOrder>(static_cast<int>(GPT2ResOrder::c_attn_weights_0) + i*15), order2ptr, c_attn_scales);
         CHECK_SUCCESS(ret);
     }
@@ -706,7 +706,7 @@ BIErrCode BIGPT2Model::load_all_non_dynamic_tensors(OrderPtrMap &order2ptr) {
         ret = load_scale_vector(c_fc_scales, static_cast<GPT2ResOrder>(static_cast<int>(GPT2ResOrder::c_fc_scales_0) + i*15), order2ptr);
         CHECK_SUCCESS(ret);
 
-        ret = load_weight_tensor_and_dequantization(_c_fc_awq_weight_tensors[i],_c_fc_weight_tensors[i],
+        ret = load_weight_tensor_and_dequantization(_c_fc_unpacked_weight_tensors[i],_c_fc_weight_tensors[i],
             static_cast<GPT2ResOrder>(static_cast<int>(GPT2ResOrder::reordered_c_fc_weights_0) + i*15), order2ptr, c_fc_scales);
         CHECK_SUCCESS(ret);
     }

@@ -253,14 +253,14 @@ private:
     BITensor _gather_weight_tensor;
     BITensor _add_weight_tensor;
     std::array<BITensor, 6> _attn_gamma_weight_tensors;
-    std::array<BITensor, 6> _c_attn_weight_tensors;     //awq反量化结果
-    std::array<BITensor, 6> _c_attn_awq_weight_tensors; //awq量化结果
+    std::array<BITensor, 6> _c_attn_weight_tensors;        //awq反量化结果
+    std::array<BITensor, 6> _c_attn_unpacked_weight_tensors; //解包后的数据（fix和awq共用）
     std::array<BITensor, 6> _c_attn_bias_tensors;
     std::array<BITensor, 6> _p_attn_weight_tensors;
     std::array<BITensor, 6> _p_attn_bias_tensors;
     std::array<BITensor, 6> _mlp_weight_tensors;
-    std::array<BITensor, 6> _c_fc_weight_tensors;      //awq反量化结果
-    std::array<BITensor, 6> _c_fc_awq_weight_tensors;  //awq量化结果
+    std::array<BITensor, 6> _c_fc_weight_tensors;       //awq反量化结果
+    std::array<BITensor, 6> _c_fc_unpacked_weight_tensors;  //解包后的数据（fix和awq共用）
     std::array<BITensor, 6> _c_fc_bias_tensors;
     std::array<BITensor, 6> _c_proj_weight_tensors;
     std::array<BITensor, 6> _c_proj_bias_tensors;
