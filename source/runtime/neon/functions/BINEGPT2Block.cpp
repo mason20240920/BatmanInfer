@@ -167,12 +167,20 @@ namespace BatmanInfer {
     void BINEGPT2Block::run(const int layer_idx, std::vector<unsigned int> &kv_block_ids) {
         prepare();
 
+#ifdef FIX_VER
+        _attn_lowp_layer.run(layer_idx, kv_block_ids);
+#else
         _attn_layer.run(layer_idx, kv_block_ids);
+#endif
         // print_tensor(_sub_attn_output, "_sub_attn_output");
 
         if (0 == layer_idx) {
             // 获取KV Cache Blocks
+#ifdef FIX_VER
+            _attn_lowp_layer.get_kv_block_ids(kv_block_ids);
+#else
             _attn_layer.get_kv_block_ids(kv_block_ids);
+#endif
         }
         _add_layer.run();
         // print_tensor(_sub_add_output, "_sub_add_output");
@@ -188,7 +196,11 @@ namespace BatmanInfer {
     }
 
     void BINEGPT2Block::set_avail_lens(std::vector<size_t> *avail_lens) {
+#ifdef FIX_VER
+        _attn_lowp_layer.set_avail_lens(avail_lens);
+#else
         _attn_layer.set_avail_lens(avail_lens);
+#endif
     }
 
 
@@ -211,7 +223,11 @@ namespace BatmanInfer {
         _sub_mlp_output_info.set_tensor_shape(sub_common_shape);
         _sub_mlp_output.allocator()->init(*_mlp_output.allocator(), _sub_mlp_output_info);
 
+#ifdef FIX_VER
+        _attn_lowp_layer.dynamic_configure(input, seq_len, batch_size, kv_caches_vec);
+#else
         _attn_layer.dynamic_configure(input, seq_len, batch_size, kv_caches_vec);
+#endif
         _add_layer.dynamic_configure(input, &_sub_attn_output, false);
         _mlp_layer.dynamic_configure(&_sub_add_output, batch_size);
         _add_2_layer.dynamic_configure(&_sub_mlp_output, &_sub_add_output, false);
