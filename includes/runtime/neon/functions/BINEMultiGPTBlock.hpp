@@ -29,6 +29,35 @@ namespace BatmanInfer {
         BIActivationLayerInfo act_info;
         int layer_idx;
 
+#ifdef FIX_VER
+        // Attention 量化参数
+        float gemm_i_scale = 0.f;
+        int gemm_i_zp = 0;
+        float attn_gemm_o_scale = 0.f;
+        int attn_gemm_o_zp = 0;
+        float query_q_scale = 0.f;
+        int query_q_zp = 0;
+        float value_q_scale = 0.f;
+        int value_q_zp = 0;
+        float key_q_scale = 0.f;
+        int key_q_zp = 0;
+        float softmax_out_scale = 0.f;
+        int softmax_out_zp = 0;
+        float pv_bmm_out_scale = 0.f;
+        int pv_bmm_out_zp = 0;
+
+        // MLP 量化参数
+        float fc1_input_scale = 0.f;
+        int fc1_input_zp = 0;
+        float fc1_output_scale = 0.f;
+        int fc1_output_zp = 0;
+        float gelu_output_scale = 0.f;
+        int gelu_output_zp = 0;
+
+        // fc_weights 的量化信息指针
+        const BIQuantizationInfo *c_fc_weight_qinfo = nullptr;
+#endif
+
         // 构造函数
         BIGPTLayerConfig(): ln_1_weight(nullptr), c_attn_weights(nullptr),
                             c_attn_bias(nullptr), o_attn_weights(nullptr),
