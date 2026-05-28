@@ -39,7 +39,13 @@ BIGPT2Model::BIGPT2Model(int max_seq_len, int max_batch_size, int dict_size, int
     ::head_bs = head_bs;
 
     // 创建 kvcache
+#ifdef FIX_VER
+    // fix版本：K用int8, V用fp16
+    KVCacheManager::initialize(2048, (hidden_size * sizeof(int8_t) + hidden_size * sizeof(float16_t)) * layer_num, max_seq_len, layer_num);
+#else
+    // awq/float版本：KV都用fp16
     KVCacheManager::initialize(2048, hidden_size * sizeof(float16_t) * 2 * layer_num, max_seq_len, layer_num);
+#endif
 
     kv_root_id = KVCacheManager::getInstance().root_id();
 }
