@@ -209,6 +209,8 @@ private:
 
     BIErrCode load_weight_tensor_and_dequantization(BITensor &tensor, BITensor &tensor_output, GPT2ResOrder res_order, OrderPtrMap &order2ptr, std::vector<float> &scales);
 
+    BIErrCode load_weight_tensor_unpack_only(BITensor &tensor, GPT2ResOrder res_order, OrderPtrMap &order2ptr, std::vector<float> &scales);
+
     BIErrCode load_scale_vector(std::vector<float> &scales, GPT2ResOrder res_order, OrderPtrMap &order2ptr);
 
     BIErrCode load_all_non_dynamic_tensors(OrderPtrMap &order2ptr);
