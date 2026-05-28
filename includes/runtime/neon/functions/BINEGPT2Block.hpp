@@ -6,6 +6,10 @@
 #pragma once
 
 #include <runtime/neon/functions/BINEAttentionLayer.hpp>
+#ifdef FIX_VER
+#include <runtime/neon/functions/BINEAttentionLowpLayer.hpp>
+#include <runtime/neon/functions/BINEMLPLayer.hpp>
+#endif
 #include <runtime/neon/functions/BINEFeedForwardLayer.hpp>
 #include <runtime/bi_memory_manager_on_demand.hpp>
 // #include <runtime/neon/bi_ne_functions.h>
@@ -87,9 +91,14 @@ namespace BatmanInfer {
         BIMemoryGroup _memory_group; // 内存组管理
 
         // GPT-2 Block的算子
-        BINEAttentionLayer _attn_layer; // Attn模块算子
+#ifdef FIX_VER
+        BINEAttentionLowpLayer _attn_lowp_layer;  // 量化注意力层
+        BINEMLPLayer           _mlp_layer;         // 量化MLP层
+#else
+        BINEAttentionLayer     _attn_layer;        // fp16注意力层
+        BINEFeedForwardLayer   _mlp_layer;         // fp16 MLP层
+#endif
         BINEArithmeticAddition _add_layer;
-        BINEFeedForwardLayer _mlp_layer; // 全连接层
         BINEArithmeticAddition _add_2_layer;
         BINECopy _copy_layer;
 
