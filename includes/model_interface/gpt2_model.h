@@ -133,6 +133,10 @@ enum class GPT2ResOrder {
 
     mlp_after_rms_gamma,
 
+#ifdef FIX_VER
+    decode_layer_scales,  // JSON格式，包含所有层的量化参数
+#endif
+
     all_res_count,
 };
 
