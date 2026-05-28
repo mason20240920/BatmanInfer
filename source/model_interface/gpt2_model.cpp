@@ -456,6 +456,51 @@ BIErrCode BIGPT2Model::load_weight_tensor_and_dequantization(BITensor &tensor, B
     return BIErrCode::BISuccess;
 }
 
+BIErrCode BIGPT2Model::load_weight_tensor_unpack_only(
+    BITensor &tensor, GPT2ResOrder res_order,
+    OrderPtrMap &order2ptr, std::vector<float> &scales) {
+    if (order2ptr.find(res_order) == order2ptr.end()) {
+        return BIErrCode::BIResNotExists;
+    }
+
+    char *tmp_ptr = order2ptr[res_order];
+    auto header = reinterpret_cast<GPT2ResHeader *>(tmp_ptr);
+
+    // 检查 shape 是否对得上
+    for (size_t i = 0; i < tensor.info()->num_dimensions(); ++i) {
+        if (tensor.info()->tensor_shape()[i] != header->shape[i]) {
+            return BIErrCode::BIResDamaged;
+        }
+    }
+    for (auto i = tensor.info()->num_dimensions(); i < tensor_max_dim; ++i) {
+        if (header->shape[i] != 1) {
+            return BIErrCode::BIResDamaged;
+        }
+    }
+
+    // shape 检查完，验证数据长度
+    if (tensor.info()->total_size() != header->data_length * 2) {
+        return BIErrCode::BIResDamaged;
+    }
+
+    // 读取所有数据并解包
+    tmp_ptr += sizeof(GPT2ResHeader);
+    int8_t tmp_weight = 0;
+    std::vector<int8_t> weights_vec;
+    weights_vec.reserve(header->data_length * 2);
+    for (size_t i = 0; i < header->data_length; ++i) {
+        memcpy(&tmp_weight, tmp_ptr, sizeof(int8_t));
+        tmp_ptr += sizeof(int8_t);
+        std::pair<int8_t, int8_t> tmp_rlt = unpack_int8_to_int4(tmp_weight);
+        weights_vec.emplace_back(tmp_rlt.first);
+        weights_vec.emplace_back(tmp_rlt.second);
+    }
+    memcpy(tensor.buffer(), weights_vec.data(), weights_vec.size() * sizeof(int8_t));
+    tensor.info()->set_quantization_info(scales);
+
+    return BIErrCode::BISuccess;
+}
+
 BIErrCode BIGPT2Model::load_scale_vector(std::vector<float> &scales, GPT2ResOrder res_order, OrderPtrMap &order2ptr) {
     if (order2ptr.find(res_order) == order2ptr.end()) {
         return BIErrCode::BIResNotExists;
