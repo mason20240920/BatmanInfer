@@ -182,6 +182,40 @@ namespace res_pack {
         return true;
     }
 
+    // 本函数读取 JSON 文件并进行存储
+    bool read_and_write_json(int res_order, const std::string &path_prefix, const std::string &res_path,
+        std::fstream &dst_file) {
+        std::ifstream json_file(path_prefix + res_path);
+        if (!json_file.is_open()) {
+            std::cout << "Cannot open file: " << path_prefix << res_path << "!" << std::endl;
+            return false;
+        }
+
+        nlohmann::json json_data;
+        json_file >> json_data;
+        json_file.close();
+
+        std::string json_str = json_data.dump();
+        size_t json_size = json_str.length();
+
+        GPT2ResHeader res_header;
+        res_header.res_order = res_order;
+        res_header.data_length = static_cast<int>(json_size);
+        res_header.shape[0] = json_size;
+        for (auto j = 1; j < 6; j++) {
+            res_header.shape[j] = 1;
+        }
+        const std::string json_type_str = "json";
+        memcpy(res_header.data_type, json_type_str.c_str(), json_type_str.length());
+
+        // 写入头信息
+        dst_file.write(reinterpret_cast<char*>(&res_header), sizeof(res_header));
+        // 写入具体数据
+        dst_file.write(json_str.c_str(), json_size);
+
+        return true;
+    }
+
     // 本函数将 int8(有符号) 转为 int4(有符号) 进行存储使用
     int read_and_write_npy_int8toint4(int res_order, const std::string &path_prefix, const std::string &res_path,
         std::fstream &dst_file) {
@@ -360,6 +394,7 @@ TEST(ResPack, PackGPT) {
                     res_paths[static_cast<GPT2ResOrder>(i)], dst_file);
                 break;
             }
+#if defined(FIX_VER) || defined(AWQ_VER)
             case GPT2ResOrder::c_attn_weights_0:
             case GPT2ResOrder::reordered_c_fc_weights_0:
             case GPT2ResOrder::c_attn_weights_1:
@@ -392,6 +427,14 @@ TEST(ResPack, PackGPT) {
                     res_paths[static_cast<GPT2ResOrder>(i)],dst_file);
                 break;
             }
+#endif
+#ifdef FIX_VER
+            case GPT2ResOrder::decode_layer_scales: {
+                ret = res_pack::read_and_write_json(static_cast<int>(cur_order), res_path_prefix,
+                    res_paths[cur_order], dst_file);
+                break;
+            }
+#endif
             default:;
         }
 
