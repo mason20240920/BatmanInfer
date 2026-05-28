@@ -79,6 +79,37 @@ namespace BatmanInfer {
         _sub_mlp_output_info.set_format(Format::F16);
         _sub_mlp_output.allocator()->init(_sub_mlp_output_info);
 
+#ifdef FIX_VER
+        _attn_lowp_layer.configure(input,
+                                   ln_1_weight,
+                                   c_attn_weights,
+                                   c_attn_bias,
+                                   o_attn_weights,
+                                   o_attn_bias,
+                                   eos_weights,
+                                   0.05f,      // gemm_i_scale
+                                   0,          // gemm_i_zp
+                                   0.03f,      // attn_gemm_o_scale
+                                   0,          // attn_gemm_o_zp
+                                   0.04f,      // query_q_scale
+                                   0,          // query_q_zp
+                                   0.04f,      // value_q_scale
+                                   0,          // value_q_zp
+                                   0.04f,      // key_q_scale
+                                   0,          // key_q_zp
+                                   0.007f,     // softmax_out_scale
+                                   0,          // softmax_out_zp
+                                   0.02f,      // pv_bmm_out_scale
+                                   0,          // pv_bmm_out_zp
+                                   q_perm,
+                                   k_perm,
+                                   qkv_perm,
+                                   hidden_size,
+                                   max_seq_len,
+                                   max_batch_size,
+                                   layer_idx,
+                                   &_sub_attn_output);
+#else
         _attn_layer.configure(input,
                               ln_1_weight,
                               c_attn_weights,
@@ -94,10 +125,29 @@ namespace BatmanInfer {
                               max_batch_size,
                               layer_idx,
                               &_sub_attn_output);
+#endif
         _add_layer.configure(input,
                              &_sub_attn_output,
                              &_sub_add_output,
                              BIConvertPolicy::SATURATE);
+#ifdef FIX_VER
+        _mlp_layer.configure(&_sub_add_output,
+                             0.05f,      // fc1_input_scale
+                             0,          // fc1_input_zero_point
+                             fc_weights,
+                             fc_bias,
+                             nullptr,    // c_fc_weight_qinfo
+                             0.03f,      // fc1_output_scale
+                             0,          // fc1_output_zero_point
+                             0.04f,      // gelu_output_scale
+                             0,          // gelu_output_zero_point
+                             proj_weights,
+                             proj_bias,
+                             ln_2_weight,
+                             &_sub_mlp_output,
+                             max_batch_size,
+                             1);
+#else
         _mlp_layer.configure(&_sub_add_output,
                              fc_weights,
                              fc_bias,
@@ -109,6 +159,7 @@ namespace BatmanInfer {
                              hidden_size,
                              max_batch_size,
                              1);
+#endif
 
         _add_2_layer.configure(&_sub_add_output, &_sub_mlp_output, output, BIConvertPolicy::SATURATE);
     }
